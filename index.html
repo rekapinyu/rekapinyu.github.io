@@ -125,7 +125,7 @@
                 <i class="fa-solid fa-wallet"></i>
             </div>
             <div>
-                <h1 class="font-bold text-white text-sm tracking-tight">Laporan Keuangan</h1>
+                <h1 class="font-bold text-white text-sm tracking-tight">Rekap Keuangan</h1>
                 <p class="text-[11px] text-emerald-400 font-medium" id="sidebar-user-name">Dashboard Profesional</p>
             </div>
         </div>
@@ -166,7 +166,7 @@
                 <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
                     <i class="fa-solid fa-wallet text-sm"></i>
                 </div>
-                <h1 class="font-bold text-slate-800 text-sm">Laporan Keuangan</h1>
+                <h1 class="font-bold text-slate-800 text-sm">Rekap Keuangan</h1>
             </div>
             
             <div class="hidden md:block">
@@ -558,9 +558,9 @@
             }
 
             container.innerHTML = historyData.map(item => `
-                <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition">
+                <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition space-y-4">
                     <!-- Text kecil tebal di atas kotak -->
-                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wide flex items-center justify-between border-b border-slate-100 pb-2">
                         <span class="flex items-center gap-1.5">
                             <i class="fa-regular fa-calendar-days text-emerald-600"></i> 
                             ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
@@ -568,23 +568,29 @@
                         <span class="text-slate-400 font-normal lowercase text-[10px]">ID: ${item.id.toString().slice(-4)}</span>
                     </div>
 
-                    <!-- Informasi Pendapatan & Toggle Excel -->
-                    <div class="flex justify-between items-center my-2">
-                        <div>
-                            <span class="text-xs text-slate-400 block font-medium">Pendapatan Hari Ini</span>
-                            <span class="text-xl font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
+                    <!-- Informasi Rincian Harian: Text Biru, Nominal Hijau Ukuran Seragam & Agak Besar -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
+                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Total Pendapatan Hari Ini</span>
+                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                         </div>
-                        
-                        <!-- Toggle View di Excel Warna Hijau -->
-                        <button onclick="exportSingleExcel(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
-                            <i class="fa-solid fa-file-excel"></i> View di Excel
-                        </button>
+                        <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
+                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Total Belanja Hari Ini</span>
+                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.expense || 0)}</span>
+                        </div>
+                        <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
+                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Total Pengeluaran Hari Ini</span>
+                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.cashout || 0)}</span>
+                        </div>
                     </div>
 
-                    <div class="mt-3 pt-3 border-t border-slate-50 grid grid-cols-3 gap-2 text-xs text-slate-500 font-medium">
-                        <span>Belanja: ${formatRupiah(item.expense || 0)}</span>
-                        <span class="text-rose-600">Pengeluaran: ${formatRupiah(item.cashout || 0)}</span>
-                        <span class="text-emerald-600 font-bold text-right">Profit 10%: ${formatRupiah(item.profit)}</span>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span class="text-xs font-bold text-slate-600">Profit 10%: <span class="text-emerald-600 font-extrabold">${formatRupiah(item.profit)}</span></span>
+                        
+                        <!-- Toggle View di Excel Warna Hijau dipindah di bawah -->
+                        <button onclick="exportSingleExcel(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
+                            <i class="fa-solid fa-file-excel"></i> View di Excel
+                        </button>
                     </div>
                 </div>
             `).join('');
