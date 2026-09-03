@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Rekap Keuangan - Modern Desktop</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden">
+
+    <!-- Sidebar Navigation for Desktop & Mobile Responsive -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shrink-0 hidden md:flex">
+        <!-- Logo / Brand Area -->
+        <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shadow-emerald-200">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-800 text-sm tracking-tight">Rekap Keuangan</h1>
+                <p class="text-[11px] text-slate-400 font-medium">Dashboard Profesional</p>
+            </div>
+        </div>
+
+        <!-- Navigation Menu Items -->
+        <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">
+            <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-emerald-600 bg-emerald-50 transition duration-200 group">
+                <i class="fa-solid fa-file-pen w-5 text-center"></i>
+                <span>Input Data</span>
+            </button>
+            <button onclick="switchTab('history')" id="nav-history" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition duration-200 group">
+                <i class="fa-solid fa-clock-rotate-left w-5 text-center text-slate-400 group-hover:text-slate-600"></i>
+                <span>History</span>
+            </button>
+            <button onclick="switchTab('report')" id="nav-report" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition duration-200 group">
+                <i class="fa-solid fa-chart-pie w-5 text-center text-slate-400 group-hover:text-slate-600"></i>
+                <span>Laporan Bulanan</span>
+            </button>
+        </nav>
+
+        <!-- Sidebar Footer Info -->
+        <div class="p-4 border-t border-slate-100">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Sesi Aktif</span>
+                <span id="current-date-sidebar" class="text-xs font-semibold text-slate-700"></span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        <!-- Top Navigation Bar for Mobile & Clean Desktop Header -->
+        <header class="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10">
+            <div class="flex items-center gap-3 md:hidden">
+                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-wallet text-sm"></i>
+                </div>
+                <h1 class="font-bold text-slate-800 text-sm">Rekap Keuangan</h1>
+            </div>
+            
+            <div class="hidden md:block">
+                <h2 id="page-title-header" class="text-base font-bold text-slate-800">Form Input Keuangan Harian</h2>
+                <p id="page-subtitle-header" class="text-xs text-slate-400">Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.</p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="current-date-header">Memuat...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Main View Area -->
+        <main class="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-50/50">
+            <div class="max-w-4xl mx-auto">
+                
+                <!-- VIEW 1: INPUT DATA -->
+                <section id="view-input" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Form Section -->
+                        <div class="lg:col-span-2 bg-white p-6 lg:p-8 rounded-2xl shadow-xs border border-slate-200/80">
+                            <h3 class="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wide">
+                                <i class="fa-solid fa-file-pen text-emerald-600"></i> Form Input Harian
+                            </h3>
+
+                            <form id="finance-form" class="space-y-5">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Pendapatan Hari Ini (Rp)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
+                                        <input type="number" id="income" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Total Belanja Hari Ini (Rp)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
+                                        <input type="number" id="expense" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Pengeluaran Hari Ini (Rp)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
+                                        <input type="number" id="cashout" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 text-sm">
+                                    <i class="fa-solid fa-floppy-disk"></i> Simpan Data Harian
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Realtime Profit Widget Side Card -->
+                        <div class="space-y-4">
+                            <div class="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+                                <div class="absolute -right-6 -bottom-6 text-emerald-500/10 text-8xl font-black pointer-events-none">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-semibold text-emerald-100 uppercase tracking-wider block mb-1">Kalkulator Otomatis</span>
+                                    <h4 class="font-bold text-lg">Estimasi Profit 10%</h4>
+                                </div>
+                                <div class="mt-6 pt-6 border-t border-emerald-500/30">
+                                    <span class="text-xs text-emerald-200 block mb-1">Kamu Hari ini Profit Segini:</span>
+                                    <div id="profit-display" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+                                        Rp 0
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 text-xs text-slate-500 space-y-2">
+                                <div class="font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-info text-emerald-600"></i> Informasi Sistem
+                                </div>
+                                <p>Profit dihitung secara otomatis sebesar 10% dari nominal pendapatan bersih harian yang Anda masukkan.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 2: HISTORY -->
+                <section id="view-history" class="hidden space-y-4">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Riwayat Transaksi Realtime
+                            </h3>
+                            <p class="text-xs text-slate-400">Daftar rekapan harian yang telah tersimpan di sistem.</p>
+                        </div>
+                        <span id="history-count" class="text-xs bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full">0 Data</span>
+                    </div>
+
+                    <!-- List Grid History -->
+                    <div id="history-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Dimasukkan lewat JS -->
+                    </div>
+                </section>
+
+                <!-- VIEW 3: LAPORAN BULANAN -->
+                <section id="view-report" class="hidden space-y-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 mb-4">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-emerald-600"></i> Laporan Rekapitulasi Bulanan
+                        </h3>
+                        <p class="text-xs text-slate-400">Rekap total akumulatif berdasarkan periode Bulan dan Tahun.</p>
+                    </div>
+
+                    <!-- Kotak Grid List Laporan Bulanan -->
+                    <div id="report-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Dimasukkan lewat JS -->
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Mobile Bottom Dock Menu -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-30">
+        <div class="max-w-md mx-auto flex justify-around py-2">
+            <button onclick="switchTab('input')" id="nav-mobile-input" class="flex flex-col items-center py-1 px-3 text-emerald-600 transition">
+                <i class="fa-solid fa-file-pen text-lg mb-0.5"></i>
+                <span class="text-[11px] font-semibold">Input</span>
+            </button>
+            <button onclick="switchTab('history')" id="nav-mobile-history" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i>
+                <span class="text-[11px] font-medium">History</span>
+            </button>
+            <button onclick="switchTab('report')" id="nav-mobile-report" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
+                <span class="text-[11px] font-medium">Laporan</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Custom Modal Notifikasi -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-xl border border-slate-100 transform transition-all">
+            <div id="modal-icon" class="text-4xl mb-3 text-emerald-600"></div>
+            <h3 id="modal-title" class="font-bold text-slate-800 text-base mb-1">Berhasil</h3>
+            <p id="modal-message" class="text-slate-500 text-xs mb-5">Data berhasil disimpan.</p>
+            <button onclick="closeModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-3 rounded-xl transition shadow-sm">OK, Mengerti</button>
+        </div>
+    </div>
+
+    <script>
+        // State & Data Management
+        let historyData = JSON.parse(localStorage.getItem('finance_history_desktop') || '[]');
+
+        // Format Rupiah helper
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        }
+
+        // Tampilkan tanggal header & sidebar
+        function updateHeaderDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateStr = new Date().toLocaleDateString('id-ID', options);
+            document.getElementById('current-date-header').innerText = dateStr;
+            document.getElementById('current-date-sidebar').innerText = dateStr;
+        }
+        updateHeaderDate();
+
+        // Realtime 10% Profit Kalkulator
+        const incomeInput = document.getElementById('income');
+        const profitDisplay = document.getElementById('profit-display');
+
+        incomeInput.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            const profit = val * 0.10;
+            profitDisplay.innerText = formatRupiah(profit);
+        });
+
+        // Tab Switching Logic (Desktop Sidebar & Mobile Dock)
+        function switchTab(tab) {
+            const views = ['input', 'history', 'report'];
+            const titles = {
+                input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
+                history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap dengan opsi ekspor Excel.' },
+                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' }
+            };
+
+            views.forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                
+                // Desktop Sidebar style update
+                const deskNav = document.getElementById(`nav-${v}`);
+                if (deskNav) {
+                    if (v === tab) {
+                        deskNav.className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-emerald-600 bg-emerald-50 transition duration-200 group";
+                        deskNav.querySelector('i').className = "fa-solid w-5 text-center text-emerald-600";
+                    } else {
+                        deskNav.className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition duration-200 group";
+                        deskNav.querySelector('i').className = `fa-solid w-5 text-center text-slate-400 group-hover:text-slate-600`;
+                    }
+                }
+
+                // Mobile Dock style update
+                const mobNav = document.getElementById(`nav-mobile-${v}`);
+                if (mobNav) {
+                    if (v === tab) {
+                        mobNav.className = "flex flex-col items-center py-1 px-3 text-emerald-600 transition";
+                        mobNav.querySelector('span').className = "text-[11px] font-semibold";
+                    } else {
+                        mobNav.className = "flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition";
+                        mobNav.querySelector('span').className = "text-[11px] font-medium";
+                    }
+                }
+            });
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById('page-title-header').innerText = titles[tab].title;
+            document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
+
+            if (tab === 'history') renderHistory();
+            if (tab === 'report') renderReport();
+        }
+
+        // Custom Modal Notif
+        function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-icon').innerHTML = `<i class="${iconClass}"></i>`;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // Handle Form Submit
+        document.getElementById('finance-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const income = parseFloat(document.getElementById('income').value) || 0;
+            const expense = parseFloat(document.getElementById('expense').value) || 0;
+            const cashout = parseFloat(document.getElementById('cashout').value) || 0;
+            const profit = income * 0.10;
+
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const newEntry = {
+                id: Date.now(),
+                day: days[now.getDay()],
+                date: now.getDate(),
+                monthIndex: now.getMonth(),
+                month: months[now.getMonth()],
+                year: now.getFullYear(),
+                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                income: income,
+                expense: expense,
+                cashout: cashout,
+                profit: profit
+            };
+
+            historyData.unshift(newEntry);
+            localStorage.setItem('finance_history_desktop', JSON.stringify(historyData));
+
+            document.getElementById('finance-form').reset();
+            profitDisplay.innerText = "Rp 0";
+
+            showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
+        });
+
+        // Render History Grid List
+        function renderHistory() {
+            const container = document.getElementById('history-grid');
+            document.getElementById('history-count').innerText = `${historyData.length} Data`;
+
+            if (historyData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada riwayat data tersimpan.</p>
+                        <p class="text-xs text-slate-400 mt-1">Silakan input data terlebih dahulu melalui menu Input Data.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = historyData.map(item => `
+                <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition">
+                    <!-- Text kecil tebal di atas kotak -->
+                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-regular fa-calendar-days text-emerald-600"></i> 
+                            ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
+                        </span>
+                        <span class="text-slate-400 font-normal lowercase text-[10px]">ID: ${item.id.toString().slice(-4)}</span>
+                    </div>
+
+                    <!-- Informasi Pendapatan & Toggle Excel -->
+                    <div class="flex justify-between items-center my-2">
+                        <div>
+                            <span class="text-xs text-slate-400 block font-medium">Pendapatan Hari Ini</span>
+                            <span class="text-xl font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
+                        </div>
+                        
+                        <!-- Toggle View di Excel Warna Hijau -->
+                        <button onclick="exportSingleExcel(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
+                            <i class="fa-solid fa-file-excel"></i> View di Excel
+                        </button>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-slate-50 grid grid-cols-3 gap-2 text-xs text-slate-500 font-medium">
+                        <span>Belanja: ${formatRupiah(item.expense || 0)}</span>
+                        <span class="text-rose-600">Pengeluaran: ${formatRupiah(item.cashout || 0)}</span>
+                        <span class="text-emerald-600 font-bold text-right">Profit 10%: ${formatRupiah(item.profit)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Export Single History to Excel
+        function exportSingleExcel(id) {
+            const item = historyData.find(d => d.id === id);
+            if (!item) return;
+
+            const excelData = [{
+                "TGL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
+                "PENDAPATAN HARI INI": item.income,
+                "TOTAL BELANJA": item.expense,
+                "PENGELUARAN HARI INI": item.cashout || 0,
+                "PROFIT 10%": item.profit
+            }];
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Harian");
+            XLSX.writeFile(workbook, `Rekap_Keuangan_${item.date}_${item.month}_${item.year}.xlsx`);
+            
+            showModal("Unduh Berhasil", "File Excel rekap harian berhasil diunduh.");
+        }
+
+        // Render Laporan Bulanan
+        function renderReport() {
+            const container = document.getElementById('report-grid');
+
+            if (historyData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-chart-line text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada laporan bulan ini.</p>
+                        <p class="text-xs text-slate-400 mt-1">Laporan akan muncul otomatis setelah Anda mencatat transaksi.</p>
+                    </div>`;
+                return;
+            }
+
+            // Grouping by Month & Year
+            const grouped = {};
+            historyData.forEach(item => {
+                const key = `${item.month} ${item.year}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        month: item.month,
+                        year: item.year,
+                        income: 0,
+                        expense: 0,
+                        cashout: 0,
+                        profit: 0
+                    };
+                }
+                grouped[key].income += item.income;
+                grouped[key].expense += item.expense;
+                grouped[key].cashout += (item.cashout || 0);
+                grouped[key].profit += item.profit;
+            });
+
+            container.innerHTML = Object.values(grouped).map(group => `
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-alt text-emerald-600"></i> Periode: ${group.month} ${group.year}
+                        </h3>
+                        <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Bulanan</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3.5">
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pendapatan Bulan Ini</span>
+                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.income)}</span>
+                        </div>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja Bulan Ini</span>
+                            <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(group.expense)}</span>
+                        </div>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pengeluaran Bulan Ini</span>
+                            <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(group.cashout)}</span>
+                        </div>
+                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Total Profit Bulan Ini</span>
+                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.profit)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
