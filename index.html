@@ -408,26 +408,35 @@
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
         }
 
-        // Helper untuk format ribuan dengan titik pada input text
-        function formatNumberInput(input) {
-            let value = input.value.replace(/[^0-9]/g, '');
-            if (value) {
-                value = parseInt(value, 10).toLocaleString('id-ID');
+        // Helper untuk parsing input titik otomatis ribuan
+        function parseNum(val) {
+            if (!val) return 0;
+            return parseFloat(val.toString().replace(/\./g, '')) || 0;
+        }
+
+        function formatInputRibuan(input) {
+            let val = input.value.replace(/\D/g, '');
+            if (val) {
+                val = parseInt(val, 10).toLocaleString('id-ID');
             }
-            input.value = value;
+            input.value = val;
         }
 
-        // Helper untuk mengambil nilai angka murni dari input bertitik
-        function getCleanNumber(elementId) {
-            const val = document.getElementById(elementId).value.replace(/\./g, '');
-            return parseFloat(val) || 0;
-        }
-
-        // Pasang event listener format titik otomatis ke input nominal
+        // Pasang Event Listener untuk Auto Titik pada Input Nominal
         ['income', 'expense', 'cashout'].forEach(id => {
-            document.getElementById(id).addEventListener('input', (e) => {
-                formatNumberInput(e.target);
-            });
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    formatInputRibuan(e.target);
+                    
+                    // Update realtime kalkulator profit jika input pendapatan berubah
+                    if (id === 'income') {
+                        const val = parseNum(e.target.value);
+                        const profit = val * 0.10;
+                        profitDisplay.innerText = formatRupiah(profit);
+                    }
+                });
+            }
         });
 
         // Tampilkan tanggal header & sidebar
@@ -440,14 +449,7 @@
         updateHeaderDate();
 
         // Realtime 10% Profit Kalkulator
-        const incomeInput = document.getElementById('income');
         const profitDisplay = document.getElementById('profit-display');
-
-        incomeInput.addEventListener('input', () => {
-            const val = getCleanNumber('income');
-            const profit = val * 0.10;
-            profitDisplay.innerText = formatRupiah(profit);
-        });
 
         // Tab Switching Logic (Desktop Sidebar & Mobile Dock)
         function switchTab(tab) {
@@ -508,9 +510,9 @@
         // Handle Form Submit
         document.getElementById('finance-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const income = getCleanNumber('income');
-            const expense = getCleanNumber('expense');
-            const cashout = getCleanNumber('cashout');
+            const income = parseNum(document.getElementById('income').value);
+            const expense = parseNum(document.getElementById('expense').value);
+            const cashout = parseNum(document.getElementById('cashout').value);
             const profit = income * 0.10;
 
             const now = new Date();
