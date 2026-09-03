@@ -218,7 +218,8 @@
                                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Total Belanja Hari Ini (Rp)</label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
-                                        <input type="text" inputmode="numeric" id="expense" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                        <!-- Atribut required telah dihapus agar bisa dikosongkan -->
+                                        <input type="text" inputmode="numeric" id="expense" placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
                                     </div>
                                 </div>
 
@@ -645,7 +646,7 @@
             const excelData = [{
                 "TGL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
                 "PENDAPATAN HARI INI": item.income,
-                "TOTAL BELANJA": item.expense,
+                "TOTAL BELANJA": item.expense || 0,
                 "PENGELUARAN HARI INI": item.cashout || 0,
                 "PROFIT 10%": item.profit
             }];
@@ -666,14 +667,14 @@
             const excelData = filteredData.map(item => ({
                 "TANGGAL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
                 "PENDAPATAN HARI INI": item.income,
-                "TOTAL BELANJA": item.expense,
+                "TOTAL BELANJA": item.expense || 0,
                 "PENGELUARAN HARI INI": item.cashout || 0,
                 "PROFIT 10%": item.profit
             }));
 
             // Kalkulasi Total Keseluruhan dalam Bulan Tersebut
             const totalIncome = filteredData.reduce((acc, curr) => acc + curr.income, 0);
-            const totalExpense = filteredData.reduce((acc, curr) => acc + curr.expense, 0);
+            const totalExpense = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
             const totalCashout = filteredData.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
             const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
 
@@ -723,7 +724,7 @@
                     };
                 }
                 grouped[key].income += item.income;
-                grouped[key].expense += item.expense;
+                grouped[key].expense += (item.expense || 0);
                 grouped[key].cashout += (item.cashout || 0);
                 grouped[key].profit += item.profit;
             });
