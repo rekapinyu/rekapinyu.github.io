@@ -629,7 +629,35 @@
                     </div>
 
                     <div class="flex items-center justify-end pt-2 border-t border-slate-100">
-                        
+                        <!-- Toggle View di Excel Warna Hijau dipindah di bawah -->
+                        <button onclick="exportSingleExcel(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
+                            <i class="fa-solid fa-file-excel"></i> View di Excel
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Export Single History to Excel
+        function exportSingleExcel(id) {
+            const item = historyData.find(d => d.id === id);
+            if (!item) return;
+
+            const excelData = [{
+                "TGL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
+                "PENDAPATAN HARI INI": item.income,
+                "TOTAL BELANJA": item.expense || 0,
+                "PENGELUARAN HARI INI": item.cashout || 0,
+                "PROFIT 10%": item.profit
+            }];
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Harian");
+            XLSX.writeFile(workbook, `Rekap_Keuangan_${item.date}_${item.month}_${item.year}.xlsx`);
+            
+            showModal("Unduh Berhasil", "File Excel rekap harian berhasil diunduh.");
+        }
 
         // Export Monthly History to Excel (Lengkap Satu Bulan Rekap)
         function exportMonthlyExcel(monthName, yearVal) {
