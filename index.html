@@ -218,7 +218,6 @@
                                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Total Belanja Hari Ini (Rp)</label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
-                                        <!-- Atribut required telah dihapus agar bisa dikosongkan -->
                                         <input type="text" inputmode="numeric" id="expense" placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
                                     </div>
                                 </div>
@@ -488,7 +487,7 @@
             const views = ['input', 'history', 'report'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
-                history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap dengan opsi ekspor Excel.' },
+                history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
                 report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' }
             };
 
@@ -608,7 +607,7 @@
                         <span class="text-slate-400 font-normal lowercase text-[10px]">ID: ${item.id.toString().slice(-4)}</span>
                     </div>
 
-                    <!-- Informasi Rincian Harian: Text Biru, Nominal Hijau Ukuran Seragam & Agak Besar -->
+                    <!-- Informasi Rincian Harian -->
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
                             <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Total Pendapatan</span>
@@ -627,49 +626,22 @@
                             <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.profit)}</span>
                         </div>
                     </div>
-
-                    <div class="flex items-center justify-end pt-2 border-t border-slate-100">
-                        <!-- Toggle View di Excel Warna Hijau dipindah di bawah -->
-                        <button onclick="exportSingleExcel(${item.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
-                            <i class="fa-solid fa-file-excel"></i> View di Excel
-                        </button>
-                    </div>
                 </div>
             `).join('');
         }
 
-        // Export Single History to Excel
-        function exportSingleExcel(id) {
-            const item = historyData.find(d => d.id === id);
-            if (!item) return;
-
-            const excelData = [{
-                "TGL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
-                "PENDAPATAN HARI INI": item.income,
-                "TOTAL BELANJA": item.expense || 0,
-                "PENGELUARAN HARI INI": item.cashout || 0,
-                "PROFIT 10%": item.profit
-            }];
-
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Harian");
-            XLSX.writeFile(workbook, `Rekap_Keuangan_${item.date}_${item.month}_${item.year}.xlsx`);
-            
-            showModal("Unduh Berhasil", "File Excel rekap harian berhasil diunduh.");
-        }
-
-        // Export Monthly History to Excel (Lengkap Satu Bulan Rekap)
+        // Export Monthly History to Excel (Lengkap Realtime sesuai Laporan Bulanan dengan Format Titik Akuntansi)
         function exportMonthlyExcel(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
 
+            // Memetakan data sesuai format Laporan Bulanan dengan angka diberi pemisah titik (.)
             const excelData = filteredData.map(item => ({
-                "TANGGAL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
-                "PENDAPATAN HARI INI": item.income,
-                "TOTAL BELANJA": item.expense || 0,
-                "PENGELUARAN HARI INI": item.cashout || 0,
-                "PROFIT 10%": item.profit
+                "PERIODE / TANGGAL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
+                "PENDAPATAN BULAN INI (RP)": item.income.toLocaleString('id-ID'),
+                "TOTAL BELANJA BULAN INI (RP)": (item.expense || 0).toLocaleString('id-ID'),
+                "PENGELUARAN BULAN INI (RP)": (item.cashout || 0).toLocaleString('id-ID'),
+                "TOTAL PROFIT BULAN INI (RP)": item.profit.toLocaleString('id-ID')
             }));
 
             // Kalkulasi Total Keseluruhan dalam Bulan Tersebut
@@ -678,21 +650,21 @@
             const totalCashout = filteredData.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
             const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
 
-            // Tambahkan baris total rekap di akhir baris Excel
+            // Tambahkan baris total akumulatif persis seperti di Laporan Bulanan
             excelData.push({
-                "TANGGAL": "TOTAL AKUMULASI BULANAN",
-                "PENDAPATAN HARI INI": totalIncome,
-                "TOTAL BELANJA": totalExpense,
-                "PENGELUARAN HARI INI": totalCashout,
-                "PROFIT 10%": totalProfit
+                "PERIODE / TANGGAL": "TOTAL AKUMULASI BULAN INI",
+                "PENDAPATAN BULAN INI (RP)": totalIncome.toLocaleString('id-ID'),
+                "TOTAL BELANJA BULAN INI (RP)": totalExpense.toLocaleString('id-ID'),
+                "PENGELUARAN BULAN INI (RP)": totalCashout.toLocaleString('id-ID'),
+                "TOTAL PROFIT BULAN INI (RP)": totalProfit.toLocaleString('id-ID')
             });
 
             const worksheet = XLSX.utils.json_to_sheet(excelData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${monthName} ${yearVal}`);
-            XLSX.writeFile(workbook, `Laporan_Rekap_Bulanan_${monthName}_${yearVal}.xlsx`);
+            XLSX.writeFile(workbook, `Laporan_Bulanan_${monthName}_${yearVal}.xlsx`);
             
-            showModal("Unduh Berhasil", `File Excel rekap bulan ${monthName} ${yearVal} berhasil diunduh.`);
+            showModal("Unduh Berhasil", `File Excel Laporan Bulanan ${monthName} ${yearVal} berhasil diunduh dengan format akuntansi angka bertitik.`);
         }
 
         // Render Laporan Bulanan
