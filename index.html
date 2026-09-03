@@ -658,6 +658,42 @@
             showModal("Unduh Berhasil", "File Excel rekap harian berhasil diunduh.");
         }
 
+        // Export Monthly History to Excel (Lengkap Satu Bulan Rekap)
+        function exportMonthlyExcel(monthName, yearVal) {
+            const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
+            if (filteredData.length === 0) return;
+
+            const excelData = filteredData.map(item => ({
+                "TANGGAL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
+                "PENDAPATAN HARI INI": item.income,
+                "TOTAL BELANJA": item.expense,
+                "PENGELUARAN HARI INI": item.cashout || 0,
+                "PROFIT 10%": item.profit
+            }));
+
+            // Kalkulasi Total Keseluruhan dalam Bulan Tersebut
+            const totalIncome = filteredData.reduce((acc, curr) => acc + curr.income, 0);
+            const totalExpense = filteredData.reduce((acc, curr) => acc + curr.expense, 0);
+            const totalCashout = filteredData.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
+            const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
+
+            // Tambahkan baris total rekap di akhir baris Excel
+            excelData.push({
+                "TANGGAL": "TOTAL AKUMULASI BULANAN",
+                "PENDAPATAN HARI INI": totalIncome,
+                "TOTAL BELANJA": totalExpense,
+                "PENGELUARAN HARI INI": totalCashout,
+                "PROFIT 10%": totalProfit
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${monthName} ${yearVal}`);
+            XLSX.writeFile(workbook, `Laporan_Rekap_Bulanan_${monthName}_${yearVal}.xlsx`);
+            
+            showModal("Unduh Berhasil", `File Excel rekap bulan ${monthName} ${yearVal} berhasil diunduh.`);
+        }
+
         // Render Laporan Bulanan
         function renderReport() {
             const container = document.getElementById('report-grid');
@@ -688,7 +724,7 @@
                 }
                 grouped[key].income += item.income;
                 grouped[key].expense += item.expense;
-                    grouped[key].cashout += (item.cashout || 0);
+                grouped[key].cashout += (item.cashout || 0);
                 grouped[key].profit += item.profit;
             });
 
@@ -718,6 +754,12 @@
                             <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Total Profit Bulan Ini</span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.profit)}</span>
                         </div>
+                    </div>
+
+                    <div class="flex items-center justify-end pt-2 border-t border-slate-100">
+                        <button onclick="exportMonthlyExcel('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
+                            <i class="fa-solid fa-file-excel"></i> View di Excel (${group.month} ${group.year})
+                        </button>
                     </div>
                 </div>
             `).join('');
