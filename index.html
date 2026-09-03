@@ -203,7 +203,7 @@
                                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Pendapatan Hari Ini (Rp)</label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
-                                        <input type="number" id="income" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                        <input type="text" inputmode="numeric" id="income" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
                                     </div>
                                 </div>
 
@@ -211,7 +211,7 @@
                                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Total Belanja Hari Ini (Rp)</label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
-                                        <input type="number" id="expense" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                        <input type="text" inputmode="numeric" id="expense" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
                                     </div>
                                 </div>
 
@@ -219,7 +219,7 @@
                                     <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Pengeluaran Hari Ini (Rp)</label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">Rp</span>
-                                        <input type="number" id="cashout" required placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                        <input type="text" inputmode="numeric" id="cashout" placeholder="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
                                     </div>
                                 </div>
 
@@ -408,6 +408,28 @@
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
         }
 
+        // Helper untuk format ribuan dengan titik pada input text
+        function formatNumberInput(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            if (value) {
+                value = parseInt(value, 10).toLocaleString('id-ID');
+            }
+            input.value = value;
+        }
+
+        // Helper untuk mengambil nilai angka murni dari input bertitik
+        function getCleanNumber(elementId) {
+            const val = document.getElementById(elementId).value.replace(/\./g, '');
+            return parseFloat(val) || 0;
+        }
+
+        // Pasang event listener format titik otomatis ke input nominal
+        ['income', 'expense', 'cashout'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                formatNumberInput(e.target);
+            });
+        });
+
         // Tampilkan tanggal header & sidebar
         function updateHeaderDate() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -421,8 +443,8 @@
         const incomeInput = document.getElementById('income');
         const profitDisplay = document.getElementById('profit-display');
 
-        incomeInput.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value) || 0;
+        incomeInput.addEventListener('input', () => {
+            const val = getCleanNumber('income');
             const profit = val * 0.10;
             profitDisplay.innerText = formatRupiah(profit);
         });
@@ -486,9 +508,9 @@
         // Handle Form Submit
         document.getElementById('finance-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const income = parseFloat(document.getElementById('income').value) || 0;
-            const expense = parseFloat(document.getElementById('expense').value) || 0;
-            const cashout = parseFloat(document.getElementById('cashout').value) || 0;
+            const income = getCleanNumber('income');
+            const expense = getCleanNumber('expense');
+            const cashout = getCleanNumber('cashout');
             const profit = income * 0.10;
 
             const now = new Date();
