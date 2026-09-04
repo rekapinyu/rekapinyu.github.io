@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS for Excel Export -->
+    <!-- SheetJS for Excel Export (Dibiarkan untuk fungsi lain jika diperlukan) -->
     <script src="https://cdn.xlsxjs.com/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
@@ -908,37 +908,94 @@
             `).join('');
         }
 
-        function exportMonthlyExcel(monthName, yearVal) {
+        // Fungsi Cetak PDF dengan format kolom Tgl, Pendapatan Hari Ini, Total Profit 10%, Total Belanja
+        function printMonthlyPDF(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
 
-            const excelData = filteredData.map(item => ({
-                "PERIODE / TANGGAL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
-                "PENDAPATAN BULAN INI (RP)": item.income.toLocaleString('id-ID'),
-                "TOTAL BELANJA BULAN INI (RP)": (item.expense || 0).toLocaleString('id-ID'),
-                "PENGELUARAN BULAN INI (RP)": (item.cashout || 0).toLocaleString('id-ID'),
-                "TOTAL PROFIT BULAN INI (RP)": item.profit.toLocaleString('id-ID')
-            }));
+            // Urutkan berdasarkan tanggal menaik (1 sampai akhir bulan)
+            filteredData.sort((a, b) => a.date - b.date);
 
             const totalIncome = filteredData.reduce((acc, curr) => acc + curr.income, 0);
-            const totalExpense = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
-            const totalCashout = filteredData.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
             const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
+            const totalExpense = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
 
-            excelData.push({
-                "PERIODE / TANGGAL": "TOTAL AKUMULASI BULAN INI",
-                "PENDAPATAN BULAN INI (RP)": totalIncome.toLocaleString('id-ID'),
-                "TOTAL BELANJA BULAN INI (RP)": totalExpense.toLocaleString('id-ID'),
-                "PENGELUARAN BULAN INI (RP)": totalCashout.toLocaleString('id-ID'),
-                "TOTAL PROFIT BULAN INI (RP)": totalProfit.toLocaleString('id-ID')
+            // Buat jendela cetak baru (Print Window)
+            const printWindow = window.open('', '_blank');
+            
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html lang="id">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Cetak Laporan Bulanan - ${monthName} ${yearVal}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; color: #333; margin: 20px; }
+                        h2 { text-align: center; margin-bottom: 5px; text-transform: uppercase; }
+                        p.subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+                        th, td { border: 1px solid #94a3b8; padding: 10px 12px; text-align: left; }
+                        th { background-color: #065f46; color: white; text-transform: uppercase; font-size: 12px; }
+                        td.number, th.number { text-align: right; }
+                        tr:nth-child(even) { background-color: #f8fafc; }
+                        .total-row { font-weight: bold; background-color: #e2e8f0 !important; }
+                        .footer { margin-top: 30px; text-align: right; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Laporan Rekapitulasi Keuangan Bulanan</h2>
+                    <p class="subtitle">Periode: ${monthName} ${yearVal}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Tgl</th>
+                                <th class="number">Pendapatan Hari Ini</th>
+                                <th class="number">Total Profit 10%</th>
+                                <th class="number">Total Belanja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            filteredData.forEach(item => {
+                htmlContent += `
+                    <tr>
+                        <td>${item.date} ${item.month}</td>
+                        <td class="number">${item.income.toLocaleString('id-ID')}</td>
+                        <td class="number">${item.profit.toLocaleString('id-ID')}</td>
+                        <td class="number">${(item.expense || 0).toLocaleString('id-ID')}</td>
+                    </tr>
+                `;
             });
 
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${monthName} ${yearVal}`);
-            XLSX.writeFile(workbook, `Laporan_Bulanan_${monthName}_${yearVal}.xlsx`);
+            // Baris Total Akumulasi 1 Bulan
+            htmlContent += `
+                        <tr class="total-row">
+                            <td>TOTAL AKUMULASI</td>
+                            <td class="number">${totalIncome.toLocaleString('id-ID')}</td>
+                            <td class="number">${totalProfit.toLocaleString('id-ID')}</td>
+                            <td class="number">${totalExpense.toLocaleString('id-ID')}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <p>Dicetak otomatis dari Aplikasi Rekap Keuangan pada: ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            printWindow.focus();
             
-            showModal("Unduh Berhasil", `File Excel Laporan Bulanan ${monthName} ${yearVal} berhasil diunduh dengan format akuntansi angka bertitik.`);
+            // Jeda sejenak sebelum memicu dialog print browser
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+
+            showModal("Cetak PDF", `Jendela cetak PDF untuk laporan periode ${monthName} ${yearVal} berhasil dibuka.`);
         }
 
         function renderReport() {
@@ -1026,8 +1083,8 @@
                     </div>
 
                     <div class="flex items-center justify-end pt-2 border-t border-slate-100">
-                        <button onclick="exportMonthlyExcel('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
-                            <i class="fa-solid fa-file-excel"></i> View di Excel (${group.month} ${group.year})
+                        <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
+                            <i class="fa-solid fa-file-pdf"></i> Cetak PDF (${group.month} ${group.year})
                         </button>
                     </div>
                 </div>
