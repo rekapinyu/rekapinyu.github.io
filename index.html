@@ -200,7 +200,7 @@
         <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
             <div class="max-w-4xl mx-auto w-full my-auto">
                 
-                <!-- VIEW 1: INPUT DATA (Centered Both Horizontally and Vertically) -->
+                <!-- VIEW 1: INPUT DATA -->
                 <section id="view-input" class="space-y-6">
                     <div class="flex justify-center items-center w-full">
                         <!-- Form Section -->
@@ -240,7 +240,6 @@
                             </form>
                         </div>
 
-                        <!-- Realtime Profit Widget Side Card (Dihilangkan teks tampilannya, fungsi JS tetap aktif) -->
                         <div class="space-y-4 hidden">
                             <div id="profit-display">Rp 0</div>
                         </div>
@@ -249,8 +248,8 @@
 
                 <!-- VIEW NEW: PENGELUARAN -->
                 <section id="view-pengeluaran" class="hidden space-y-6">
-                    <!-- Sticky Input Pengeluaran di Bawah Header (Grid Diatur Samping-Sampingan di HP & PC) -->
-                    <div class="sticky top-0 z-30 bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200/80 mb-6">
+                    <!-- Sticky Input Pengeluaran dinaikkan posisinya tepat di bawah header sticky -->
+                    <div class="sticky top-2 z-30 bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200/80 mb-6">
                         <form id="pengeluaran-form" class="grid grid-cols-12 gap-2 items-center">
                             <div class="col-span-5 relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
@@ -280,7 +279,6 @@
 
                 <!-- VIEW 2: HISTORY -->
                 <section id="view-history" class="hidden space-y-4">
-                    <!-- List Grid History -->
                     <div id="history-grid" class="grid grid-cols-1 gap-4">
                         <!-- Dimasukkan lewat JS -->
                     </div>
@@ -288,7 +286,6 @@
 
                 <!-- VIEW 3: LAPORAN BULANAN -->
                 <section id="view-report" class="hidden space-y-4">
-                    <!-- Kotak Grid List Laporan Bulanan -->
                     <div id="report-grid" class="grid grid-cols-1 gap-4">
                         <!-- Dimasukkan lewat JS -->
                     </div>
@@ -302,7 +299,6 @@
     <div id="sticky-filter-container" class="fixed bottom-16 left-0 right-0 md:left-64 z-20 px-4 py-2 pointer-events-none hidden">
         <div class="max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-2.5 rounded-2xl shadow-xl border border-slate-200/80 pointer-events-auto flex flex-wrap items-center justify-between gap-2">
             
-            <!-- Info Jumlah Data / Label -->
             <div class="hidden sm:flex items-center gap-2 px-2">
                 <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
                     <i class="fa-solid fa-filter"></i>
@@ -313,9 +309,8 @@
                 </div>
             </div>
 
-            <!-- Bagian Form Filter Persegi Panjang Ringkas -->
             <div id="filter-inputs-wrapper" class="flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]">
-                <!-- Diisi Dinamis atau Static HTML dibawah via JS -->
+                <!-- Diisi Dinamis via JS -->
             </div>
         </div>
     </div>
@@ -353,14 +348,12 @@
     </div>
 
     <script>
-        // State & Data Management
         let historyData = JSON.parse(localStorage.getItem('finance_history_desktop') || '[]');
         let pengeluaranData = JSON.parse(localStorage.getItem('finance_pengeluaran_desktop') || '[]');
         let registeredUsers = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
         let currentSessionUser = JSON.parse(localStorage.getItem('finance_active_session') || 'null');
         let isSidebarMinimized = false;
 
-        // Toggle Sidebar Minimize
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const toggleIcon = document.getElementById('sidebar-toggle-icon');
@@ -383,7 +376,6 @@
             }
         }
 
-        // Check Authentication Status on Load
         function checkAuth() {
             const authContainer = document.getElementById('auth-container');
             if (currentSessionUser) {
@@ -395,7 +387,6 @@
         }
         checkAuth();
 
-        // Toggle Login / Register View
         function toggleAuthView(view) {
             const loginCard = document.getElementById('login-card');
             const registerCard = document.getElementById('register-card');
@@ -408,7 +399,6 @@
             }
         }
 
-        // Handle Register Submit
         document.getElementById('register-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const name = document.getElementById('reg-name').value.trim();
@@ -430,7 +420,6 @@
             showModal("Pendaftaran Berhasil", "Akun Anda berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
         });
 
-        // Handle Login Submit
         document.getElementById('login-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const phone = document.getElementById('login-phone').value.trim();
@@ -449,7 +438,6 @@
             showModal("Masuk Berhasil", `Selamat datang kembali, ${user.name}!`);
         });
 
-        // Handle Logout
         function handleLogout() {
             currentSessionUser = null;
             localStorage.removeItem('finance_active_session');
@@ -457,12 +445,10 @@
             toggleAuthView('login');
         }
 
-        // Format Rupiah helper
         function formatRupiah(number) {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
         }
 
-        // Helper untuk parsing input titik otomatis ribuan
         function parseNum(val) {
             if (!val) return 0;
             return parseFloat(val.toString().replace(/\./g, '')) || 0;
@@ -476,7 +462,6 @@
             input.value = val;
         }
 
-        // Pasang Event Listener untuk Auto Titik pada Input Nominal
         ['income', 'expense', 'cashout', 'pengeluaran-nominal'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -492,7 +477,6 @@
             }
         });
 
-        // Tampilkan tanggal header & sidebar
         function updateHeaderDate() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const dateStr = new Date().toLocaleDateString('id-ID', options);
@@ -501,10 +485,8 @@
         }
         updateHeaderDate();
 
-        // Realtime 10% Profit Kalkulator
         const profitDisplay = document.getElementById('profit-display');
 
-        // Tab Switching Logic (Desktop Sidebar & Mobile Dock)
         function switchTab(tab) {
             const views = ['input', 'pengeluaran', 'history', 'report'];
             const titles = {
@@ -527,7 +509,6 @@
                 const viewEl = document.getElementById(`view-${v}`);
                 if (viewEl) viewEl.classList.add('hidden');
                 
-                // Desktop Sidebar style update
                 const deskNav = document.getElementById(`nav-${v}`);
                 const iconEl = document.getElementById(`icon-${v}`);
                 if (deskNav && iconEl) {
@@ -541,7 +522,6 @@
                     }
                 }
 
-                // Mobile Dock style update
                 const mobNav = document.getElementById(`nav-mobile-${v}`);
                 if (mobNav) {
                     if (v === tab) {
@@ -558,7 +538,6 @@
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
-            // Pengaturan Tampilan Sticky Filter Bar di Atas Dock
             if (tab === 'input') {
                 stickyFilterContainer.classList.add('hidden');
             } else {
@@ -579,7 +558,6 @@
             }
         }
 
-        // Render HTML Filter Persegi Panjang Ringkas untuk Pengeluaran ke dalam Sticky Bar
         function renderStickyFilterPengeluaran() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
             wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
@@ -602,7 +580,6 @@
             `;
         }
 
-        // Render HTML Filter Persegi Panjang Ringkas untuk History ke dalam Sticky Bar
         function renderStickyFilterHistory() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
             wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
@@ -625,7 +602,6 @@
             `;
         }
 
-        // Render HTML Filter Persegi Panjang Ringkas untuk Report ke dalam Sticky Bar (2 Kolom agar pas)
         function renderStickyFilterReport() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
             wrapper.className = "flex-1 grid grid-cols-2 gap-2 min-w-[220px]";
@@ -643,7 +619,6 @@
             `;
         }
 
-        // Custom Modal Notif
         function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-message').innerText = message;
@@ -654,7 +629,6 @@
             document.getElementById('custom-modal').classList.add('hidden');
         }
 
-        // Handle Form Submit Pengeluaran
         document.getElementById('pengeluaran-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const nama = document.getElementById('pengeluaran-nama').value.trim();
@@ -685,7 +659,6 @@
             showModal("Berhasil", "Data pengeluaran berhasil disimpan.");
         });
 
-        // Populate Filter Options for Pengeluaran
         function populatePengeluaranFilters() {
             const dateSelect = document.getElementById('filter-pengeluaran-date');
             const monthSelect = document.getElementById('filter-pengeluaran-month');
@@ -710,7 +683,6 @@
             yearSelect.value = currentSelectedYear;
         }
 
-        // Render Pengeluaran Grid List Kotak Terkelompok Berdasarkan Hari, Tanggal, Bulan, dan Tahun yang Sama
         function renderPengeluaranGrid() {
             const container = document.getElementById('pengeluaran-grid');
             if (!container) return;
@@ -742,7 +714,6 @@
                 return;
             }
 
-            // Grouping berdasarkan hari, tanggal, bulan, dan tahun yang sama
             const groups = {};
             filtered.forEach(item => {
                 const groupKey = `${item.day}, ${item.date} ${item.month} ${item.year}`;
@@ -783,7 +754,6 @@
             }).join('');
         }
 
-        // Handle Form Submit Harian
         document.getElementById('finance-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const income = parseNum(document.getElementById('income').value);
@@ -818,7 +788,6 @@
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
 
-        // Populate Filter Options for History
         function populateHistoryFilters() {
             const dateSelect = document.getElementById('filter-history-date');
             const monthSelect = document.getElementById('filter-history-month');
@@ -843,7 +812,6 @@
             yearSelect.value = currentSelectedYear;
         }
 
-        // Populate Filter Options for Report
         function populateReportFilters() {
             const monthSelect = document.getElementById('filter-report-month');
             const yearSelect = document.getElementById('filter-report-year');
@@ -863,7 +831,6 @@
             yearSelect.value = currentSelectedYear;
         }
 
-        // Render History Grid List with Filters
         function renderHistory() {
             const container = document.getElementById('history-grid');
             
@@ -926,7 +893,6 @@
             `).join('');
         }
 
-        // Export Monthly History to Excel
         function exportMonthlyExcel(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
@@ -960,7 +926,6 @@
             showModal("Unduh Berhasil", `File Excel Laporan Bulanan ${monthName} ${yearVal} berhasil diunduh dengan format akuntansi angka bertitik.`);
         }
 
-        // Render Laporan Bulanan dengan Filter Bulan & Tahun
         function renderReport() {
             const container = document.getElementById('report-grid');
 
