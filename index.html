@@ -266,14 +266,37 @@
 
                 <!-- VIEW 2: HISTORY -->
                 <section id="view-history" class="hidden space-y-4">
-                    <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Riwayat Transaksi Realtime
-                            </h3>
-                            <p class="text-xs text-slate-400">Daftar rekapan harian yang telah tersimpan di sistem.</p>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Riwayat Transaksi Realtime
+                                </h3>
+                                <p class="text-xs text-slate-400">Daftar rekapan harian yang telah tersimpan di sistem.</p>
+                            </div>
+                            <span id="history-count" class="text-xs bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full">0 Data</span>
                         </div>
-                        <span id="history-count" class="text-xs bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full">0 Data</span>
+                        <!-- Filter Kotak History -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Tanggal</label>
+                                <select id="filter-history-date" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                                    <option value="">Semua Tanggal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Bulan</label>
+                                <select id="filter-history-month" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                                    <option value="">Semua Bulan</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Tahun</label>
+                                <select id="filter-history-year" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                                    <option value="">Semua Tahun</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- List Grid History -->
@@ -284,11 +307,28 @@
 
                 <!-- VIEW 3: LAPORAN BULANAN -->
                 <section id="view-report" class="hidden space-y-4">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 mb-4 shadow-xs">
-                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                            <i class="fa-solid fa-chart-pie text-emerald-600"></i> Laporan Rekapitulasi Bulanan
-                        </h3>
-                        <p class="text-xs text-slate-400">Rekap total akumulatif berdasarkan periode Bulan dan Tahun.</p>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-pie text-emerald-600"></i> Laporan Rekapitulasi Bulanan
+                            </h3>
+                            <p class="text-xs text-slate-400">Rekap total akumulatif berdasarkan periode Bulan dan Tahun.</p>
+                        </div>
+                        <!-- Filter Kotak Report -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Bulan</label>
+                                <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                                    <option value="">Semua Bulan</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Tahun</label>
+                                <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                                    <option value="">Semua Tahun</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Kotak Grid List Laporan Bulanan -->
@@ -531,8 +571,14 @@
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
-            if (tab === 'history') renderHistory();
-            if (tab === 'report') renderReport();
+            if (tab === 'history') {
+                populateHistoryFilters();
+                renderHistory();
+            }
+            if (tab === 'report') {
+                populateReportFilters();
+                renderReport();
+            }
         }
 
         // Custom Modal Notif
@@ -581,49 +627,99 @@
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
 
-        // Render History Grid List
+        // Populate Filter Options for History
+        function populateHistoryFilters() {
+            const dateSelect = document.getElementById('filter-history-date');
+            const monthSelect = document.getElementById('filter-history-month');
+            const yearSelect = document.getElementById('filter-history-year');
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const uniqueDates = [...new Set(historyData.map(item => item.date))].sort((a,b) => a - b);
+            const uniqueMonths = [...new Set(historyData.map(item => item.month))];
+            const uniqueYears = [...new Set(historyData.map(item => item.year))].sort((a,b) => a - b);
+
+            dateSelect.innerHTML = '<option value="">Semua Tanggal</option>' + uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
+            monthSelect.innerHTML = '<option value="">Semua Bulan</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+            yearSelect.innerHTML = '<option value="">Semua Tahun</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        // Populate Filter Options for Report
+        function populateReportFilters() {
+            const monthSelect = document.getElementById('filter-report-month');
+            const yearSelect = document.getElementById('filter-report-year');
+
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const uniqueMonths = [...new Set(historyData.map(item => item.month))];
+            const uniqueYears = [...new Set(historyData.map(item => item.year))].sort((a,b) => a - b);
+
+            monthSelect.innerHTML = '<option value="">Semua Bulan</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+            yearSelect.innerHTML = '<option value="">Semua Tahun</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        // Render History Grid List with Filters (Tampilan disamakan persis seperti Laporan Bulanan tanpa View di Excel)
         function renderHistory() {
             const container = document.getElementById('history-grid');
-            document.getElementById('history-count').innerText = `${historyData.length} Data`;
+            
+            const fDate = document.getElementById('filter-history-date').value;
+            const fMonth = document.getElementById('filter-history-month').value;
+            const fYear = document.getElementById('filter-history-year').value;
 
-            if (historyData.length === 0) {
+            let filtered = historyData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            document.getElementById('history-count').innerText = `${filtered.length} Data`;
+
+            if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada riwayat data tersimpan.</p>
-                        <p class="text-xs text-slate-400 mt-1">Silakan input data terlebih dahulu melalui menu Input Data.</p>
+                        <p class="text-sm font-medium">Tidak ada riwayat data yang sesuai filter.</p>
+                        <p class="text-xs text-slate-400 mt-1">Coba ubah filter atau input data baru.</p>
                     </div>`;
                 return;
             }
 
-            container.innerHTML = historyData.map(item => `
-                <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition space-y-4">
-                    <!-- Text kecil tebal di atas kotak -->
-                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wide flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-calendar-days text-emerald-600"></i> 
-                            ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
-                        </span>
-                        <span class="text-slate-400 font-normal lowercase text-[10px]">ID: ${item.id.toString().slice(-4)}</span>
+            container.innerHTML = filtered.map(item => `
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
+                        </h3>
+                        <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">ID: ${item.id.toString().slice(-4)}</span>
                     </div>
 
-                    <!-- Informasi Rincian Harian -->
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                        <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
-                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Total Pendapatan</span>
-                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
+                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                         </div>
-                        <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
-                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Total Belanja</span>
-                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.expense || 0)}</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
+                            <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(item.expense || 0)}</span>
                         </div>
-                        <div class="bg-blue-50/40 p-3 rounded-xl border border-blue-100/60 flex flex-col justify-center">
-                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide block mb-1">Pengeluaran</span>
-                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.cashout || 0)}</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pengeluaran</span>
+                            <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                         </div>
-                        <div class="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/60 flex flex-col justify-center">
-                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wide block mb-1">Profit 10%</span>
-                            <span class="text-base lg:text-lg font-extrabold text-emerald-600">${formatRupiah(item.profit)}</span>
+                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Profit 10%</span>
+                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(item.profit)}</span>
                         </div>
                     </div>
                 </div>
@@ -667,9 +763,12 @@
             showModal("Unduh Berhasil", `File Excel Laporan Bulanan ${monthName} ${yearVal} berhasil diunduh dengan format akuntansi angka bertitik.`);
         }
 
-        // Render Laporan Bulanan
+        // Render Laporan Bulanan dengan Filter Bulan & Tahun
         function renderReport() {
             const container = document.getElementById('report-grid');
+
+            const fMonth = document.getElementById('filter-report-month').value;
+            const fYear = document.getElementById('filter-report-year').value;
 
             if (historyData.length === 0) {
                 container.innerHTML = `
@@ -701,7 +800,22 @@
                 grouped[key].profit += item.profit;
             });
 
-            container.innerHTML = Object.values(grouped).map(group => `
+            let groupArray = Object.values(grouped).filter(group => {
+                let matchMonth = fMonth === "" || group.month === fMonth;
+                let matchYear = fYear === "" || group.year.toString() === fYear;
+                return matchMonth && matchYear;
+            });
+
+            if (groupArray.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-filter-circle-xmark text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Tidak ada laporan yang sesuai dengan filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = groupArray.map(group => `
                 <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
                     <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                         <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
