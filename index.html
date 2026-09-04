@@ -149,6 +149,10 @@
                 <i id="icon-pengeluaran" class="fa-solid fa-receipt w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
+            <button onclick="switchTab('kasbon')" id="nav-kasbon" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Kasbon">
+                <i id="icon-kasbon" class="fa-solid fa-book-bookmark w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                <span class="sidebar-text truncate">Kasbon</span>
+            </button>
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                 <i id="icon-input" class="fa-solid fa-file-pen w-5 text-center shrink-0"></i>
@@ -250,6 +254,38 @@
                 </div>
             </div>
 
+            <!-- KASBON STICKY DI ATAS TEPAT DI BAWAH HEADER -->
+            <div id="kasbon-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-10">
+                <div class="bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200/80">
+                    <form id="kasbon-form" class="grid grid-cols-12 gap-2 items-center">
+                        <div class="col-span-4 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                            <input type="text" id="kasbon-nama" required placeholder="Nama Pelanggan" class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+
+                        <div class="col-span-3 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+                                <i class="fa-solid fa-box"></i>
+                            </span>
+                            <input type="text" id="kasbon-produk" required placeholder="Produk" class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+
+                        <div class="col-span-3 relative">
+                            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
+                            <input type="text" inputmode="numeric" id="kasbon-harga" required placeholder="Harga" class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+
+                        <div class="col-span-2">
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-3 rounded-full transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1 text-[11px] md:text-xs">
+                                <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="max-w-4xl mx-auto w-full my-auto">
                 
                 <!-- VIEW 1: INPUT DATA -->
@@ -305,6 +341,13 @@
                     </div>
                 </section>
 
+                <!-- VIEW NEW: KASBON -->
+                <section id="view-kasbon" class="hidden space-y-6">
+                    <div id="kasbon-grid" class="grid grid-cols-1 gap-4">
+                        <!-- Dimasukkan lewat JS -->
+                    </div>
+                </section>
+
                 <!-- VIEW 2: HISTORY -->
                 <section id="view-history" class="hidden space-y-4">
                     <div id="history-grid" class="grid grid-cols-1 gap-4">
@@ -349,6 +392,10 @@
              <button onclick="switchTab('pengeluaran')" id="nav-mobile-pengeluaran" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
                 <i class="fa-solid fa-receipt text-lg mb-0.5"></i>
                 <span class="text-[11px] font-medium">Pengeluaran</span>
+            </button>
+            <button onclick="switchTab('kasbon')" id="nav-mobile-kasbon" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-book-bookmark text-lg mb-0.5"></i>
+                <span class="text-[11px] font-medium">Kasbon</span>
             </button>
             <button onclick="switchTab('input')" id="nav-mobile-input" class="flex flex-col items-center py-1 px-3 text-emerald-600 transition">
                 <i class="fa-solid fa-file-pen text-lg mb-0.5"></i>
@@ -398,14 +445,17 @@
 
         let historyData = [];
         let pengeluaranData = [];
+        let kasbonData = [];
 
         function loadUserData() {
             if (currentSessionUser && currentSessionUser.phone) {
                 historyData = JSON.parse(localStorage.getItem(`finance_history_desktop_${currentSessionUser.phone}`) || '[]');
                 pengeluaranData = JSON.parse(localStorage.getItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`) || '[]');
+                kasbonData = JSON.parse(localStorage.getItem(`finance_kasbon_desktop_${currentSessionUser.phone}`) || '[]');
             } else {
                 historyData = [];
                 pengeluaranData = [];
+                kasbonData = [];
             }
         }
         loadUserData();
@@ -444,6 +494,7 @@
                 authContainer.classList.remove('hidden');
                 historyData = [];
                 pengeluaranData = [];
+                kasbonData = [];
             }
         }
         checkAuth();
@@ -478,6 +529,7 @@
 
             localStorage.setItem(`finance_history_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_pengeluaran_desktop_${phone}`, JSON.stringify([]));
+            localStorage.setItem(`finance_kasbon_desktop_${phone}`, JSON.stringify([]));
 
             document.getElementById('register-form').reset();
             toggleAuthView('login');
@@ -526,7 +578,7 @@
             input.value = val;
         }
 
-        ['income', 'expense', 'cashout', 'pengeluaran-nominal'].forEach(id => {
+        ['income', 'expense', 'cashout', 'pengeluaran-nominal', 'kasbon-harga'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('input', (e) => {
@@ -558,10 +610,11 @@
         const profitDisplay = document.getElementById('profit-display');
 
         function switchTab(tab) {
-            const views = ['input', 'pengeluaran', 'history', 'report'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
+                kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
                 report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' }
             };
@@ -569,12 +622,14 @@
             const icons = {
                 input: 'fa-file-pen',
                 pengeluaran: 'fa-receipt',
+                kasbon: 'fa-book-bookmark',
                 history: 'fa-clock-rotate-left',
                 report: 'fa-chart-pie'
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
             const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
+            const kasbonStickyContainer = document.getElementById('kasbon-sticky-container');
 
             views.forEach(v => {
                 const viewEl = document.getElementById(`view-${v}`);
@@ -616,10 +671,13 @@
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
+            if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.add('hidden');
+            if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden');
+
             if (tab === 'pengeluaran') {
                 if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
-            } else {
-                if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.add('hidden');
+            } else if (tab === 'kasbon') {
+                if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             }
 
             if (tab === 'input') {
@@ -630,6 +688,10 @@
                     renderStickyFilterPengeluaran();
                     populatePengeluaranFilters();
                     renderPengeluaranGrid();
+                } else if (tab === 'kasbon') {
+                    renderStickyFilterKasbon();
+                    populateKasbonFilters();
+                    renderKasbonGrid();
                 } else if (tab === 'history') {
                     renderStickyFilterHistory();
                     populateHistoryFilters();
@@ -658,6 +720,28 @@
                 </div>
                 <div>
                     <select id="filter-pengeluaran-year" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
+                    </select>
+                </div>
+            `;
+        }
+
+        function renderStickyFilterKasbon() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-kasbon-date" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-kasbon-month" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-kasbon-year" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
                         <option value="">Semua Thn</option>
                     </select>
                 </div>
@@ -721,14 +805,12 @@
         // FUNGSI TOGGLE EDIT DI KARTU HISTORY
         function toggleEditMenu(id) {
             const menu = document.getElementById(`edit-menu-${id}`);
-            // Tutup menu lain yang terbuka
             document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
                 if(el.id !== `edit-menu-${id}`) el.classList.add('hidden');
             });
             menu.classList.toggle('hidden');
         }
 
-        // Tutup menu toggle saat klik di luar
         window.addEventListener('click', function(e) {
             if (!e.target.closest('.toggle-edit-container')) {
                 document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
@@ -738,7 +820,6 @@
         });
 
         function openEditSubMenu(id, type) {
-            // Tutup dropdown
             document.getElementById(`edit-menu-${id}`).classList.add('hidden');
             const item = historyData.find(d => d.id === id);
             if(!item) return;
@@ -861,10 +942,113 @@
             showModal("Berhasil", "Data pengeluaran berhasil disimpan.");
         });
 
+        // HANDLE SUBMIT KASBON
+        document.getElementById('kasbon-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nama = document.getElementById('kasbon-nama').value.trim();
+            const produk = document.getElementById('kasbon-produk').value.trim();
+            const harga = parseNum(document.getElementById('kasbon-harga').value);
+
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const currentTimeMillis = now.getTime();
+            const dayName = days[now.getDay()];
+            const dateNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const yearNum = now.getFullYear();
+
+            // Cek apakah ada group history kasbon dengan nama sama (case-insensitive) dan dalam rentang 24 jam (86400000 ms)
+            let targetGroup = kasbonData.find(group => {
+                const sameName = group.namaPelanggan.trim().toLowerCase() === nama.toLowerCase();
+                const sameDay = group.day === dayName && group.date === dateNum && group.year === yearNum;
+                const within24Hours = (currentTimeMillis - group.timestamp) < 86400000;
+                return sameName && sameDay && within24Hours && !group.isLunas;
+            });
+
+            if (targetGroup) {
+                targetGroup.items.push({ produk, harga });
+                targetGroup.total += harga;
+            } else {
+                const newGroup = {
+                    id: currentTimeMillis,
+                    timestamp: currentTimeMillis,
+                    day: dayName,
+                    date: dateNum,
+                    month: monthName,
+                    year: yearNum,
+                    time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                    namaPelanggan: nama,
+                    items: [{ produk, harga }],
+                    total: harga,
+                    isLunas: false
+                };
+                kasbonData.unshift(newGroup);
+            }
+
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+            }
+
+            document.getElementById('kasbon-form').reset();
+            populateKasbonFilters();
+            renderKasbonGrid();
+            showModal("Berhasil", "Data kasbon berhasil disimpan.");
+        });
+
+        function toggleLunasKasbon(id) {
+            const item = kasbonData.find(d => d.id === id);
+            if(item) {
+                item.isLunas = !item.isLunas;
+                if (currentSessionUser && currentSessionUser.phone) {
+                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                }
+                renderKasbonGrid();
+            }
+        }
+
         function populatePengeluaranFilters() {
             const dateSelect = document.getElementById('filter-pengeluaran-date');
             const monthSelect = document.getElementById('filter-pengeluaran-month');
             const yearSelect = document.getElementById('filter-pengeluaran-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        function populateKasbonFilters() {
+            const dateSelect = document.getElementById('filter-kasbon-date');
+            const monthSelect = document.getElementById('filter-kasbon-month');
+            const yearSelect = document.getElementById('filter-kasbon-year');
             
             if(!dateSelect || !monthSelect || !yearSelect) return;
 
@@ -963,6 +1147,79 @@
                                     </div>
                                 </div>
                             `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderKasbonGrid() {
+            const container = document.getElementById('kasbon-grid');
+            if (!container) return;
+
+            const fDateEl = document.getElementById('filter-kasbon-date');
+            const fMonthEl = document.getElementById('filter-kasbon-month');
+            const fYearEl = document.getElementById('filter-kasbon-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            let filtered = kasbonData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada riwayat kasbon yang sesuai filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(group => {
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4 relative overflow-hidden">
+                        ${group.isLunas ? `
+                            <div class="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-10 flex items-center justify-center pointer-events-none">
+                                <span class="text-3xl md:text-4xl font-black text-emerald-600 border-4 border-emerald-600 px-8 py-3 rounded-2xl rotate-[-12deg] tracking-widest shadow-lg uppercase bg-white/90">LUNAS</span>
+                            </div>
+                        ` : ''}
+
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
+                                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-user text-emerald-600"></i> ${group.namaPelanggan}
+                                </h3>
+                            </div>
+                            <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
+                        </div>
+
+                        <div class="space-y-2">
+                            ${group.items.map(sub => `
+                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                                        <i class="fa-solid fa-box text-slate-400"></i> ${sub.produk}
+                                    </div>
+                                    <div class="text-right text-xs font-extrabold text-slate-800">
+                                        ${formatRupiah(sub.harga)}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="pt-2 flex justify-end">
+                            <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm ${group.isLunas ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
+                                <i class="fa-solid fa-check"></i> ${group.isLunas ? 'Batalkan Status Lunas' : 'Sudah Bayar'}
+                            </button>
                         </div>
                     </div>
                 `;
