@@ -935,7 +935,6 @@
             const monthName = months[now.getMonth()];
             const yearNum = now.getFullYear();
 
-            // Cari target group: Nama sama, belum lunas, dan belum diklik "Sudah Bayar" (isLunas = false)
             let targetGroup = kasbonData.find(group => {
                 const sameName = group.namaPelanggan.trim().toLowerCase() === nama.toLowerCase();
                 return sameName && !group.isLunas;
@@ -1117,12 +1116,6 @@
             container.innerHTML = filtered.map(group => {
                 return `
                     <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4 relative overflow-hidden">
-                        ${group.isLunas ? `
-                            <div class="absolute inset-0 bg-white z-10 flex items-center justify-start pl-8 rounded-2xl pointer-events-none">
-                                <span class="text-3xl md:text-4xl font-black text-emerald-600 border-4 border-emerald-600 px-8 py-3 rounded-2xl tracking-widest uppercase transform rotate-6 shadow-sm">LUNAS</span>
-                            </div>
-                        ` : ''}
-
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
@@ -1132,6 +1125,15 @@
                             </div>
                             <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
                         </div>
+
+                        <!-- Stempel LUNAS di pojok kiri, tidak besar, lurus (rotate 0deg) -->
+                        ${group.isLunas ? `
+                            <div class="flex items-center">
+                                <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-xs inline-block bg-emerald-50/80">
+                                    <i class="fa-solid fa-check mr-1"></i> LUNAS
+                                </span>
+                            </div>
+                        ` : ''}
 
                         <div class="space-y-2">
                             ${group.items.map(sub => `
@@ -1146,11 +1148,14 @@
                             `).join('')}
                         </div>
 
-                        <div class="pt-2 flex justify-end relative z-20">
-                            <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm ${group.isLunas ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
-                                <i class="fa-solid fa-check"></i> ${group.isLunas ? 'Batalkan Status Lunas' : 'Sudah Bayar'}
-                            </button>
-                        </div>
+                        <!-- Tombol Sudahlah Bayar / Toggle Lunas dihilangkan jika sudah lunas sesuai permintaan instruksi -->
+                        ${!group.isLunas ? `
+                            <div class="pt-2 flex justify-end relative z-20">
+                                <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700">
+                                    <i class="fa-solid fa-check"></i> Sudah Bayar
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
