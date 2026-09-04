@@ -664,7 +664,7 @@
             if (tab === 'pengeluaran') {
                 if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
             } else if (tab === 'kasbon') {
-                if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden'); // Sesuai original
+                if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             }
 
             if (tab === 'input') {
@@ -718,13 +718,13 @@
             wrapper.innerHTML = `
                 <div>
                     <select id="filter-kasbon-status" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Status</option>
+                        <option value="">Semua Status (Lunas & Belum Lunas)</option>
                         <option value="lunas">Lunas</option>
                         <option value="belum_lunas">Belum Lunas</option>
                     </select>
                 </div>
                 <div>
-                    <input type="text" id="filter-kasbon-search" oninput="renderKasbonGrid()" placeholder="Cari Nama Pelanggan..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                    <input type="text" id="filter-kasbon-nama" oninput="renderKasbonGrid()" placeholder="Cari Nama Pelanggan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
                 </div>
             `;
         }
@@ -1096,13 +1096,11 @@
             if (!container) return;
 
             const fStatusEl = document.getElementById('filter-kasbon-status');
-            const fSearchEl = document.getElementById('filter-kasbon-search');
-
+            const fNamaEl = document.getElementById('filter-kasbon-nama');
             const fStatus = fStatusEl ? fStatusEl.value : "";
-            const fSearch = fSearchEl ? fSearchEl.value.trim().toLowerCase() : "";
+            const fNama = fNamaEl ? fNamaEl.value.trim().toLowerCase() : "";
 
             let filtered = kasbonData.filter(item => {
-                // Filter status: Lunas, Belum Lunas, atau kosong (Default campur)
                 let matchStatus = true;
                 if (fStatus === "lunas") {
                     matchStatus = item.isLunas === true;
@@ -1110,13 +1108,12 @@
                     matchStatus = item.isLunas === false;
                 }
 
-                // Filter search berdasarkan nama pelanggan
-                let matchSearch = true;
-                if (fSearch !== "") {
-                    matchSearch = item.namaPelanggan.toLowerCase().includes(fSearch);
+                let matchNama = true;
+                if (fNama !== "") {
+                    matchNama = item.namaPelanggan.toLowerCase().includes(fNama);
                 }
 
-                return matchStatus && matchSearch;
+                return matchStatus && matchNama;
             });
 
             const countLabel = document.getElementById('sticky-count-label');
@@ -1144,6 +1141,7 @@
                             <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
                         </div>
 
+                        <!-- Stempel LUNAS di pojok kiri, tidak besar, lurus (rotate 0deg) -->
                         ${group.isLunas ? `
                             <div class="flex items-center">
                                 <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-xs inline-block bg-emerald-50/80">
@@ -1165,6 +1163,7 @@
                             `).join('')}
                         </div>
 
+                        <!-- Tombol Sudahlah Bayar / Toggle Lunas dihilangkan jika sudah lunas sesuai permintaan instruksi -->
                         ${!group.isLunas ? `
                             <div class="pt-2 flex justify-end relative z-20">
                                 <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700">
