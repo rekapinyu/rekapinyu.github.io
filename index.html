@@ -204,7 +204,7 @@
                 <section id="view-input" class="space-y-6">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <!-- Form Section -->
-                        <div class="lg:col-span-2 bg-white p-6 lg:p-8 rounded-2xl shadow-xs border border-slate-200/80">
+                        <div class="lg:col-span-3 bg-white p-6 lg:p-8 rounded-2xl shadow-xs border border-slate-200/80">
                             <h3 class="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wide">
                                 <i class="fa-solid fa-file-pen text-emerald-600"></i> Form Input Harian
                             </h3>
@@ -238,27 +238,6 @@
                                     <i class="fa-solid fa-floppy-disk"></i> Simpan Data Harian
                                 </button>
                             </form>
-                        </div>
-
-                        <!-- Realtime Profit Widget Side Card (Tanpa kotak luar) -->
-                        <div class="space-y-4">
-                            <div>
-                                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Kalkulator Otomatis</span>
-                                <h4 class="font-bold text-sm text-slate-700">Estimasi Profit 10%</h4>
-                            </div>
-                            <div class="mt-2">
-                                <span class="text-xs text-slate-400 block mb-1">Kamu Hari ini Profit Segini:</span>
-                                <div id="profit-display" class="text-2xl lg:text-3xl font-extrabold text-emerald-600 tracking-tight">
-                                    Rp 0
-                                </div>
-                            </div>
-
-                            <div class="text-xs text-slate-500 space-y-2 pt-4">
-                                <div class="font-bold text-slate-700 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-circle-info text-emerald-600"></i> Informasi Sistem
-                                </div>
-                                <p>Profit dihitung secara otomatis sebesar 10% dari nominal pendapatan bersih harian yang Anda masukkan.</p>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -500,12 +479,6 @@
             if (el) {
                 el.addEventListener('input', (e) => {
                     formatInputRibuan(e.target);
-                    
-                    if (id === 'income') {
-                        const val = parseNum(e.target.value);
-                        const profit = val * 0.10;
-                        profitDisplay.innerText = formatRupiah(profit);
-                    }
                 });
             }
         });
@@ -518,9 +491,6 @@
             document.getElementById('current-date-sidebar').innerText = dateStr;
         }
         updateHeaderDate();
-
-        // Realtime 10% Profit Kalkulator
-        const profitDisplay = document.getElementById('profit-display');
 
         // Tab Switching Logic (Desktop Sidebar & Mobile Dock)
         function switchTab(tab) {
@@ -731,7 +701,6 @@
             localStorage.setItem('finance_history_desktop', JSON.stringify(historyData));
 
             document.getElementById('finance-form').reset();
-            profitDisplay.innerText = "Rp 0";
 
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
