@@ -321,6 +321,16 @@
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Set Profit Persen (%)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">
+                                            <i class="fa-solid fa-percent"></i>
+                                        </span>
+                                        <input type="number" step="0.01" id="profit-percentage" value="10" required placeholder="10" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition">
+                                    </div>
+                                </div>
+
                                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 text-sm">
                                     <i class="fa-solid fa-floppy-disk"></i> Simpan Data Harian
                                 </button>
@@ -565,26 +575,28 @@
             input.value = val;
         }
 
-        ['income', 'expense', 'cashout', 'pengeluaran-nominal', 'kasbon-harga'].forEach(id => {
+        function updateLiveProfit() {
+            const val = parseNum(document.getElementById('income').value);
+            const cashoutVal = parseNum(document.getElementById('cashout').value);
+            const profitPct = parseFloat(document.getElementById('profit-percentage').value) || 0;
+            const profit = (val - cashoutVal) * (profitPct / 100);
+            profitDisplay.innerText = formatRupiah(profit > 0 ? profit : 0);
+        }
+
+        ['income', 'expense', 'cashout'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('input', (e) => {
                     formatInputRibuan(e.target);
-                    
-                    if (id === 'income') {
-                        const val = parseNum(e.target.value);
-                        const cashoutVal = parseNum(document.getElementById('cashout').value);
-                        const profit = (val - cashoutVal) * 0.10;
-                        profitDisplay.innerText = formatRupiah(profit > 0 ? profit : 0);
-                    } else if (id === 'cashout') {
-                        const val = parseNum(document.getElementById('income').value);
-                        const cashoutVal = parseNum(e.target.value);
-                        const profit = (val - cashoutVal) * 0.10;
-                        profitDisplay.innerText = formatRupiah(profit > 0 ? profit : 0);
-                    }
+                    updateLiveProfit();
                 });
             }
         });
+
+        const profitPercentageInput = document.getElementById('profit-percentage');
+        if (profitPercentageInput) {
+            profitPercentageInput.addEventListener('input', updateLiveProfit);
+        }
 
         function updateHeaderDate() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -824,14 +836,19 @@
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pengeluaran</label>
                         <input type="text" id="edit-val-cashout" value="${(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Profit Persen (%)</label>
+                        <input type="number" step="0.01" id="edit-val-profit-pct" value="${item.profitPercentage !== undefined ? item.profitPercentage : 10}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                    </div>
                 `;
                 saveBtn.onclick = function() {
                     item.income = parseNum(document.getElementById('edit-val-income').value);
                     item.expense = parseNum(document.getElementById('edit-val-expense').value);
                     item.cashout = parseNum(document.getElementById('edit-val-cashout').value);
+                    item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct').value) || 10;
                     saveAndRefreshHistory();
                     closeEditModal();
-                    showModal("Berhasil", "Nominal transaksi berhasil diperbarui.");
+                    showModal("Berhasil", "Nominal dan profit persen transaksi berhasil diperbarui.");
                 };
             } else if (type === 'datetime') {
                 const daysOptions = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -1141,7 +1158,6 @@
                             <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
                         </div>
 
-                        <!-- Stempel LUNAS di pojok kiri, tidak besar, lurus (rotate 0deg) -->
                         ${group.isLunas ? `
                             <div class="flex items-center">
                                 <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-xs inline-block bg-emerald-50/80">
@@ -1163,7 +1179,6 @@
                             `).join('')}
                         </div>
 
-                        <!-- Tombol Sudahlah Bayar / Toggle Lunas dihilangkan jika sudah lunas sesuai permintaan instruksi -->
                         ${!group.isLunas ? `
                             <div class="pt-2 flex justify-end relative z-20">
                                 <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700">
@@ -1181,8 +1196,9 @@
             const income = parseNum(document.getElementById('income').value);
             const expense = parseNum(document.getElementById('expense').value);
             const cashout = parseNum(document.getElementById('cashout').value);
+            const profitPercentage = parseFloat(document.getElementById('profit-percentage').value) || 0;
             
-            const profit = (income - cashout) * 0.10;
+            const profit = (income - cashout) * (profitPercentage / 100);
 
             const now = new Date();
             const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -1199,6 +1215,7 @@
                 income: income,
                 expense: expense,
                 cashout: cashout,
+                profitPercentage: profitPercentage,
                 profit: profit > 0 ? profit : 0
             };
 
@@ -1208,6 +1225,7 @@
             }
 
             document.getElementById('finance-form').reset();
+            document.getElementById('profit-percentage').value = "10";
             profitDisplay.innerText = "Rp 0";
 
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
@@ -1319,7 +1337,8 @@
             }
 
             container.innerHTML = filtered.map(item => {
-                const calculatedProfit = ((item.income - (item.cashout || 0)) * 0.10);
+                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const calculatedProfit = ((item.income - (item.cashout || 0)) * (pPct / 100));
                 const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
 
                 return `
@@ -1358,7 +1377,7 @@
                             <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                         </div>
                         <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Profit 10%</span>
+                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Profit (${pPct}%)</span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(displayProfit)}</span>
                         </div>
                     </div>
@@ -1382,7 +1401,8 @@
                 }
                 dailyMap[item.date].income += item.income;
                 
-                const itemProfit = (item.income - (item.cashout || 0)) * 0.10;
+                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (item.income - (item.cashout || 0)) * (pPct / 100);
                 dailyMap[item.date].profit += (itemProfit > 0 ? itemProfit : 0);
                 
                 dailyMap[item.date].expense += (item.expense || 0);
@@ -1421,7 +1441,7 @@
                             <tr>
                                 <th style="width: 15%;">Tgl</th>
                                 <th class="number">Pendapatan Hari Ini</th>
-                                <th class="number">Total Profit 10%</th>
+                                <th class="number">Total Profit</th>
                                 <th class="number">Total Belanja</th>
                             </tr>
                         </thead>
@@ -1511,7 +1531,8 @@
                 grouped[key].expense += (item.expense || 0);
                 grouped[key].cashout += (item.cashout || 0);
                 
-                const itemProfit = (item.income - (item.cashout || 0)) * 0.10;
+                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (item.income - (item.cashout || 0)) * (pPct / 100);
                 grouped[key].profit += (itemProfit > 0 ? itemProfit : 0);
             });
 
