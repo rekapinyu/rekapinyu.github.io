@@ -417,7 +417,6 @@
             registeredUsers.push(newUser);
             localStorage.setItem('finance_registered_users', JSON.stringify(registeredUsers));
 
-            // Set data NOL untuk pengguna yang baru mendaftar
             historyData = [];
             pengeluaranData = [];
             localStorage.setItem('finance_history_desktop', JSON.stringify(historyData));
@@ -908,19 +907,17 @@
             `).join('');
         }
 
-        // Fungsi Cetak PDF dengan format kolom Tgl, Pendapatan Hari Ini, Total Profit 10%, Total Belanja
+        // Fungsi Lihat di PDF (Pratinjau Cetak / PDF Viewer jendela baru)
         function printMonthlyPDF(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
 
-            // Urutkan berdasarkan tanggal menaik (1 sampai akhir bulan)
             filteredData.sort((a, b) => a.date - b.date);
 
             const totalIncome = filteredData.reduce((acc, curr) => acc + curr.income, 0);
             const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
             const totalExpense = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
 
-            // Buat jendela cetak baru (Print Window)
             const printWindow = window.open('', '_blank');
             
             let htmlContent = `
@@ -928,11 +925,11 @@
                 <html lang="id">
                 <head>
                     <meta charset="UTF-8">
-                    <title>Cetak Laporan Bulanan - ${monthName} ${yearVal}</title>
+                    <title>Lihat Laporan PDF - ${monthName} ${yearVal}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; color: #333; margin: 20px; }
+                        body { font-family: Arial, sans-serif; color: #333; margin: 30px; }
                         h2 { text-align: center; margin-bottom: 5px; text-transform: uppercase; }
-                        p.subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
+                        p.subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 25px; }
                         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
                         th, td { border: 1px solid #94a3b8; padding: 10px 12px; text-align: left; }
                         th { background-color: #065f46; color: white; text-transform: uppercase; font-size: 12px; }
@@ -968,7 +965,6 @@
                 `;
             });
 
-            // Baris Total Akumulasi 1 Bulan
             htmlContent += `
                         <tr class="total-row">
                             <td>TOTAL AKUMULASI</td>
@@ -979,7 +975,7 @@
                         </tbody>
                     </table>
                     <div class="footer">
-                        <p>Dicetak otomatis dari Aplikasi Rekap Keuangan pada: ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                        <p>Dokumen pratinjau PDF bulanan (${monthName} ${yearVal})</p>
                     </div>
                 </body>
                 </html>
@@ -988,14 +984,8 @@
             printWindow.document.write(htmlContent);
             printWindow.document.close();
             printWindow.focus();
-            
-            // Jeda sejenak sebelum memicu dialog print browser
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-            }, 500);
 
-            showModal("Cetak PDF", `Jendela cetak PDF untuk laporan periode ${monthName} ${yearVal} berhasil dibuka.`);
+            showModal("Pratinjau PDF", `Jendela pratinjau / lihat PDF laporan ${monthName} ${yearVal} berhasil dibuka.`);
         }
 
         function renderReport() {
@@ -1084,7 +1074,7 @@
 
                     <div class="flex items-center justify-end pt-2 border-t border-slate-100">
                         <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
-                            <i class="fa-solid fa-file-pdf"></i> Cetak PDF (${group.month} ${group.year})
+                            <i class="fa-solid fa-file-pdf"></i> Lihat di PDF (${group.month} ${group.year})
                         </button>
                     </div>
                 </div>
