@@ -664,7 +664,7 @@
             if (tab === 'pengeluaran') {
                 if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
             } else if (tab === 'kasbon') {
-                if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
+                if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden'); // Sembunyikan sticky form jika tidak dibutuhkan, sesuaikan
             }
 
             if (tab === 'input') {
@@ -714,14 +714,17 @@
 
         function renderStickyFilterKasbon() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
-            wrapper.className = "flex-1 grid grid-cols-1 gap-1.5 min-w-[260px]";
+            wrapper.className = "flex-1 grid grid-cols-2 gap-1.5 min-w-[260px]";
             wrapper.innerHTML = `
                 <div>
                     <select id="filter-kasbon-status" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Status (Lunas & Belum Lunas)</option>
+                        <option value="">Semua Status</option>
                         <option value="lunas">Lunas</option>
                         <option value="belum_lunas">Belum Lunas</option>
                     </select>
+                </div>
+                <div>
+                    <input type="text" id="filter-kasbon-search" oninput="renderKasbonGrid()" placeholder="Cari Nama Pelanggan..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
                 </div>
             `;
         }
@@ -1093,12 +1096,26 @@
             if (!container) return;
 
             const fStatusEl = document.getElementById('filter-kasbon-status');
+            const fSearchEl = document.getElementById('filter-kasbon-search');
+            
             const fStatus = fStatusEl ? fStatusEl.value : "";
+            const fSearch = fSearchEl ? fSearchEl.value.trim().toLowerCase() : "";
 
             let filtered = kasbonData.filter(item => {
-                if (fStatus === "lunas") return item.isLunas === true;
-                if (fStatus === "belum_lunas") return item.isLunas === false;
-                return true;
+                // Default: Lunas & Belum Lunas campur jika filter status kosong
+                let matchStatus = true;
+                if (fStatus === "lunas") {
+                    matchStatus = item.isLunas === true;
+                } else if (fStatus === "belum_lunas") {
+                    matchStatus = item.isLunas === false;
+                }
+
+                let matchSearch = true;
+                if (fSearch !== "") {
+                    matchSearch = item.namaPelanggan.toLowerCase().includes(fSearch);
+                }
+
+                return matchStatus && matchSearch;
             });
 
             const countLabel = document.getElementById('sticky-count-label');
@@ -1126,7 +1143,7 @@
                             <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
                         </div>
 
-                        <!-- Stempel LUNAS di pojok kiri, tidak besar, lurus (rotate 0deg) -->
+                        <!-- Stempel LUNAS di pojok kiri -->
                         ${group.isLunas ? `
                             <div class="flex items-center">
                                 <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-xs inline-block bg-emerald-50/80">
@@ -1148,7 +1165,6 @@
                             `).join('')}
                         </div>
 
-                        <!-- Tombol Sudahlah Bayar / Toggle Lunas dihilangkan jika sudah lunas sesuai permintaan instruksi -->
                         ${!group.isLunas ? `
                             <div class="pt-2 flex justify-end relative z-20">
                                 <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700">
