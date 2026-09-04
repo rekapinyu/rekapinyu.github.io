@@ -375,6 +375,23 @@
         </div>
     </div>
 
+    <!-- MODAL EDIT KHUSUS UNTUK TOGGLE EDIT -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-100 transform transition-all space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 id="edit-modal-title" class="font-bold text-slate-800 text-sm">Edit Data</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="edit-modal-body" class="space-y-3">
+                <!-- Konten dinamis edit -->
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-2.5 rounded-xl transition">Batal</button>
+                <button id="save-edit-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let registeredUsers = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
         let currentSessionUser = JSON.parse(localStorage.getItem('finance_active_session') || 'null');
@@ -701,6 +718,117 @@
             document.getElementById('custom-modal').classList.add('hidden');
         }
 
+        // FUNGSI TOGGLE EDIT DI KARTU HISTORY
+        function toggleEditMenu(id) {
+            const menu = document.getElementById(`edit-menu-${id}`);
+            // Tutup menu lain yang terbuka
+            document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
+                if(el.id !== `edit-menu-${id}`) el.classList.add('hidden');
+            });
+            menu.classList.toggle('hidden');
+        }
+
+        // Tutup menu toggle saat klik di luar
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.toggle-edit-container')) {
+                document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
+                    el.classList.add('hidden');
+                });
+            }
+        });
+
+        function openEditSubMenu(id, type) {
+            // Tutup dropdown
+            document.getElementById(`edit-menu-${id}`).classList.add('hidden');
+            const item = historyData.find(d => d.id === id);
+            if(!item) return;
+
+            const modal = document.getElementById('edit-modal');
+            const modalTitle = document.getElementById('edit-modal-title');
+            const modalBody = document.getElementById('edit-modal-body');
+            const saveBtn = document.getElementById('save-edit-btn');
+
+            if (type === 'nominal') {
+                modalTitle.innerText = `Edit Nominal (ID: ${item.id.toString().slice(-4)})`;
+                modalBody.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pendapatan</label>
+                        <input type="text" id="edit-val-income" value="${item.income.toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Total Belanja</label>
+                        <input type="text" id="edit-val-expense" value="${(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pengeluaran</label>
+                        <input type="text" id="edit-val-cashout" value="${(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    item.income = parseNum(document.getElementById('edit-val-income').value);
+                    item.expense = parseNum(document.getElementById('edit-val-expense').value);
+                    item.cashout = parseNum(document.getElementById('edit-val-cashout').value);
+                    saveAndRefreshHistory();
+                    closeEditModal();
+                    showModal("Berhasil", "Nominal transaksi berhasil diperbarui.");
+                };
+            } else if (type === 'datetime') {
+                const daysOptions = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                const monthsOptions = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+                modalTitle.innerText = `Edit Waktu & Tanggal (ID: ${item.id.toString().slice(-4)})`;
+                modalBody.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
+                        <select id="edit-val-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                            ${daysOptions.map(d => `<option value="${d}" ${d === item.day ? 'selected' : ''}>${d}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
+                            <input type="number" id="edit-val-date" min="1" max="31" value="${item.date}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
+                            <select id="edit-val-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                                ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${m === item.month ? 'selected' : ''}>${m}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
+                            <input type="number" id="edit-val-year" value="${item.year}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        </div>
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    item.day = document.getElementById('edit-val-day').value;
+                    item.date = parseInt(document.getElementById('edit-val-date').value) || item.date;
+                    const monthSelect = document.getElementById('edit-val-month');
+                    item.month = monthSelect.value;
+                    item.monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'));
+                    item.year = parseInt(document.getElementById('edit-val-year').value) || item.year;
+
+                    saveAndRefreshHistory();
+                    closeEditModal();
+                    showModal("Berhasil", "Tanggal dan waktu transaksi berhasil diperbarui.");
+                };
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function saveAndRefreshHistory() {
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+            }
+            renderHistory();
+        }
+
         document.getElementById('pengeluaran-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const nama = document.getElementById('pengeluaran-nama').value.trim();
@@ -989,11 +1117,25 @@
 
                 return `
                 <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
-                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center relative">
                         <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                             <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
                         </h3>
-                        <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">ID: ${item.id.toString().slice(-4)}</span>
+                        
+                        <!-- TOGGLE EDIT MENU DIPOJOK KARTU -->
+                        <div class="relative toggle-edit-container">
+                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-pen-to-square"></i> Toggle Edit <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                            <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-1 hidden z-30">
+                                <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fa-solid fa-coins text-emerald-600 w-4"></i> 1. Edit Nominal
+                                </button>
+                                <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fa-solid fa-calendar-days text-blue-600 w-4"></i> 2. Edit Tanggal, Hari, Bulan, Tahun
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
@@ -1157,7 +1299,6 @@
                         profit: 0
                     };
                 }
-                // Filter berdasarkan tanggal jika dipilih
                 if (fDate !== "" && item.date.toString() !== fDate) return;
 
                 grouped[key].income += item.income;
