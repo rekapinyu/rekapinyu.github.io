@@ -907,16 +907,33 @@
             `).join('');
         }
 
-        // Fungsi Lihat di PDF (Pratinjau Cetak / PDF Viewer jendela baru)
+        // Fungsi Lihat di PDF (Pratinjau Cetak / PDF Viewer lengkap tgl 1 s.d. 31)
         function printMonthlyPDF(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
 
-            filteredData.sort((a, b) => a.date - b.date);
+            // Cari tahu indeks bulan (0 - 11) berdasarkan nama bulan
+            const monthsList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const monthIndex = monthsList.indexOf(monthName);
 
-            const totalIncome = filteredData.reduce((acc, curr) => acc + curr.income, 0);
-            const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
-            const totalExpense = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
+            // Tentukan jumlah hari maksimal dalam bulan tersebut (28, 29, 30, atau 31)
+            const daysInMonth = new Date(yearVal, monthIndex + 1, 0).getDate();
+
+            // Buat struktur map/dictionary data berdasarkan tanggal (1 sampai daysInMonth)
+            const dailyMap = {};
+            filteredData.forEach(item => {
+                // Jika ada multiple entry di tanggal yg sama, diakumulasikan
+                if (!dailyMap[item.date]) {
+                    dailyMap[item.date] = { income: 0, profit: 0, expense: 0 };
+                }
+                dailyMap[item.date].income += item.income;
+                dailyMap[item.date].profit += item.profit;
+                dailyMap[item.date].expense += (item.expense || 0);
+            });
+
+            let totalIncome = 0;
+            let totalProfit = 0;
+            let totalExpense = 0;
 
             const printWindow = window.open('', '_blank');
             
@@ -931,7 +948,7 @@
                         h2 { text-align: center; margin-bottom: 5px; text-transform: uppercase; }
                         p.subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 25px; }
                         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-                        th, td { border: 1px solid #94a3b8; padding: 10px 12px; text-align: left; }
+                        th, td { border: 1px solid #94a3b8; padding: 8px 12px; text-align: left; }
                         th { background-color: #065f46; color: white; text-transform: uppercase; font-size: 12px; }
                         td.number, th.number { text-align: right; }
                         tr:nth-child(even) { background-color: #f8fafc; }
@@ -941,7 +958,7 @@
                 </head>
                 <body>
                     <h2>Laporan Rekapitulasi Keuangan Bulanan</h2>
-                    <p class="subtitle">Periode: ${monthName} ${yearVal}</p>
+                    <p class="subtitle">Periode: ${monthName} ${yearVal} (Tanggal 1 s.d. ${daysInMonth})</p>
                     <table>
                         <thead>
                             <tr>
@@ -954,16 +971,23 @@
                         <tbody>
             `;
 
-            filteredData.forEach(item => {
+            // Loop dari tanggal 1 sampai akhir bulan (misal 31) agar urut penuh
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayData = dailyMap[d] || { income: 0, profit: 0, expense: 0 };
+                
+                totalIncome += dayData.income;
+                totalProfit += dayData.profit;
+                totalExpense += dayData.expense;
+
                 htmlContent += `
                     <tr>
-                        <td>${item.date} ${item.month}</td>
-                        <td class="number">${item.income.toLocaleString('id-ID')}</td>
-                        <td class="number">${item.profit.toLocaleString('id-ID')}</td>
-                        <td class="number">${(item.expense || 0).toLocaleString('id-ID')}</td>
+                        <td>${d} ${monthName}</td>
+                        <td class="number">${dayData.income > 0 ? dayData.income.toLocaleString('id-ID') : '-'}</td>
+                        <td class="number">${dayData.profit > 0 ? dayData.profit.toLocaleString('id-ID') : '-'}</td>
+                        <td class="number">${dayData.expense > 0 ? dayData.expense.toLocaleString('id-ID') : '-'}</td>
                     </tr>
                 `;
-            });
+            }
 
             htmlContent += `
                         <tr class="total-row">
@@ -975,7 +999,7 @@
                         </tbody>
                     </table>
                     <div class="footer">
-                        <p>Dokumen pratinjau PDF bulanan (${monthName} ${yearVal})</p>
+                        <p>Dokumen pratinjau PDF bulanan lengkap (${monthName} ${yearVal})</p>
                     </div>
                 </body>
                 </html>
@@ -985,7 +1009,7 @@
             printWindow.document.close();
             printWindow.focus();
 
-            showModal("Pratinjau PDF", `Jendela pratinjau / lihat PDF laporan ${monthName} ${yearVal} berhasil dibuka.`);
+            showModal("Pratinjau PDF", `Jendela pratinjau / lihat PDF lengkap (tgl 1 s.d. ${daysInMonth}) untuk ${monthName} ${yearVal} berhasil dibuka.`);
         }
 
         function renderReport() {
