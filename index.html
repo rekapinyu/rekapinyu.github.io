@@ -9,7 +9,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS for Excel Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.xlsxjs.com/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -193,7 +193,7 @@
         </header>
 
         <!-- Scrollable Main View Area -->
-        <main class="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-100">
+        <main class="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-100 pb-24">
             <div class="max-w-4xl mx-auto">
                 
                 <!-- VIEW 1: INPUT DATA -->
@@ -266,39 +266,6 @@
 
                 <!-- VIEW 2: HISTORY -->
                 <section id="view-history" class="hidden space-y-4">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <div>
-                                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                    <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Riwayat Transaksi Realtime
-                                </h3>
-                                <p class="text-xs text-slate-400">Daftar rekapan harian yang telah tersimpan di sistem.</p>
-                            </div>
-                            <span id="history-count" class="text-xs bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full">0 Data</span>
-                        </div>
-                        <!-- Filter Kotak History -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
-                            <div>
-                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Tanggal</label>
-                                <select id="filter-history-date" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                                    <option value="">Semua Tanggal</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Bulan</label>
-                                <select id="filter-history-month" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                                    <option value="">Semua Bulan</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Tahun</label>
-                                <select id="filter-history-year" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                                    <option value="">Semua Tahun</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- List Grid History -->
                     <div id="history-grid" class="grid grid-cols-1 gap-4">
                         <!-- Dimasukkan lewat JS -->
@@ -307,30 +274,6 @@
 
                 <!-- VIEW 3: LAPORAN BULANAN -->
                 <section id="view-report" class="hidden space-y-4">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-chart-pie text-emerald-600"></i> Laporan Rekapitulasi Bulanan
-                            </h3>
-                            <p class="text-xs text-slate-400">Rekap total akumulatif berdasarkan periode Bulan dan Tahun.</p>
-                        </div>
-                        <!-- Filter Kotak Report -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                            <div>
-                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Bulan</label>
-                                <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                                    <option value="">Semua Bulan</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Tahun</label>
-                                <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                                    <option value="">Semua Tahun</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Kotak Grid List Laporan Bulanan -->
                     <div id="report-grid" class="grid grid-cols-1 gap-4">
                         <!-- Dimasukkan lewat JS -->
@@ -339,6 +282,28 @@
 
             </div>
         </main>
+    </div>
+
+    <!-- STICKY FILTER BAR DI ATAS DOCK / LAYAR BAWAH -->
+    <div id="sticky-filter-container" class="fixed bottom-16 left-0 right-0 md:left-64 z-20 px-4 py-2 pointer-events-none hidden">
+        <div class="max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-2.5 rounded-2xl shadow-xl border border-slate-200/80 pointer-events-auto flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- Info Jumlah Data / Label -->
+            <div class="hidden sm:flex items-center gap-2 px-2">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-filter"></i>
+                </div>
+                <div>
+                    <span class="text-[11px] font-bold text-slate-700 block leading-tight">Filter Data</span>
+                    <span id="sticky-count-label" class-[10px] text-slate-400 text-[10px]">Ringkas & Cepat</span>
+                </div>
+            </div>
+
+            <!-- Bagian Form Filter Persegi Panjang Ringkas -->
+            <div id="filter-inputs-wrapper" class="flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]">
+                <!-- Diisi Dinamis atau Static HTML dibawah via JS -->
+            </div>
+        </div>
     </div>
 
     <!-- Mobile Bottom Dock Menu -->
@@ -537,6 +502,8 @@
                 report: 'fa-chart-pie'
             };
 
+            const stickyFilterContainer = document.getElementById('sticky-filter-container');
+
             views.forEach(v => {
                 document.getElementById(`view-${v}`).classList.add('hidden');
                 
@@ -571,14 +538,62 @@
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
-            if (tab === 'history') {
-                populateHistoryFilters();
-                renderHistory();
+            // Pengaturan Tampilan Sticky Filter Bar di Atas Dock
+            if (tab === 'input') {
+                stickyFilterContainer.classList.add('hidden');
+            } else {
+                stickyFilterContainer.classList.remove('hidden');
+                if (tab === 'history') {
+                    renderStickyFilterHistory();
+                    populateHistoryFilters();
+                    renderHistory();
+                } else if (tab === 'report') {
+                    renderStickyFilterReport();
+                    populateReportFilters();
+                    renderReport();
+                }
             }
-            if (tab === 'report') {
-                populateReportFilters();
-                renderReport();
-            }
+        }
+
+        // Render HTML Filter Persegi Panjang Ringkas untuk History ke dalam Sticky Bar
+        function renderStickyFilterHistory() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-history-date" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-history-month" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-history-year" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
+                    </select>
+                </div>
+            `;
+        }
+
+        // Render HTML Filter Persegi Panjang Ringkas untuk Report ke dalam Sticky Bar (2 Kolom agar pas)
+        function renderStickyFilterReport() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-2 gap-2 min-w-[220px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bulan</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tahun</option>
+                    </select>
+                </div>
+            `;
         }
 
         // Custom Modal Notif
@@ -632,6 +647,8 @@
             const dateSelect = document.getElementById('filter-history-date');
             const monthSelect = document.getElementById('filter-history-month');
             const yearSelect = document.getElementById('filter-history-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
 
             const currentSelectedDate = dateSelect.value;
             const currentSelectedMonth = monthSelect.value;
@@ -641,9 +658,9 @@
             const uniqueMonths = [...new Set(historyData.map(item => item.month))];
             const uniqueYears = [...new Set(historyData.map(item => item.year))].sort((a,b) => a - b);
 
-            dateSelect.innerHTML = '<option value="">Semua Tanggal</option>' + uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
-            monthSelect.innerHTML = '<option value="">Semua Bulan</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
-            yearSelect.innerHTML = '<option value="">Semua Tahun</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+            dateSelect.innerHTML = '<option value="">Semua Tgl</option>' + uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
+            monthSelect.innerHTML = '<option value="">Semua Bln</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+            yearSelect.innerHTML = '<option value="">Semua Thn</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
 
             dateSelect.value = currentSelectedDate;
             monthSelect.value = currentSelectedMonth;
@@ -655,6 +672,8 @@
             const monthSelect = document.getElementById('filter-report-month');
             const yearSelect = document.getElementById('filter-report-year');
 
+            if(!monthSelect || !yearSelect) return;
+
             const currentSelectedMonth = monthSelect.value;
             const currentSelectedYear = yearSelect.value;
 
@@ -668,13 +687,17 @@
             yearSelect.value = currentSelectedYear;
         }
 
-        // Render History Grid List with Filters (Tampilan disamakan persis seperti Laporan Bulanan tanpa View di Excel)
+        // Render History Grid List with Filters
         function renderHistory() {
             const container = document.getElementById('history-grid');
             
-            const fDate = document.getElementById('filter-history-date').value;
-            const fMonth = document.getElementById('filter-history-month').value;
-            const fYear = document.getElementById('filter-history-year').value;
+            const fDateEl = document.getElementById('filter-history-date');
+            const fMonthEl = document.getElementById('filter-history-month');
+            const fYearEl = document.getElementById('filter-history-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
 
             let filtered = historyData.filter(item => {
                 let matchDate = fDate === "" || item.date.toString() === fDate;
@@ -683,7 +706,8 @@
                 return matchDate && matchMonth && matchYear;
             });
 
-            document.getElementById('history-count').innerText = `${filtered.length} Data`;
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -726,12 +750,11 @@
             `).join('');
         }
 
-        // Export Monthly History to Excel (Lengkap Realtime sesuai Laporan Bulanan dengan Format Titik Akuntansi)
+        // Export Monthly History to Excel
         function exportMonthlyExcel(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
 
-            // Memetakan data sesuai format Laporan Bulanan dengan angka diberi pemisah titik (.)
             const excelData = filteredData.map(item => ({
                 "PERIODE / TANGGAL": `${item.day}, ${item.date} ${item.month} ${item.year} ${item.time}`,
                 "PENDAPATAN BULAN INI (RP)": item.income.toLocaleString('id-ID'),
@@ -740,13 +763,11 @@
                 "TOTAL PROFIT BULAN INI (RP)": item.profit.toLocaleString('id-ID')
             }));
 
-            // Kalkulasi Total Keseluruhan dalam Bulan Tersebut
             const totalIncome = filteredData.reduce((acc, curr) => acc + curr.income, 0);
             const totalExpense = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
             const totalCashout = filteredData.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
             const totalProfit = filteredData.reduce((acc, curr) => acc + curr.profit, 0);
 
-            // Tambahkan baris total akumulatif persis seperti di Laporan Bulanan
             excelData.push({
                 "PERIODE / TANGGAL": "TOTAL AKUMULASI BULAN INI",
                 "PENDAPATAN BULAN INI (RP)": totalIncome.toLocaleString('id-ID'),
@@ -767,8 +788,14 @@
         function renderReport() {
             const container = document.getElementById('report-grid');
 
-            const fMonth = document.getElementById('filter-report-month').value;
-            const fYear = document.getElementById('filter-report-year').value;
+            const fMonthEl = document.getElementById('filter-report-month');
+            const fYearEl = document.getElementById('filter-report-year');
+
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `Filter Laporan Aktif`;
 
             if (historyData.length === 0) {
                 container.innerHTML = `
@@ -780,7 +807,6 @@
                 return;
             }
 
-            // Grouping by Month & Year
             const grouped = {};
             historyData.forEach(item => {
                 const key = `${item.month} ${item.year}`;
