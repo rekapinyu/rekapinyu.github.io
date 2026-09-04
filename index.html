@@ -204,7 +204,7 @@
                 <section id="view-input" class="space-y-6">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <!-- Form Section -->
-                        <div class="lg:col-span-3 bg-white p-6 lg:p-8 rounded-2xl shadow-xs border border-slate-200/80">
+                        <div class="lg:col-span-2 bg-white p-6 lg:p-8 rounded-2xl shadow-xs border border-slate-200/80">
                             <h3 class="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wide">
                                 <i class="fa-solid fa-file-pen text-emerald-600"></i> Form Input Harian
                             </h3>
@@ -239,6 +239,27 @@
                                 </button>
                             </form>
                         </div>
+
+                        <!-- Realtime Profit Widget Side Card (Tanpa kotak luar) -->
+                        <div class="space-y-4">
+                            <div>
+                                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Kalkulator Otomatis</span>
+                                <h4 class="font-bold text-sm text-slate-700">Estimasi Profit 10%</h4>
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-xs text-slate-400 block mb-1">Kamu Hari ini Profit Segini:</span>
+                                <div id="profit-display" class="text-2xl lg:text-3xl font-extrabold text-emerald-600 tracking-tight">
+                                    Rp 0
+                                </div>
+                            </div>
+
+                            <div class="text-xs text-slate-500 space-y-2 pt-4">
+                                <div class="font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-info text-emerald-600"></i> Informasi Sistem
+                                </div>
+                                <p>Profit dihitung secara otomatis sebesar 10% dari nominal pendapatan bersih harian yang Anda masukkan.</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -270,7 +291,7 @@
                     </div>
 
                     <!-- History List Grid Pengeluaran -->
-                    <div id="pengeluaran-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div id="pengeluaran-grid" class="grid grid-cols-1 gap-4">
                         <!-- Dimasukkan lewat JS -->
                     </div>
                 </section>
@@ -479,6 +500,12 @@
             if (el) {
                 el.addEventListener('input', (e) => {
                     formatInputRibuan(e.target);
+                    
+                    if (id === 'income') {
+                        const val = parseNum(e.target.value);
+                        const profit = val * 0.10;
+                        profitDisplay.innerText = formatRupiah(profit);
+                    }
                 });
             }
         });
@@ -491,6 +518,9 @@
             document.getElementById('current-date-sidebar').innerText = dateStr;
         }
         updateHeaderDate();
+
+        // Realtime 10% Profit Kalkulator
+        const profitDisplay = document.getElementById('profit-display');
 
         // Tab Switching Logic (Desktop Sidebar & Mobile Dock)
         function switchTab(tab) {
@@ -547,14 +577,15 @@
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
             // Pengaturan Tampilan Sticky Filter Bar di Atas Dock
-            if (tab === 'input' || tab === 'pengeluaran') {
+            if (tab === 'input') {
                 stickyFilterContainer.classList.add('hidden');
-                if (tab === 'pengeluaran') {
-                    renderPengeluaranGrid();
-                }
             } else {
                 stickyFilterContainer.classList.remove('hidden');
-                if (tab === 'history') {
+                if (tab === 'pengeluaran') {
+                    renderStickyFilterPengeluaran();
+                    populatePengeluaranFilters();
+                    renderPengeluaranGrid();
+                } else if (tab === 'history') {
                     renderStickyFilterHistory();
                     populateHistoryFilters();
                     renderHistory();
@@ -564,6 +595,29 @@
                     renderReport();
                 }
             }
+        }
+
+        // Render HTML Filter Persegi Panjang Ringkas untuk Pengeluaran ke dalam Sticky Bar
+        function renderStickyFilterPengeluaran() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-pengeluaran-date" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-pengeluaran-month" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-pengeluaran-year" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
+                    </select>
+                </div>
+            `;
         }
 
         // Render HTML Filter Persegi Panjang Ringkas untuk History ke dalam Sticky Bar
@@ -630,45 +684,121 @@
 
             const newItem = {
                 id: Date.now(),
+                day: days[now.getDay()],
+                date: now.getDate(),
+                monthIndex: now.getMonth(),
+                month: months[now.getMonth()],
+                year: now.getFullYear(),
+                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                 nama: nama,
-                nominal: nominal,
-                dateStr: `${days[now.getDay()], now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} - ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+                nominal: nominal
             };
 
             pengeluaranData.unshift(newItem);
             localStorage.setItem('finance_pengeluaran_desktop', JSON.stringify(pengeluaranData));
 
             document.getElementById('pengeluaran-form').reset();
+            populatePengeluaranFilters();
             renderPengeluaranGrid();
             showModal("Berhasil", "Data pengeluaran berhasil disimpan.");
         });
 
-        // Render Pengeluaran Grid List Kotak
+        // Populate Filter Options for Pengeluaran
+        function populatePengeluaranFilters() {
+            const dateSelect = document.getElementById('filter-pengeluaran-date');
+            const monthSelect = document.getElementById('filter-pengeluaran-month');
+            const yearSelect = document.getElementById('filter-pengeluaran-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const uniqueDates = [...new Set(pengeluaranData.map(item => item.date))].sort((a,b) => a - b);
+            const uniqueMonths = [...new Set(pengeluaranData.map(item => item.month))];
+            const uniqueYears = [...new Set(pengeluaranData.map(item => item.year))].sort((a,b) => a - b);
+
+            dateSelect.innerHTML = '<option value="">Semua Tgl</option>' + uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
+            monthSelect.innerHTML = '<option value="">Semua Bln</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+            yearSelect.innerHTML = '<option value="">Semua Thn</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        // Render Pengeluaran Grid List Kotak Terkelompok Berdasarkan Hari, Tanggal, Bulan, dan Tahun yang Sama
         function renderPengeluaranGrid() {
             const container = document.getElementById('pengeluaran-grid');
             if (!container) return;
 
-            if (pengeluaranData.length === 0) {
+            const fDateEl = document.getElementById('filter-pengeluaran-date');
+            const fMonthEl = document.getElementById('filter-pengeluaran-month');
+            const fYearEl = document.getElementById('filter-pengeluaran-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            let filtered = pengeluaranData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+
+            if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-medium">Belum ada riwayat pengeluaran.</p>
+                        <p class="text-xs font-medium">Belum ada riwayat pengeluaran yang sesuai filter.</p>
                     </div>`;
                 return;
             }
 
-            container.innerHTML = pengeluaranData.map(item => `
-                <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-2 flex flex-col justify-between">
-                    <div>
-                        <span class="text-[10px] text-slate-400 font-semibold block mb-1">${item.dateStr}</span>
-                        <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
+            // Grouping berdasarkan hari, tanggal, bulan, dan tahun yang sama
+            const groups = {};
+            filtered.forEach(item => {
+                const groupKey = `${item.day}, ${item.date} ${item.month} ${item.year}`;
+                if (!groups[groupKey]) {
+                    groups[groupKey] = [];
+                }
+                groups[groupKey].push(item);
+            });
+
+            container.innerHTML = Object.entries(groups).map(([dateHeader, items]) => {
+                const totalNominalGroup = items.reduce((sum, curr) => sum + curr.nominal, 0);
+
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${dateHeader}
+                            </h3>
+                            <span class="text-[10px] bg-rose-50 text-rose-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(totalNominalGroup)}</span>
+                        </div>
+
+                        <div class="space-y-3">
+                            ${items.map(item => `
+                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                                    <div>
+                                        <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Pukul ${item.time}</span>
+                                        <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-xs text-slate-500 block mb-0.5">Nominal</span>
+                                        <span class="text-sm font-extrabold text-rose-600">${formatRupiah(item.nominal)}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span class="text-xs text-slate-500 font-medium">Nominal:</span>
-                        <span class="text-sm font-extrabold text-rose-600">${formatRupiah(item.nominal)}</span>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Handle Form Submit Harian
@@ -701,6 +831,7 @@
             localStorage.setItem('finance_history_desktop', JSON.stringify(historyData));
 
             document.getElementById('finance-form').reset();
+            profitDisplay.innerText = "Rp 0";
 
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
