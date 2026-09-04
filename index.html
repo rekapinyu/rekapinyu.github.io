@@ -677,7 +677,6 @@
                     renderPengeluaranGrid();
                 } else if (tab === 'kasbon') {
                     renderStickyFilterKasbon();
-                    populateKasbonFilters();
                     renderKasbonGrid();
                 } else if (tab === 'history') {
                     renderStickyFilterHistory();
@@ -715,21 +714,13 @@
 
         function renderStickyFilterKasbon() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
-            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.className = "flex-1 grid grid-cols-1 gap-1.5 min-w-[260px]";
             wrapper.innerHTML = `
                 <div>
-                    <select id="filter-kasbon-date" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Tgl</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-kasbon-month" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Bln</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-kasbon-year" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Thn</option>
+                    <select id="filter-kasbon-status" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Status (Lunas & Belum Lunas)</option>
+                        <option value="lunas">Lunas</option>
+                        <option value="belum_lunas">Belum Lunas</option>
                     </select>
                 </div>
             `;
@@ -944,11 +935,10 @@
             const monthName = months[now.getMonth()];
             const yearNum = now.getFullYear();
 
+            // Cari target group: Nama sama, belum lunas, dan belum diklik "Sudah Bayar" (isLunas = false)
             let targetGroup = kasbonData.find(group => {
                 const sameName = group.namaPelanggan.trim().toLowerCase() === nama.toLowerCase();
-                const sameDay = group.day === dayName && group.date === dateNum && group.year === yearNum;
-                const within24Hours = (currentTimeMillis - group.timestamp) < 86400000;
-                return sameName && sameDay && within24Hours && !group.isLunas;
+                return sameName && !group.isLunas;
             });
 
             if (targetGroup) {
@@ -976,7 +966,6 @@
             }
 
             document.getElementById('kasbon-form').reset();
-            populateKasbonFilters();
             renderKasbonGrid();
             showModal("Berhasil", "Data kasbon berhasil disimpan.");
         });
@@ -996,43 +985,6 @@
             const dateSelect = document.getElementById('filter-pengeluaran-date');
             const monthSelect = document.getElementById('filter-pengeluaran-month');
             const yearSelect = document.getElementById('filter-pengeluaran-year');
-            
-            if(!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            let datesHtml = '<option value="">Semua Tgl</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
-            }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
-        }
-
-        function populateKasbonFilters() {
-            const dateSelect = document.getElementById('filter-kasbon-date');
-            const monthSelect = document.getElementById('filter-kasbon-month');
-            const yearSelect = document.getElementById('filter-kasbon-year');
             
             if(!dateSelect || !monthSelect || !yearSelect) return;
 
@@ -1141,19 +1093,13 @@
             const container = document.getElementById('kasbon-grid');
             if (!container) return;
 
-            const fDateEl = document.getElementById('filter-kasbon-date');
-            const fMonthEl = document.getElementById('filter-kasbon-month');
-            const fYearEl = document.getElementById('filter-kasbon-year');
-
-            const fDate = fDateEl ? fDateEl.value : "";
-            const fMonth = fMonthEl ? fMonthEl.value : "";
-            const fYear = fYearEl ? fYearEl.value : "";
+            const fStatusEl = document.getElementById('filter-kasbon-status');
+            const fStatus = fStatusEl ? fStatusEl.value : "";
 
             let filtered = kasbonData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
+                if (fStatus === "lunas") return item.isLunas === true;
+                if (fStatus === "belum_lunas") return item.isLunas === false;
+                return true;
             });
 
             const countLabel = document.getElementById('sticky-count-label');
@@ -1170,10 +1116,10 @@
 
             container.innerHTML = filtered.map(group => {
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4 relative">
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4 relative overflow-hidden">
                         ${group.isLunas ? `
-                            <div class="absolute inset-0 bg-white/90 z-10 flex items-center justify-center rounded-2xl">
-                                <span class="text-2xl md:text-3xl font-extrabold text-emerald-600 border-2 border-emerald-600 px-6 py-2 rounded-xl tracking-wider uppercase bg-white">LUNAS</span>
+                            <div class="absolute inset-0 bg-white z-10 flex items-center justify-center rounded-2xl pointer-events-none">
+                                <span class="text-3xl md:text-4xl font-black text-emerald-600 border-4 border-emerald-600 px-8 py-3 rounded-2xl tracking-widest uppercase transform -rotate-6 shadow-sm">LUNAS</span>
                             </div>
                         ` : ''}
 
@@ -1200,7 +1146,7 @@
                             `).join('')}
                         </div>
 
-                        <div class="pt-2 flex justify-end">
+                        <div class="pt-2 flex justify-end relative z-20">
                             <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm ${group.isLunas ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
                                 <i class="fa-solid fa-check"></i> ${group.isLunas ? 'Batalkan Status Lunas' : 'Sudah Bayar'}
                             </button>
