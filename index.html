@@ -664,7 +664,7 @@
             if (tab === 'pengeluaran') {
                 if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
             } else if (tab === 'kasbon') {
-                if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden'); // Sembunyikan sticky form jika tidak dibutuhkan, sesuaikan
+                if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden'); // Sesuai original
             }
 
             if (tab === 'input') {
@@ -1097,12 +1097,12 @@
 
             const fStatusEl = document.getElementById('filter-kasbon-status');
             const fSearchEl = document.getElementById('filter-kasbon-search');
-            
+
             const fStatus = fStatusEl ? fStatusEl.value : "";
             const fSearch = fSearchEl ? fSearchEl.value.trim().toLowerCase() : "";
 
             let filtered = kasbonData.filter(item => {
-                // Default: Lunas & Belum Lunas campur jika filter status kosong
+                // Filter status: Lunas, Belum Lunas, atau kosong (Default campur)
                 let matchStatus = true;
                 if (fStatus === "lunas") {
                     matchStatus = item.isLunas === true;
@@ -1110,6 +1110,7 @@
                     matchStatus = item.isLunas === false;
                 }
 
+                // Filter search berdasarkan nama pelanggan
                 let matchSearch = true;
                 if (fSearch !== "") {
                     matchSearch = item.namaPelanggan.toLowerCase().includes(fSearch);
@@ -1143,7 +1144,6 @@
                             <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
                         </div>
 
-                        <!-- Stempel LUNAS di pojok kiri -->
                         ${group.isLunas ? `
                             <div class="flex items-center">
                                 <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-xs inline-block bg-emerald-50/80">
