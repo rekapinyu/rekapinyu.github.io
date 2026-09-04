@@ -350,10 +350,24 @@
     </div>
 
     <script>
-        let historyData = JSON.parse(localStorage.getItem('finance_history_desktop') || '[]');
-        let pengeluaranData = JSON.parse(localStorage.getItem('finance_pengeluaran_desktop') || '[]');
         let registeredUsers = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
         let currentSessionUser = JSON.parse(localStorage.getItem('finance_active_session') || 'null');
+
+        // Variabel data per akun (diinisialisasi berdasarkan nomor HP user aktif, atau kosong/NOL jika belum ada)
+        let historyData = [];
+        let pengeluaranData = [];
+
+        function loadUserData() {
+            if (currentSessionUser && currentSessionUser.phone) {
+                historyData = JSON.parse(localStorage.getItem(`finance_history_desktop_${currentSessionUser.phone}`) || '[]');
+                pengeluaranData = JSON.parse(localStorage.getItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`) || '[]');
+            } else {
+                historyData = [];
+                pengeluaranData = [];
+            }
+        }
+        loadUserData();
+
         let isSidebarMinimized = false;
 
         function toggleSidebar() {
@@ -383,8 +397,11 @@
             if (currentSessionUser) {
                 authContainer.classList.add('hidden');
                 document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
+                loadUserData(); // Muat data spesifik milik akun yang sedang login
             } else {
                 authContainer.classList.remove('hidden');
+                historyData = [];
+                pengeluaranData = [];
             }
         }
         checkAuth();
@@ -417,10 +434,9 @@
             registeredUsers.push(newUser);
             localStorage.setItem('finance_registered_users', JSON.stringify(registeredUsers));
 
-            historyData = [];
-            pengeluaranData = [];
-            localStorage.setItem('finance_history_desktop', JSON.stringify(historyData));
-            localStorage.setItem('finance_pengeluaran_desktop', JSON.stringify(pengeluaranData));
+            // Inisialisasi data default NOL (kosong) khusus untuk nomor HP akun baru ini
+            localStorage.setItem(`finance_history_desktop_${phone}`, JSON.stringify([]));
+            localStorage.setItem(`finance_pengeluaran_desktop_${phone}`, JSON.stringify([]));
 
             document.getElementById('register-form').reset();
             toggleAuthView('login');
@@ -671,7 +687,9 @@
             };
 
             pengeluaranData.unshift(newItem);
-            localStorage.setItem('finance_pengeluaran_desktop', JSON.stringify(pengeluaranData));
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
+            }
 
             document.getElementById('pengeluaran-form').reset();
             populatePengeluaranFilters();
@@ -802,7 +820,9 @@
             };
 
             historyData.unshift(newEntry);
-            localStorage.setItem('finance_history_desktop', JSON.stringify(historyData));
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+            }
 
             document.getElementById('finance-form').reset();
             profitDisplay.innerText = "Rp 0";
@@ -885,7 +905,6 @@
             }
 
             container.innerHTML = filtered.map(item => {
-                // Pastikan profit menggunakan perhitungan (pendapatan - pengeluaran) * 10%
                 const calculatedProfit = ((item.income - (item.cashout || 0)) * 0.10);
                 const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
 
@@ -937,7 +956,6 @@
                 }
                 dailyMap[item.date].income += item.income;
                 
-                // Gunakan formula baru untuk akumulasi profit bulanan (pendapatan - pengeluaran) * 10%
                 const itemProfit = (item.income - (item.cashout || 0)) * 0.10;
                 dailyMap[item.date].profit += (itemProfit > 0 ? itemProfit : 0);
                 
@@ -1063,7 +1081,6 @@
                 grouped[key].expense += (item.expense || 0);
                 grouped[key].cashout += (item.cashout || 0);
                 
-                // Kalkulasi ulang profit bulanan dengan formula baru: (pendapatan - pengeluaran) * 10%
                 const itemProfit = (item.income - (item.cashout || 0)) * 0.10;
                 grouped[key].profit += (itemProfit > 0 ? itemProfit : 0);
             });
