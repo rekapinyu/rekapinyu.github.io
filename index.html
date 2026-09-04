@@ -671,16 +671,21 @@
 
         function renderStickyFilterReport() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
-            wrapper.className = "flex-1 grid grid-cols-2 gap-2 min-w-[220px]";
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
             wrapper.innerHTML = `
                 <div>
-                    <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Bulan</option>
+                    <select id="filter-report-date" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
                     </select>
                 </div>
                 <div>
-                    <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Tahun</option>
+                    <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
                     </select>
                 </div>
             `;
@@ -739,13 +744,26 @@
             const currentSelectedMonth = monthSelect.value;
             const currentSelectedYear = yearSelect.value;
 
-            const uniqueDates = [...new Set(pengeluaranData.map(item => item.date))].sort((a,b) => a - b);
-            const uniqueMonths = [...new Set(pengeluaranData.map(item => item.month))];
-            const uniqueYears = [...new Set(pengeluaranData.map(item => item.year))].sort((a,b) => a - b);
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-            dateSelect.innerHTML = '<option value="">Semua Tgl</option>' + uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
-            monthSelect.innerHTML = '<option value="">Semua Bln</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
-            yearSelect.innerHTML = '<option value="">Semua Thn</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
 
             dateSelect.value = currentSelectedDate;
             monthSelect.value = currentSelectedMonth;
@@ -871,13 +889,26 @@
             const currentSelectedMonth = monthSelect.value;
             const currentSelectedYear = yearSelect.value;
 
-            const uniqueDates = [...new Set(historyData.map(item => item.date))].sort((a,b) => a - b);
-            const uniqueMonths = [...new Set(historyData.map(item => item.month))];
-            const uniqueYears = [...new Set(historyData.map(item => item.year))].sort((a,b) => a - b);
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-            dateSelect.innerHTML = '<option value="">Semua Tgl</option>' + uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
-            monthSelect.innerHTML = '<option value="">Semua Bln</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
-            yearSelect.innerHTML = '<option value="">Semua Thn</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
 
             dateSelect.value = currentSelectedDate;
             monthSelect.value = currentSelectedMonth;
@@ -885,20 +916,38 @@
         }
 
         function populateReportFilters() {
+            const dateSelect = document.getElementById('filter-report-date');
             const monthSelect = document.getElementById('filter-report-month');
             const yearSelect = document.getElementById('filter-report-year');
 
-            if(!monthSelect || !yearSelect) return;
+            if(!dateSelect || !monthSelect || !yearSelect) return;
 
+            const currentSelectedDate = dateSelect.value;
             const currentSelectedMonth = monthSelect.value;
             const currentSelectedYear = yearSelect.value;
 
-            const uniqueMonths = [...new Set(historyData.map(item => item.month))];
-            const uniqueYears = [...new Set(historyData.map(item => item.year))].sort((a,b) => a - b);
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-            monthSelect.innerHTML = '<option value="">Semua Bulan</option>' + uniqueMonths.map(m => `<option value="${m}">${m}</option>`).join('');
-            yearSelect.innerHTML = '<option value="">Semua Tahun</option>' + uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
 
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
+
+            dateSelect.value = currentSelectedDate;
             monthSelect.value = currentSelectedMonth;
             yearSelect.value = currentSelectedYear;
         }
@@ -1074,9 +1123,11 @@
         function renderReport() {
             const container = document.getElementById('report-grid');
 
+            const fDateEl = document.getElementById('filter-report-date');
             const fMonthEl = document.getElementById('filter-report-month');
             const fYearEl = document.getElementById('filter-report-year');
 
+            const fDate = fDateEl ? fDateEl.value : "";
             const fMonth = fMonthEl ? fMonthEl.value : "";
             const fYear = fYearEl ? fYearEl.value : "";
 
@@ -1106,6 +1157,9 @@
                         profit: 0
                     };
                 }
+                // Filter berdasarkan tanggal jika dipilih
+                if (fDate !== "" && item.date.toString() !== fDate) return;
+
                 grouped[key].income += item.income;
                 grouped[key].expense += (item.expense || 0);
                 grouped[key].cashout += (item.cashout || 0);
