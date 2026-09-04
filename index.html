@@ -198,6 +198,31 @@
 
         <!-- Scrollable Main View Area -->
         <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
+            <!-- PENGELUARAN STICKY DI ATAS TEPAT DI BAWAH HEADER -->
+            <div id="pengeluaran-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6">
+                <div class="bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200/80">
+                    <form id="pengeluaran-form" class="grid grid-cols-12 gap-2 items-center">
+                        <div class="col-span-5 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+                                <i class="fa-solid fa-receipt"></i>
+                            </span>
+                            <input type="text" id="pengeluaran-nama" required placeholder="Nama Pengeluaran" class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+
+                        <div class="col-span-4 relative">
+                            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
+                            <input type="text" inputmode="numeric" id="pengeluaran-nominal" required placeholder="Nominal" class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+
+                        <div class="col-span-3">
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs">
+                                <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="max-w-4xl mx-auto w-full my-auto">
                 
                 <!-- VIEW 1: INPUT DATA -->
@@ -248,29 +273,6 @@
 
                 <!-- VIEW NEW: PENGELUARAN -->
                 <section id="view-pengeluaran" class="hidden space-y-6">
-                    <!-- Sticky Input Pengeluaran dinaikkan ke atas tepat di bawah header utama -->
-                    <div class="sticky top-0 z-30 bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200/80 mb-6">
-                        <form id="pengeluaran-form" class="grid grid-cols-12 gap-2 items-center">
-                            <div class="col-span-5 relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
-                                    <i class="fa-solid fa-receipt"></i>
-                                </span>
-                                <input type="text" id="pengeluaran-nama" required placeholder="Nama Pengeluaran" class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
-                            </div>
-
-                            <div class="col-span-4 relative">
-                                <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
-                                <input type="text" inputmode="numeric" id="pengeluaran-nominal" required placeholder="Nominal" class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
-                            </div>
-
-                            <div class="col-span-3">
-                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs">
-                                    <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
                     <!-- History List Grid Pengeluaran -->
                     <div id="pengeluaran-grid" class="grid grid-cols-1 gap-4">
                         <!-- Dimasukkan lewat JS -->
@@ -504,6 +506,7 @@
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
+            const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
 
             views.forEach(v => {
                 const viewEl = document.getElementById(`view-${v}`);
@@ -537,6 +540,12 @@
             document.getElementById(`view-${tab}`).classList.remove('hidden');
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
+
+            if (tab === 'pengeluaran') {
+                if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
+            } else {
+                if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.add('hidden');
+            }
 
             if (tab === 'input') {
                 stickyFilterContainer.classList.add('hidden');
