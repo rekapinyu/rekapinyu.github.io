@@ -149,9 +149,10 @@
                 <i id="icon-pengeluaran" class="fa-solid fa-receipt w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
-            <button onclick="switchTab('kasbon')" id="nav-kasbon" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Kasbon">
+            <button onclick="handleKasbonMenuClick()" id="nav-kasbon" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Kasbon">
                 <i id="icon-kasbon" class="fa-solid fa-book-bookmark w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Kasbon</span>
+                <i class="fa-solid fa-lock text-[10px] ml-auto text-blue-300 sidebar-text"></i>
             </button>
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
@@ -392,8 +393,11 @@
                 <i class="fa-solid fa-receipt text-lg mb-0.5"></i>
                 <span class="text-[11px] font-medium">Pengeluaran</span>
             </button>
-            <button onclick="switchTab('kasbon')" id="nav-mobile-kasbon" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
-                <i class="fa-solid fa-book-bookmark text-lg mb-0.5"></i>
+            <button onclick="handleKasbonMenuClick()" id="nav-mobile-kasbon" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
+                <div class="relative">
+                    <i class="fa-solid fa-book-bookmark text-lg mb-0.5"></i>
+                    <i class="fa-solid fa-lock text-[9px] absolute -top-1 -right-2 text-slate-500"></i>
+                </div>
                 <span class="text-[11px] font-medium">Kasbon</span>
             </button>
             <button onclick="switchTab('input')" id="nav-mobile-input" class="flex flex-col items-center py-1 px-3 text-emerald-600 transition">
@@ -421,6 +425,31 @@
         </div>
     </div>
 
+    <!-- MODAL PASSWORD KASBON -->
+    <div id="kasbon-password-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border border-slate-100 space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-200 mx-auto">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h3 id="kasbon-modal-title" class="font-bold text-slate-800 text-base">Akses Menu Kasbon Terkunci</h3>
+                <p id="kasbon-modal-subtitle" class="text-slate-400 text-xs mt-1">Masukkan kata sandi untuk membuka menu kasbon.</p>
+            </div>
+            <form id="kasbon-password-form" class="space-y-3 text-left">
+                <div>
+                    <input type="password" id="kasbon-pass-input" required placeholder="Masukkan kata sandi..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-semibold text-center transition">
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeKasbonPasswordModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-3 rounded-xl transition">Batal</button>
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-3 rounded-xl transition shadow-sm">Buka Akses</button>
+                </div>
+            </form>
+            <div id="kasbon-setup-hint" class="text-[11px] text-slate-400 pt-2 border-t border-slate-100 hidden">
+                Belum membuat password? Anda akan diminta membuat password baru saat pertama kali akses.
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL EDIT -->
     <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-100 space-y-4">
@@ -443,6 +472,7 @@
         let historyData = [];
         let pengeluaranData = [];
         let kasbonData = [];
+        let isKasbonUnlocked = false;
 
         function loadUserData() {
             if (currentSessionUser && currentSessionUser.phone) {
@@ -553,6 +583,7 @@
 
         function handleLogout() {
             currentSessionUser = null;
+            isKasbonUnlocked = false;
             localStorage.removeItem('finance_active_session');
             checkAuth();
             toggleAuthView('login');
@@ -610,7 +641,69 @@
 
         const profitDisplay = document.getElementById('profit-display');
 
+        // FUNGSI PASSWORD KASBON
+        function handleKasbonMenuClick() {
+            if (isKasbonUnlocked) {
+                switchTab('kasbon');
+                return;
+            }
+
+            if (!currentSessionUser) return;
+            const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
+
+            const modal = document.getElementById('kasbon-password-modal');
+            const titleEl = document.getElementById('kasbon-modal-title');
+            const subtitleEl = document.getElementById('kasbon-modal-subtitle');
+            const hintEl = document.getElementById('kasbon-setup-hint');
+            document.getElementById('kasbon-pass-input').value = '';
+
+            if (!savedKasbonPass) {
+                titleEl.innerText = "Buat Kata Sandi Kasbon";
+                subtitleEl.innerText = "Anda belum memiliki kata sandi untuk menu Kasbon. Silakan buat baru.";
+                hintEl.classList.remove('hidden');
+            } else {
+                titleEl.innerText = "Akses Menu Kasbon Terkunci";
+                subtitleEl.innerText = "Masukkan kata sandi untuk membuka menu kasbon.";
+                hintEl.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeKasbonPasswordModal() {
+            document.getElementById('kasbon-password-modal').classList.add('hidden');
+        }
+
+        document.getElementById('kasbon-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const inputPass = document.getElementById('kasbon-pass-input').value;
+            if (!currentSessionUser) return;
+
+            const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
+
+            if (!savedKasbonPass) {
+                localStorage.setItem(`finance_kasbon_pass_${currentSessionUser.phone}`, inputPass);
+                isKasbonUnlocked = true;
+                closeKasbonPasswordModal();
+                showModal("Berhasil", "Kata sandi kasbon berhasil dibuat. Akses terbuka.");
+                switchTab('kasbon');
+            } else {
+                if (inputPass === savedKasbonPass) {
+                    isKasbonUnlocked = true;
+                    closeKasbonPasswordModal();
+                    switchTab('kasbon');
+                } else {
+                    showModal("Akses Ditolak", "Kata sandi kasbon yang Anda masukkan salah.", "fa-solid fa-circle-xmark text-rose-600");
+                }
+            }
+        });
+
         function switchTab(tab) {
+            if (tab === 'kasbon' && !isKasbonUnlocked) {
+                handleKasbonMenuClick();
+                return;
+            }
+
             const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
@@ -646,12 +739,14 @@
                             <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                             <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
                             <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
+                            ${v === 'kasbon' ? '<i class="fa-solid fa-lock-open text-[10px] ml-auto text-white sidebar-text"></i>' : ''}
                         `;
                     } else {
                         deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
                         deskNav.innerHTML = `
                             <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                             <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
+                            ${v === 'kasbon' ? `<i class="fa-solid ${isKasbonUnlocked ? 'fa-lock-open' : 'fa-lock'} text-[10px] ml-auto text-blue-300 sidebar-text"></i>` : ''}
                         `;
                     }
                 }
