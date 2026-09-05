@@ -130,14 +130,34 @@
             </div>
         </div>
 
-        <!-- User Profile Card Section -->
-        <div class="p-4 border-b border-[#15327a] flex items-center gap-3 bg-[#0a1c47]/50">
-            <div class="w-10 h-10 rounded-full bg-blue-500/30 text-blue-200 flex items-center justify-center text-base shrink-0 border border-blue-400/30">
-                <i class="fa-solid fa-user"></i>
+        <!-- User Profile Card Section (DENGAN TOGGLE ICON GERIGI SETTING) -->
+        <div class="p-4 border-b border-[#15327a] flex items-center justify-between gap-3 bg-[#0a1c47]/50 relative toggle-profile-setting-container">
+            <div class="flex items-center gap-3 truncate">
+                <div id="sidebar-user-avatar-container" class="w-10 h-10 rounded-full bg-blue-500/30 text-blue-200 flex items-center justify-center text-base shrink-0 border border-blue-400/30 overflow-hidden">
+                    <i id="sidebar-user-avatar-icon" class="fa-solid fa-user"></i>
+                </div>
+                <div class="sidebar-text truncate">
+                    <h2 id="sidebar-user-name" class="font-semibold text-white text-sm truncate">Dashboard Profesional</h2>
+                    <p class="text-[11px] text-blue-300 font-medium">Administrator</p>
+                </div>
             </div>
-            <div class="sidebar-text truncate">
-                <h2 id="sidebar-user-name" class="font-semibold text-white text-sm truncate">Dashboard Profesional</h2>
-                <p class="text-[11px] text-blue-300 font-medium">Administrator</p>
+            <!-- Tombol Gear Setting Profil -->
+            <div class="relative">
+                <button onclick="toggleProfileSettingMenu(event)" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/40 hover:bg-blue-800 transition sidebar-text" title="Pengaturan Profil">
+                    <i class="fa-solid fa-gear text-xs"></i>
+                </button>
+                <!-- Popup Menu Setting Profil -->
+                <div id="profile-setting-popup" class="absolute right-0 mt-2 w-48 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-40">
+                    <button onclick="openProfileModal('ganti-nama')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-pen text-emerald-400 w-4"></i> Ganti Nama
+                    </button>
+                    <button onclick="openProfileModal('ganti-foto')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-camera text-blue-400 w-4"></i> Ganti Foto Profil
+                    </button>
+                    <button onclick="openProfileModal('ganti-password')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti Password
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -150,7 +170,7 @@
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
             
-            <!-- MENU KASBON DENGAN SUB-MENU BUKA / KUNCI -->
+            <!-- MENU KASBON DENGAN SUB-MENU BUKA / KUNCI & GANTI PIN -->
             <div class="relative toggle-kasbon-menu-container">
                 <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" id="nav-kasbon-wrapper">
                     <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
@@ -161,13 +181,16 @@
                         <i id="sidebar-kasbon-lock-icon" class="fa-solid fa-lock text-[11px]"></i>
                     </button>
                 </div>
-                <!-- Sub Menu Popup Buka/Kunci -->
+                <!-- Sub Menu Popup Buka/Kunci/Ganti Pin -->
                 <div id="kasbon-submenu-popup" class="absolute left-2 right-2 mt-1 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-30">
                     <button onclick="handleKasbonSubMenuAction('buka')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
                         <i class="fa-solid fa-lock-open text-emerald-400 w-4"></i> Buka Kasbon
                     </button>
                     <button onclick="handleKasbonSubMenuAction('kunci')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
                         <i class="fa-solid fa-lock text-rose-400 w-4"></i> Kunci Kasbon
+                    </button>
+                    <button onclick="handleKasbonSubMenuAction('ganti-pin')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti PIN Kasbon
                     </button>
                 </div>
             </div>
@@ -486,6 +509,21 @@
         </div>
     </div>
 
+    <!-- MODAL PENGATURAN PROFIL (GANTI NAMA, FOTO, PASSWORD) -->
+    <div id="profile-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 id="profile-modal-title" class="font-bold text-slate-800 text-sm">Pengaturan Profil</h3>
+                <button onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="profile-modal-body" class="space-y-3"></div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeProfileModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-2.5 rounded-xl transition">Batal</button>
+                <button id="save-profile-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">Simpan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL EDIT -->
     <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-100 space-y-4">
@@ -587,6 +625,7 @@
             if (currentSessionUser) {
                 authContainer.classList.add('hidden');
                 document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
+                updateUserAvatarUI();
                 loadUserData();
             } else {
                 authContainer.classList.remove('hidden');
@@ -597,6 +636,17 @@
             }
         }
         checkAuth();
+
+        function updateUserAvatarUI() {
+            const avatarContainer = document.getElementById('sidebar-user-avatar-container');
+            if (!avatarContainer || !currentSessionUser) return;
+
+            if (currentSessionUser.photo) {
+                avatarContainer.innerHTML = `<img src="${currentSessionUser.photo}" class="w-full h-full object-cover">`;
+            } else {
+                avatarContainer.innerHTML = `<i id="sidebar-user-avatar-icon" class="fa-solid fa-user"></i>`;
+            }
+        }
 
         function toggleAuthView(view) {
             const loginCard = document.getElementById('login-card');
@@ -622,7 +672,7 @@
                 return;
             }
 
-            const newUser = { name, phone, password };
+            const newUser = { name, phone, password, photo: "" };
             registeredUsers.push(newUser);
             localStorage.setItem('finance_registered_users', JSON.stringify(registeredUsers));
 
@@ -660,6 +710,108 @@
             localStorage.removeItem('finance_active_session');
             checkAuth();
             toggleAuthView('login');
+        }
+
+        // PENGATURAN PROFIL POPUP & FUNGSI EDITNYA
+        function toggleProfileSettingMenu(event) {
+            event.stopPropagation();
+            const popup = document.getElementById('profile-setting-popup');
+            popup.classList.toggle('hidden');
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.toggle-profile-setting-container')) {
+                const popup = document.getElementById('profile-setting-popup');
+                if (popup) popup.classList.add('hidden');
+            }
+        });
+
+        function openProfileModal(type) {
+            const popup = document.getElementById('profile-setting-popup');
+            if (popup) popup.classList.add('hidden');
+
+            const modal = document.getElementById('profile-modal');
+            const titleEl = document.getElementById('profile-modal-title');
+            const bodyEl = document.getElementById('profile-modal-body');
+            const saveBtn = document.getElementById('save-profile-btn');
+
+            if (!currentSessionUser) return;
+
+            if (type === 'ganti-nama') {
+                titleEl.innerText = "Ganti Nama Profil";
+                bodyEl.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nama Lengkap Baru</label>
+                        <input type="text" id="input-new-name" value="${currentSessionUser.name}" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    const newName = document.getElementById('input-new-name').value.trim();
+                    if (!newName) return;
+
+                    currentSessionUser.name = newName;
+                    updateUserInStorage();
+                    document.getElementById('sidebar-user-name').innerText = newName;
+                    closeProfileModal();
+                    showModal("Berhasil", "Nama profil berhasil diperbarui.");
+                };
+            } else if (type === 'ganti-foto') {
+                titleEl.innerText = "Ganti Foto Profil Manual";
+                bodyEl.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pilih File Gambar</label>
+                        <input type="file" id="input-new-photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    const fileInput = document.getElementById('input-new-photo');
+                    if (fileInput.files && fileInput.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            currentSessionUser.photo = e.target.result;
+                            updateUserInStorage();
+                            updateUserAvatarUI();
+                            closeProfileModal();
+                            showModal("Berhasil", "Foto profil berhasil diunggah dan diperbarui.");
+                        };
+                        reader.readAsDataURL(fileInput.files[0]);
+                    } else {
+                        showModal("Gagal", "Silakan pilih file gambar terlebih dahulu.", "fa-solid fa-circle-exclamation text-rose-600");
+                    }
+                };
+            } else if (type === 'ganti-password') {
+                titleEl.innerText = "Ganti Kata Sandi Login";
+                bodyEl.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Kata Sandi Baru</label>
+                        <input type="password" id="input-new-password" placeholder="••••••••" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    const newPass = document.getElementById('input-new-password').value;
+                    if (!newPass) return;
+
+                    currentSessionUser.password = newPass;
+                    updateUserInStorage();
+                    closeProfileModal();
+                    showModal("Berhasil", "Kata sandi login berhasil diperbarui.");
+                };
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profile-modal').classList.add('hidden');
+        }
+
+        function updateUserInStorage() {
+            localStorage.setItem('finance_active_session', JSON.stringify(currentSessionUser));
+            const index = registeredUsers.findIndex(u => u.phone === currentSessionUser.phone);
+            if (index !== -1) {
+                registeredUsers[index] = currentSessionUser;
+                localStorage.setItem('finance_registered_users', JSON.stringify(registeredUsers));
+            }
         }
 
         function formatRupiah(number) {
@@ -714,7 +866,7 @@
 
         const profitDisplay = document.getElementById('profit-display');
 
-        // FUNGSI PASSWORD KASBON DAN SUB-MENU BUKA / KUNCI
+        // FUNGSI PASSWORD KASBON DAN SUB-MENU BUKA / KUNCI / GANTI PIN
         function togglePasswordVisibility() {
             const passInput = document.getElementById('kasbon-pass-input');
             const eyeIcon = document.getElementById('eye-icon');
@@ -757,7 +909,23 @@
                 updateKasbonLockUI();
                 showModal("Kasbon Dikunci", "Menu kasbon berhasil dikunci secara manual.");
                 switchTab('input');
+            } else if (action === 'ganti-pin') {
+                openGantiPinModal();
             }
+        }
+
+        function openGantiPinModal() {
+            if (!currentSessionUser) return;
+            const modal = document.getElementById('kasbon-password-modal');
+            const titleEl = document.getElementById('kasbon-modal-title');
+            const subtitleEl = document.getElementById('kasbon-modal-subtitle');
+            const submitBtn = document.getElementById('kasbon-submit-btn');
+            document.getElementById('kasbon-pass-input').value = '';
+
+            titleEl.innerText = "Ganti PIN Kasbon Baru";
+            subtitleEl.innerText = "Masukkan PIN atau password baru untuk menu kasbon.";
+            submitBtn.innerText = "Simpan PIN Baru";
+            modal.classList.remove('hidden');
         }
 
         function updateKasbonLockUI() {
@@ -809,13 +977,14 @@
             if (!currentSessionUser) return;
 
             const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
+            const titleText = document.getElementById('kasbon-modal-title').innerText;
 
-            if (!savedKasbonPass) {
+            if (!savedKasbonPass || titleText.includes("Ganti") || titleText.includes("Buat")) {
                 localStorage.setItem(`finance_kasbon_pass_${currentSessionUser.phone}`, inputPass);
                 isKasbonUnlocked = true;
                 updateKasbonLockUI();
                 closeKasbonPasswordModal();
-                showModal("Berhasil", "PIN/Password kasbon berhasil dibuat. Akses terbuka.");
+                showModal("Berhasil", "PIN/Password kasbon berhasil disimpan. Akses terbuka.");
                 switchTab('kasbon');
             } else {
                 if (inputPass === savedKasbonPass) {
@@ -1803,58 +1972,6 @@
         function printMonthlyPDF(monthName, yearVal) {
             const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
             if (filteredData.length === 0) return;
-
-            let printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Laporan Keuangan - ${monthName} ${yearVal}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-                        h2 { text-align: center; margin-bottom: 5px; }
-                        p { text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #0d235a; color: white; }
-                        .text-right { text-align: right; }
-                    </style>
-                </head>
-                <body>
-                    <h2>Laporan Rekapitulasi Keuangan Bulanan</h2>
-                    <p>Periode: ${monthName} ${yearVal}</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Tanggal</th>
-                                <th class="text-right">Pendapatan</th>
-                                <th class="text-right">Belanja</th>
-                                <th class="text-right">Pengeluaran</th>
-                                <th class="text-right">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredData.map(i => {
-                                const pPct = i.profitPercentage !== undefined ? i.profitPercentage : 10;
-                                const prof = ((i.income - (i.cashout || 0)) * (pPct / 100));
-                                return `
-                                    <tr>
-                                        <td>${i.date} ${i.month} ${i.year} (${i.time})</td>
-                                        <td class="text-right">${formatRupiah(i.income)}</td>
-                                        <td class="text-right">${formatRupiah(i.expense || 0)}</td>
-                                        <td class="text-right">${formatRupiah(i.cashout || 0)}</td>
-                                        <td class="text-right">${formatRupiah(prof > 0 ? prof : 0)}</td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                    <script>
-                        window.onload = function() { window.print(); }
-                    <\/script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
         }
     </script>
 </body>
