@@ -957,7 +957,7 @@
             }
         }
 
-        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah (Diberi shadow-lg agar jelas)
+        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah
         function renderBackupGrid() {
             const container = document.getElementById('backup-grid');
             if (!container) return;
@@ -1387,7 +1387,6 @@
                 groups[groupKey].push(item);
             });
 
-            // KARTU PENGELUARAN DIBERI SHADOW-LG agar tegas dari body
             container.innerHTML = Object.entries(groups).map(([dateHeader, items]) => {
                 const totalNominalGroup = items.reduce((sum, curr) => sum + curr.nominal, 0);
 
@@ -1456,7 +1455,6 @@
                 return;
             }
 
-            // KARTU KASBON DIBERI SHADOW-LG agar tegas dari body
             container.innerHTML = filtered.map(group => {
                 return `
                     <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative overflow-hidden">
@@ -1649,7 +1647,7 @@
                 return;
             }
 
-            // KARTU HISTORY DIBERI SHADOW-LG agar tegas dari body
+            // KARTU HISTORY DENGAN ICON BULLISH (PENDAPATAN), BEARISH (PENGELUARAN/BELANJA), DAN PROFIT
             container.innerHTML = filtered.map(item => {
                 const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
                 const calculatedProfit = ((item.income - (item.cashout || 0)) * (pPct / 100));
@@ -1679,19 +1677,27 @@
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                         <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
+                            <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
+                                <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Total Pendapatan
+                            </span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                         </div>
                         <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
+                            <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
+                                <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Total Belanja
+                            </span>
                             <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(item.expense || 0)}</span>
                         </div>
                         <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pengeluaran</span>
+                            <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
+                                <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Pengeluaran
+                            </span>
                             <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                         </div>
                         <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Profit (${pPct}%)</span>
+                            <span class="text-[11px] text-emerald-800 font-semibold flex items-center gap-1 mb-1">
+                                <i class="fa-solid fa-sack-dollar text-emerald-600"></i> Profit (${pPct}%)
+                            </span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(displayProfit)}</span>
                         </div>
                     </div>
@@ -1741,7 +1747,7 @@
                 monthGroups[key].items.push(item);
             });
 
-            // KARTU LAPORAN BULANAN DIBERI SHADOW-LG agar tegas dari body
+            // KARTU LAPORAN BULANAN DENGAN ICON BULLISH, BEARISH, DAN PROFIT
             container.innerHTML = Object.entries(monthGroups).map(([key, group]) => {
                 const totalInc = group.items.reduce((sum, i) => sum + i.income, 0);
                 const totalExp = group.items.reduce((sum, i) => sum + (i.expense || 0), 0);
@@ -1765,19 +1771,27 @@
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
+                                <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
+                                    <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Total Pendapatan
+                                </span>
                                 <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(totalInc)}</span>
                             </div>
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
+                                <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
+                                    <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Total Belanja
+                                </span>
                                 <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(totalExp)}</span>
                             </div>
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pengeluaran</span>
+                                <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
+                                    <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Total Pengeluaran
+                                </span>
                                 <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(totalCash)}</span>
                             </div>
                             <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                                <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Akumulasi Profit</span>
+                                <span class="text-[11px] text-emerald-800 font-semibold flex items-center gap-1 mb-1">
+                                    <i class="fa-solid fa-sack-dollar text-emerald-600"></i> Akumulasi Profit
+                                </span>
                                 <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(totalProf)}</span>
                             </div>
                         </div>
@@ -1841,11 +1855,6 @@
                 </html>
             `);
             printWindow.document.close();
-        }
-
-        // Jalankan render awal jika user sudah login
-        if (currentSessionUser) {
-            switchTab('input');
         }
     </script>
 </body>
