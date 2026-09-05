@@ -17,6 +17,11 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-report-area, #printable-report-area * { visibility: visible; }
+            #printable-report-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
@@ -130,7 +135,7 @@
             </div>
         </div>
 
-        <!-- User Profile Card Section (DENGAN TOGGLE ICON GERIGI SETTING) -->
+        <!-- User Profile Card Section -->
         <div class="p-4 border-b border-[#15327a] flex items-center justify-between gap-3 bg-[#0a1c47]/50 relative toggle-profile-setting-container">
             <div class="flex items-center gap-3 truncate">
                 <div id="sidebar-user-avatar-container" class="w-10 h-10 rounded-full bg-blue-500/30 text-blue-200 flex items-center justify-center text-base shrink-0 border border-blue-400/30 overflow-hidden">
@@ -170,7 +175,7 @@
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
             
-            <!-- MENU KASBON DENGAN SUB-MENU BUKA / KUNCI & GANTI PIN -->
+            <!-- MENU KASBON -->
             <div class="relative toggle-kasbon-menu-container">
                 <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" id="nav-kasbon-wrapper">
                     <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
@@ -208,7 +213,7 @@
                 <i id="icon-report" class="fa-solid fa-chart-pie w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Laporan Bulanan</span>
             </button>
-            <!-- MENU BARU: BACKUP OTOMATIS TEPAT DI BAWAH LAPORAN BULANAN -->
+            <!-- MENU BACKUP OTOMATIS -->
             <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Backup Otomatis">
                 <i id="icon-backup" class="fa-solid fa-cloud-arrow-down w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Backup Otomatis</span>
@@ -405,9 +410,16 @@
                     <div id="history-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
-                <!-- VIEW 3: LAPORAN BULANAN -->
+                <!-- VIEW 3: LAPORAN BULANAN (Tombol Lihat di PDF) -->
                 <section id="view-report" class="hidden space-y-4">
-                    <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
+                    <div class="flex justify-end mb-2">
+                        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-file-pdf"></i> Lihat di PDF
+                        </button>
+                    </div>
+                    <div id="printable-report-area">
+                        <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
+                    </div>
                 </section>
 
                 <!-- VIEW NEW: BACKUP OTOMATIS -->
@@ -509,7 +521,7 @@
         </div>
     </div>
 
-    <!-- MODAL PENGATURAN PROFIL (GANTI NAMA, FOTO, PASSWORD) -->
+    <!-- MODAL PENGATURAN PROFIL -->
     <div id="profile-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
             <div class="flex items-center justify-between border-b pb-3">
@@ -564,7 +576,6 @@
         }
         loadUserData();
 
-        // Fungsi Auto Backup Harian berdasarkan data History saat ada entri masuk
         function triggerDailyAutoBackup() {
             if (!currentSessionUser || !currentSessionUser.phone) return;
             const now = new Date();
@@ -712,7 +723,6 @@
             toggleAuthView('login');
         }
 
-        // PENGATURAN PROFIL POPUP & FUNGSI EDITNYA
         function toggleProfileSettingMenu(event) {
             event.stopPropagation();
             const popup = document.getElementById('profile-setting-popup');
@@ -866,7 +876,6 @@
 
         const profitDisplay = document.getElementById('profit-display');
 
-        // FUNGSI PASSWORD KASBON DAN SUB-MENU BUKA / KUNCI / GANTI PIN
         function togglePasswordVisibility() {
             const passInput = document.getElementById('kasbon-pass-input');
             const eyeIcon = document.getElementById('eye-icon');
@@ -1126,7 +1135,6 @@
             }
         }
 
-        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah
         function renderBackupGrid() {
             const container = document.getElementById('backup-grid');
             if (!container) return;
@@ -1787,6 +1795,7 @@
 
         function renderHistory() {
             const container = document.getElementById('history-grid');
+            if (!container) return;
             
             const fDateEl = document.getElementById('filter-history-date');
             const fMonthEl = document.getElementById('filter-history-month');
@@ -1816,7 +1825,6 @@
                 return;
             }
 
-            // KARTU HISTORY DENGAN ICON BULLISH (PENDAPATAN), BEARISH (PENGELUARAN/BELANJA), DAN PROFIT
             container.innerHTML = filtered.map(item => {
                 const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
                 const calculatedProfit = ((item.income - (item.cashout || 0)) * (pPct / 100));
@@ -1826,58 +1834,51 @@
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
                     <div class="border-b border-slate-100 pb-3 flex justify-between items-center relative">
                         <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                            <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
+                            <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
                         </h3>
-                        
-                        <div class="relative toggle-edit-container">
-                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                                <i class="fa-solid fa-pen-to-square"></i>Edit<i class="fa-solid fa-chevron-down text-[10px]"></i>
-                            </button>
-                            <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-1 hidden z-30">
-                                <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                    <i class="fa-solid fa-coins text-emerald-600 w-4"></i>Nominal
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-slate-400 font-semibold">Pukul ${item.time}</span>
+                            <div class="relative toggle-edit-container">
+                                <button onclick="toggleEditMenu(${item.id})" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition" title="Opsi Edit">
+                                    <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
                                 </button>
-                                <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                    <i class="fa-solid fa-calendar-days text-blue-600 w-4"></i>Hari Bulan Tahun
-                                </button>
+                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1 hidden z-30">
+                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
+                                        <i class="fa-solid fa-pen-to-square text-emerald-600 w-4"></i> Edit Nominal
+                                    </button>
+                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
+                                        <i class="fa-solid fa-calendar-days text-blue-600 w-4"></i> Edit Waktu & Tgl
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
-                                <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Total Pendapatan
-                            </span>
-                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Pendapatan</span>
+                            <span class="text-xs sm:text-sm font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                         </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
-                                <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Total Belanja
-                            </span>
-                            <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(item.expense || 0)}</span>
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Total Belanja</span>
+                            <span class="text-xs sm:text-sm font-extrabold text-slate-700">${formatRupiah(item.expense || 0)}</span>
                         </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
-                                <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Pengeluaran
-                            </span>
-                            <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Pengeluaran</span>
+                            <span class="text-xs sm:text-sm font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                         </div>
-                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                            <span class="text-[11px] text-emerald-800 font-semibold flex items-center gap-1 mb-1">
-                                <i class="fa-solid fa-sack-dollar text-emerald-600"></i> Profit (${pPct}%)
-                            </span>
-                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(displayProfit)}</span>
+                        <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
+                            <span class="text-[10px] uppercase font-bold text-emerald-700 block mb-1">Profit (${pPct}%)</span>
+                            <span class="text-xs sm:text-sm font-extrabold text-emerald-700">${formatRupiah(displayProfit)}</span>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             }).join('');
         }
 
         function renderReport() {
             const container = document.getElementById('report-grid');
-            if(!container) return;
+            if (!container) return;
 
             const fDateEl = document.getElementById('filter-report-date');
             const fMonthEl = document.getElementById('filter-report-month');
@@ -1895,83 +1896,79 @@
             });
 
             const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Akumulasi`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-chart-pie text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data laporan bulanan.</p>
-                        <p class="text-xs text-slate-400 mt-1">Silakan masukkan data harian terlebih dahulu.</p>
+                        <p class="text-sm font-medium">Tidak ada data laporan bulanan yang sesuai filter.</p>
                     </div>`;
                 return;
             }
 
-            const monthGroups = {};
-            filtered.forEach(item => {
-                const key = `${item.month} ${item.year}`;
-                if (!monthGroups[key]) {
-                    monthGroups[key] = { month: item.month, year: item.year, items: [] };
-                }
-                monthGroups[key].items.push(item);
-            });
+            const totalIncome = filtered.reduce((sum, curr) => sum + curr.income, 0);
+            const totalExpense = filtered.reduce((sum, curr) => sum + (curr.expense || 0), 0);
+            const totalCashout = filtered.reduce((sum, curr) => sum + (curr.cashout || 0), 0);
+            const totalProfit = filtered.reduce((sum, curr) => {
+                const pPct = curr.profitPercentage !== undefined ? curr.profitPercentage : 10;
+                const p = (curr.income - (curr.cashout || 0)) * (pPct / 100);
+                return sum + (p > 0 ? p : 0);
+            }, 0);
 
-            // KARTU LAPORAN BULANAN DENGAN ICON BULLISH, BEARISH, DAN PROFIT
-            container.innerHTML = Object.entries(monthGroups).map(([key, group]) => {
-                const totalInc = group.items.reduce((sum, i) => sum + i.income, 0);
-                const totalExp = group.items.reduce((sum, i) => sum + (i.expense || 0), 0);
-                const totalCash = group.items.reduce((sum, i) => sum + (i.cashout || 0), 0);
-                const totalProf = group.items.reduce((sum, i) => {
-                    const pPct = i.profitPercentage !== undefined ? i.profitPercentage : 10;
-                    const p = (i.income - (i.cashout || 0)) * (pPct / 100);
-                    return sum + (p > 0 ? p : 0);
-                }, 0);
+            container.innerHTML = `
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-200/80 space-y-6">
+                    <div class="border-b border-slate-100 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">Laporan Resmi Akumulatif</span>
+                            <h3 class="text-lg font-extrabold text-slate-800">Rekapitulasi Keuangan Bulanan</h3>
+                        </div>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full font-semibold">Total Entri: ${filtered.length} Hari</span>
+                    </div>
 
-                return `
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                <i class="fa-solid fa-calendar-alt text-emerald-600"></i> Laporan Bulan: ${key}
-                            </h3>
-                            <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
-                                <i class="fa-solid fa-print"></i> Cetak PDF
-                            </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold uppercase text-slate-400 block mb-1">Akumulasi Pendapatan</span>
+                                <h4 class="text-base sm:text-lg font-extrabold text-emerald-600">${formatRupiah(totalIncome)}</h4>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-arrow-trend-up"></i>
+                            </div>
                         </div>
 
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
-                                    <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Total Pendapatan
-                                </span>
-                                <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(totalInc)}</span>
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold uppercase text-slate-400 block mb-1">Akumulasi Belanja</span>
+                                <h4 class="text-base sm:text-lg font-extrabold text-slate-700">${formatRupiah(totalExpense)}</h4>
                             </div>
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Total Belanja
-                                </span>
-                                <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(totalExp)}</span>
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-cart-shopping"></i>
                             </div>
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mb-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Total Pengeluaran
-                                </span>
-                                <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(totalCash)}</span>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold uppercase text-slate-400 block mb-1">Akumulasi Pengeluaran</span>
+                                <h4 class="text-base sm:text-lg font-extrabold text-rose-600">${formatRupiah(totalCashout)}</h4>
                             </div>
-                            <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                                <span class="text-[11px] text-emerald-800 font-semibold flex items-center gap-1 mb-1">
-                                    <i class="fa-solid fa-sack-dollar text-emerald-600"></i> Akumulasi Profit
-                                </span>
-                                <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(totalProf)}</span>
+                            <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-arrow-trend-down"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold uppercase text-emerald-700 block mb-1">Total Akumulasi Profit</span>
+                                <h4 class="text-base sm:text-lg font-extrabold text-emerald-700">${formatRupiah(totalProfit)}</h4>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-wallet"></i>
                             </div>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
-
-        function printMonthlyPDF(monthName, yearVal) {
-            const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
-            if (filteredData.length === 0) return;
+                </div>
+            `;
         }
     </script>
 </body>
