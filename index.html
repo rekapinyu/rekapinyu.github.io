@@ -185,6 +185,11 @@
                 <i id="icon-report" class="fa-solid fa-chart-pie w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Laporan Bulanan</span>
             </button>
+            <!-- MENU BARU: BACKUP OTOMATIS TEPAT DI BAWAH LAPORAN BULANAN -->
+            <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Backup Otomatis">
+                <i id="icon-backup" class="fa-solid fa-cloud-arrow-down w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                <span class="sidebar-text truncate">Backup Otomatis</span>
+            </button>
         </nav>
 
         <!-- Sidebar Footer Info -->
@@ -250,7 +255,7 @@
         <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
             <!-- PENGELUARAN STICKY -->
             <div id="pengeluaran-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-10">
-                <div class="bg-white p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200">
+                <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
                     <form id="pengeluaran-form" class="grid grid-cols-12 gap-2 items-center">
                         <div class="col-span-5 relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
@@ -275,7 +280,7 @@
 
             <!-- KASBON STICKY -->
             <div id="kasbon-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-10">
-                <div class="bg-white p-3 md:p-4 rounded-3xl shadow-lg border border-slate-200">
+                <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
                     <form id="kasbon-form" class="grid grid-cols-12 gap-2 items-center">
                         <div class="col-span-4 relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
@@ -310,7 +315,7 @@
                 <!-- VIEW 1: INPUT DATA -->
                 <section id="view-input" class="space-y-6">
                     <div class="flex justify-center items-center w-full">
-                        <div class="w-full max-w-xl bg-white p-6 lg:p-8 rounded-2xl shadow-md border border-slate-200/80">
+                        <div class="w-full max-w-xl bg-white p-6 lg:p-8 rounded-2xl shadow-lg border border-slate-200/80">
                             <h3 class="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wide">
                                 <i class="fa-solid fa-file-pen text-emerald-600"></i> Form Input Harian
                             </h3>
@@ -382,6 +387,15 @@
                     <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
+                <!-- VIEW NEW: BACKUP OTOMATIS -->
+                <section id="view-backup" class="hidden space-y-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
+                        <span class="text-xs text-slate-400">Pulihkan history dari backup jika data hilang</span>
+                    </div>
+                    <div id="backup-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </section>
+
             </div>
         </main>
     </div>
@@ -429,6 +443,10 @@
             <button onclick="switchTab('report')" id="nav-mobile-report" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
                 <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
                 <span class="text-[11px] font-medium">Laporan</span>
+            </button>
+            <button onclick="switchTab('backup')" id="nav-mobile-backup" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-cloud-arrow-down text-lg mb-0.5"></i>
+                <span class="text-[11px] font-medium">Backup</span>
             </button>
         </div>
     </nav>
@@ -490,6 +508,7 @@
         let historyData = [];
         let pengeluaranData = [];
         let kasbonData = [];
+        let backupOtomatisData = [];
         let isKasbonUnlocked = false;
 
         function loadUserData() {
@@ -497,13 +516,47 @@
                 historyData = JSON.parse(localStorage.getItem(`finance_history_desktop_${currentSessionUser.phone}`) || '[]');
                 pengeluaranData = JSON.parse(localStorage.getItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`) || '[]');
                 kasbonData = JSON.parse(localStorage.getItem(`finance_kasbon_desktop_${currentSessionUser.phone}`) || '[]');
+                backupOtomatisData = JSON.parse(localStorage.getItem(`finance_backup_desktop_${currentSessionUser.phone}`) || '[]');
             } else {
                 historyData = [];
                 pengeluaranData = [];
                 kasbonData = [];
+                backupOtomatisData = [];
             }
         }
         loadUserData();
+
+        // Fungsi Auto Backup Harian berdasarkan data History saat ada entri masuk
+        function triggerDailyAutoBackup() {
+            if (!currentSessionUser || !currentSessionUser.phone) return;
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const dayName = days[now.getDay()];
+            const dateNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const yearNum = now.getFullYear();
+            const dateKey = `${dateNum}-${now.getMonth()}-${yearNum}`;
+
+            let existingBackup = backupOtomatisData.find(b => b.dateKey === dateKey);
+            if (!existingBackup) {
+                const newBackup = {
+                    id: Date.now(),
+                    dateKey: dateKey,
+                    day: dayName,
+                    date: dateNum,
+                    month: monthName,
+                    year: yearNum,
+                    historySnapshot: JSON.parse(JSON.stringify(historyData))
+                };
+                backupOtomatisData.unshift(newBackup);
+            } else {
+                existingBackup.historySnapshot = JSON.parse(JSON.stringify(historyData));
+            }
+
+            localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
+        }
 
         let isSidebarMinimized = false;
 
@@ -540,6 +593,7 @@
                 historyData = [];
                 pengeluaranData = [];
                 kasbonData = [];
+                backupOtomatisData = [];
             }
         }
         checkAuth();
@@ -575,6 +629,7 @@
             localStorage.setItem(`finance_history_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_pengeluaran_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_kasbon_desktop_${phone}`, JSON.stringify([]));
+            localStorage.setItem(`finance_backup_desktop_${phone}`, JSON.stringify([]));
 
             document.getElementById('register-form').reset();
             toggleAuthView('login');
@@ -781,13 +836,14 @@
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
-                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' }
+                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
+                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
             };
 
             const icons = {
@@ -795,7 +851,8 @@
                 pengeluaran: 'fa-receipt',
                 kasbon: 'fa-book-bookmark',
                 history: 'fa-clock-rotate-left',
-                report: 'fa-chart-pie'
+                report: 'fa-chart-pie',
+                backup: 'fa-cloud-arrow-down'
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
@@ -813,7 +870,7 @@
                     if (v === tab) {
                         if (v === 'kasbon') {
                             const wrapper = document.getElementById('nav-kasbon-wrapper');
-                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative";
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
                             deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
                             deskNav.innerHTML = `
                                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
@@ -821,7 +878,7 @@
                                 <span class="sidebar-text truncate">Kasbon</span>
                             `;
                         } else {
-                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative";
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
                             deskNav.innerHTML = `
                                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                                 <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
@@ -874,8 +931,11 @@
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             }
 
-            if (tab === 'input') {
+            if (tab === 'input' || tab === 'backup') {
                 stickyFilterContainer.classList.add('hidden');
+                if (tab === 'backup') {
+                    renderBackupGrid();
+                }
             } else {
                 stickyFilterContainer.classList.remove('hidden');
                 if (tab === 'pengeluaran') {
@@ -895,6 +955,60 @@
                     renderReport();
                 }
             }
+        }
+
+        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah (Diberi shadow-lg agar jelas)
+        function renderBackupGrid() {
+            const container = document.getElementById('backup-grid');
+            if (!container) return;
+
+            loadUserData();
+
+            if (backupOtomatisData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-cloud-arrow-down text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada data backup otomatis.</p>
+                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = backupOtomatisData.map(backup => {
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 flex flex-col justify-between space-y-4 hover:shadow-xl transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+                                    <i class="fa-solid fa-database"></i>
+                                </span>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Backup Aktif</span>
+                            </div>
+                            <h4 class="font-extrabold text-slate-800 text-base">${backup.day}, ${backup.date} ${backup.month} ${backup.year}</h4>
+                            <p class="text-xs text-slate-500 mt-1">Total riwayat tersimpan: ${backup.historySnapshot.length} item data</p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span class="text-[11px] font-semibold text-slate-400">Pulihkan jika history hilang</span>
+                            <button onclick="restoreHistoryFromBackup(${backup.id})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-rotate-left"></i> Pulihkan
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function restoreHistoryFromBackup(backupId) {
+            const backup = backupOtomatisData.find(b => b.id === backupId);
+            if (!backup) return;
+
+            historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+            }
+
+            showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
+            switchTab('history');
         }
 
         function renderStickyFilterPengeluaran() {
@@ -1098,6 +1212,7 @@
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
             }
             renderHistory();
         }
@@ -1256,7 +1371,7 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
                         <p class="text-xs font-medium">Belum ada riwayat pengeluaran yang sesuai filter.</p>
                     </div>`;
@@ -1272,11 +1387,12 @@
                 groups[groupKey].push(item);
             });
 
+            // KARTU PENGELUARAN DIBERI SHADOW-LG agar tegas dari body
             container.innerHTML = Object.entries(groups).map(([dateHeader, items]) => {
                 const totalNominalGroup = items.reduce((sum, curr) => sum + curr.nominal, 0);
 
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                                 <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${dateHeader}
@@ -1286,7 +1402,7 @@
 
                         <div class="space-y-3">
                             ${items.map(item => `
-                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4 shadow-sm">
+                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
                                     <div>
                                         <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Pukul ${item.time}</span>
                                         <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
@@ -1333,16 +1449,17 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
                         <p class="text-xs font-medium">Belum ada riwayat kasbon yang sesuai filter.</p>
                     </div>`;
                 return;
             }
 
+            // KARTU KASBON DIBERI SHADOW-LG agar tegas dari body
             container.innerHTML = filtered.map(group => {
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4 relative overflow-hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative overflow-hidden">
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
@@ -1355,7 +1472,7 @@
 
                         ${group.isLunas ? `
                             <div class="flex items-center">
-                                <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-xs inline-block bg-emerald-50/80">
+                                <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-sm inline-block bg-emerald-50/80">
                                     <i class="fa-solid fa-check mr-1"></i> LUNAS
                                 </span>
                             </div>
@@ -1363,7 +1480,7 @@
 
                         <div class="space-y-2">
                             ${group.items.map(sub => `
-                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4 shadow-sm">
+                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
                                     <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
                                         <i class="fa-solid fa-box text-slate-400"></i> ${sub.produk}
                                     </div>
@@ -1376,7 +1493,7 @@
 
                         ${!group.isLunas ? `
                             <div class="pt-2 flex justify-end relative z-20">
-                                <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700">
+                                <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md bg-emerald-600 text-white hover:bg-emerald-700">
                                     <i class="fa-solid fa-check"></i> Sudah Bayar
                                 </button>
                             </div>
@@ -1417,6 +1534,7 @@
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
             }
 
             document.getElementById('finance-form').reset();
@@ -1523,7 +1641,7 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
                         <p class="text-sm font-medium">Tidak ada riwayat data yang sesuai filter.</p>
                         <p class="text-xs text-slate-400 mt-1">Coba ubah filter atau input data baru.</p>
@@ -1531,20 +1649,21 @@
                 return;
             }
 
+            // KARTU HISTORY DIBERI SHADOW-LG agar tegas dari body
             container.innerHTML = filtered.map(item => {
                 const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
                 const calculatedProfit = ((item.income - (item.cashout || 0)) * (pPct / 100));
                 const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
 
                 return `
-                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4">
+                <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
                     <div class="border-b border-slate-100 pb-3 flex justify-between items-center relative">
                         <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                             <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
                         </h3>
                         
                         <div class="relative toggle-edit-container">
-                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm">
                                 <i class="fa-solid fa-pen-to-square"></i>Edit<i class="fa-solid fa-chevron-down text-[10px]"></i>
                             </button>
                             <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-1 hidden z-30">
@@ -1559,20 +1678,20 @@
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-wallet text-emerald-600"></i> Total Pendapatan</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                         </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-blue-600"></i> Total Belanja</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
                             <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(item.expense || 0)}</span>
                         </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer text-rose-600"></i> Pengeluaran</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pengeluaran</span>
                             <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                         </div>
-                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100 shadow-sm">
-                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-emerald-600"></i> Profit (${pPct}%)</span>
+                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Profit (${pPct}%)</span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(displayProfit)}</span>
                         </div>
                     </div>
@@ -1581,110 +1700,9 @@
             }).join('');
         }
 
-        function printMonthlyPDF(monthName, yearVal) {
-            const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
-            if (filteredData.length === 0) return;
-
-            const monthsList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            const monthIndex = monthsList.indexOf(monthName);
-            const daysInMonth = new Date(yearVal, monthIndex + 1, 0).getDate();
-
-            const dailyMap = {};
-            filteredData.forEach(item => {
-                if (!dailyMap[item.date]) {
-                    dailyMap[item.date] = { income: 0, profit: 0, expense: 0 };
-                }
-                dailyMap[item.date].income += item.income;
-                
-                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const itemProfit = (item.income - (item.cashout || 0)) * (pPct / 100);
-                dailyMap[item.date].profit += (itemProfit > 0 ? itemProfit : 0);
-                
-                dailyMap[item.date].expense += (item.expense || 0);
-            });
-
-            let totalIncome = 0;
-            let totalProfit = 0;
-            let totalExpense = 0;
-
-            const printWindow = window.open('', '_blank');
-            
-            let htmlContent = `
-                <!DOCTYPE html>
-                <html lang="id">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Lihat Laporan PDF - ${monthName} ${yearVal}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; color: #333; margin: 30px; }
-                        h2 { text-align: center; margin-bottom: 5px; text-transform: uppercase; }
-                        p.subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 25px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-                        th, td { border: 1px solid #94a3b8; padding: 8px 12px; text-align: left; }
-                        th { background-color: #065f46; color: white; text-transform: uppercase; font-size: 12px; }
-                        td.number, th.number { text-align: right; }
-                        tr:nth-child(even) { background-color: #f8fafc; }
-                        .total-row { font-weight: bold; background-color: #e2e8f0 !important; }
-                        .footer { margin-top: 30px; text-align: right; font-size: 12px; }
-                    </style>
-                </head>
-                <body>
-                    <h2>Laporan Rekapitulasi Keuangan Bulanan</h2>
-                    <p class="subtitle">Periode: ${monthName} ${yearVal} (Tanggal 1 s.d. ${daysInMonth})</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 15%;">Tgl</th>
-                                <th class="number">Pendapatan Hari Ini</th>
-                                <th class="number">Total Profit</th>
-                                <th class="number">Total Belanja</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dayData = dailyMap[d] || { income: 0, profit: 0, expense: 0 };
-                
-                totalIncome += dayData.income;
-                totalProfit += dayData.profit;
-                totalExpense += dayData.expense;
-
-                htmlContent += `
-                    <tr>
-                        <td>${d}</td>
-                        <td class="number">${dayData.income > 0 ? dayData.income.toLocaleString('id-ID') : '-'}</td>
-                        <td class="number">${dayData.profit > 0 ? dayData.profit.toLocaleString('id-ID') : '-'}</td>
-                        <td class="number">${dayData.expense > 0 ? dayData.expense.toLocaleString('id-ID') : '-'}</td>
-                    </tr>
-                `;
-            }
-
-            htmlContent += `
-                        <tr class="total-row">
-                            <td>Total</td>
-                            <td class="number">${totalIncome.toLocaleString('id-ID')}</td>
-                            <td class="number">${totalProfit.toLocaleString('id-ID')}</td>
-                            <td class="number">${totalExpense.toLocaleString('id-ID')}</td>
-                        </tr>
-                        </tbody>
-                    </table>
-                    <div class="footer">
-                        <p>Dokumen pratinjau PDF bulanan lengkap (${monthName} ${yearVal})</p>
-                    </div>
-                </body>
-                </html>
-            `;
-
-            printWindow.document.write(htmlContent);
-            printWindow.document.close();
-            printWindow.focus();
-
-            showModal("Pratinjau PDF", `Jendela pratinjau / lihat PDF lengkap (tgl 1 s.d. ${daysInMonth}) untuk ${monthName} ${yearVal} berhasil dibuka.`);
-        }
-
         function renderReport() {
             const container = document.getElementById('report-grid');
+            if(!container) return;
 
             const fDateEl = document.getElementById('filter-report-date');
             const fMonthEl = document.getElementById('filter-report-month');
@@ -1694,93 +1712,140 @@
             const fMonth = fMonthEl ? fMonthEl.value : "";
             const fYear = fYearEl ? fYearEl.value : "";
 
+            let filtered = historyData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
             const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `Filter Laporan Aktif`;
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
 
-            if (historyData.length === 0) {
+            if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
-                        <i class="fa-solid fa-chart-line text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada laporan bulan ini.</p>
-                        <p class="text-xs text-slate-400 mt-1">Laporan akan muncul otomatis setelah Anda mencatat transaksi.</p>
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-chart-pie text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada data laporan bulanan.</p>
+                        <p class="text-xs text-slate-400 mt-1">Silakan masukkan data harian terlebih dahulu.</p>
                     </div>`;
                 return;
             }
 
-            const grouped = {};
-            historyData.forEach(item => {
+            const monthGroups = {};
+            filtered.forEach(item => {
                 const key = `${item.month} ${item.year}`;
-                if (!grouped[key]) {
-                    grouped[key] = {
-                        month: item.month,
-                        year: item.year,
-                        income: 0,
-                        expense: 0,
-                        cashout: 0,
-                        profit: 0
-                    };
+                if (!monthGroups[key]) {
+                    monthGroups[key] = { month: item.month, year: item.year, items: [] };
                 }
-                if (fDate !== "" && item.date.toString() !== fDate) return;
-
-                grouped[key].income += item.income;
-                grouped[key].expense += (item.expense || 0);
-                grouped[key].cashout += (item.cashout || 0);
-                
-                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const itemProfit = (item.income - (item.cashout || 0)) * (pPct / 100);
-                grouped[key].profit += (itemProfit > 0 ? itemProfit : 0);
+                monthGroups[key].items.push(item);
             });
 
-            let groupArray = Object.values(grouped).filter(group => {
-                let matchMonth = fMonth === "" || group.month === fMonth;
-                let matchYear = fYear === "" || group.year.toString() === fYear;
-                return matchMonth && matchYear;
-            });
+            // KARTU LAPORAN BULANAN DIBERI SHADOW-LG agar tegas dari body
+            container.innerHTML = Object.entries(monthGroups).map(([key, group]) => {
+                const totalInc = group.items.reduce((sum, i) => sum + i.income, 0);
+                const totalExp = group.items.reduce((sum, i) => sum + (i.expense || 0), 0);
+                const totalCash = group.items.reduce((sum, i) => sum + (i.cashout || 0), 0);
+                const totalProf = group.items.reduce((sum, i) => {
+                    const pPct = i.profitPercentage !== undefined ? i.profitPercentage : 10;
+                    const p = (i.income - (i.cashout || 0)) * (pPct / 100);
+                    return sum + (p > 0 ? p : 0);
+                }, 0);
 
-            if (groupArray.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
-                        <i class="fa-solid fa-filter-circle-xmark text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Tidak ada laporan yang sesuai dengan filter.</p>
-                    </div>`;
-                return;
-            }
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-alt text-emerald-600"></i> Laporan Bulan: ${key}
+                            </h3>
+                            <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-print"></i> Cetak PDF
+                            </button>
+                        </div>
 
-            container.innerHTML = groupArray.map(group => `
-                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4">
-                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-alt text-emerald-600"></i> Periode: ${group.month} ${group.year}
-                        </h3>
-                        <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Bulanan</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
+                                <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(totalInc)}</span>
+                            </div>
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
+                                <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(totalExp)}</span>
+                            </div>
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
+                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pengeluaran</span>
+                                <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(totalCash)}</span>
+                            </div>
+                            <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                                <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Akumulasi Profit</span>
+                                <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(totalProf)}</span>
+                            </div>
+                        </div>
                     </div>
+                `;
+            }).join('');
+        }
 
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-wallet text-emerald-600"></i> Akumulasi Pendapatan</span>
-                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.income)}</span>
-                        </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-blue-600"></i> Akumulasi Belanja</span>
-                            <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(group.expense)}</span>
-                        </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer text-rose-600"></i> Akumulasi Pengeluaran</span>
-                            <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(group.cashout)}</span>
-                        </div>
-                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100 shadow-sm">
-                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-emerald-600"></i> Akumulasi Profit</span>
-                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.profit)}</span>
-                        </div>
-                    </div>
+        function printMonthlyPDF(monthName, yearVal) {
+            const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
+            if (filteredData.length === 0) return;
 
-                    <div class="flex items-center justify-end pt-2 border-t border-slate-100">
-                        <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
-                            <i class="fa-solid fa-file-pdf"></i> Lihat di PDF (${group.month} ${group.year})
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+            let printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Laporan Keuangan - ${monthName} ${yearVal}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                        h2 { text-align: center; margin-bottom: 5px; }
+                        p { text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #0d235a; color: white; }
+                        .text-right { text-align: right; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Laporan Rekapitulasi Keuangan Bulanan</h2>
+                    <p>Periode: ${monthName} ${yearVal}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th class="text-right">Pendapatan</th>
+                                <th class="text-right">Belanja</th>
+                                <th class="text-right">Pengeluaran</th>
+                                <th class="text-right">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredData.map(i => {
+                                const pPct = i.profitPercentage !== undefined ? i.profitPercentage : 10;
+                                const prof = ((i.income - (i.cashout || 0)) * (pPct / 100));
+                                return `
+                                    <tr>
+                                        <td>${i.date} ${i.month} ${i.year} (${i.time})</td>
+                                        <td class="text-right">${formatRupiah(i.income)}</td>
+                                        <td class="text-right">${formatRupiah(i.expense || 0)}</td>
+                                        <td class="text-right">${formatRupiah(i.cashout || 0)}</td>
+                                        <td class="text-right">${formatRupiah(prof > 0 ? prof : 0)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // Jalankan render awal jika user sudah login
+        if (currentSessionUser) {
+            switchTab('input');
         }
     </script>
 </body>
