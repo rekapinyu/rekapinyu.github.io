@@ -149,11 +149,29 @@
                 <i id="icon-pengeluaran" class="fa-solid fa-receipt w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
-            <button onclick="handleKasbonMenuClick()" id="nav-kasbon" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Kasbon">
-                <i id="icon-kasbon" class="fa-solid fa-book-bookmark w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
-                <span class="sidebar-text truncate">Kasbon</span>
-                <i class="fa-solid fa-lock text-[10px] ml-auto text-blue-300 sidebar-text"></i>
-            </button>
+            
+            <!-- MENU KASBON DENGAN SUB-MENU BUKA / KUNCI -->
+            <div class="relative toggle-kasbon-menu-container">
+                <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" id="nav-kasbon-wrapper">
+                    <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
+                        <i id="icon-kasbon" class="fa-solid fa-book-bookmark w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                        <span class="sidebar-text truncate">Kasbon</span>
+                    </button>
+                    <button onclick="toggleKasbonSubMenu(event)" class="px-3 py-2.5 text-blue-300 hover:text-white transition sidebar-text" title="Pengaturan Gembok Kasbon">
+                        <i id="sidebar-kasbon-lock-icon" class="fa-solid fa-lock text-[11px]"></i>
+                    </button>
+                </div>
+                <!-- Sub Menu Popup Buka/Kunci -->
+                <div id="kasbon-submenu-popup" class="absolute left-2 right-2 mt-1 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-30">
+                    <button onclick="handleKasbonSubMenuAction('buka')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-lock-open text-emerald-400 w-4"></i> Buka Kasbon
+                    </button>
+                    <button onclick="handleKasbonSubMenuAction('kunci')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-lock text-rose-400 w-4"></i> Kunci Kasbon
+                    </button>
+                </div>
+            </div>
+
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                 <i id="icon-input" class="fa-solid fa-file-pen w-5 text-center shrink-0"></i>
@@ -396,7 +414,7 @@
             <button onclick="handleKasbonMenuClick()" id="nav-mobile-kasbon" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
                 <div class="relative">
                     <i class="fa-solid fa-book-bookmark text-lg mb-0.5"></i>
-                    <i class="fa-solid fa-lock text-[9px] absolute -top-1 -right-2 text-slate-500"></i>
+                    <i id="mobile-kasbon-lock-icon" class="fa-solid fa-lock text-[9px] absolute -top-1 -right-2 text-slate-500"></i>
                 </div>
                 <span class="text-[11px] font-medium">Kasbon</span>
             </button>
@@ -641,7 +659,7 @@
 
         const profitDisplay = document.getElementById('profit-display');
 
-        // FUNGSI PASSWORD KASBON YANG DIPERBAIKI
+        // FUNGSI PASSWORD KASBON DAN SUB-MENU BUKA / KUNCI
         function togglePasswordVisibility() {
             const passInput = document.getElementById('kasbon-pass-input');
             const eyeIcon = document.getElementById('eye-icon');
@@ -653,6 +671,48 @@
                 passInput.type = 'password';
                 eyeIcon.classList.remove('fa-eye-slash');
                 eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function toggleKasbonSubMenu(event) {
+            event.stopPropagation();
+            const popup = document.getElementById('kasbon-submenu-popup');
+            popup.classList.toggle('hidden');
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.toggle-kasbon-menu-container')) {
+                const popup = document.getElementById('kasbon-submenu-popup');
+                if (popup) popup.classList.add('hidden');
+            }
+        });
+
+        function handleKasbonSubMenuAction(action) {
+            const popup = document.getElementById('kasbon-submenu-popup');
+            if (popup) popup.classList.add('hidden');
+
+            if (action === 'buka') {
+                if (isKasbonUnlocked) {
+                    switchTab('kasbon');
+                } else {
+                    handleKasbonMenuClick();
+                }
+            } else if (action === 'kunci') {
+                isKasbonUnlocked = false;
+                updateKasbonLockUI();
+                showModal("Kasbon Dikunci", "Menu kasbon berhasil dikunci secara manual.");
+                switchTab('input');
+            }
+        }
+
+        function updateKasbonLockUI() {
+            const deskLockIcon = document.getElementById('sidebar-kasbon-lock-icon');
+            const mobLockIcon = document.getElementById('mobile-kasbon-lock-icon');
+            if (deskLockIcon) {
+                deskLockIcon.className = isKasbonUnlocked ? "fa-solid fa-lock-open text-[11px] text-emerald-400" : "fa-solid fa-lock text-[11px] text-blue-300";
+            }
+            if (mobLockIcon) {
+                mobLockIcon.className = isKasbonUnlocked ? "fa-solid fa-lock-open text-[9px] text-emerald-500 absolute -top-1 -right-2" : "fa-solid fa-lock text-[9px] text-slate-500 absolute -top-1 -right-2";
             }
         }
 
@@ -698,12 +758,14 @@
             if (!savedKasbonPass) {
                 localStorage.setItem(`finance_kasbon_pass_${currentSessionUser.phone}`, inputPass);
                 isKasbonUnlocked = true;
+                updateKasbonLockUI();
                 closeKasbonPasswordModal();
                 showModal("Berhasil", "PIN/Password kasbon berhasil dibuat. Akses terbuka.");
                 switchTab('kasbon');
             } else {
                 if (inputPass === savedKasbonPass) {
                     isKasbonUnlocked = true;
+                    updateKasbonLockUI();
                     closeKasbonPasswordModal();
                     switchTab('kasbon');
                 } else {
@@ -749,20 +811,39 @@
                 if (deskNav && iconEl) {
                     const iconClass = icons[v];
                     if (v === tab) {
-                        deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative";
-                        deskNav.innerHTML = `
-                            <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
-                            <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
-                            <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
-                            ${v === 'kasbon' ? '<i class="fa-solid fa-lock-open text-[10px] ml-auto text-white sidebar-text"></i>' : ''}
-                        `;
+                        if (v === 'kasbon') {
+                            const wrapper = document.getElementById('nav-kasbon-wrapper');
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative";
+                            deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
+                            deskNav.innerHTML = `
+                                <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
+                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-text truncate">Kasbon</span>
+                            `;
+                        } else {
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative";
+                            deskNav.innerHTML = `
+                                <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
+                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
+                            `;
+                        }
                     } else {
-                        deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
-                        deskNav.innerHTML = `
-                            <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
-                            <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
-                            ${v === 'kasbon' ? `<i class="fa-solid ${isKasbonUnlocked ? 'fa-lock-open' : 'fa-lock'} text-[10px] ml-auto text-blue-300 sidebar-text"></i>` : ''}
-                        `;
+                        if (v === 'kasbon') {
+                            const wrapper = document.getElementById('nav-kasbon-wrapper');
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
+                            deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
+                            deskNav.innerHTML = `
+                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                                <span class="sidebar-text truncate">Kasbon</span>
+                            `;
+                        } else {
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
+                            deskNav.innerHTML = `
+                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                                <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
+                            `;
+                        }
                     }
                 }
 
@@ -777,6 +858,8 @@
                     }
                 }
             });
+
+            updateKasbonLockUI();
 
             document.getElementById(`view-${tab}`).classList.remove('hidden');
             document.getElementById('page-title-header').innerText = titles[tab].title;
