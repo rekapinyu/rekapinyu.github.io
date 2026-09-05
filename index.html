@@ -185,11 +185,6 @@
                 <i id="icon-report" class="fa-solid fa-chart-pie w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Laporan Bulanan</span>
             </button>
-            <!-- MENU BACKUP OTOMATIS TEPAT DI BAWAH LAPORAN BULANAN -->
-            <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Backup Otomatis">
-                <i id="icon-backup" class="fa-solid fa-cloud-arrow-down w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
-                <span class="sidebar-text truncate">Backup Otomatis</span>
-            </button>
         </nav>
 
         <!-- Sidebar Footer Info -->
@@ -315,7 +310,7 @@
                 <!-- VIEW 1: INPUT DATA -->
                 <section id="view-input" class="space-y-6">
                     <div class="flex justify-center items-center w-full">
-                        <div class="w-full max-w-xl bg-white p-6 lg:p-8 rounded-2xl shadow-xs border border-slate-200/80">
+                        <div class="w-full max-w-xl bg-white p-6 lg:p-8 rounded-2xl shadow-md border border-slate-200/80">
                             <h3 class="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wide">
                                 <i class="fa-solid fa-file-pen text-emerald-600"></i> Form Input Harian
                             </h3>
@@ -387,15 +382,6 @@
                     <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
-                <!-- VIEW NEW: BACKUP OTOMATIS -->
-                <section id="view-backup" class="hidden space-y-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
-                        <span class="text-xs text-slate-400">Pulihkan history dari backup jika data hilang</span>
-                    </div>
-                    <div id="backup-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
-                </section>
-
             </div>
         </main>
     </div>
@@ -443,10 +429,6 @@
             <button onclick="switchTab('report')" id="nav-mobile-report" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
                 <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
                 <span class="text-[11px] font-medium">Laporan</span>
-            </button>
-            <button onclick="switchTab('backup')" id="nav-mobile-backup" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
-                <i class="fa-solid fa-cloud-arrow-down text-lg mb-0.5"></i>
-                <span class="text-[11px] font-medium">Backup</span>
             </button>
         </div>
     </nav>
@@ -508,7 +490,6 @@
         let historyData = [];
         let pengeluaranData = [];
         let kasbonData = [];
-        let backupOtomatisData = [];
         let isKasbonUnlocked = false;
 
         function loadUserData() {
@@ -516,49 +497,13 @@
                 historyData = JSON.parse(localStorage.getItem(`finance_history_desktop_${currentSessionUser.phone}`) || '[]');
                 pengeluaranData = JSON.parse(localStorage.getItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`) || '[]');
                 kasbonData = JSON.parse(localStorage.getItem(`finance_kasbon_desktop_${currentSessionUser.phone}`) || '[]');
-                backupOtomatisData = JSON.parse(localStorage.getItem(`finance_backup_desktop_${currentSessionUser.phone}`) || '[]');
             } else {
                 historyData = [];
                 pengeluaranData = [];
                 kasbonData = [];
-                backupOtomatisData = [];
             }
         }
         loadUserData();
-
-        // Fungsi Auto Backup Harian berdasarkan data History saat ada entri masuk
-        function triggerDailyAutoBackup() {
-            if (!currentSessionUser || !currentSessionUser.phone) return;
-            const now = new Date();
-            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            const dayName = days[now.getDay()];
-            const dateNum = now.getDate();
-            const monthName = months[now.getMonth()];
-            const yearNum = now.getFullYear();
-            const dateKey = `${dateNum}-${now.getMonth()}-${yearNum}`;
-
-            // Periksa apakah backup untuk hari ini sudah ada
-            let existingBackup = backupOtomatisData.find(b => b.dateKey === dateKey);
-            if (!existingBackup) {
-                const newBackup = {
-                    id: Date.now(),
-                    dateKey: dateKey,
-                    day: dayName,
-                    date: dateNum,
-                    month: monthName,
-                    year: yearNum,
-                    historySnapshot: JSON.parse(JSON.stringify(historyData))
-                };
-                backupOtomatisData.unshift(newBackup);
-            } else {
-                // Update snapshot terbaru hari ini
-                existingBackup.historySnapshot = JSON.parse(JSON.stringify(historyData));
-            }
-
-            localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
-        }
 
         let isSidebarMinimized = false;
 
@@ -595,7 +540,6 @@
                 historyData = [];
                 pengeluaranData = [];
                 kasbonData = [];
-                backupOtomatisData = [];
             }
         }
         checkAuth();
@@ -631,7 +575,6 @@
             localStorage.setItem(`finance_history_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_pengeluaran_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_kasbon_desktop_${phone}`, JSON.stringify([]));
-            localStorage.setItem(`finance_backup_desktop_${phone}`, JSON.stringify([]));
 
             document.getElementById('register-form').reset();
             toggleAuthView('login');
@@ -838,14 +781,13 @@
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
-                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
-                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
+                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' }
             };
 
             const icons = {
@@ -853,8 +795,7 @@
                 pengeluaran: 'fa-receipt',
                 kasbon: 'fa-book-bookmark',
                 history: 'fa-clock-rotate-left',
-                report: 'fa-chart-pie',
-                backup: 'fa-cloud-arrow-down'
+                report: 'fa-chart-pie'
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
@@ -933,11 +874,8 @@
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             }
 
-            if (tab === 'input' || tab === 'backup') {
+            if (tab === 'input') {
                 stickyFilterContainer.classList.add('hidden');
-                if (tab === 'backup') {
-                    renderBackupGrid();
-                }
             } else {
                 stickyFilterContainer.classList.remove('hidden');
                 if (tab === 'pengeluaran') {
@@ -957,61 +895,6 @@
                     renderReport();
                 }
             }
-        }
-
-        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah
-        function renderBackupGrid() {
-            const container = document.getElementById('backup-grid');
-            if (!container) return;
-
-            loadUserData();
-
-            if (backupOtomatisData.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-cloud-arrow-down text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data backup otomatis.</p>
-                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi.</p>
-                    </div>`;
-                return;
-            }
-
-            container.innerHTML = backupOtomatisData.map(backup => {
-                return `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between space-y-4 hover:shadow-md transition">
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
-                                    <i class="fa-solid fa-database"></i>
-                                </span>
-                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Backup Aktif</span>
-                            </div>
-                            <h4 class="font-extrabold text-slate-800 text-base">${backup.day}, ${backup.date} ${backup.month} ${backup.year}</h4>
-                            <p class="text-xs text-slate-500 mt-1">Total riwayat tersimpan: ${backup.historySnapshot.length} item data</p>
-                        </div>
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
-                            <span class="text-[11px] font-semibold text-slate-400">Pulihkan jika history hilang</span>
-                            <button onclick="restoreHistoryFromBackup(${backup.id})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                                <i class="fa-solid fa-rotate-left"></i> Pulihkan
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Fungsi Restore History dari Backup Otomatis
-        function restoreHistoryFromBackup(backupId) {
-            const backup = backupOtomatisData.find(b => b.id === backupId);
-            if (!backup) return;
-
-            historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
-            if (currentSessionUser && currentSessionUser.phone) {
-                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-            }
-
-            showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
-            switchTab('history');
         }
 
         function renderStickyFilterPengeluaran() {
@@ -1215,7 +1098,6 @@
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
             }
             renderHistory();
         }
@@ -1374,7 +1256,7 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
                         <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
                         <p class="text-xs font-medium">Belum ada riwayat pengeluaran yang sesuai filter.</p>
                     </div>`;
@@ -1394,7 +1276,7 @@
                 const totalNominalGroup = items.reduce((sum, curr) => sum + curr.nominal, 0);
 
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                    <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4">
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                                 <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${dateHeader}
@@ -1404,7 +1286,7 @@
 
                         <div class="space-y-3">
                             ${items.map(item => `
-                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4 shadow-sm">
                                     <div>
                                         <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Pukul ${item.time}</span>
                                         <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
@@ -1451,7 +1333,7 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
                         <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
                         <p class="text-xs font-medium">Belum ada riwayat kasbon yang sesuai filter.</p>
                     </div>`;
@@ -1460,7 +1342,7 @@
 
             container.innerHTML = filtered.map(group => {
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4 relative overflow-hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4 relative overflow-hidden">
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
@@ -1481,7 +1363,7 @@
 
                         <div class="space-y-2">
                             ${group.items.map(sub => `
-                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4 shadow-sm">
                                     <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
                                         <i class="fa-solid fa-box text-slate-400"></i> ${sub.produk}
                                     </div>
@@ -1535,7 +1417,6 @@
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
             }
 
             document.getElementById('finance-form').reset();
@@ -1642,7 +1523,7 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
                         <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
                         <p class="text-sm font-medium">Tidak ada riwayat data yang sesuai filter.</p>
                         <p class="text-xs text-slate-400 mt-1">Coba ubah filter atau input data baru.</p>
@@ -1656,14 +1537,14 @@
                 const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
 
                 return `
-                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4">
                     <div class="border-b border-slate-100 pb-3 flex justify-between items-center relative">
                         <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                             <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
                         </h3>
                         
                         <div class="relative toggle-edit-container">
-                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
                                 <i class="fa-solid fa-pen-to-square"></i>Edit<i class="fa-solid fa-chevron-down text-[10px]"></i>
                             </button>
                             <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-1 hidden z-30">
@@ -1678,20 +1559,20 @@
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-wallet text-emerald-600"></i> Total Pendapatan</span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                         </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-blue-600"></i> Total Belanja</span>
                             <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(item.expense || 0)}</span>
                         </div>
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pengeluaran</span>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer text-rose-600"></i> Pengeluaran</span>
                             <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                         </div>
-                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Profit (${pPct}%)</span>
+                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100 shadow-sm">
+                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-emerald-600"></i> Profit (${pPct}%)</span>
                             <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(displayProfit)}</span>
                         </div>
                     </div>
@@ -1700,9 +1581,110 @@
             }).join('');
         }
 
+        function printMonthlyPDF(monthName, yearVal) {
+            const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
+            if (filteredData.length === 0) return;
+
+            const monthsList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const monthIndex = monthsList.indexOf(monthName);
+            const daysInMonth = new Date(yearVal, monthIndex + 1, 0).getDate();
+
+            const dailyMap = {};
+            filteredData.forEach(item => {
+                if (!dailyMap[item.date]) {
+                    dailyMap[item.date] = { income: 0, profit: 0, expense: 0 };
+                }
+                dailyMap[item.date].income += item.income;
+                
+                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (item.income - (item.cashout || 0)) * (pPct / 100);
+                dailyMap[item.date].profit += (itemProfit > 0 ? itemProfit : 0);
+                
+                dailyMap[item.date].expense += (item.expense || 0);
+            });
+
+            let totalIncome = 0;
+            let totalProfit = 0;
+            let totalExpense = 0;
+
+            const printWindow = window.open('', '_blank');
+            
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html lang="id">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Lihat Laporan PDF - ${monthName} ${yearVal}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; color: #333; margin: 30px; }
+                        h2 { text-align: center; margin-bottom: 5px; text-transform: uppercase; }
+                        p.subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 25px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+                        th, td { border: 1px solid #94a3b8; padding: 8px 12px; text-align: left; }
+                        th { background-color: #065f46; color: white; text-transform: uppercase; font-size: 12px; }
+                        td.number, th.number { text-align: right; }
+                        tr:nth-child(even) { background-color: #f8fafc; }
+                        .total-row { font-weight: bold; background-color: #e2e8f0 !important; }
+                        .footer { margin-top: 30px; text-align: right; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Laporan Rekapitulasi Keuangan Bulanan</h2>
+                    <p class="subtitle">Periode: ${monthName} ${yearVal} (Tanggal 1 s.d. ${daysInMonth})</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Tgl</th>
+                                <th class="number">Pendapatan Hari Ini</th>
+                                <th class="number">Total Profit</th>
+                                <th class="number">Total Belanja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayData = dailyMap[d] || { income: 0, profit: 0, expense: 0 };
+                
+                totalIncome += dayData.income;
+                totalProfit += dayData.profit;
+                totalExpense += dayData.expense;
+
+                htmlContent += `
+                    <tr>
+                        <td>${d}</td>
+                        <td class="number">${dayData.income > 0 ? dayData.income.toLocaleString('id-ID') : '-'}</td>
+                        <td class="number">${dayData.profit > 0 ? dayData.profit.toLocaleString('id-ID') : '-'}</td>
+                        <td class="number">${dayData.expense > 0 ? dayData.expense.toLocaleString('id-ID') : '-'}</td>
+                    </tr>
+                `;
+            }
+
+            htmlContent += `
+                        <tr class="total-row">
+                            <td>Total</td>
+                            <td class="number">${totalIncome.toLocaleString('id-ID')}</td>
+                            <td class="number">${totalProfit.toLocaleString('id-ID')}</td>
+                            <td class="number">${totalExpense.toLocaleString('id-ID')}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <p>Dokumen pratinjau PDF bulanan lengkap (${monthName} ${yearVal})</p>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            printWindow.focus();
+
+            showModal("Pratinjau PDF", `Jendela pratinjau / lihat PDF lengkap (tgl 1 s.d. ${daysInMonth}) untuk ${monthName} ${yearVal} berhasil dibuka.`);
+        }
+
         function renderReport() {
             const container = document.getElementById('report-grid');
-            if(!container) return;
 
             const fDateEl = document.getElementById('filter-report-date');
             const fMonthEl = document.getElementById('filter-report-month');
@@ -1712,158 +1694,93 @@
             const fMonth = fMonthEl ? fMonthEl.value : "";
             const fYear = fYearEl ? fYearEl.value : "";
 
-            let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
-            });
-
             const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+            if(countLabel) countLabel.innerText = `Filter Laporan Aktif`;
 
-            if (filtered.length === 0) {
+            if (historyData.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-chart-pie text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data laporan bulanan.</p>
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
+                        <i class="fa-solid fa-chart-line text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada laporan bulan ini.</p>
+                        <p class="text-xs text-slate-400 mt-1">Laporan akan muncul otomatis setelah Anda mencatat transaksi.</p>
                     </div>`;
                 return;
             }
 
-            const monthlyGroups = {};
-            filtered.forEach(item => {
+            const grouped = {};
+            historyData.forEach(item => {
                 const key = `${item.month} ${item.year}`;
-                if(!monthlyGroups[key]) {
-                    monthlyGroups[key] = {
+                if (!grouped[key]) {
+                    grouped[key] = {
                         month: item.month,
                         year: item.year,
-                        totalIncome: 0,
-                        totalExpense: 0,
-                        totalCashout: 0,
-                        totalProfit: 0,
-                        count: 0
+                        income: 0,
+                        expense: 0,
+                        cashout: 0,
+                        profit: 0
                     };
                 }
-                monthlyGroups[key].totalIncome += item.income;
-                monthlyGroups[key].totalExpense += (item.expense || 0);
-                monthlyGroups[key].totalCashout += (item.cashout || 0);
+                if (fDate !== "" && item.date.toString() !== fDate) return;
 
+                grouped[key].income += item.income;
+                grouped[key].expense += (item.expense || 0);
+                grouped[key].cashout += (item.cashout || 0);
+                
                 const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const pVal = (item.income - (item.cashout || 0)) * (pPct / 100);
-                monthlyGroups[key].totalProfit += (pVal > 0 ? pVal : 0);
-                monthlyGroups[key].count += 1;
+                const itemProfit = (item.income - (item.cashout || 0)) * (pPct / 100);
+                grouped[key].profit += (itemProfit > 0 ? itemProfit : 0);
             });
 
-            container.innerHTML = Object.entries(monthlyGroups).map(([key, group]) => {
-                return `
-                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                                <i class="fa-solid fa-calendar-alt text-emerald-600"></i> Laporan Bulan ${group.month} ${group.year}
-                            </h3>
-                            <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-                                <i class="fa-solid fa-print"></i> Cetak / PDF
-                            </button>
-                        </div>
+            let groupArray = Object.values(grouped).filter(group => {
+                let matchMonth = fMonth === "" || group.month === fMonth;
+                let matchYear = fYear === "" || group.year.toString() === fYear;
+                return matchMonth && matchYear;
+            });
 
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Akumulasi Pendapatan</span>
-                                <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.totalIncome)}</span>
-                            </div>
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Akumulasi Belanja</span>
-                                <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(group.totalExpense)}</span>
-                            </div>
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Akumulasi Pengeluaran</span>
-                                <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(group.totalCashout)}</span>
-                            </div>
-                            <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                                <span class="text-[11px] text-emerald-800 font-semibold block mb-1">Akumulasi Profit</span>
-                                <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.totalProfit)}</span>
-                            </div>
+            if (groupArray.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 shadow-md">
+                        <i class="fa-solid fa-filter-circle-xmark text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Tidak ada laporan yang sesuai dengan filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = groupArray.map(group => `
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80 space-y-4">
+                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-alt text-emerald-600"></i> Periode: ${group.month} ${group.year}
+                        </h3>
+                        <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Bulanan</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-wallet text-emerald-600"></i> Akumulasi Pendapatan</span>
+                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.income)}</span>
+                        </div>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-blue-600"></i> Akumulasi Belanja</span>
+                            <span class="text-sm lg:text-base font-extrabold text-slate-700">${formatRupiah(group.expense)}</span>
+                        </div>
+                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                            <span class="text-[11px] text-slate-500 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer text-rose-600"></i> Akumulasi Pengeluaran</span>
+                            <span class="text-sm lg:text-base font-extrabold text-rose-600">${formatRupiah(group.cashout)}</span>
+                        </div>
+                        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100 shadow-sm">
+                            <span class="text-[11px] text-emerald-800 font-semibold block mb-1 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-emerald-600"></i> Akumulasi Profit</span>
+                            <span class="text-sm lg:text-base font-extrabold text-emerald-600">${formatRupiah(group.profit)}</span>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
 
-        function printMonthlyPDF(monthName, yearVal) {
-            const filteredData = historyData.filter(item => item.month === monthName && item.year === yearVal);
-            if (filteredData.length === 0) return;
-
-            const printWindow = window.open('', '_blank');
-            if(!printWindow) return;
-
-            let totalIn = filteredData.reduce((acc, curr) => acc + curr.income, 0);
-            let totalEx = filteredData.reduce((acc, curr) => acc + (curr.expense || 0), 0);
-            let totalCo = filteredData.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
-            let totalPr = filteredData.reduce((acc, curr) => {
-                const pPct = curr.profitPercentage !== undefined ? curr.profitPercentage : 10;
-                const pVal = (curr.income - (curr.cashout || 0)) * (pPct / 100);
-                return acc + (pVal > 0 ? pVal : 0);
-            }, 0);
-
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Laporan Keuangan - ${monthName} ${yearVal}</title>
-                    <style>
-                        body { font-family: sans-serif; padding: 20px; color: #333; }
-                        h2 { text-align: center; margin-bottom: 5px; }
-                        p { text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-                        th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
-                        th { background-color: #f1f5f9; }
-                        .text-right { text-align: right; }
-                        .summary { margin-top: 20px; font-size: 13px; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <h2>LAPORAN REKAPITULASI KEUANGAN</h2>
-                    <p>Periode: Bulan ${monthName} ${yearVal}</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Tanggal</th>
-                                <th class="text-right">Pendapatan</th>
-                                <th class="text-right">Belanja</th>
-                                <th class="text-right">Pengeluaran</th>
-                                <th class="text-right">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredData.map(item => {
-                                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                                const pVal = (item.income - (item.cashout || 0)) * (pPct / 100);
-                                const dProf = pVal > 0 ? pVal : 0;
-                                return `
-                                    <tr>
-                                        <td>${item.day}, ${item.date} ${item.month} ${item.year}</td>
-                                        <td class="text-right">${formatRupiah(item.income)}</td>
-                                        <td class="text-right">${formatRupiah(item.expense || 0)}</td>
-                                        <td class="text-right">${formatRupiah(item.cashout || 0)}</td>
-                                        <td class="text-right">${formatRupiah(dProf)}</td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                    <div class="summary">
-                        <p style="text-align: left;">Total Pendapatan: ${formatRupiah(totalIn)}</p>
-                        <p style="text-align: left;">Total Belanja: ${formatRupiah(totalEx)}</p>
-                        <p style="text-align: left;">Total Pengeluaran: ${formatRupiah(totalCo)}</p>
-                        <p style="text-align: left;">Total Profit: ${formatRupiah(totalPr)}</p>
+                    <div class="flex items-center justify-end pt-2 border-t border-slate-100">
+                        <button onclick="printMonthlyPDF('${group.month}', ${group.year})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer">
+                            <i class="fa-solid fa-file-pdf"></i> Lihat di PDF (${group.month} ${group.year})
+                        </button>
                     </div>
-                    <script>
-                        window.onload = function() { window.print(); }
-                    <\/script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+                </div>
+            `).join('');
         }
     </script>
 </body>
