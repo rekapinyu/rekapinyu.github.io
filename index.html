@@ -185,6 +185,11 @@
                 <i id="icon-report" class="fa-solid fa-chart-pie w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Laporan Bulanan</span>
             </button>
+            <!-- MENU BARU: BACKUP OTOMATIS TEPAT DI BAWAH LAPORAN BULANAN -->
+            <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Backup Otomatis">
+                <i id="icon-backup" class="fa-solid fa-cloud-arrow-down w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                <span class="sidebar-text truncate">Backup Otomatis</span>
+            </button>
         </nav>
 
         <!-- Sidebar Footer Info -->
@@ -382,6 +387,15 @@
                     <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
+                <!-- VIEW NEW: BACKUP OTOMATIS -->
+                <section id="view-backup" class="hidden space-y-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
+                        <span class="text-xs text-slate-400">Pulihkan history dari backup jika data hilang</span>
+                    </div>
+                    <div id="backup-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </section>
+
             </div>
         </main>
     </div>
@@ -429,6 +443,10 @@
             <button onclick="switchTab('report')" id="nav-mobile-report" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
                 <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
                 <span class="text-[11px] font-medium">Laporan</span>
+            </button>
+            <button onclick="switchTab('backup')" id="nav-mobile-backup" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-cloud-arrow-down text-lg mb-0.5"></i>
+                <span class="text-[11px] font-medium">Backup</span>
             </button>
         </div>
     </nav>
@@ -490,6 +508,7 @@
         let historyData = [];
         let pengeluaranData = [];
         let kasbonData = [];
+        let backupOtomatisData = [];
         let isKasbonUnlocked = false;
 
         function loadUserData() {
@@ -497,13 +516,49 @@
                 historyData = JSON.parse(localStorage.getItem(`finance_history_desktop_${currentSessionUser.phone}`) || '[]');
                 pengeluaranData = JSON.parse(localStorage.getItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`) || '[]');
                 kasbonData = JSON.parse(localStorage.getItem(`finance_kasbon_desktop_${currentSessionUser.phone}`) || '[]');
+                backupOtomatisData = JSON.parse(localStorage.getItem(`finance_backup_desktop_${currentSessionUser.phone}`) || '[]');
             } else {
                 historyData = [];
                 pengeluaranData = [];
                 kasbonData = [];
+                backupOtomatisData = [];
             }
         }
         loadUserData();
+
+        // Fungsi Auto Backup Harian berdasarkan data History saat ada entri masuk
+        function triggerDailyAutoBackup() {
+            if (!currentSessionUser || !currentSessionUser.phone) return;
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const dayName = days[now.getDay()];
+            const dateNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const yearNum = now.getFullYear();
+            const dateKey = `${dateNum}-${now.getMonth()}-${yearNum}`;
+
+            // Periksa apakah backup untuk hari ini sudah ada
+            let existingBackup = backupOtomatisData.find(b => b.dateKey === dateKey);
+            if (!existingBackup) {
+                const newBackup = {
+                    id: Date.now(),
+                    dateKey: dateKey,
+                    day: dayName,
+                    date: dateNum,
+                    month: monthName,
+                    year: yearNum,
+                    historySnapshot: JSON.parse(JSON.stringify(historyData))
+                };
+                backupOtomatisData.unshift(newBackup);
+            } else {
+                // Update snapshot terbaru hari ini
+                existingBackup.historySnapshot = JSON.parse(JSON.stringify(historyData));
+            }
+
+            localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
+        }
 
         let isSidebarMinimized = false;
 
@@ -540,6 +595,7 @@
                 historyData = [];
                 pengeluaranData = [];
                 kasbonData = [];
+                backupOtomatisData = [];
             }
         }
         checkAuth();
@@ -575,6 +631,7 @@
             localStorage.setItem(`finance_history_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_pengeluaran_desktop_${phone}`, JSON.stringify([]));
             localStorage.setItem(`finance_kasbon_desktop_${phone}`, JSON.stringify([]));
+            localStorage.setItem(`finance_backup_desktop_${phone}`, JSON.stringify([]));
 
             document.getElementById('register-form').reset();
             toggleAuthView('login');
@@ -781,13 +838,14 @@
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
-                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' }
+                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
+                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
             };
 
             const icons = {
@@ -795,7 +853,8 @@
                 pengeluaran: 'fa-receipt',
                 kasbon: 'fa-book-bookmark',
                 history: 'fa-clock-rotate-left',
-                report: 'fa-chart-pie'
+                report: 'fa-chart-pie',
+                backup: 'fa-cloud-arrow-down'
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
@@ -874,8 +933,11 @@
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             }
 
-            if (tab === 'input') {
+            if (tab === 'input' || tab === 'backup') {
                 stickyFilterContainer.classList.add('hidden');
+                if (tab === 'backup') {
+                    renderBackupGrid();
+                }
             } else {
                 stickyFilterContainer.classList.remove('hidden');
                 if (tab === 'pengeluaran') {
@@ -895,6 +957,61 @@
                     renderReport();
                 }
             }
+        }
+
+        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah
+        function renderBackupGrid() {
+            const container = document.getElementById('backup-grid');
+            if (!container) return;
+
+            loadUserData();
+
+            if (backupOtomatisData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-cloud-arrow-down text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada data backup otomatis.</p>
+                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = backupOtomatisData.map(backup => {
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between space-y-4 hover:shadow-md transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+                                    <i class="fa-solid fa-database"></i>
+                                </span>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Backup Aktif</span>
+                            </div>
+                            <h4 class="font-extrabold text-slate-800 text-base">${backup.day}, ${backup.date} ${backup.month} ${backup.year}</h4>
+                            <p class="text-xs text-slate-500 mt-1">Total riwayat tersimpan: ${backup.historySnapshot.length} item data</p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span class="text-[11px] font-semibold text-slate-400">Pulihkan jika history hilang</span>
+                            <button onclick="restoreHistoryFromBackup(${backup.id})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-rotate-left"></i> Pulihkan
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Fungsi Restore History dari Backup Otomatis
+        function restoreHistoryFromBackup(backupId) {
+            const backup = backupOtomatisData.find(b => b.id === backupId);
+            if (!backup) return;
+
+            historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+            }
+
+            showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
+            switchTab('history');
         }
 
         function renderStickyFilterPengeluaran() {
@@ -1098,6 +1215,7 @@
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
             }
             renderHistory();
         }
@@ -1417,6 +1535,7 @@
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
             }
 
             document.getElementById('finance-form').reset();
