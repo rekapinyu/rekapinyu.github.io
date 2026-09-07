@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS for Excel Export -->
+    <!-- SheetJS for Excel Export (Dibiarkan untuk fungsi lain jika diperlukan) -->
     <script src="https://cdn.xlsxjs.com/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
@@ -120,6 +120,7 @@
 
     <!-- Sidebar Navigation for Desktop & Mobile Responsive -->
     <aside id="sidebar" class="w-64 bg-[#0d235a] text-blue-100 border-r border-[#15327a] flex flex-col z-20 shrink-0 hidden md:flex sidebar-transition relative">
+        <!-- Logo / Brand Area -->
         <div class="p-5 border-b border-[#15327a] flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
                 <i class="fa-solid fa-wallet"></i>
@@ -129,6 +130,7 @@
             </div>
         </div>
 
+        <!-- User Profile Card Section (DENGAN TOGGLE ICON GERIGI SETTING) -->
         <div class="p-4 border-b border-[#15327a] flex items-center justify-between gap-3 bg-[#0a1c47]/50 relative toggle-profile-setting-container">
             <div class="flex items-center gap-3 truncate">
                 <div id="sidebar-user-avatar-container" class="w-10 h-10 rounded-full bg-blue-500/30 text-blue-200 flex items-center justify-center text-base shrink-0 border border-blue-400/30 overflow-hidden">
@@ -139,10 +141,12 @@
                     <p class="text-[11px] text-blue-300 font-medium">Administrator</p>
                 </div>
             </div>
+            <!-- Tombol Gear Setting Profil -->
             <div class="relative">
                 <button onclick="toggleProfileSettingMenu(event)" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/40 hover:bg-blue-800 transition sidebar-text" title="Pengaturan Profil">
                     <i class="fa-solid fa-gear text-xs"></i>
                 </button>
+                <!-- Popup Menu Setting Profil -->
                 <div id="profile-setting-popup" class="absolute right-0 mt-2 w-48 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-40">
                     <button onclick="openProfileModal('ganti-nama')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
                         <i class="fa-solid fa-user-pen text-emerald-400 w-4"></i> Ganti Nama
@@ -157,6 +161,7 @@
             </div>
         </div>
 
+        <!-- Navigation Menu Items -->
         <nav class="flex-1 p-3 space-y-1.5 overflow-y-auto">
             <div class="sidebar-text px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-blue-400/70">Menu Pilihan</div>
             
@@ -165,6 +170,7 @@
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
             
+            <!-- MENU KASBON DENGAN SUB-MENU BUKA / KUNCI & GANTI PIN -->
             <div class="relative toggle-kasbon-menu-container">
                 <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" id="nav-kasbon-wrapper">
                     <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
@@ -175,6 +181,7 @@
                         <i id="sidebar-kasbon-lock-icon" class="fa-solid fa-lock text-[11px]"></i>
                     </button>
                 </div>
+                <!-- Sub Menu Popup Buka/Kunci/Ganti Pin -->
                 <div id="kasbon-submenu-popup" class="absolute left-2 right-2 mt-1 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-30">
                     <button onclick="handleKasbonSubMenuAction('buka')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
                         <i class="fa-solid fa-lock-open text-emerald-400 w-4"></i> Buka Kasbon
@@ -201,15 +208,18 @@
                 <i id="icon-report" class="fa-solid fa-chart-pie w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Laporan Bulanan</span>
             </button>
+            <!-- MENU BARU: BACKUP OTOMATIS TEPAT DI BAWAH LAPORAN BULANAN -->
             <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Backup Otomatis">
                 <i id="icon-backup" class="fa-solid fa-cloud-arrow-down w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Backup Otomatis</span>
             </button>
         </nav>
 
+        <!-- Sidebar Footer Info -->
         <div class="p-4 border-t border-[#15327a] space-y-3 bg-[#0a1c47]">
             <div class="sidebar-text px-1 text-[10px] font-bold uppercase tracking-wider text-blue-400/70">Kritik & Saran</div>
             
+            <!-- Sosial Media Icons -->
             <div class="sidebar-text flex items-center gap-2 pt-1">
                 <a href="#" target="_blank" class="w-7 h-7 rounded-lg bg-blue-900/50 hover:bg-blue-800 text-blue-300 hover:text-white flex items-center justify-center transition" title="TikTok">
                     <i class="fa-brands fa-tiktok text-xs"></i>
@@ -240,6 +250,7 @@
 
     <!-- Main Content Wrapper -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        <!-- Top Navigation Bar -->
         <header class="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
@@ -265,10 +276,8 @@
 
         <!-- Scrollable Main View Area -->
         <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
-            
-            <!-- STICKY INPUT CONTAINER (POSISI STICKY UTAMA) -->
             <!-- PENGELUARAN STICKY -->
-            <div id="pengeluaran-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-20 bg-slate-100/90 backdrop-blur-sm py-2">
+            <div id="pengeluaran-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-10">
                 <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
                     <form id="pengeluaran-form" class="grid grid-cols-12 gap-2 items-center">
                         <div class="col-span-5 relative">
@@ -293,7 +302,7 @@
             </div>
 
             <!-- KASBON STICKY -->
-            <div id="kasbon-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-20 bg-slate-100/90 backdrop-blur-sm py-2">
+            <div id="kasbon-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-10">
                 <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
                     <form id="kasbon-form" class="grid grid-cols-12 gap-2 items-center">
                         <div class="col-span-4 relative">
@@ -391,58 +400,13 @@
                     <div id="kasbon-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
-                <!-- VIEW 2: HISTORY (DENGAN ICON BULLISH, BEARISH, PROFIT) -->
+                <!-- VIEW 2: HISTORY -->
                 <section id="view-history" class="hidden space-y-4">
                     <div id="history-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
-                <!-- VIEW 3: LAPORAN BULANAN (DENGAN ICON & TOGGLE VIEW PDF TGL 1-31) -->
+                <!-- VIEW 3: LAPORAN BULANAN -->
                 <section id="view-report" class="hidden space-y-4">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-file-pdf"></i>
-                            </div>
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-800">Togle View PDF Laporan (Tanggal 1 - 31)</h4>
-                                <p class="text-[11px] text-slate-400">Tampilkan data nominal ribuan harian sesuai input history</p>
-                            </div>
-                        </div>
-                        <button onclick="togglePdfReportView()" id="btn-toggle-pdf-view" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-eye"></i> Buka Togle View PDF
-                        </button>
-                    </div>
-
-                    <!-- KONTAINER TABEL PDF TANGGAL 1 - 31 -->
-                    <div id="pdf-report-container" class="hidden bg-white p-5 rounded-2xl shadow-md border border-slate-200 space-y-4">
-                        <div class="flex justify-between items-center border-b pb-3">
-                            <div>
-                                <h3 class="font-bold text-slate-800 text-sm">Laporan Rekapitulasi PDF (Tanggal 1 s.d 31)</h3>
-                                <p class="text-[11px] text-slate-400">Nominal ribuan berdasarkan data input harian</p>
-                            </div>
-                            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                                <i class="fa-solid fa-print"></i> Cetak / Simpan PDF
-                            </button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-xs">
-                                <thead>
-                                    <tr class="bg-slate-100 text-slate-700 border-b">
-                                        <th class="p-2.5 font-bold">Tgl</th>
-                                        <th class="p-2.5 font-bold">Pendapatan</th>
-                                        <th class="p-2.5 font-bold">Belanja</th>
-                                        <th class="p-2.5 font-bold">Pengeluaran</th>
-                                        <th class="p-2.5 font-bold">Profit</th>
-                                        <th class="p-2.5 font-bold text-center">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="pdf-report-tbody">
-                                    <!-- Diisi via JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
@@ -545,7 +509,7 @@
         </div>
     </div>
 
-    <!-- MODAL PENGATURAN PROFIL -->
+    <!-- MODAL PENGATURAN PROFIL (GANTI NAMA, FOTO, PASSWORD) -->
     <div id="profile-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
             <div class="flex items-center justify-between border-b pb-3">
@@ -600,6 +564,7 @@
         }
         loadUserData();
 
+        // Fungsi Auto Backup Harian berdasarkan data History saat ada entri masuk
         function triggerDailyAutoBackup() {
             if (!currentSessionUser || !currentSessionUser.phone) return;
             const now = new Date();
@@ -747,6 +712,7 @@
             toggleAuthView('login');
         }
 
+        // PENGATURAN PROFIL POPUP & FUNGSI EDITNYA
         function toggleProfileSettingMenu(event) {
             event.stopPropagation();
             const popup = document.getElementById('profile-setting-popup');
@@ -852,367 +818,66 @@
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
         }
 
-        // Fungsi Togle View PDF Tanggal 1 - 31 di Menu Laporan
-        function togglePdfReportView() {
-            const container = document.getElementById('pdf-report-container');
-            const btn = document.getElementById('btn-toggle-pdf-view');
-            container.classList.toggle('hidden');
-            if (!container.classList.contains('hidden')) {
-                btn.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Tutup Togle View PDF`;
-                renderPdfReportTable();
-            } else {
-                btn.innerHTML = `<i class="fa-solid fa-eye"></i> Buka Togle View PDF`;
+        function parseNum(val) {
+            if (!val) return 0;
+            return parseFloat(val.toString().replace(/\./g, '')) || 0;
+        }
+
+        function formatInputRibuan(input) {
+            let val = input.value.replace(/\D/g, '');
+            if (val) {
+                val = parseInt(val, 10).toLocaleString('id-ID');
             }
+            input.value = val;
         }
 
-        function renderPdfReportTable() {
-            const tbody = document.getElementById('pdf-report-tbody');
-            tbody.innerHTML = '';
-
-            // Generate tanggal 1 sampai 31
-            for (let i = 1; i <= 31; i++) {
-                // Cari data history yang sesuai tanggalnya
-                let matched = historyData.find(h => {
-                    const d = new Date(h.id);
-                    return d.getDate() === i;
-                });
-
-                let inc = matched ? matched.income : 0;
-                let exp = matched ? matched.expense : 0;
-                let csh = matched ? matched.cashout : 0;
-                let prf = matched ? matched.profit : 0;
-                let status = matched ? `<span class="text-emerald-600 font-semibold"><i class="fa-solid fa-check-circle"></i> Input</span>` : `<span class="text-slate-300">-</span>`;
-
-                let row = `
-                    <tr class="border-b hover:bg-slate-50 transition">
-                        <td class="p-2.5 font-bold text-slate-700">${i}</td>
-                        <td class="p-2.5 text-emerald-600 font-semibold">${formatRupiah(inc)}</td>
-                        <td class="p-2.5 text-amber-600">${formatRupiah(exp)}</td>
-                        <td class="p-2.5 text-rose-600">${formatRupiah(csh)}</td>
-                        <td class="p-2.5 text-blue-600 font-bold">${formatRupiah(prf)}</td>
-                        <td class="p-2.5 text-center">${status}</td>
-                    </tr>
-                `;
-                tbody.insertAdjacentHTML('beforeend', row);
-            }
-        }
-
-        function showModal(title, message, iconClass = "fa-solid fa-circle-check text-emerald-600") {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-message').innerText = message;
-            document.getElementById('modal-icon').innerHTML = `<i class="${iconClass}"></i>`;
-            document.getElementById('custom-modal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('custom-modal').classList.add('hidden');
-        }
-
-        // Fungsi render data history dengan ikon bullish, bearish, dan profit
-        function renderHistory() {
-            const grid = document.getElementById('history-grid');
-            grid.innerHTML = '';
-            if (historyData.length === 0) {
-                grid.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs">Belum ada riwayat data keuangan tersimpan.</div>`;
-                return;
-            }
-
-            historyData.forEach((item, index) => {
-                grid.innerHTML += `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                        <div class="flex items-start gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-                                <i class="fa-solid fa-chart-line"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                    <span>${item.dateStr || 'Tanggal Harian'}</span>
-                                </h4>
-                                <div class="flex flex-wrap gap-3 text-xs mt-1 text-slate-500">
-                                    <span class="flex items-center gap-1 text-emerald-600 font-medium"><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan: ${formatRupiah(item.income)}</span>
-                                    <span class="flex items-center gap-1 text-amber-600 font-medium"><i class="fa-solid fa-basket-shopping"></i> Belanja: ${formatRupiah(item.expense)}</span>
-                                    <span class="flex items-center gap-1 text-rose-600 font-medium"><i class="fa-solid fa-arrow-trend-down"></i> Keluar: ${formatRupiah(item.cashout)}</span>
-                                    <span class="flex items-center gap-1 text-blue-600 font-bold"><i class="fa-solid fa-wallet"></i> Profit: ${formatRupiah(item.profit)}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 self-end md:self-auto">
-                            <button onclick="editHistory(${index})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition">Edit</button>
-                            <button onclick="deleteHistory(${index})" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition">Hapus</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        // Fungsi render laporan dengan ikon lengkap
-        function renderReport() {
-            const grid = document.getElementById('report-grid');
-            grid.innerHTML = '';
-            let totalInc = historyData.reduce((acc, cur) => acc + cur.income, 0);
-            let totalExp = historyData.reduce((acc, cur) => acc + cur.expense, 0);
-            let totalCsh = historyData.reduce((acc, cur) => acc + cur.cashout, 0);
-            let totalPrf = historyData.reduce((acc, cur) => acc + cur.profit, 0);
-
-            grid.innerHTML = `
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-base">
-                            <i class="fa-solid fa-arrow-trend-up"></i>
-                        </div>
-                        <div>
-                            <span class="text-[11px] font-bold uppercase text-slate-400 block">Total Pendapatan (Bullish)</span>
-                            <h4 class="font-bold text-slate-800 text-sm">${formatRupiah(totalInc)}</h4>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
-                            <i class="fa-solid fa-basket-shopping"></i>
-                        </div>
-                        <div>
-                            <span class="text-[11px] font-bold uppercase text-slate-400 block">Total Belanja</span>
-                            <h4 class="font-bold text-slate-800 text-sm">${formatRupiah(totalExp)}</h4>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-base">
-                            <i class="fa-solid fa-arrow-trend-down"></i>
-                        </div>
-                        <div>
-                            <span class="text-[11px] font-bold uppercase text-slate-400 block">Total Keluar (Bearish)</span>
-                            <h4 class="font-bold text-slate-800 text-sm">${formatRupiah(totalCsh)}</h4>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-base">
-                            <i class="fa-solid fa-wallet"></i>
-                        </div>
-                        <div>
-                            <span class="text-[11px] font-bold uppercase text-slate-400 block">Total Profit Bersih</span>
-                            <h4 class="font-bold text-slate-800 text-sm">${formatRupiah(totalPrf)}</h4>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Navigasi Tab / View
-        function switchTab(tabId) {
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
-            views.forEach(v => {
-                const el = document.getElementById(`view-${v}`);
-                if (el) el.classList.add('hidden');
-            });
-
-            document.getElementById(`view-${tabId}`).classList.remove('hidden');
-
-            // Kontrol Sticky Input & Filter
-            const pengeluaranSticky = document.getElementById('pengeluaran-sticky-container');
-            const kasbonSticky = document.getElementById('kasbon-sticky-container');
-            const filterContainer = document.getElementById('sticky-filter-container');
-
-            pengeluaranSticky.classList.add('hidden');
-            kasbonSticky.classList.add('hidden');
-            filterContainer.classList.add('hidden');
-
-            if (tabId === 'pengeluaran') {
-                pengeluaranSticky.classList.remove('hidden');
-                renderPengeluaran();
-            } else if (tabId === 'kasbon') {
-                if (!isKasbonUnlocked) {
-                    openKasbonPasswordModal();
-                    return;
-                }
-                kasbonSticky.classList.remove('hidden');
-                renderKasbon();
-            } else if (tabId === 'history') {
-                renderHistory();
-            } else if (tabId === 'report') {
-                renderReport();
-            } else if (tabId === 'backup') {
-                renderBackup();
-            }
-
-            // Update Header Title
-            const titles = {
-                'input': 'Form Input Keuangan Harian',
-                'pengeluaran': 'Manajemen Pengeluaran Toko',
-                'kasbon': 'Buku Kasbon Pelanggan',
-                'history': 'Riwayat Catatan Keuangan',
-                'report': 'Laporan Bulanan & Ringkasan',
-                'backup': 'Backup Data Harian Otomatis'
-            };
-            document.getElementById('page-title-header').innerText = titles[tabId] || 'Dashboard';
-        }
-
-        function renderPengeluaran() {
-            const grid = document.getElementById('pengeluaran-grid');
-            grid.innerHTML = '';
-            if (pengeluaranData.length === 0) {
-                grid.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs">Belum ada data pengeluaran.</div>`;
-                return;
-            }
-            pengeluaranData.forEach((item, index) => {
-                grid.innerHTML += `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
-                            <p class="text-xs text-rose-600 font-semibold mt-0.5">${formatRupiah(item.nominal)}</p>
-                        </div>
-                        <button onclick="deletePengeluaran(${index})" class="text-rose-500 hover:text-rose-700 text-xs font-semibold p-2"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                `;
-            });
-        }
-
-        function renderKasbon() {
-            const grid = document.getElementById('kasbon-grid');
-            grid.innerHTML = '';
-            if (kasbonData.length === 0) {
-                grid.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs">Belum ada data kasbon pelanggan.</div>`;
-                return;
-            }
-            kasbonData.forEach((item, index) => {
-                let badgeStatus = item.status === 'Lunas' ? 
-                    `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold"><i class="fa-solid fa-check"></i> Sudah Lunas</span>` : 
-                    `<span class="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold"><i class="fa-solid fa-clock"></i> Belum Lunas</span>`;
-
-                grid.innerHTML += `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
-                                ${badgeStatus}
-                            </div>
-                            <p class="text-xs text-slate-500 mt-1">Produk: <span class="font-semibold text-slate-700">${item.produk}</span> — Harga: <span class="font-semibold text-emerald-600">${formatRupiah(item.harga)}</span></p>
-                        </div>
-                        <div class="flex items-center gap-2 self-end md:self-auto">
-                            <button onclick="toggleKasbonStatus(${index})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"><i class="fa-solid fa-check"></i> Sudah Lunas</button>
-                            <button onclick="deleteKasbon(${index})" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function renderBackup() {
-            const grid = document.getElementById('backup-grid');
-            grid.innerHTML = '';
-            if (backupOtomatisData.length === 0) {
-                grid.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs col-span-2">Belum ada file backup otomatis tersedia.</div>`;
-                return;
-            }
-            backupOtomatisData.forEach((item, index) => {
-                grid.innerHTML += `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">Backup: ${item.day}, ${item.date} ${item.month} ${item.year}</h4>
-                            <p class="text-[11px] text-slate-400">Total snapshot: ${item.historySnapshot.length} data history</p>
-                        </div>
-                        <button onclick="restoreBackup(${index})" class="bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition">Pulihkan</button>
-                    </div>
-                `;
-            });
-        }
-
-        // Form Event Listeners & Handler
-        document.getElementById('finance-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!currentSessionUser) return;
-
-            const income = parseFloat(document.getElementById('income').value.replace(/[^0-9]/g, '')) || 0;
-            const expense = parseFloat(document.getElementById('expense').value.replace(/[^0-9]/g, '')) || 0;
-            const cashout = parseFloat(document.getElementById('cashout').value.replace(/[^0-9]/g, '')) || 0;
+        function updateLiveProfit() {
+            const val = parseNum(document.getElementById('income').value);
+            const cashoutVal = parseNum(document.getElementById('cashout').value);
             const profitPct = parseFloat(document.getElementById('profit-percentage').value) || 0;
-
-            const profit = (income * profitPct) / 100;
-
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
-            const newEntry = {
-                id: Date.now(),
-                dateStr,
-                income,
-                expense,
-                cashout,
-                profit
-            };
-
-            historyData.unshift(newEntry);
-            localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-            triggerDailyAutoBackup();
-
-            document.getElementById('finance-form').reset();
-            showModal("Berhasil Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat.");
-            switchTab('history');
-        });
-
-        document.getElementById('pengeluaran-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!currentSessionUser) return;
-            const nama = document.getElementById('pengeluaran-nama').value.trim();
-            const nominal = parseFloat(document.getElementById('pengeluaran-nominal').value.replace(/[^0-9]/g, '')) || 0;
-
-            pengeluaranData.unshift({ id: Date.now(), nama, nominal });
-            localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
-            document.getElementById('pengeluaran-form').reset();
-            renderPengeluaran();
-        });
-
-        document.getElementById('kasbon-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!currentSessionUser) return;
-            const nama = document.getElementById('kasbon-nama').value.trim();
-            const produk = document.getElementById('kasbon-produk').value.trim();
-            const harga = parseFloat(document.getElementById('kasbon-harga').value.replace(/[^0-9]/g, '')) || 0;
-
-            kasbonData.unshift({ id: Date.now(), nama, produk, harga, status: 'Belum Lunas' });
-            localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
-            document.getElementById('kasbon-form').reset();
-            renderKasbon();
-        });
-
-        function deletePengeluaran(index) {
-            pengeluaranData.splice(index, 1);
-            localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
-            renderPengeluaran();
+            const profit = (val - cashoutVal) * (profitPct / 100);
+            profitDisplay.innerText = formatRupiah(profit > 0 ? profit : 0);
         }
 
-        function deleteKasbon(index) {
-            kasbonData.splice(index, 1);
-            localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
-            renderKasbon();
-        }
-
-        function toggleKasbonStatus(index) {
-            kasbonData[index].status = kasbonData[index].status === 'Lunas' ? 'Belum Lunas' : 'Lunas';
-            localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
-            renderKasbon();
-        }
-
-        function deleteHistory(index) {
-            historyData.splice(index, 1);
-            localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-            renderHistory();
-        }
-
-        function restoreBackup(index) {
-            const backup = backupOtomatisData[index];
-            if (backup && backup.historySnapshot) {
-                historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
-                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                showModal("Berhasil Dipulihkan", "Data riwayat keuangan berhasil dipulihkan dari file backup otomatis.");
-                switchTab('history');
+        ['income', 'expense', 'cashout', 'pengeluaran-nominal', 'kasbon-harga'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    formatInputRibuan(e.target);
+                    if (['income', 'expense', 'cashout'].includes(id)) {
+                        updateLiveProfit();
+                    }
+                });
             }
+        });
+
+        const profitPercentageInput = document.getElementById('profit-percentage');
+        if (profitPercentageInput) {
+            profitPercentageInput.addEventListener('input', updateLiveProfit);
         }
 
-        // Kasbon Lock & Password Handler
-        function handleKasbonMenuClick() {
-            if (!isKasbonUnlocked) {
-                openKasbonPasswordModal();
+        function updateHeaderDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateStr = new Date().toLocaleDateString('id-ID', options);
+            document.getElementById('current-date-header').innerText = dateStr;
+            document.getElementById('current-date-sidebar').innerText = dateStr;
+        }
+        updateHeaderDate();
+
+        const profitDisplay = document.getElementById('profit-display');
+
+        // FUNGSI PASSWORD KASBON DAN SUB-MENU BUKA / KUNCI / GANTI PIN
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('kasbon-pass-input');
+            const eyeIcon = document.getElementById('eye-icon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
             } else {
-                switchTab('kasbon');
+                passInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
             }
         }
 
@@ -1222,63 +887,1112 @@
             popup.classList.toggle('hidden');
         }
 
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.toggle-kasbon-menu-container')) {
+                const popup = document.getElementById('kasbon-submenu-popup');
+                if (popup) popup.classList.add('hidden');
+            }
+        });
+
         function handleKasbonSubMenuAction(action) {
             const popup = document.getElementById('kasbon-submenu-popup');
-            popup.classList.add('hidden');
+            if (popup) popup.classList.add('hidden');
 
             if (action === 'buka') {
-                if (!isKasbonUnlocked) openKasbonPasswordModal();
-                else switchTab('kasbon');
+                if (isKasbonUnlocked) {
+                    switchTab('kasbon');
+                } else {
+                    handleKasbonMenuClick();
+                }
             } else if (action === 'kunci') {
                 isKasbonUnlocked = false;
-                document.getElementById('sidebar-kasbon-lock-icon').className = "fa-solid fa-lock text-[11px] text-rose-400";
-                showModal("Kasbon Dikunci", "Menu kasbon berhasil dikunci kembali.");
+                updateKasbonLockUI();
+                showModal("Kasbon Dikunci", "Menu kasbon berhasil dikunci secara manual.");
                 switchTab('input');
             } else if (action === 'ganti-pin') {
-                openKasbonPasswordModal();
+                openGantiPinModal();
             }
         }
 
-        function openKasbonPasswordModal() {
-            document.getElementById('kasbon-password-modal').classList.remove('hidden');
+        function openGantiPinModal() {
+            if (!currentSessionUser) return;
+            const modal = document.getElementById('kasbon-password-modal');
+            const titleEl = document.getElementById('kasbon-modal-title');
+            const subtitleEl = document.getElementById('kasbon-modal-subtitle');
+            const submitBtn = document.getElementById('kasbon-submit-btn');
+            document.getElementById('kasbon-pass-input').value = '';
+
+            titleEl.innerText = "Ganti PIN Kasbon Baru";
+            subtitleEl.innerText = "Masukkan PIN atau password baru untuk menu kasbon.";
+            submitBtn.innerText = "Simpan PIN Baru";
+            modal.classList.remove('hidden');
+        }
+
+        function updateKasbonLockUI() {
+            const deskLockIcon = document.getElementById('sidebar-kasbon-lock-icon');
+            const mobLockIcon = document.getElementById('mobile-kasbon-lock-icon');
+            if (deskLockIcon) {
+                deskLockIcon.className = isKasbonUnlocked ? "fa-solid fa-lock-open text-[11px] text-emerald-400" : "fa-solid fa-lock text-[11px] text-blue-300";
+            }
+            if (mobLockIcon) {
+                mobLockIcon.className = isKasbonUnlocked ? "fa-solid fa-lock-open text-[9px] text-emerald-500 absolute -top-1 -right-2" : "fa-solid fa-lock text-[9px] text-slate-500 absolute -top-1 -right-2";
+            }
+        }
+
+        function handleKasbonMenuClick() {
+            if (isKasbonUnlocked) {
+                switchTab('kasbon');
+                return;
+            }
+
+            if (!currentSessionUser) return;
+            const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
+
+            const modal = document.getElementById('kasbon-password-modal');
+            const titleEl = document.getElementById('kasbon-modal-title');
+            const subtitleEl = document.getElementById('kasbon-modal-subtitle');
+            const submitBtn = document.getElementById('kasbon-submit-btn');
+            document.getElementById('kasbon-pass-input').value = '';
+
+            if (!savedKasbonPass) {
+                titleEl.innerText = "Silahkan Buat Pin Untuk Akses Menu Kasbon";
+                subtitleEl.innerText = "Buat PIN/Password Anda untuk keamanan data kasbon.";
+                submitBtn.innerText = "Buat Password";
+            } else {
+                titleEl.innerText = "Masukan Pasword/Pin Kamu";
+                subtitleEl.innerText = "Masukkan PIN atau password untuk membuka menu kasbon.";
+                submitBtn.innerText = "Buka Akses";
+            }
+
+            modal.classList.remove('hidden');
         }
 
         function closeKasbonPasswordModal() {
             document.getElementById('kasbon-password-modal').classList.add('hidden');
         }
 
-        function togglePasswordVisibility() {
-            const input = document.getElementById('kasbon-pass-input');
-            const icon = document.getElementById('eye-icon');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.className = "fa-solid fa-eye-slash text-xs";
+        document.getElementById('kasbon-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const inputPass = document.getElementById('kasbon-pass-input').value;
+            if (!currentSessionUser) return;
+
+            const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
+            const titleText = document.getElementById('kasbon-modal-title').innerText;
+
+            if (!savedKasbonPass || titleText.includes("Ganti") || titleText.includes("Buat")) {
+                localStorage.setItem(`finance_kasbon_pass_${currentSessionUser.phone}`, inputPass);
+                isKasbonUnlocked = true;
+                updateKasbonLockUI();
+                closeKasbonPasswordModal();
+                showModal("Berhasil", "PIN/Password kasbon berhasil disimpan. Akses terbuka.");
+                switchTab('kasbon');
             } else {
-                input.type = 'password';
-                icon.className = "fa-solid fa-eye text-xs";
+                if (inputPass === savedKasbonPass) {
+                    isKasbonUnlocked = true;
+                    updateKasbonLockUI();
+                    closeKasbonPasswordModal();
+                    switchTab('kasbon');
+                } else {
+                    closeKasbonPasswordModal();
+                    showModal("Akses Ditolak", "Pasword/pin kamu salah silahkan ingat ingat kembali", "fa-solid fa-circle-xmark text-rose-600");
+                }
+            }
+        });
+
+        function switchTab(tab) {
+            if (tab === 'kasbon' && !isKasbonUnlocked) {
+                handleKasbonMenuClick();
+                return;
+            }
+
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
+            const titles = {
+                input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
+                pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
+                kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
+                history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
+                report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
+                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
+            };
+
+            const icons = {
+                input: 'fa-file-pen',
+                pengeluaran: 'fa-receipt',
+                kasbon: 'fa-book-bookmark',
+                history: 'fa-clock-rotate-left',
+                report: 'fa-chart-pie',
+                backup: 'fa-cloud-arrow-down'
+            };
+
+            const stickyFilterContainer = document.getElementById('sticky-filter-container');
+            const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
+            const kasbonStickyContainer = document.getElementById('kasbon-sticky-container');
+
+            views.forEach(v => {
+                const viewEl = document.getElementById(`view-${v}`);
+                if (viewEl) viewEl.classList.add('hidden');
+                
+                const deskNav = document.getElementById(`nav-${v}`);
+                const iconEl = document.getElementById(`icon-${v}`);
+                if (deskNav && iconEl) {
+                    const iconClass = icons[v];
+                    if (v === tab) {
+                        if (v === 'kasbon') {
+                            const wrapper = document.getElementById('nav-kasbon-wrapper');
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
+                            deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
+                            deskNav.innerHTML = `
+                                <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
+                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-text truncate">Kasbon</span>
+                            `;
+                        } else {
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
+                            deskNav.innerHTML = `
+                                <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
+                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
+                            `;
+                        }
+                    } else {
+                        if (v === 'kasbon') {
+                            const wrapper = document.getElementById('nav-kasbon-wrapper');
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
+                            deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
+                            deskNav.innerHTML = `
+                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                                <span class="sidebar-text truncate">Kasbon</span>
+                            `;
+                        } else {
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
+                            deskNav.innerHTML = `
+                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                                <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
+                            `;
+                        }
+                    }
+                }
+
+                const mobNav = document.getElementById(`nav-mobile-${v}`);
+                if (mobNav) {
+                    if (v === tab) {
+                        mobNav.className = "flex flex-col items-center py-1 px-3 text-emerald-600 transition";
+                        mobNav.querySelector('span').className = "text-[11px] font-semibold";
+                    } else {
+                        mobNav.className = "flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 transition";
+                        mobNav.querySelector('span').className = "text-[11px] font-medium";
+                    }
+                }
+            });
+
+            updateKasbonLockUI();
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById('page-title-header').innerText = titles[tab].title;
+            document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
+
+            if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.add('hidden');
+            if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden');
+
+            if (tab === 'pengeluaran') {
+                if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
+            } else if (tab === 'kasbon') {
+                if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
+            }
+
+            if (tab === 'input' || tab === 'backup') {
+                stickyFilterContainer.classList.add('hidden');
+                if (tab === 'backup') {
+                    renderBackupGrid();
+                }
+            } else {
+                stickyFilterContainer.classList.remove('hidden');
+                if (tab === 'pengeluaran') {
+                    renderStickyFilterPengeluaran();
+                    populatePengeluaranFilters();
+                    renderPengeluaranGrid();
+                } else if (tab === 'kasbon') {
+                    renderStickyFilterKasbon();
+                    renderKasbonGrid();
+                } else if (tab === 'history') {
+                    renderStickyFilterHistory();
+                    populateHistoryFilters();
+                    renderHistory();
+                } else if (tab === 'report') {
+                    renderStickyFilterReport();
+                    populateReportFilters();
+                    renderReport();
+                }
             }
         }
 
-        document.getElementById('kasbon-password-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            isKasbonUnlocked = true;
-            document.getElementById('sidebar-kasbon-lock-icon').className = "fa-solid fa-lock-open text-[11px] text-emerald-400";
-            closeKasbonPasswordModal();
-            showModal("Akses Dibuka", "PIN Kasbon berhasil diverifikasi/dibuat.");
-            switchTab('kasbon');
+        // Render Backup Otomatis berbentuk Kotak Grid Samping-Samping agak besar dengan toggle Pulihkan di bawah
+        function renderBackupGrid() {
+            const container = document.getElementById('backup-grid');
+            if (!container) return;
+
+            loadUserData();
+
+            if (backupOtomatisData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-cloud-arrow-down text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada data backup otomatis.</p>
+                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = backupOtomatisData.map(backup => {
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 flex flex-col justify-between space-y-4 hover:shadow-xl transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+                                    <i class="fa-solid fa-database"></i>
+                                </span>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Backup Aktif</span>
+                            </div>
+                            <h4 class="font-extrabold text-slate-800 text-base">${backup.day}, ${backup.date} ${backup.month} ${backup.year}</h4>
+                            <p class="text-xs text-slate-500 mt-1">Total riwayat tersimpan: ${backup.historySnapshot.length} item data</p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span class="text-[11px] font-semibold text-slate-400">Pulihkan jika history hilang</span>
+                            <button onclick="restoreHistoryFromBackup(${backup.id})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-rotate-left"></i> Pulihkan
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function restoreHistoryFromBackup(backupId) {
+            const backup = backupOtomatisData.find(b => b.id === backupId);
+            if (!backup) return;
+
+            historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+            }
+
+            showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
+            switchTab('history');
+        }
+
+        function renderStickyFilterPengeluaran() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-pengeluaran-date" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-pengeluaran-month" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-pengeluaran-year" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
+                    </select>
+                </div>
+            `;
+        }
+
+        function renderStickyFilterKasbon() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-2 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-kasbon-status" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Status (Lunas & Belum Lunas)</option>
+                        <option value="lunas">Lunas</option>
+                        <option value="belum_lunas">Belum Lunas</option>
+                    </select>
+                </div>
+                <div>
+                    <input type="text" id="filter-kasbon-nama" oninput="renderKasbonGrid()" placeholder="Cari Nama Pelanggan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                </div>
+            `;
+        }
+
+        function renderStickyFilterHistory() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-history-date" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-history-month" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-history-year" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
+                    </select>
+                </div>
+            `;
+        }
+
+        function renderStickyFilterReport() {
+            const wrapper = document.getElementById('filter-inputs-wrapper');
+            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
+            wrapper.innerHTML = `
+                <div>
+                    <select id="filter-report-date" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Tgl</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Bln</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                        <option value="">Semua Thn</option>
+                    </select>
+                </div>
+            `;
+        }
+
+        function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-icon').innerHTML = `<i class="${iconClass}"></i>`;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function toggleEditMenu(id) {
+            const menu = document.getElementById(`edit-menu-${id}`);
+            document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
+                if(el.id !== `edit-menu-${id}`) el.classList.add('hidden');
+            });
+            menu.classList.toggle('hidden');
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.toggle-edit-container')) {
+                document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
+                    el.classList.add('hidden');
+                });
+            }
         });
 
-        // Current Date Display
-        function updateDates() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const dateStr = now.toLocaleDateString('id-ID', options);
-            const headerDate = document.getElementById('current-date-header');
-            const sidebarDate = document.getElementById('current-date-sidebar');
-            if (headerDate) headerDate.innerText = dateStr;
-            if (sidebarDate) sidebarDate.innerText = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        function openEditSubMenu(id, type) {
+            document.getElementById(`edit-menu-${id}`).classList.add('hidden');
+            const item = historyData.find(d => d.id === id);
+            if(!item) return;
+
+            const modal = document.getElementById('edit-modal');
+            const modalTitle = document.getElementById('edit-modal-title');
+            const modalBody = document.getElementById('edit-modal-body');
+            const saveBtn = document.getElementById('save-edit-btn');
+
+            if (type === 'nominal') {
+                modalTitle.innerText = `Edit Nominal (ID: ${item.id.toString().slice(-4)})`;
+                modalBody.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pendapatan</label>
+                        <input type="text" id="edit-val-income" value="${item.income.toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Total Belanja</label>
+                        <input type="text" id="edit-val-expense" value="${(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pengeluaran</label>
+                        <input type="text" id="edit-val-cashout" value="${(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Profit Persen (%)</label>
+                        <input type="number" step="0.01" id="edit-val-profit-pct" value="${item.profitPercentage !== undefined ? item.profitPercentage : 10}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    item.income = parseNum(document.getElementById('edit-val-income').value);
+                    item.expense = parseNum(document.getElementById('edit-val-expense').value);
+                    item.cashout = parseNum(document.getElementById('edit-val-cashout').value);
+                    item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct').value) || 10;
+                    saveAndRefreshHistory();
+                    closeEditModal();
+                    showModal("Berhasil", "Nominal dan profit persen transaksi berhasil diperbarui.");
+                };
+            } else if (type === 'datetime') {
+                const daysOptions = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                const monthsOptions = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+                modalTitle.innerText = `Edit Waktu & Tanggal (ID: ${item.id.toString().slice(-4)})`;
+                modalBody.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
+                        <select id="edit-val-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                            ${daysOptions.map(d => `<option value="${d}" ${d === item.day ? 'selected' : ''}>${d}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
+                            <input type="number" id="edit-val-date" min="1" max="31" value="${item.date}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
+                            <select id="edit-val-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                                ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${m === item.month ? 'selected' : ''}>${m}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
+                            <input type="number" id="edit-val-year" value="${item.year}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        </div>
+                    </div>
+                `;
+                saveBtn.onclick = function() {
+                    item.day = document.getElementById('edit-val-day').value;
+                    item.date = parseInt(document.getElementById('edit-val-date').value) || item.date;
+                    const monthSelect = document.getElementById('edit-val-month');
+                    item.month = monthSelect.value;
+                    item.monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'));
+                    item.year = parseInt(document.getElementById('edit-val-year').value) || item.year;
+
+                    saveAndRefreshHistory();
+                    closeEditModal();
+                    showModal("Berhasil", "Tanggal dan waktu transaksi berhasil diperbarui.");
+                };
+            }
+
+            modal.classList.remove('hidden');
         }
-        updateDates();
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function saveAndRefreshHistory() {
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
+            }
+            renderHistory();
+        }
+
+        document.getElementById('pengeluaran-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nama = document.getElementById('pengeluaran-nama').value.trim();
+            const nominal = parseNum(document.getElementById('pengeluaran-nominal').value);
+
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const newItem = {
+                id: Date.now(),
+                day: days[now.getDay()],
+                date: now.getDate(),
+                monthIndex: now.getMonth(),
+                month: months[now.getMonth()],
+                year: now.getFullYear(),
+                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                nama: nama,
+                nominal: nominal
+            };
+
+            pengeluaranData.unshift(newItem);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
+            }
+
+            document.getElementById('pengeluaran-form').reset();
+            populatePengeluaranFilters();
+            renderPengeluaranGrid();
+            showModal("Berhasil", "Data pengeluaran berhasil disimpan.");
+        });
+
+        document.getElementById('kasbon-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nama = document.getElementById('kasbon-nama').value.trim();
+            const produk = document.getElementById('kasbon-produk').value.trim();
+            const harga = parseNum(document.getElementById('kasbon-harga').value);
+
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const currentTimeMillis = now.getTime();
+            const dayName = days[now.getDay()];
+            const dateNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const yearNum = now.getFullYear();
+
+            let targetGroup = kasbonData.find(group => {
+                const sameName = group.namaPelanggan.trim().toLowerCase() === nama.toLowerCase();
+                return sameName && !group.isLunas;
+            });
+
+            if (targetGroup) {
+                targetGroup.items.push({ produk, harga });
+                targetGroup.total += harga;
+            } else {
+                const newGroup = {
+                    id: currentTimeMillis,
+                    timestamp: currentTimeMillis,
+                    day: dayName,
+                    date: dateNum,
+                    month: monthName,
+                    year: yearNum,
+                    time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                    namaPelanggan: nama,
+                    items: [{ produk, harga }],
+                    total: harga,
+                    isLunas: false
+                };
+                kasbonData.unshift(newGroup);
+            }
+
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+            }
+
+            document.getElementById('kasbon-form').reset();
+            renderKasbonGrid();
+            showModal("Berhasil", "Data kasbon berhasil disimpan.");
+        });
+
+        function toggleLunasKasbon(id) {
+            const item = kasbonData.find(d => d.id === id);
+            if(item) {
+                item.isLunas = !item.isLunas;
+                if (currentSessionUser && currentSessionUser.phone) {
+                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                }
+                renderKasbonGrid();
+            }
+        }
+
+        function editNamaPelangganKasbon(id) {
+            const item = kasbonData.find(d => d.id === id);
+            if (!item) return;
+
+            const modal = document.getElementById('edit-modal');
+            const modalTitle = document.getElementById('edit-modal-title');
+            const modalBody = document.getElementById('edit-modal-body');
+            const saveBtn = document.getElementById('save-edit-btn');
+
+            modalTitle.innerText = "Ganti Nama Pelanggan";
+            modalBody.innerHTML = `
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nama Pelanggan Baru</label>
+                    <input type="text" id="edit-val-nama-pelanggan" value="${item.namaPelanggan}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                </div>
+            `;
+
+            saveBtn.onclick = function() {
+                const newName = document.getElementById('edit-val-nama-pelanggan').value.trim();
+                if (!newName) return;
+
+                item.namaPelanggan = newName;
+                if (currentSessionUser && currentSessionUser.phone) {
+                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                }
+                closeEditModal();
+                renderKasbonGrid();
+                showModal("Berhasil", "Nama pelanggan berhasil diperbarui.");
+            };
+
+            modal.classList.remove('hidden');
+        }
+
+        function populatePengeluaranFilters() {
+            const dateSelect = document.getElementById('filter-pengeluaran-date');
+            const monthSelect = document.getElementById('filter-pengeluaran-month');
+            const yearSelect = document.getElementById('filter-pengeluaran-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        function renderPengeluaranGrid() {
+            const container = document.getElementById('pengeluaran-grid');
+            if (!container) return;
+
+            const fDateEl = document.getElementById('filter-pengeluaran-date');
+            const fMonthEl = document.getElementById('filter-pengeluaran-month');
+            const fYearEl = document.getElementById('filter-pengeluaran-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            let filtered = pengeluaranData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada riwayat pengeluaran yang sesuai filter.</p>
+                    </div>`;
+                return;
+            }
+
+            const groups = {};
+            filtered.forEach(item => {
+                const groupKey = `${item.day}, ${item.date} ${item.month} ${item.year}`;
+                if (!groups[groupKey]) {
+                    groups[groupKey] = [];
+                }
+                groups[groupKey].push(item);
+            });
+
+            container.innerHTML = Object.entries(groups).map(([dateHeader, items]) => {
+                const totalNominalGroup = items.reduce((sum, curr) => sum + curr.nominal, 0);
+
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${dateHeader}
+                            </h3>
+                            <span class="text-[10px] bg-rose-50 text-rose-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(totalNominalGroup)}</span>
+                        </div>
+
+                        <div class="space-y-3">
+                            ${items.map(item => `
+                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                                    <div>
+                                        <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Pukul ${item.time}</span>
+                                        <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-xs text-slate-500 block mb-0.5">Nominal</span>
+                                        <span class="text-sm font-extrabold text-rose-600">${formatRupiah(item.nominal)}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderKasbonGrid() {
+            const container = document.getElementById('kasbon-grid');
+            if (!container) return;
+
+            const fStatusEl = document.getElementById('filter-kasbon-status');
+            const fNamaEl = document.getElementById('filter-kasbon-nama');
+            const fStatus = fStatusEl ? fStatusEl.value : "";
+            const fNama = fNamaEl ? fNamaEl.value.trim().toLowerCase() : "";
+
+            let filtered = kasbonData.filter(item => {
+                let matchStatus = true;
+                if (fStatus === "lunas") {
+                    matchStatus = item.isLunas === true;
+                } else if (fStatus === "belum_lunas") {
+                    matchStatus = item.isLunas === false;
+                }
+
+                let matchNama = true;
+                if (fNama !== "") {
+                    matchNama = item.namaPelanggan.toLowerCase().includes(fNama);
+                }
+
+                return matchStatus && matchNama;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada riwayat kasbon yang sesuai filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(group => {
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative overflow-hidden">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
+                                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-user text-emerald-600"></i> ${group.namaPelanggan}
+                                </h3>
+                            </div>
+                            <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
+                        </div>
+
+                        ${group.isLunas ? `
+                            <div class="flex items-center">
+                                <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase transform rotate-0 shadow-sm inline-block bg-emerald-50/80">
+                                    <i class="fa-solid fa-check mr-1"></i> LUNAS
+                                </span>
+                            </div>
+                        ` : ''}
+
+                        <div class="space-y-2">
+                            ${group.items.map(sub => `
+                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                                        <i class="fa-solid fa-box text-slate-400"></i> ${sub.produk}
+                                    </div>
+                                    <div class="text-right text-xs font-extrabold text-slate-800">
+                                        ${formatRupiah(sub.harga)}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="pt-2 flex justify-end items-center gap-2 relative z-20">
+                            <button onclick="editNamaPelangganKasbon(${group.id})" class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
+                                <i class="fa-solid fa-pen-to-square text-amber-500"></i> Ganti Nama
+                            </button>
+                            ${!group.isLunas ? `
+                                <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md bg-emerald-600 text-white hover:bg-emerald-700">
+                                    <i class="fa-solid fa-check"></i> Sudah Bayar
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('finance-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const income = parseNum(document.getElementById('income').value);
+            const expense = parseNum(document.getElementById('expense').value);
+            const cashout = parseNum(document.getElementById('cashout').value);
+            const profitPercentage = parseFloat(document.getElementById('profit-percentage').value) || 0;
+            
+            const profit = (income - cashout) * (profitPercentage / 100);
+
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const newEntry = {
+                id: Date.now(),
+                day: days[now.getDay()],
+                date: now.getDate(),
+                monthIndex: now.getMonth(),
+                month: months[now.getMonth()],
+                year: now.getFullYear(),
+                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                income: income,
+                expense: expense,
+                cashout: cashout,
+                profitPercentage: profitPercentage,
+                profit: profit > 0 ? profit : 0
+            };
+
+            historyData.unshift(newEntry);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
+            }
+
+            document.getElementById('finance-form').reset();
+            document.getElementById('profit-percentage').value = "10";
+            profitDisplay.innerText = "Rp 0";
+
+            showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
+        });
+
+        function populateHistoryFilters() {
+            const dateSelect = document.getElementById('filter-history-date');
+            const monthSelect = document.getElementById('filter-history-month');
+            const yearSelect = document.getElementById('filter-history-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-grid');
+            if (!container) return;
+
+            const fDateEl = document.getElementById('filter-history-date');
+            const fMonthEl = document.getElementById('filter-history-month');
+            const fYearEl = document.getElementById('filter-history-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            let filtered = historyData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada riwayat transaksi yang sesuai filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => {
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const calculatedProfit = (item.income - (item.cashout || 0)) * (profitPct / 100);
+                const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
+
+                return `
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Waktu Entri: ${item.time}</span>
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
+                                </h3>
+                            </div>
+                            
+                            <div class="relative toggle-edit-container">
+                                <button onclick="toggleEditMenu(${item.id})" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
+                                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                                </button>
+                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1 hidden z-30">
+                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-pen text-amber-500 w-4"></i> Ubah Nominal
+                                    </button>
+                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-calendar text-blue-500 w-4"></i> Ubah Hari & Tgl
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Pendapatan</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Belanja</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-indigo-600">${formatRupiah(item.expense || 0)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Pengeluaran</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
+                            </div>
+                            <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
+                                <span class="text-[10px] text-emerald-700 font-semibold uppercase block mb-1">Profit (${profitPct}%)</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-emerald-700">${formatRupiah(displayProfit)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function populateReportFilters() {
+            const dateSelect = document.getElementById('filter-report-date');
+            const monthSelect = document.getElementById('filter-report-month');
+            const yearSelect = document.getElementById('filter-report-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
+        }
+
+        function renderReport() {
+            const container = document.getElementById('report-grid');
+            if (!container) return;
+
+            const fDateEl = document.getElementById('filter-report-date');
+            const fMonthEl = document.getElementById('filter-report-month');
+            const fYearEl = document.getElementById('filter-report-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            let filtered = historyData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Terkumpul`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-chart-pie text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada rekapitulasi data bulanan.</p>
+                    </div>`;
+                return;
+            }
+
+            const monthlyGroups = {};
+            filtered.forEach(item => {
+                const key = `${item.month} ${item.year}`;
+                if (!monthlyGroups[key]) {
+                    monthlyGroups[key] = {
+                        month: item.month,
+                        year: item.year,
+                        totalIncome: 0,
+                        totalExpense: 0,
+                        totalCashout: 0,
+                        totalProfit: 0,
+                        count: 0
+                    };
+                }
+
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (item.income - (item.cashout || 0)) * (profitPct / 100);
+
+                monthlyGroups[key].totalIncome += item.income;
+                monthlyGroups[key].totalExpense += (item.expense || 0);
+                monthlyGroups[key].totalCashout += (item.cashout || 0);
+                monthlyGroups[key].totalProfit += (itemProfit > 0 ? itemProfit : 0);
+                monthlyGroups[key].count += 1;
+            });
+
+            container.innerHTML = Object.values(monthlyGroups).map(group => {
+                return `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-check text-emerald-600"></i> Rekap Bulan ${group.month} ${group.year}
+                            </h3>
+                            <span class="text-[10px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">${group.count} Hari</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Pendapatan</span>
+                                <span class="text-sm font-extrabold text-emerald-600">${formatRupiah(group.totalIncome)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Belanja</span>
+                                <span class="text-sm font-extrabold text-indigo-600">${formatRupiah(group.totalExpense)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Pengeluaran</span>
+                                <span class="text-sm font-extrabold text-rose-600">${formatRupiah(group.totalCashout)}</span>
+                            </div>
+                            <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100">
+                                <span class="text-[10px] text-emerald-700 font-semibold uppercase block mb-1">Total Profit/Laba</span>
+                                <span class="text-sm font-extrabold text-emerald-700">${formatRupiah(group.totalProfit)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
     </script>
 </body>
 </html>
