@@ -1535,10 +1535,10 @@
             showModal("Berhasil", "Data kasbon berhasil disimpan.");
         });
 
-        function toggleLunasKasbon(id) {
+        function markKasbonLunas(id) {
             const item = kasbonData.find(d => d.id === id);
             if(item) {
-                item.isLunas = !item.isLunas;
+                item.isLunas = true;
                 if (currentSessionUser && currentSessionUser.phone) {
                     localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
                 }
@@ -1709,33 +1709,30 @@
                 return matchDate && matchMonth && matchYear;
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditampilkan`;
-
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400">
-                        <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-semibold">Belum ada catatan pengeluaran.</p>
+                    <div class="text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-receipt text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada data pengeluaran terdaftar.</p>
                     </div>`;
                 return;
             }
 
             container.innerHTML = filtered.map(item => `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 truncate">
-                        <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0 text-sm">
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-receipt"></i>
                         </div>
-                        <div class="truncate">
-                            <h4 class="font-bold text-slate-800 text-sm truncate">${item.nama}</h4>
-                            <p class="text-[11px] text-slate-400 mt-0.5">${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}</p>
+                        <div>
+                            <h4 class="font-extrabold text-slate-800 text-sm">${item.nama}</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time || ''}</p>
                         </div>
                     </div>
-                    <div class="text-right shrink-0">
-                        <span class="text-xs font-bold text-rose-600 block">${formatRupiahDot(item.nominal)}</span>
-                        <button onclick="deletePengeluaranItem(${item.id})" class="text-[10px] text-slate-400 hover:text-rose-600 transition mt-1">
-                            <i class="fa-solid fa-trash"></i> Hapus
+                    <div class="text-right">
+                        <span class="text-sm font-extrabold text-rose-600 block">${formatRupiahDot(item.nominal)}</span>
+                        <button onclick="deletePengeluaranItem(${item.id})" class="text-slate-300 hover:text-rose-500 text-xs mt-1 transition" title="Hapus">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
                 </div>
@@ -1743,12 +1740,11 @@
         }
 
         function deletePengeluaranItem(id) {
-            pengeluaranData = pengeluaranData.filter(d => d.id !== id);
+            pengeluaranData = pengeluaranData.filter(p => p.id !== id);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
             }
             renderPengeluaranGrid();
-            showModal("Hapus Berhasil", "Data pengeluaran berhasil dihapus.");
         }
 
         function renderKasbonGrid() {
@@ -1763,75 +1759,78 @@
 
             let filtered = kasbonData.filter(item => {
                 let matchStatus = true;
-                if (fStatus === "lunas") matchStatus = item.isLunas === true;
-                if (fStatus === "belum_lunas") matchStatus = item.isLunas === false;
+                if (fStatus === 'lunas') matchStatus = item.isLunas;
+                else if (fStatus === 'belum_lunas') matchStatus = !item.isLunas;
 
                 let matchNama = fNama === "" || item.namaPelanggan.toLowerCase().includes(fNama);
-
                 return matchStatus && matchNama;
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Pelanggan Kasbon`;
-
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400">
-                        <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-semibold">Belum ada daftar kasbon pelanggan.</p>
+                    <div class="text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-book-bookmark text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada data kasbon terdaftar.</p>
                     </div>`;
                 return;
             }
 
-            container.innerHTML = filtered.map(group => {
-                return `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs shrink-0">
-                                    <i class="fa-solid fa-user"></i>
-                                </span>
-                                <div>
-                                    <div class="flex items-center gap-1.5">
-                                        <h4 class="font-bold text-slate-800 text-sm">${group.namaPelanggan}</h4>
-                                        <button onclick="editNamaPelangganKasbon(${group.id})" class="text-slate-400 hover:text-emerald-600 text-xs transition" title="Edit Nama Pelanggan">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
-                                    </div>
-                                    <p class="text-[10px] text-slate-400">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</p>
-                                </div>
+            container.innerHTML = filtered.map(group => `
+                <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl ${group.isLunas ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} flex items-center justify-center font-bold">
+                                <i class="fa-solid ${group.isLunas ? 'fa-check-circle' : 'fa-clock'}"></i>
                             </div>
-                            
-                            <!-- HANYA MENYEDIAKAN TOGGLE SUDAH BAYAR -->
                             <div>
-                                ${!group.isLunas ? `
-                                    <button onclick="toggleLunasKasbon(${group.id})" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg transition border border-emerald-200/60">
-                                        <i class="fa-solid fa-check"></i> Sudah Bayar
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-extrabold text-slate-800 text-sm">${group.namaPelanggan}</h4>
+                                    <button onclick="editNamaPelangganKasbon(${group.id})" class="text-slate-400 hover:text-emerald-600 text-xs transition" title="Ganti Nama Pelanggan">
+                                        <i class="fa-solid fa-pen"></i>
                                     </button>
-                                ` : `
-                                    <span class="px-3 py-1 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-300">
-                                        <i class="fa-solid fa-circle-check"></i> Lunas
-                                    </span>
-                                `}
+                                </div>
+                                <p class="text-[11px] text-slate-400 mt-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time || ''}</p>
                             </div>
                         </div>
-
-                        <div class="space-y-1.5 pl-2">
-                            ${group.items.map(it => `
-                                <div class="flex items-center justify-between text-xs text-slate-600">
-                                    <span class="font-medium">• ${it.produk}</span>
-                                    <span class="font-bold text-slate-700">${formatRupiahDot(it.harga)}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-
-                        <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                            <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Total Kasbon</span>
-                            <span class="font-extrabold text-amber-600 text-sm">${formatRupiahDot(group.total)}</span>
+                        <div class="flex items-center gap-2">
+                            ${!group.isLunas ? `
+                                <button onclick="markKasbonLunas(${group.id})" class="px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600">
+                                    <i class="fa-solid fa-circle-check"></i> Sudah Bayar
+                                </button>
+                            ` : `
+                                <span class="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check"></i> Sudah Bayar
+                                </span>
+                            `}
+                            <button onclick="deleteKasbonGroup(${group.id})" class="text-slate-300 hover:text-rose-500 p-1.5 text-xs transition" title="Hapus Kasbon">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
                         </div>
                     </div>
-                `;
-            }).join('');
+
+                    <div class="space-y-2">
+                        ${group.items.map(i => `
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-600 font-medium">${i.produk}</span>
+                                <span class="font-bold text-slate-800">${formatRupiahDot(i.harga)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Kasbon</span>
+                        <span class="text-sm font-extrabold ${group.isLunas ? 'text-emerald-600' : 'text-amber-600'}">${formatRupiahDot(group.total)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteKasbonGroup(id) {
+            kasbonData = kasbonData.filter(k => k.id !== id);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+            }
+            renderKasbonGrid();
         }
 
         function renderHistory() {
@@ -1853,69 +1852,66 @@
                 return matchDate && matchMonth && matchYear;
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Riwayat Ditampilkan`;
-
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400">
-                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-semibold">Belum ada riwayat transaksi.</p>
+                    <div class="text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-clock-rotate-left text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Belum ada riwayat transaksi.</p>
                     </div>`;
                 return;
             }
 
             container.innerHTML = filtered.map(item => {
                 const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const profit = (item.income - (item.cashout || 0)) * (profitPct / 100);
-                const finalProfit = profit > 0 ? profit : 0;
+                const profit = ((item.income || 0) - (item.cashout || 0)) * (profitPct / 100);
 
                 return `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 hover:shadow-xl transition relative">
+                        <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <span class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
                                     <i class="fa-solid fa-calendar-day"></i>
                                 </span>
                                 <div>
-                                    <h4 class="font-bold text-slate-800 text-xs">${item.day}, ${item.date} ${item.month} ${item.year}</h4>
-                                    <p class="text-[10px] text-slate-400">${item.time}</p>
+                                    <h4 class="font-extrabold text-slate-800 text-sm">${item.day}, ${item.date} ${item.month} ${item.year}</h4>
+                                    <span class="text-[10px] text-slate-400 font-medium">Waktu: ${item.time || '-'}</span>
                                 </div>
                             </div>
+                            
                             <div class="relative toggle-edit-container">
-                                <button onclick="toggleEditMenu(${item.id})" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition">
+                                <button onclick="toggleEditMenu(${item.id})" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
                                     <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
                                 </button>
-                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-1 w-36 bg-white border border-slate-100 rounded-xl shadow-lg py-1 hidden z-20">
-                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
-                                        <i class="fa-solid fa-pen text-emerald-600"></i> Edit Nominal
+                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1 hidden z-30">
+                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-pen-to-square text-blue-500 w-4"></i> Edit Nominal
                                     </button>
-                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
-                                        <i class="fa-solid fa-clock text-blue-600"></i> Edit Waktu
+                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-clock text-amber-500 w-4"></i> Edit Waktu & Tgl
                                     </button>
-                                    <button onclick="deleteHistoryItem(${item.id})" class="w-full text-left px-3 py-1.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 border-t border-slate-100 mt-1">
-                                        <i class="fa-solid fa-trash"></i> Hapus
+                                    <button onclick="deleteHistoryItem(${item.id})" class="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 border-t border-slate-100">
+                                        <i class="fa-solid fa-trash-can w-4"></i> Hapus Transaction
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                            <div class="bg-slate-50 p-2 rounded-xl">
-                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Pendapatan</span>
-                                <span class="font-bold text-emerald-600 text-xs">${formatRupiahDot(item.income)}</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Pendapatan</span>
+                                <span class="font-extrabold text-emerald-600">${formatRupiahDot(item.income || 0)}</span>
                             </div>
-                            <div class="bg-slate-50 p-2 rounded-xl">
-                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Total Belanja</span>
-                                <span class="font-bold text-amber-600 text-xs">${formatRupiahDot(item.expense || 0)}</span>
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Total Belanja</span>
+                                <span class="font-extrabold text-blue-600">${formatRupiahDot(item.expense || 0)}</span>
                             </div>
-                            <div class="bg-slate-50 p-2 rounded-xl">
-                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Pengeluaran</span>
-                                <span class="font-bold text-rose-600 text-xs">${formatRupiahDot(item.cashout || 0)}</span>
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Pengeluaran</span>
+                                <span class="font-extrabold text-rose-500">${formatRupiahDot(item.cashout || 0)}</span>
                             </div>
-                            <div class="bg-emerald-50/50 p-2 rounded-xl border border-emerald-100">
-                                <span class="text-[10px] text-emerald-700 font-bold block uppercase">Profit (${profitPct}%)</span>
-                                <span class="font-extrabold text-emerald-700 text-xs">${formatRupiahDot(finalProfit)}</span>
+                            <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100">
+                                <span class="text-[10px] text-emerald-600 uppercase font-bold block mb-1">Profit (${profitPct}%)</span>
+                                <span class="font-extrabold text-emerald-700">${formatRupiahDot(profit > 0 ? profit : 0)}</span>
                             </div>
                         </div>
                     </div>
@@ -1924,9 +1920,8 @@
         }
 
         function deleteHistoryItem(id) {
-            historyData = historyData.filter(d => d.id !== id);
+            historyData = historyData.filter(h => h.id !== id);
             saveAndRefreshHistory();
-            showModal("Hapus Berhasil", "Riwayat transaksi berhasil dihapus.");
         }
 
         function renderReport() {
@@ -1948,18 +1943,6 @@
                 return matchDate && matchMonth && matchYear;
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Rekap Bulanan`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400">
-                        <i class="fa-solid fa-chart-pie text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-semibold">Belum ada data rekapitulasi laporan.</p>
-                    </div>`;
-                return;
-            }
-
             let totalIncome = 0;
             let totalExpense = 0;
             let totalCashout = 0;
@@ -1967,59 +1950,53 @@
 
             filtered.forEach(item => {
                 const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const profit = (item.income - (item.cashout || 0)) * (profitPct / 100);
-                
-                totalIncome += item.income;
-                totalExpense += (item.expense || 0);
-                totalCashout += (item.cashout || 0);
-                totalProfit += (profit > 0 ? profit : 0);
+                const profit = ((item.income || 0) - (item.cashout || 0)) * (profitPct / 100);
+
+                totalIncome += item.income || 0;
+                totalExpense += item.expense || 0;
+                totalCashout += item.cashout || 0;
+                totalProfit += profit > 0 ? profit : 0;
             });
 
-            /* 
-              TEKS DIUBAH PADA BAGIAN KARTU REKAPITULASI LAPORAN:
-              - Pendapatan Hari Ini -> Total Pendapatan (Icon fa-wallet tetap)
-              - Total Belanja Hari Ini -> Total Belanja (Icon fa-cart-shopping tetap)
-              - Pengeluaran Hari Ini -> Total Pengeluaran (Icon fa-arrow-up-from-bracket tetap)
-            */
             container.innerHTML = `
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">
                             <i class="fa-solid fa-wallet"></i>
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Pendapatan</span>
-                            <span class="text-sm font-extrabold text-slate-800">${formatRupiahDot(totalIncome)}</span>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Pendapatan</span>
+                            <h3 class="text-lg font-extrabold text-slate-800 mt-0.5">${formatRupiahDot(totalIncome)}</h3>
                         </div>
                     </div>
 
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">
                             <i class="fa-solid fa-cart-shopping"></i>
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Belanja</span>
-                            <span class="text-sm font-extrabold text-slate-800">${formatRupiahDot(totalExpense)}</span>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Belanja</span>
+                            <h3 class="text-lg font-extrabold text-slate-800 mt-0.5">${formatRupiahDot(totalExpense)}</h3>
                         </div>
                     </div>
 
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xl">
+                            <i class="fa-solid fa-money-bill-transfer"></i>
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Pengeluaran</span>
-                            <span class="text-sm font-extrabold text-slate-800">${formatRupiahDot(totalCashout)}</span>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Pengeluaran</span>
+                            <h3 class="text-lg font-extrabold text-slate-800 mt-0.5">${formatRupiahDot(totalCashout)}</h3>
                         </div>
                     </div>
 
-                    <div class="bg-emerald-600 p-4 rounded-2xl shadow-sm text-white flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold shrink-0">
-                            <i class="fa-solid fa-chart-line text-white"></i>
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-emerald-200 bg-emerald-50/20 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-emerald-200">
+                            <i class="fa-solid fa-chart-line"></i>
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-emerald-100 uppercase tracking-wider block">Total Profit Bersih</span>
-                            <span class="text-sm font-extrabold text-white">${formatRupiahDot(totalProfit)}</span>
+                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider block">Total Profit Bersih</span>
+                            <h3 class="text-lg font-extrabold text-emerald-700 mt-0.5">${formatRupiahDot(totalProfit)}</h3>
                         </div>
                     </div>
                 </div>
@@ -2047,45 +2024,36 @@
                 return matchDate && matchMonth && matchYear;
             });
 
-            periodText.innerText = `Periode Filter: ${fDate ? 'Tgl ' + fDate : 'Semua Tgl'} ${fMonth ? fMonth : 'Semua Bulan'} ${fYear ? fYear : 'Semua Tahun'}`;
+            periodText.innerText = `Periode: ${fDate || 'Semua Tanggal'} ${fMonth || 'Semua Bulan'} ${fYear || 'Semua Tahun'}`;
 
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 border border-slate-300 text-slate-400">Tidak ada data terfilter untuk dicetak.</td></tr>`;
-                tfoot.innerHTML = ``;
-                modal.classList.remove('hidden');
-                return;
-            }
-
-            let sumInc = 0;
-            let sumExp = 0;
-            let sumProf = 0;
+            let sumIncome = 0;
+            let sumExpense = 0;
+            let sumProfit = 0;
 
             tbody.innerHTML = filtered.map(item => {
                 const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const profit = (item.income - (item.cashout || 0)) * (profitPct / 100);
-                const finalProfit = profit > 0 ? profit : 0;
+                const profit = ((item.income || 0) - (item.cashout || 0)) * (profitPct / 100);
 
-                sumInc += item.income;
-                sumExp += (item.expense || 0);
-                sumProf += finalProfit;
+                sumIncome += item.income || 0;
+                sumExpense += item.expense || 0;
+                sumProfit += profit > 0 ? profit : 0;
 
                 return `
                     <tr>
-                        <td class="border border-slate-300 px-3 py-1.5 text-center font-bold">${item.date}</td>
-                        <td class="border border-slate-300 px-3 py-1.5 text-right font-semibold">${formatRupiahDot(item.income)}</td>
-                        <td class="border border-slate-300 px-3 py-1.5 text-right font-semibold">${formatRupiahDot(item.expense || 0)}</td>
-                        <td class="border border-slate-300 px-3 py-1.5 text-right font-bold text-emerald-700">${formatRupiahDot(finalProfit)}</td>
+                        <td class="border border-slate-300 px-3 py-1.5 text-center font-semibold">${item.date}/${item.monthIndex+1}</td>
+                        <td class="border border-slate-300 px-3 py-1.5 text-right font-medium">${formatRupiahDot(item.income || 0)}</td>
+                        <td class="border border-slate-300 px-3 py-1.5 text-right font-medium">${formatRupiahDot(item.expense || 0)}</td>
+                        <td class="border border-slate-300 px-3 py-1.5 text-right font-bold text-emerald-700">${formatRupiahDot(profit > 0 ? profit : 0)}</td>
                     </tr>
                 `;
             }).join('');
 
-            /* TEKS PADA HEADER TABEL PDF DENGAN NAMA BARU */
             tfoot.innerHTML = `
-                <tr>
+                <tr class="bg-slate-100">
                     <td class="border border-slate-300 px-3 py-2 text-center uppercase font-bold">TOTAL</td>
-                    <td class="border border-slate-300 px-3 py-2 text-right text-slate-900">${formatRupiahDot(sumInc)}</td>
-                    <td class="border border-slate-300 px-3 py-2 text-right text-slate-900">${formatRupiahDot(sumExp)}</td>
-                    <td class="border border-slate-300 px-3 py-2 text-right text-emerald-800 font-extrabold">${formatRupiahDot(sumProf)}</td>
+                    <td class="border border-slate-300 px-3 py-2 text-right font-extrabold text-slate-800">${formatRupiahDot(sumIncome)}</td>
+                    <td class="border border-slate-300 px-3 py-2 text-right font-extrabold text-slate-800">${formatRupiahDot(sumExpense)}</td>
+                    <td class="border border-slate-300 px-3 py-2 text-right font-extrabold text-emerald-700">${formatRupiahDot(sumProfit)}</td>
                 </tr>
             `;
 
@@ -2095,6 +2063,9 @@
         function closePdfModal() {
             document.getElementById('pdf-modal').classList.add('hidden');
         }
+
+        // Inisialisasi awal
+        switchTab('input');
     </script>
 </body>
 </html>
