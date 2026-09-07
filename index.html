@@ -1479,6 +1479,39 @@
             }
         }
 
+        function editNamaPelangganKasbon(id) {
+            const item = kasbonData.find(d => d.id === id);
+            if (!item) return;
+
+            const modal = document.getElementById('edit-modal');
+            const modalTitle = document.getElementById('edit-modal-title');
+            const modalBody = document.getElementById('edit-modal-body');
+            const saveBtn = document.getElementById('save-edit-btn');
+
+            modalTitle.innerText = "Ganti Nama Pelanggan";
+            modalBody.innerHTML = `
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nama Pelanggan Baru</label>
+                    <input type="text" id="edit-val-nama-pelanggan" value="${item.namaPelanggan}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                </div>
+            `;
+
+            saveBtn.onclick = function() {
+                const newName = document.getElementById('edit-val-nama-pelanggan').value.trim();
+                if (!newName) return;
+
+                item.namaPelanggan = newName;
+                if (currentSessionUser && currentSessionUser.phone) {
+                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                }
+                closeEditModal();
+                renderKasbonGrid();
+                showModal("Berhasil", "Nama pelanggan berhasil diperbarui.");
+            };
+
+            modal.classList.remove('hidden');
+        }
+
         function populatePengeluaranFilters() {
             const dateSelect = document.getElementById('filter-pengeluaran-date');
             const monthSelect = document.getElementById('filter-pengeluaran-month');
@@ -1658,13 +1691,16 @@
                             `).join('')}
                         </div>
 
-                        ${!group.isLunas ? `
-                            <div class="pt-2 flex justify-end relative z-20">
+                        <div class="pt-2 flex justify-end items-center gap-2 relative z-20">
+                            <button onclick="editNamaPelangganKasbon(${group.id})" class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
+                                <i class="fa-solid fa-pen-to-square text-amber-500"></i> Ganti Nama
+                            </button>
+                            ${!group.isLunas ? `
                                 <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md bg-emerald-600 text-white hover:bg-emerald-700">
                                     <i class="fa-solid fa-check"></i> Sudah Bayar
                                 </button>
-                            </div>
-                        ` : ''}
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1748,11 +1784,95 @@
             yearSelect.value = currentSelectedYear;
         }
 
+        function renderHistory() {
+            const container = document.getElementById('history-grid');
+            if (!container) return;
+
+            const fDateEl = document.getElementById('filter-history-date');
+            const fMonthEl = document.getElementById('filter-history-month');
+            const fYearEl = document.getElementById('filter-history-year');
+
+            const fDate = fDateEl ? fDateEl.value : "";
+            const fMonth = fMonthEl ? fMonthEl.value : "";
+            const fYear = fYearEl ? fYearEl.value : "";
+
+            let filtered = historyData.filter(item => {
+                let matchDate = fDate === "" || item.date.toString() === fDate;
+                let matchMonth = fMonth === "" || item.month === fMonth;
+                let matchYear = fYear === "" || item.year.toString() === fYear;
+                return matchDate && matchMonth && matchYear;
+            });
+
+            const countLabel = document.getElementById('sticky-count-label');
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada riwayat transaksi yang sesuai filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => {
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const calculatedProfit = (item.income - (item.cashout || 0)) * (profitPct / 100);
+                const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
+
+                return `
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Waktu Entri: ${item.time}</span>
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
+                                </h3>
+                            </div>
+                            
+                            <div class="relative toggle-edit-container">
+                                <button onclick="toggleEditMenu(${item.id})" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
+                                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                                </button>
+                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1 hidden z-30">
+                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-pen text-amber-500 w-4"></i> Edit Nominal
+                                    </button>
+                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-calendar-pen text-blue-500 w-4"></i> Edit Waktu/Tgl
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Pendapatan</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Belanja</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-indigo-600">${formatRupiah(item.expense || 0)}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Pengeluaran</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
+                            </div>
+                            <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
+                                <span class="text-[10px] text-emerald-700 font-semibold uppercase block mb-1">Profit (${profitPct}%)</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-emerald-700">${formatRupiah(displayProfit)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function populateReportFilters() {
             const dateSelect = document.getElementById('filter-report-date');
             const monthSelect = document.getElementById('filter-report-month');
             const yearSelect = document.getElementById('filter-report-year');
-
+            
             if(!dateSelect || !monthSelect || !yearSelect) return;
 
             const currentSelectedDate = dateSelect.value;
@@ -1785,104 +1905,6 @@
             yearSelect.value = currentSelectedYear;
         }
 
-        function renderHistory() {
-            const container = document.getElementById('history-grid');
-            
-            const fDateEl = document.getElementById('filter-history-date');
-            const fMonthEl = document.getElementById('filter-history-month');
-            const fYearEl = document.getElementById('filter-history-year');
-
-            const fDate = fDateEl ? fDateEl.value : "";
-            const fMonth = fMonthEl ? fMonthEl.value : "";
-            const fYear = fYearEl ? fYearEl.value : "";
-
-            let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
-            });
-
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Tidak ada riwayat data yang sesuai filter.</p>
-                        <p class="text-xs text-slate-400 mt-1">Coba ubah filter atau input data baru.</p>
-                    </div>`;
-                return;
-            }
-
-            // KARTU HISTORY DENGAN ICON BULLISH (PENDAPATAN), BEARISH (PENGELUARAN/BELANJA), DAN PROFIT
-            container.innerHTML = filtered.map(item => {
-                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const calculatedProfit = ((item.income - (item.cashout || 0)) * (pPct / 100));
-                const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
-
-                return `
-                <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
-                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center relative">
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                            <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}
-                        </h3>
-                        
-                        <div class="relative toggle-edit-container">
-                            <button onclick="toggleEditMenu(${item.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                                <i class="fa-solid fa-pen-to-square"></i>Edit<i class="fa-solid fa-chevron-down text-[10px]"></i>
-                            </button>
-                            <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-1 hidden z-30">
-                                <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                    <i class="fa-solid fa-coins text-emerald-600 w-4"></i>Nominal
-                                </button>
-                                <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                    <i class="fa-solid fa-calendar-days text-blue-600 w-4"></i>Hari Bulan Tahun
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pendapatan</span>
-                            <div class="flex items-center gap-1.5 text-emerald-600">
-                                <i class="fa-solid fa-arrow-trend-up text-xs"></i>
-                                <span class="text-sm font-extrabold truncate">${formatRupiah(item.income)}</span>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
-                            <div class="flex items-center gap-1.5 text-rose-600">
-                                <i class="fa-solid fa-arrow-trend-down text-xs"></i>
-                                <span class="text-sm font-extrabold truncate">${formatRupiah(item.expense || 0)}</span>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-100">
-                            <span class="text-[11px] text-slate-500 font-semibold block mb-1">Pengeluaran</span>
-                            <div class="flex items-center gap-1.5 text-rose-600">
-                                <i class="fa-solid fa-arrow-trend-down text-xs"></i>
-                                <span class="text-sm font-extrabold truncate">${formatRupiah(item.cashout || 0)}</span>
-                            </div>
-                        </div>
-
-                        <div class="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-100">
-                            <span class="text-[11px] text-emerald-700 font-semibold block mb-1">Profit Tersimpan (${pPct}%)</span>
-                            <div class="flex items-center gap-1.5 text-emerald-700">
-                                <i class="fa-solid fa-chart-line text-xs"></i>
-                                <span class="text-sm font-extrabold truncate">${formatRupiah(displayProfit)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        // FUNGSI LAPORAN BULANAN (DENGAN KOTAK KARTU MODERN 2X2 GRID)
         function renderReport() {
             const container = document.getElementById('report-grid');
             if (!container) return;
@@ -1903,85 +1925,68 @@
             });
 
             const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Rekapitulasi`;
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Terkumpul`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-chart-pie text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data laporan bulanan yang sesuai filter.</p>
-                        <p class="text-xs text-slate-400 mt-1">Coba sesuaikan filter bulan atau tahun di bawah.</p>
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-chart-pie text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-medium">Belum ada rekapitulasi data bulanan.</p>
                     </div>`;
                 return;
             }
 
-            // Grouping berdasarkan Bulan dan Tahun
-            const monthlyGroup = {};
+            const monthlyGroups = {};
             filtered.forEach(item => {
                 const key = `${item.month} ${item.year}`;
-                if (!monthlyGroup[key]) {
-                    monthlyGroup[key] = {
+                if (!monthlyGroups[key]) {
+                    monthlyGroups[key] = {
                         month: item.month,
                         year: item.year,
-                        income: 0,
-                        expense: 0,
-                        cashout: 0,
-                        profit: 0,
-                        totalEntries: 0
+                        totalIncome: 0,
+                        totalExpense: 0,
+                        totalCashout: 0,
+                        totalProfit: 0,
+                        count: 0
                     };
                 }
-                const pPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const calculatedProfit = ((item.income - (item.cashout || 0)) * (pPct / 100));
 
-                monthlyGroup[key].income += item.income;
-                monthlyGroup[key].expense += (item.expense || 0);
-                monthlyGroup[key].cashout += (item.cashout || 0);
-                monthlyGroup[key].profit += (calculatedProfit > 0 ? calculatedProfit : 0);
-                monthlyGroup[key].totalEntries += 1;
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (item.income - (item.cashout || 0)) * (profitPct / 100);
+
+                monthlyGroups[key].totalIncome += item.income;
+                monthlyGroups[key].totalExpense += (item.expense || 0);
+                monthlyGroups[key].totalCashout += (item.cashout || 0);
+                monthlyGroups[key].totalProfit += (itemProfit > 0 ? itemProfit : 0);
+                monthlyGroups[key].count += 1;
             });
 
-            container.innerHTML = Object.values(monthlyGroup).map(rep => {
+            container.innerHTML = Object.values(monthlyGroups).map(group => {
                 return `
                     <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
-                                <i class="fa-solid fa-calendar-check text-emerald-600"></i> Rekap Bulanan: ${rep.month} ${rep.year}
+                                <i class="fa-solid fa-calendar-check text-emerald-600"></i> Rekap ${group.month} ${group.year}
                             </h3>
-                            <span class="text-[11px] bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full uppercase tracking-wider">${rep.totalEntries} Hari Transaksi</span>
+                            <span class="text-[10px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">${group.count} Hari Entri</span>
                         </div>
 
-                        <!-- KOTAK KARTU GRID 2X2 DENGAN INDIKATOR NAIK/TURUN DAN SOFT BACKGROUND -->
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                            <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pendapatan</span>
-                                <div class="flex items-center gap-1.5 text-emerald-600">
-                                    <i class="fa-solid fa-arrow-trend-up text-xs"></i>
-                                    <span class="text-sm md:text-base font-extrabold truncate">${formatRupiah(rep.income)}</span>
-                                </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Pendapatan</span>
+                                <span class="text-sm font-extrabold text-emerald-600">${formatRupiah(group.totalIncome)}</span>
                             </div>
-
-                            <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Belanja</span>
-                                <div class="flex items-center gap-1.5 text-rose-600">
-                                    <i class="fa-solid fa-arrow-trend-down text-xs"></i>
-                                    <span class="text-sm md:text-base font-extrabold truncate">${formatRupiah(rep.expense)}</span>
-                                </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Belanja</span>
+                                <span class="text-sm font-extrabold text-indigo-600">${formatRupiah(group.totalExpense)}</span>
                             </div>
-
-                            <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                                <span class="text-[11px] text-slate-500 font-semibold block mb-1">Total Pengeluaran</span>
-                                <div class="flex items-center gap-1.5 text-rose-600">
-                                    <i class="fa-solid fa-arrow-trend-down text-xs"></i>
-                                    <span class="text-sm md:text-base font-extrabold truncate">${formatRupiah(rep.cashout)}</span>
-                                </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Pengeluaran</span>
+                                <span class="text-sm font-extrabold text-rose-600">${formatRupiah(group.totalCashout)}</span>
                             </div>
-
-                            <div class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100">
-                                <span class="text-[11px] text-emerald-700 font-semibold block mb-1">Total Profit Bersih</span>
-                                <div class="flex items-center gap-1.5 text-emerald-700">
-                                    <i class="fa-solid fa-chart-line text-xs"></i>
-                                    <span class="text-sm md:text-base font-extrabold truncate">${formatRupiah(rep.profit)}</span>
-                                </div>
+                            <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100">
+                                <span class="text-[10px] text-emerald-700 font-semibold uppercase block mb-1">Akumulasi Profit</span>
+                                <span class="text-sm font-extrabold text-emerald-700">${formatRupiah(group.totalProfit)}</span>
                             </div>
                         </div>
                     </div>
