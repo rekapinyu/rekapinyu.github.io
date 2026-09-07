@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS for Excel Export (Dibiarkan untuk fungsi lain jika diperlukan) -->
     <script src="https://cdn.xlsxjs.com/xlsx.full.min.js"></script>
+    <!-- jsPDF + AutoTable untuk View PDF Laporan -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -407,6 +410,11 @@
 
                 <!-- VIEW 3: LAPORAN BULANAN -->
                 <section id="view-report" class="hidden space-y-4">
+                    <div class="flex justify-end">
+                        <button onclick="viewReportPdf()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2 text-xs">
+                            <i class="fa-solid fa-file-pdf"></i> View di PDF
+                        </button>
+                    </div>
                     <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
@@ -535,29 +543,6 @@
             <div class="flex gap-2 pt-2">
                 <button onclick="closeEditModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-2.5 rounded-xl transition">Batal</button>
                 <button id="save-edit-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">Simpan Perubahan</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL VIEW PDF -->
-    <div id="pdf-view-modal" class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 space-y-4">
-            <div class="flex items-center justify-between border-b pb-3">
-                <h3 id="pdf-modal-title" class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-file-pdf text-rose-600 text-lg"></i> Pratinjau Dokumen Laporan PDF
-                </h3>
-                <button onclick="closePdfModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            
-            <div id="pdf-modal-body" class="p-4 bg-slate-50 border border-slate-200 rounded-xl"></div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button onclick="closePdfModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs px-5 py-2.5 rounded-xl transition">
-                    Tutup
-                </button>
-                <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
-                    <i class="fa-solid fa-print"></i> Cetak / Simpan PDF
-                </button>
             </div>
         </div>
     </div>
@@ -839,10 +824,6 @@
 
         function formatRupiah(number) {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-        }
-
-        function formatRibuanPoint(number) {
-            return "Rp." + (number || 0).toLocaleString('id-ID');
         }
 
         function parseNum(val) {
@@ -1413,44 +1394,6 @@
             renderHistory();
         }
 
-        // FUNGSI FORM INPUT HARIAN
-        document.getElementById('finance-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const inc = parseNum(document.getElementById('income').value);
-            const exp = parseNum(document.getElementById('expense').value);
-            const cash = parseNum(document.getElementById('cashout').value);
-            const profitPct = parseFloat(document.getElementById('profit-percentage').value) || 10;
-
-            const now = new Date();
-            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            const newItem = {
-                id: Date.now(),
-                day: days[now.getDay()],
-                date: now.getDate(),
-                monthIndex: now.getMonth(),
-                month: months[now.getMonth()],
-                year: now.getFullYear(),
-                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-                income: inc,
-                expense: exp,
-                cashout: cash,
-                profitPercentage: profitPct
-            };
-
-            historyData.unshift(newItem);
-            if (currentSessionUser && currentSessionUser.phone) {
-                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
-            }
-
-            document.getElementById('finance-form').reset();
-            document.getElementById('profit-percentage').value = "10";
-            updateLiveProfit();
-            showModal("Berhasil", "Data keuangan harian berhasil disimpan.");
-        });
-
         document.getElementById('pengeluaran-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const nama = document.getElementById('pengeluaran-nama').value.trim();
@@ -1614,80 +1557,6 @@
             yearSelect.value = currentSelectedYear;
         }
 
-        function populateHistoryFilters() {
-            const dateSelect = document.getElementById('filter-history-date');
-            const monthSelect = document.getElementById('filter-history-month');
-            const yearSelect = document.getElementById('filter-history-year');
-
-            if(!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            let datesHtml = '<option value="">Semua Tgl</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
-            }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
-        }
-
-        function populateReportFilters() {
-            const dateSelect = document.getElementById('filter-report-date');
-            const monthSelect = document.getElementById('filter-report-month');
-            const yearSelect = document.getElementById('filter-report-year');
-
-            if(!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            let datesHtml = '<option value="">Semua Tgl</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
-            }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
-        }
-
         function renderPengeluaranGrid() {
             const container = document.getElementById('pengeluaran-grid');
             if (!container) return;
@@ -1798,8 +1667,8 @@
 
             container.innerHTML = filtered.map(group => {
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center sticky top-[72px] z-20 bg-white py-1">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative overflow-hidden">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
                                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
@@ -1830,17 +1699,97 @@
                             `).join('')}
                         </div>
 
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between relative">
-                            <button onclick="editNamaPelangganKasbon(${group.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
+                        <div class="pt-2 flex justify-end items-center gap-2 relative z-0">
+                            <button onclick="editNamaPelangganKasbon(${group.id})" class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
                                 <i class="fa-solid fa-pen-to-square text-amber-500"></i> Ganti Nama
                             </button>
-                            <button onclick="toggleLunasKasbon(${group.id})" class="px-3 py-1.5 ${group.isLunas ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'} text-xs font-bold rounded-xl transition flex items-center gap-1.5">
-                                <i class="fa-solid ${group.isLunas ? 'fa-rotate-left' : 'fa-check'}"></i> ${group.isLunas ? 'Batal Lunas' : 'Sudah Bayar'}
-                            </button>
+                            ${!group.isLunas ? `
+                                <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md bg-emerald-600 text-white hover:bg-emerald-700">
+                                    <i class="fa-solid fa-check"></i> Sudah Bayar
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        document.getElementById('finance-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const income = parseNum(document.getElementById('income').value);
+            const expense = parseNum(document.getElementById('expense').value);
+            const cashout = parseNum(document.getElementById('cashout').value);
+            const profitPercentage = parseFloat(document.getElementById('profit-percentage').value) || 0;
+            
+            const profit = (income - cashout) * (profitPercentage / 100);
+
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const newEntry = {
+                id: Date.now(),
+                day: days[now.getDay()],
+                date: now.getDate(),
+                monthIndex: now.getMonth(),
+                month: months[now.getMonth()],
+                year: now.getFullYear(),
+                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                income: income,
+                expense: expense,
+                cashout: cashout,
+                profitPercentage: profitPercentage,
+                profit: profit > 0 ? profit : 0
+            };
+
+            historyData.unshift(newEntry);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
+            }
+
+            document.getElementById('finance-form').reset();
+            document.getElementById('profit-percentage').value = "10";
+            profitDisplay.innerText = "Rp 0";
+
+            showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
+        });
+
+        function populateHistoryFilters() {
+            const dateSelect = document.getElementById('filter-history-date');
+            const monthSelect = document.getElementById('filter-history-month');
+            const yearSelect = document.getElementById('filter-history-year');
+            
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
+            });
+
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
+
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
+
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
         }
 
         function renderHistory() {
@@ -1876,63 +1825,50 @@
 
             container.innerHTML = filtered.map(item => {
                 const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const profitVal = (item.income - (item.cashout || 0)) * (profitPct / 100);
+                const calculatedProfit = (item.income - (item.cashout || 0)) * (profitPct / 100);
+                const displayProfit = calculatedProfit > 0 ? calculatedProfit : 0;
 
                 return `
                     <div class="bg-white p-5 rounded-2xl shadow-lg border border-slate-200/80 space-y-4 relative">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                                    <i class="fa-solid fa-calendar-day"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-slate-800 text-xs md:text-sm">${item.day}, ${item.date} ${item.month} ${item.year}</h4>
-                                    <p class="text-[10px] text-slate-400 font-medium">Pukul ${item.time}</p>
-                                </div>
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Waktu Entri: ${item.time}</span>
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
+                                </h3>
                             </div>
-
+                            
                             <div class="relative toggle-edit-container">
-                                <button onclick="toggleEditMenu(${item.id})" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition">
-                                    <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                                <button onclick="toggleEditMenu(${item.id})" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
+                                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
                                 </button>
                                 <div id="edit-menu-${item.id}" class="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1 hidden z-30">
                                     <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                        <i class="fa-solid fa-pen text-amber-500"></i> Edit Nominal
+                                        <i class="fa-solid fa-pen text-amber-500 w-4"></i> Ubah Nominal
                                     </button>
                                     <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                        <i class="fa-solid fa-clock text-blue-500"></i> Edit Waktu/Tgl
+                                        <i class="fa-solid fa-calendar text-blue-500 w-4"></i> Ubah Hari & Tgl
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-trend-up text-emerald-500"></i> Pendapatan
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-slate-800">${formatRupiah(item.income)}</span>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Pendapatan</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-emerald-600">${formatRupiah(item.income)}</span>
                             </div>
-
-                            <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-rose-500"></i> Total Belanja
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-slate-800">${formatRupiah(item.expense || 0)}</span>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Belanja</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-indigo-600">${formatRupiah(item.expense || 0)}</span>
                             </div>
-
-                            <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-amber-500"></i> Pengeluaran
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-slate-800">${formatRupiah(item.cashout || 0)}</span>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Pengeluaran</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</span>
                             </div>
-
                             <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
-                                <span class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-chart-line text-emerald-600"></i> Profit (${profitPct}%)
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-emerald-600">${formatRupiah(profitVal > 0 ? profitVal : 0)}</span>
+                                <span class="text-[10px] text-emerald-700 font-semibold uppercase block mb-1">Profit (${profitPct}%)</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-emerald-700">${formatRupiah(displayProfit)}</span>
                             </div>
                         </div>
                     </div>
@@ -1940,78 +1876,41 @@
             }).join('');
         }
 
-        function openPdfModal(monthKey) {
-            const modal = document.getElementById('pdf-view-modal');
-            const bodyEl = document.getElementById('pdf-modal-body');
+        function populateReportFilters() {
+            const dateSelect = document.getElementById('filter-report-date');
+            const monthSelect = document.getElementById('filter-report-month');
+            const yearSelect = document.getElementById('filter-report-year');
             
-            const filtered = historyData.filter(item => {
-                const itemKey = `${item.month} ${item.year}`;
-                return itemKey === monthKey;
+            if(!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentSelectedDate = dateSelect.value;
+            const currentSelectedMonth = monthSelect.value;
+            const currentSelectedYear = yearSelect.value;
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            let datesHtml = '<option value="">Semua Tgl</option>';
+            for(let i=1; i<=31; i++) {
+                datesHtml += `<option value="${i}">${i}</option>`;
+            }
+
+            let monthsHtml = '<option value="">Semua Bln</option>';
+            months.forEach(m => {
+                monthsHtml += `<option value="${m}">${m}</option>`;
             });
 
-            if (filtered.length === 0) return;
+            let yearsHtml = '<option value="">Semua Thn</option>';
+            for(let y=2000; y<=2030; y++) {
+                yearsHtml += `<option value="${y}">${y}</option>`;
+            }
 
-            let html = `
-                <div class="text-center mb-4 border-b pb-3">
-                    <h2 class="text-lg font-bold text-slate-800 uppercase tracking-wide">LAPORAN REKAPITULASI KEUANGAN</h2>
-                    <p class="text-xs font-semibold text-slate-500">PERIODE: ${monthKey.toUpperCase()}</p>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left text-slate-700 border-collapse border border-slate-300">
-                        <thead class="bg-slate-100 text-slate-800 font-bold uppercase text-[10px]">
-                            <tr>
-                                <th class="border border-slate-300 px-3 py-2 text-center">TGL</th>
-                                <th class="border border-slate-300 px-3 py-2 text-right">PENDAPATAN HARI INI</th>
-                                <th class="border border-slate-300 px-3 py-2 text-right">TOTAL BELANJA HARI INI</th>
-                                <th class="border border-slate-300 px-3 py-2 text-right">TOTAL PROFIT</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
+            dateSelect.innerHTML = datesHtml;
+            monthSelect.innerHTML = monthsHtml;
+            yearSelect.innerHTML = yearsHtml;
 
-            let grandIncome = 0;
-            let grandExpense = 0;
-            let grandProfit = 0;
-
-            filtered.forEach(item => {
-                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
-                const profitVal = (item.income - (item.cashout || 0)) * (profitPct / 100);
-                const finalProfit = profitVal > 0 ? profitVal : 0;
-
-                grandIncome += item.income;
-                grandExpense += (item.expense || 0);
-                grandProfit += finalProfit;
-
-                html += `
-                    <tr class="hover:bg-slate-100">
-                        <td class="border border-slate-300 px-3 py-2 text-center font-bold">${item.date}</td>
-                        <td class="border border-slate-300 px-3 py-2 text-right font-medium">${formatRibuanPoint(item.income)}</td>
-                        <td class="border border-slate-300 px-3 py-2 text-right font-medium">${formatRibuanPoint(item.expense || 0)}</td>
-                        <td class="border border-slate-300 px-3 py-2 text-right font-bold text-emerald-700">${formatRibuanPoint(finalProfit)}</td>
-                    </tr>
-                `;
-            });
-
-            html += `
-                        </tbody>
-                        <tfoot class="bg-slate-100 font-bold text-slate-800">
-                            <tr>
-                                <td class="border border-slate-300 px-3 py-2 text-center">TOTAL</td>
-                                <td class="border border-slate-300 px-3 py-2 text-right">${formatRibuanPoint(grandIncome)}</td>
-                                <td class="border border-slate-300 px-3 py-2 text-right">${formatRibuanPoint(grandExpense)}</td>
-                                <td class="border border-slate-300 px-3 py-2 text-right text-emerald-700">${formatRibuanPoint(grandProfit)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            `;
-
-            bodyEl.innerHTML = html;
-            modal.classList.remove('hidden');
-        }
-
-        function closePdfModal() {
-            document.getElementById('pdf-view-modal').classList.add('hidden');
+            dateSelect.value = currentSelectedDate;
+            monthSelect.value = currentSelectedMonth;
+            yearSelect.value = currentSelectedYear;
         }
 
         function renderReport() {
@@ -2034,86 +1933,156 @@
             });
 
             const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
+            if(countLabel) countLabel.innerText = `${filtered.length} Data Terkumpul`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-chart-pie text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-medium">Belum ada riwayat laporan yang sesuai filter.</p>
+                        <p class="text-xs font-medium">Belum ada rekapitulasi data bulanan.</p>
                     </div>`;
                 return;
             }
 
             const monthlyGroups = {};
             filtered.forEach(item => {
-                const groupKey = `${item.month} ${item.year}`;
-                if (!monthlyGroups[groupKey]) {
-                    monthlyGroups[groupKey] = [];
+                const key = `${item.month} ${item.year}`;
+                if (!monthlyGroups[key]) {
+                    monthlyGroups[key] = {
+                        month: item.month,
+                        year: item.year,
+                        totalIncome: 0,
+                        totalExpense: 0,
+                        totalCashout: 0,
+                        totalProfit: 0,
+                        count: 0
+                    };
                 }
-                monthlyGroups[groupKey].push(item);
+
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (item.income - (item.cashout || 0)) * (profitPct / 100);
+
+                monthlyGroups[key].totalIncome += item.income;
+                monthlyGroups[key].totalExpense += (item.expense || 0);
+                monthlyGroups[key].totalCashout += (item.cashout || 0);
+                monthlyGroups[key].totalProfit += (itemProfit > 0 ? itemProfit : 0);
+                monthlyGroups[key].count += 1;
             });
 
-            container.innerHTML = Object.entries(monthlyGroups).map(([monthHeader, items]) => {
-                const totalIncome = items.reduce((sum, curr) => sum + curr.income, 0);
-                const totalExpense = items.reduce((sum, curr) => sum + (curr.expense || 0), 0);
-                const totalCashout = items.reduce((sum, curr) => sum + (curr.cashout || 0), 0);
-                
-                const totalProfit = items.reduce((sum, curr) => {
-                    const profitPct = curr.profitPercentage !== undefined ? curr.profitPercentage : 10;
-                    const profitVal = (curr.income - (curr.cashout || 0)) * (profitPct / 100);
-                    return sum + (profitVal > 0 ? profitVal : 0);
-                }, 0);
-
+            container.innerHTML = Object.values(monthlyGroups).map(group => {
                 return `
                     <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-4">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center flex-wrap gap-2">
-                            <h3 class="font-bold text-slate-800 text-sm md:text-base flex items-center gap-2">
-                                <i class="fa-solid fa-calendar-check text-emerald-600"></i> Laporan Rekap ${monthHeader}
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-check text-emerald-600"></i> Rekap Bulan ${group.month} ${group.year}
                             </h3>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">${items.length} Entri Data</span>
-                                <button onclick="openPdfModal('${monthHeader}')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-sm transition flex items-center gap-1.5">
-                                    <i class="fa-solid fa-file-pdf"></i> View di Pdf
-                                </button>
-                            </div>
+                            <span class="text-[10px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">${group.count} Hari</span>
                         </div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-trend-up text-emerald-500"></i> Pendapatan
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-slate-800">${formatRupiah(totalIncome)}</span>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Pendapatan</span>
+                                <span class="text-sm font-extrabold text-emerald-600">${formatRupiah(group.totalIncome)}</span>
                             </div>
-
-                            <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-rose-500"></i> Total Belanja
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-slate-800">${formatRupiah(totalExpense)}</span>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Belanja</span>
+                                <span class="text-sm font-extrabold text-indigo-600">${formatRupiah(group.totalExpense)}</span>
                             </div>
-
-                            <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-amber-500"></i> Pengeluaran
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-slate-800">${formatRupiah(totalCashout)}</span>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Total Pengeluaran</span>
+                                <span class="text-sm font-extrabold text-rose-600">${formatRupiah(group.totalCashout)}</span>
                             </div>
-
-                            <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
-                                <span class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-chart-line text-emerald-600"></i> Profit
-                                </span>
-                                <span class="text-xs md:text-sm font-extrabold text-emerald-600">${formatRupiah(totalProfit)}</span>
+                            <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100">
+                                <span class="text-[10px] text-emerald-700 font-semibold uppercase block mb-1">Total Profit/Laba</span>
+                                <span class="text-sm font-extrabold text-emerald-700">${formatRupiah(group.totalProfit)}</span>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
-        }
 
-        switchTab('input');
+        // Membuka laporan harian 1-30 dalam tampilan PDF berdasarkan data History.
+        function viewReportPdf() {
+            if (!currentSessionUser) return;
+
+            const fMonthEl = document.getElementById('filter-report-month');
+            const fYearEl = document.getElementById('filter-report-year');
+            const selectedMonth = fMonthEl && fMonthEl.value ? fMonthEl.value : new Date().toLocaleDateString('id-ID', { month: 'long' });
+            const selectedYear = fYearEl && fYearEl.value ? parseInt(fYearEl.value, 10) : new Date().getFullYear();
+
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const monthIndex = months.indexOf(selectedMonth);
+
+            const daily = {};
+            for (let day = 1; day <= 30; day++) {
+                daily[day] = { income: 0, expense: 0, profit: 0 };
+            }
+
+            historyData.forEach(item => {
+                if (item.month !== selectedMonth || Number(item.year) !== selectedYear) return;
+                const day = Number(item.date);
+                if (day < 1 || day > 30) return;
+
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const itemProfit = (Number(item.income) - Number(item.cashout || 0)) * (profitPct / 100);
+
+                daily[day].income += Number(item.income) || 0;
+                daily[day].expense += Number(item.expense || 0);
+                daily[day].profit += itemProfit > 0 ? itemProfit : 0;
+            });
+
+            const rows = [];
+            for (let day = 1; day <= 30; day++) {
+                rows.push([
+                    day.toString(),
+                    formatRupiah(daily[day].income),
+                    formatRupiah(daily[day].expense),
+                    formatRupiah(daily[day].profit)
+                ]);
+            }
+
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                showModal("Gagal", "Komponen PDF belum tersedia. Pastikan koneksi internet aktif.", "fa-solid fa-circle-exclamation text-rose-600");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+            doc.setFontSize(15);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Laporan Keuangan ${selectedMonth} ${selectedYear}`, 14, 15);
+
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Sumber data: History | ${currentSessionUser.name}`, 14, 21);
+
+            doc.autoTable({
+                startY: 27,
+                head: [['TGL', 'PENDAPATAN HARI INI', 'TOTAL BELANJA HARI INI', 'TOTAL PROFIT']],
+                body: rows,
+                theme: 'grid',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 9,
+                    cellPadding: 3,
+                    halign: 'right'
+                },
+                headStyles: {
+                    halign: 'center',
+                    fontStyle: 'bold'
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 20 },
+                    1: { halign: 'right' },
+                    2: { halign: 'right' },
+                    3: { halign: 'right' }
+                }
+            });
+
+            doc.output('dataurlnewwindow');
+        }
+        }
     </script>
 </body>
 </html>
