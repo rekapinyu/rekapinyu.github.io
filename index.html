@@ -142,16 +142,8 @@
             <div id="shop-cover-frame" class="w-full h-20 bg-slate-100 overflow-hidden flex items-center justify-center shadow-sm relative cursor-pointer" title="Ganti Foto Sampul Toko">
                 <img id="shop-cover-image" src="" alt="Foto Sampul Toko" class="w-full h-full object-cover hidden select-none pointer-events-none" draggable="false">
                 <i id="shop-cover-placeholder" class="fa-solid fa-store text-emerald-600 text-2xl"></i>
-                <div id="shop-cover-edit-hint" class="absolute inset-x-0 bottom-0 bg-black/45 text-white text-[9px] text-center py-1 hidden pointer-events-none">Geser foto atau gunakan tombol arah</div>
-                <div id="shop-cover-move-controls" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden items-center justify-center gap-1 bg-black/40 rounded-lg p-1">
-                    <button type="button" data-cover-move="left" class="w-6 h-6 rounded-md bg-white/90 hover:bg-white text-slate-700 text-xs shadow" title="Geser kiri"><i class="fa-solid fa-chevron-left"></i></button>
-                    <div class="flex flex-col gap-1">
-                        <button type="button" data-cover-move="up" class="w-6 h-6 rounded-md bg-white/90 hover:bg-white text-slate-700 text-xs shadow" title="Geser atas"><i class="fa-solid fa-chevron-up"></i></button>
-                        <button type="button" data-cover-move="down" class="w-6 h-6 rounded-md bg-white/90 hover:bg-white text-slate-700 text-xs shadow" title="Geser bawah"><i class="fa-solid fa-chevron-down"></i></button>
-                    </div>
-                    <button type="button" data-cover-move="right" class="w-6 h-6 rounded-md bg-white/90 hover:bg-white text-slate-700 text-xs shadow" title="Geser kanan"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>
-                <button type="button" id="shop-cover-save" class="absolute bottom-1 right-1 hidden px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-bold shadow-lg transition z-10" onclick="event.stopPropagation(); window.saveShopCoverPhoto && window.saveShopCoverPhoto()" title="Simpan posisi foto">Simpan</button>
+                <div id="shop-cover-edit-hint" class="absolute inset-x-0 bottom-0 bg-black/45 text-white text-[9px] text-center py-1 hidden pointer-events-none">Geser foto dengan mouse</div>
+                <button type="button" id="shop-cover-save" class="absolute bottom-1 right-1 hidden px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-bold shadow-lg transition z-10" title="Simpan posisi foto">Simpan</button>
             </div>
             <input id="shop-cover-input" type="file" accept="image/*" class="hidden">
         </div>
@@ -965,7 +957,6 @@
             const coverPlaceholder = document.getElementById('shop-cover-placeholder');
             const saveButton = document.getElementById('shop-cover-save');
             const editHint = document.getElementById('shop-cover-edit-hint');
-            const moveControls = document.getElementById('shop-cover-move-controls');
             if (!coverInput || !coverFrame || !coverImage || !coverPlaceholder || !saveButton) return;
 
             let coverX = 50;
@@ -978,9 +969,15 @@
             let startCoverX = 50;
             let startCoverY = 50;
 
-            const storageKey = () => currentSessionUser
-                ? `finance_shop_cover_${currentSessionUser.phone}`
-                : 'finance_shop_cover_guest';
+            const storageKey = () => {
+                try {
+                    return (typeof currentSessionUser !== 'undefined' && currentSessionUser)
+                        ? `finance_shop_cover_${currentSessionUser.phone}`
+                        : 'finance_shop_cover_guest';
+                } catch (e) {
+                    return 'finance_shop_cover_guest';
+                }
+            };
 
             function setObjectPosition() {
                 coverImage.style.objectPosition = `${coverX}% ${coverY}%`;
@@ -993,7 +990,6 @@
                 saveButton.classList.toggle('hidden', !show);
                 editHint.classList.toggle('hidden', !show);
                 coverFrame.classList.toggle('cursor-move', show);
-                if (moveControls) { moveControls.classList.toggle('hidden', !show); moveControls.classList.toggle('flex', show); }
             }
 
             function renderShopCover(data, editing) {
@@ -1027,7 +1023,7 @@
             }
 
             coverFrame.addEventListener('click', function (e) {
-                if (coverSaved && !e.target.closest('[data-cover-move]') && !e.target.closest('#shop-cover-save')) {
+                if (coverSaved && !e.target.closest('#shop-cover-save')) {
                     coverInput.click();
                 }
             });
@@ -1045,7 +1041,7 @@
             });
 
             coverFrame.addEventListener('pointerdown', function (e) {
-                if (coverSaved || coverImage.classList.contains('hidden')) return;
+                if (e.target.closest('#shop-cover-save') || coverSaved || coverImage.classList.contains('hidden')) return;
                 dragging = true;
                 coverFrame.setPointerCapture(e.pointerId);
                 startPointerX = e.clientX;
@@ -1069,29 +1065,34 @@
             coverFrame.addEventListener('pointercancel', stopDrag);
             coverFrame.addEventListener('lostpointercapture', stopDrag);
 
-            saveButton.addEventListener('pointerdown', function (e) {
-                e.stopPropagation();
-            });
-            saveButton.addEventListener('click', function (e) {
+            // Tombol Simpan dibuat sebagai handler langsung agar tidak tertangkap event frame/drag lain.
+            saveButton.onclick = function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 window.saveShopCoverPhoto();
-            });
-
-            window.saveShopCoverPhoto = function () {
-                if (coverImage.classList.contains('hidden') || !coverImage.src) return;
-                const data = {src: coverImage.src, x: coverX, y: coverY};
-                try {
-                    localStorage.setItem(storageKey(), JSON.stringify(data));
-                    // Pastikan data benar-benar sudah tersimpan sebelum mode edit ditutup.
-                    const verify = localStorage.getItem(storageKey());
-                    if (!verify) throw new Error('Penyimpanan foto sampul gagal diverifikasi');
-                    setEditorState(false);
-                } catch (e) {
-                    console.warn('Foto sampul toko tidak dapat disimpan:', e);
-                }
+                return false;
             };
 
+            window.saveShopCoverPhoto = function () {
+                try {
+                    const src = coverImage.getAttribute('src') || coverImage.src || '';
+                    if (!src || coverImage.classList.contains('hidden')) return false;
+                    const data = {
+                        src: src,
+                        x: Math.max(0, Math.min(100, Number(coverX) || 50)),
+                        y: Math.max(0, Math.min(100, Number(coverY) || 50))
+                    };
+                    localStorage.setItem(storageKey(), JSON.stringify(data));
+                    coverX = data.x;
+                    coverY = data.y;
+                    setObjectPosition();
+                    setEditorState(false);
+                    return true;
+                } catch (e) {
+                    console.warn('Foto sampul toko tidak dapat disimpan:', e);
+                    return false;
+                }
+            };
             window.__shopCoverEditingUnsaved = false;
             loadShopCover();
         })();
@@ -1116,12 +1117,18 @@
                     placeholder.classList.add('hidden');
                     if (saveButton) saveButton.classList.add('hidden');
                     if (editHint) editHint.classList.add('hidden');
+                    const frame = document.getElementById('shop-cover-frame');
+                    if (frame) frame.classList.remove('cursor-move');
+                    window.__shopCoverEditingUnsaved = false;
                 } else {
                     image.removeAttribute('src');
                     image.classList.add('hidden');
                     placeholder.classList.remove('hidden');
                     if (saveButton) saveButton.classList.add('hidden');
                     if (editHint) editHint.classList.add('hidden');
+                    const frame = document.getElementById('shop-cover-frame');
+                    if (frame) frame.classList.remove('cursor-move');
+                    window.__shopCoverEditingUnsaved = false;
                 }
             } catch (e) {}
         };
