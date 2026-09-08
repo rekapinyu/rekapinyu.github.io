@@ -349,6 +349,22 @@
 
             <div class="max-w-4xl mx-auto w-full my-auto">
                 
+                <!-- MOBILE ONLY: BERANDA -->
+                <section id="mobile-home-view" class="hidden md:hidden space-y-4">
+                    <div class="px-1"><h2 class="text-lg font-extrabold text-slate-800">Beranda</h2><p class="text-xs text-slate-400 mt-0.5">Pilih menu yang ingin Anda gunakan</p></div>
+                    <div class="mobile-home-grid">
+                        <button type="button" onclick="switchTab('input')" class="mobile-home-card"><i class="fa-solid fa-file-pen mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-file-pen"></i></div><span>Menu Input</span></div></button>
+                        <button type="button" onclick="switchTab('pengeluaran')" class="mobile-home-card"><i class="fa-solid fa-receipt mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-receipt"></i></div><span>Menu Pengeluaran</span></div></button>
+                        <div class="mobile-home-card mobile-home-kasbon-card">
+                            <button type="button" onclick="handleKasbonMenuClick()" class="mobile-home-card-main"><i class="fa-solid fa-book-bookmark mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-book-bookmark"></i></div><span>Menu Kasbon</span></div></button>
+                            <button type="button" onclick="toggleMobileKasbonSettings(event)" class="mobile-home-settings" aria-label="Pengaturan Kasbon" title="Pengaturan Kasbon"><i class="fa-solid fa-gear"></i></button>
+                            <div id="mobile-kasbon-settings-popup" class="mobile-kasbon-settings-popup hidden"><button type="button" onclick="handleMobileKasbonSetting('buka')"><i class="fa-solid fa-lock-open"></i> Buka Kasbon</button><button type="button" onclick="handleMobileKasbonSetting('kunci')"><i class="fa-solid fa-lock"></i> Kunci Kasbon</button><button type="button" onclick="handleMobileKasbonSetting('ganti-pin')"><i class="fa-solid fa-key"></i> Ganti PIN Kasbon</button></div>
+                        </div>
+                        <button type="button" onclick="switchTab('history')" class="mobile-home-card"><i class="fa-solid fa-clock-rotate-left mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-clock-rotate-left"></i></div><span>Menu History</span></div></button>
+                        <button type="button" onclick="switchTab('report')" class="mobile-home-card"><i class="fa-solid fa-chart-pie mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-chart-pie"></i></div><span>Menu Laporan Bulanan</span></div></button>
+                    </div>
+                </section>
+
                 <!-- VIEW 1: INPUT DATA -->
                 <section id="view-input" class="space-y-6">
                     <div class="flex justify-center items-center w-full">
@@ -2174,5 +2190,48 @@
             document.getElementById('pdf-modal').classList.add('hidden');
         }
     </script>
+
+    <!-- MOBILE ONLY: SIMPLIFIED BOTTOM DOCK -->
+    <nav id="mobile-simplified-dock" class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-6px_20px_rgba(15,23,42,.08)] z-40">
+        <div class="max-w-md mx-auto grid grid-cols-3 px-3 py-2">
+            <button type="button" onclick="switchTab('home')" id="nav-mobile-home" class="flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition"><i class="fa-solid fa-house text-lg mb-0.5"></i><span class="text-[11px] font-semibold">Beranda</span></button>
+            <button type="button" onclick="switchTab('input')" id="nav-mobile-input" class="flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-file-pen text-lg mb-0.5"></i><span class="text-[11px] font-medium">Input</span></button>
+            <button type="button" onclick="switchTab('history')" id="nav-mobile-history" class="flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i><span class="text-[11px] font-medium">History</span></button>
+        </div>
+    </nav>
+
+    <!-- MOBILE-ONLY OVERRIDE: original desktop UI is not changed -->
+    <style>
+    @media (max-width:767px){
+      body{overflow:hidden} main{padding-bottom:92px!important}
+      body > nav.md\:hidden.fixed.bottom-0:not(#mobile-simplified-dock){display:none!important}
+      .mobile-home-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%}
+      .mobile-home-card{min-height:128px;position:relative;overflow:visible;border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.06);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px 8px;color:#334155;transition:transform .18s ease}
+      .mobile-home-card:active{transform:scale(.98)}
+      .mobile-home-card-main{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;display:flex;align-items:center;justify-content:center;padding:14px 8px;color:inherit}
+      .mobile-home-card-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;pointer-events:none}
+      .mobile-home-card-content>span{display:block;max-width:100%;font-size:12px;line-height:1.25;font-weight:700}
+      .mobile-home-icon{width:42px;height:42px;border-radius:13px;background:#ecfdf5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:18px}
+      .mobile-home-watermark{position:absolute;right:-8px;bottom:-12px;font-size:74px;line-height:1;color:#0f172a;opacity:.10;pointer-events:none;z-index:1}
+      .mobile-home-settings{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#64748b;background:rgba(248,250,252,.95);border:1px solid #e2e8f0;z-index:5;font-size:13px}
+      .mobile-kasbon-settings-popup{position:absolute;top:45px;right:8px;width:172px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.16);z-index:20}
+      .mobile-kasbon-settings-popup button{width:100%;display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:10px;color:#475569;font-size:11px;font-weight:700;text-align:left}
+      .mobile-kasbon-settings-popup button:active{background:#f1f5f9}.mobile-kasbon-settings-popup button i{width:16px;text-align:center}
+    }
+    @media (max-width:370px){.mobile-home-grid{gap:8px}.mobile-home-card{min-height:116px;border-radius:17px;padding-left:5px;padding-right:5px}.mobile-home-card-content>span{font-size:10.5px}.mobile-home-icon{width:37px;height:37px;font-size:16px}.mobile-home-watermark{font-size:62px}}
+    </style>
+    <script>
+    (function(){
+      const originalSwitchTab=window.switchTab;
+      function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
+      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home')}
+      window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
+      window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
+      window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
+      document.addEventListener('click',e=>{const p=document.getElementById('mobile-kasbon-settings-popup'),c=document.querySelector('.mobile-home-kasbon-card');if(p&&c&&!c.contains(e.target))p.classList.add('hidden')});
+      function init(){if(window.matchMedia('(max-width:767px)').matches)home()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+    })();
+    </script>
+
 </body>
 </html>
