@@ -2235,3 +2235,295 @@
 
 </body>
 </html>
+
+<!-- BACKUP OTOMATIS: TOGGLE IMPORT / EXPORT (ADDED WITHOUT CHANGING ORIGINAL LOGIC) -->
+<style>
+@media (max-width:767px){
+  #backup-io-panel{margin-bottom:16px}
+  #backup-io-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #backup-io-toggle button{min-height:46px;border:1px solid #e2e8f0;border-radius:14px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;transition:.18s}
+  #backup-io-toggle button.active{background:#0d235a;color:#fff;border-color:#0d235a;box-shadow:0 6px 16px rgba(13,35,90,.18)}
+  #backup-io-content{margin-top:10px}
+}
+@media (min-width:768px){
+  #backup-io-panel{margin-bottom:18px}
+  #backup-io-toggle{display:flex;gap:8px}
+  #backup-io-toggle button{min-height:42px;border:1px solid #e2e8f0;border-radius:12px;padding:0 16px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;transition:.18s}
+  #backup-io-toggle button.active{background:#0d235a;color:#fff;border-color:#0d235a;box-shadow:0 5px 14px rgba(13,35,90,.15)}
+  #backup-io-content{margin-top:10px}
+}
+#backup-import-box,#backup-export-box{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;box-shadow:0 5px 16px rgba(15,23,42,.05)}
+#backup-import-file{display:none}
+.backup-io-action{width:100%;min-height:44px;border:0;border-radius:12px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+#backup-import-trigger{background:#059669;color:#fff}
+#backup-export-trigger{background:#dc2626;color:#fff}
+.backup-io-note{font-size:11px;color:#64748b;line-height:1.5;margin-bottom:12px}
+</style>
+<script>
+(function(){
+  'use strict';
+
+  let lastPdfViewState = null;
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  function escHtml(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]); });
+  }
+
+  function normalizeKey(v){
+    return String(v == null ? '' : v).toLowerCase().trim().replace(/[\s_\-\/\\().%]/g,'');
+  }
+
+  function numberFromExcel(v){
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    if (v == null || v === '') return 0;
+    let str = String(v).trim();
+    str = str.replace(/rp/ig,'').replace(/\s/g,'');
+    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) str = str.replace(/\./g,'').replace(',','.');
+    else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(str)) str = str.replace(/,/g,'');
+    else str = str.replace(/[^0-9,.-]/g,'').replace(/,/g,'.');
+    const n = parseFloat(str);
+    return isFinite(n) ? n : 0;
+  }
+
+  function findValue(row, aliases){
+    const keys = Object.keys(row);
+    for(const alias of aliases){
+      const a = normalizeKey(alias);
+      const key = keys.find(k => normalizeKey(k) === a);
+      if(key !== undefined) return row[key];
+    }
+    for(const alias of aliases){
+      const a = normalizeKey(alias);
+      const key = keys.find(k => normalizeKey(k).includes(a) || a.includes(normalizeKey(k)));
+      if(key !== undefined) return row[key];
+    }
+    return '';
+  }
+
+  function monthIndexFromValue(v){
+    if(v == null || v === '') return null;
+    if(typeof v === 'number' && v >= 0 && v <= 11) return Math.floor(v);
+    const s=String(v).trim().toLowerCase();
+    const idx=monthNames.findIndex(m=>m.toLowerCase()===s || m.toLowerCase().startsWith(s));
+    if(idx>=0) return idx;
+    const n=parseInt(s,10);
+    if(isFinite(n) && n>=1 && n<=12) return n-1;
+    return null;
+  }
+
+  function parseDateParts(row){
+    let dateVal=findValue(row,['Tanggal','Date','Hari']);
+    let monthVal=findValue(row,['Bulan','Month']);
+    let yearVal=findValue(row,['Tahun','Year']);
+    let dateNum=numberFromExcel(dateVal);
+    let monthIndex=monthIndexFromValue(monthVal);
+    let year=numberFromExcel(yearVal);
+
+    if(typeof dateVal === 'number' && dateVal > 30000){
+      const d = new Date(Date.UTC(1899,11,30) + dateVal*86400000);
+      dateNum=d.getUTCDate(); monthIndex=d.getUTCMonth(); year=d.getUTCFullYear();
+    } else if(typeof dateVal === 'string'){
+      const m=dateVal.match(/(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/i);
+      if(m){ dateNum=parseInt(m[1],10); monthIndex=monthIndexFromValue(m[2]); year=parseInt(m[3],10); }
+      else {
+        const m2=dateVal.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+        if(m2){ dateNum=parseInt(m2[1],10); monthIndex=parseInt(m2[2],10)-1; year=parseInt(m2[3],10); }
+      }
+    }
+    if(monthIndex == null) monthIndex = 0;
+    if(!year) year = new Date().getFullYear();
+    if(!dateNum) dateNum = 1;
+    return {date:dateNum,monthIndex,month:monthNames[monthIndex]||monthNames[0],year};
+  }
+
+  function convertImportedRows(rows){
+    const now=new Date();
+    return rows.map((row,index)=>{
+      const p=parseDateParts(row);
+      const time=findValue(row,['Waktu','Time','Pukul']) || '00:00';
+      const income=numberFromExcel(findValue(row,['Pendapatan','Income','Total Pendapatan']));
+      const expense=numberFromExcel(findValue(row,['Belanja','Expense','Total Belanja']));
+      const cashout=numberFromExcel(findValue(row,['Pengeluaran','Cashout','Cash Out','Total Pengeluaran']));
+      const profitPercentage=numberFromExcel(findValue(row,['Profit Persen','Profit Percentage','Profit%','Persentase Profit']));
+      const profitVal=numberFromExcel(findValue(row,['Profit','Laba']));
+      return {
+        id: Date.now()+index,
+        day: findValue(row,['Hari','Day']) || new Date(p.year,p.monthIndex,p.date).toLocaleDateString('id-ID',{weekday:'long'}),
+        date:p.date, monthIndex:p.monthIndex, month:p.month, year:p.year,
+        time:String(time), income, expense, cashout,
+        profitPercentage: profitPercentage || 0,
+        profit: profitVal || Math.max((income-cashout)*(profitPercentage/100),0)
+      };
+    }).filter(x => x.income || x.expense || x.cashout || x.profit || x.date);
+  }
+
+  function saveImportedHistory(imported){
+    historyData = imported;
+    if(currentSessionUser && currentSessionUser.phone){
+      localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+      if(typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
+    }
+    if(typeof renderHistory === 'function') renderHistory();
+    if(typeof renderReport === 'function') renderReport();
+  }
+
+  function buildBackupIOPanel(){
+    const backupView=document.getElementById('view-backup');
+    if(!backupView || document.getElementById('backup-io-panel')) return;
+    const panel=document.createElement('div');
+    panel.id='backup-io-panel';
+    panel.innerHTML=`
+      <div id="backup-io-toggle">
+        <button type="button" id="backup-io-import-tab" class="active" onclick="backupIOToggle('import')"><i class="fa-solid fa-file-import"></i> Import Excel</button>
+        <button type="button" id="backup-io-export-tab" onclick="backupIOToggle('export')"><i class="fa-solid fa-file-export"></i> Export Data</button>
+      </div>
+      <div id="backup-io-content">
+        <div id="backup-import-box">
+          <div class="font-extrabold text-slate-800 text-sm mb-1">Import Data dari Microsoft Excel</div>
+          <div class="backup-io-note">Pilih file Excel <b>.xlsx</b> atau <b>.xls</b>. Data akan dibaca sebagai History dan disimpan ke akun yang sedang aktif.</div>
+          <input id="backup-import-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+          <button type="button" id="backup-import-trigger" class="backup-io-action"><i class="fa-solid fa-file-excel"></i> Pilih File Excel</button>
+        </div>
+        <div id="backup-export-box" class="hidden">
+          <div class="font-extrabold text-slate-800 text-sm mb-1">Export Data dari View di PDF</div>
+          <div id="backup-export-info" class="backup-io-note">Export memakai data yang sama dengan <b>View di PDF</b> pada menu Laporan Bulanan. Jika belum membuka PDF, data akan mengikuti filter laporan yang sedang aktif.</div>
+          <button type="button" id="backup-export-trigger" class="backup-io-action"><i class="fa-solid fa-file-excel"></i> Export ke Excel</button>
+        </div>
+      </div>`;
+    const heading=backupView.querySelector('.flex.items-center.justify-between.mb-2');
+    if(heading) heading.insertAdjacentElement('afterend',panel); else backupView.insertBefore(panel,backupView.firstChild);
+
+    const input=document.getElementById('backup-import-file');
+    document.getElementById('backup-import-trigger').onclick=()=>input.click();
+    input.addEventListener('change',handleExcelImport);
+    document.getElementById('backup-export-trigger').onclick=exportPdfViewDataToExcel;
+  }
+
+  window.backupIOToggle=function(mode){
+    const ib=document.getElementById('backup-io-import-box'), eb=document.getElementById('backup-export-box');
+    const it=document.getElementById('backup-io-import-tab'), et=document.getElementById('backup-io-export-tab');
+    if(!ib||!eb) return;
+    const imp=mode==='import';
+    ib.classList.toggle('hidden',!imp); eb.classList.toggle('hidden',imp);
+    it.classList.toggle('active',imp); et.classList.toggle('active',!imp);
+  };
+
+  async function handleExcelImport(e){
+    const file=e.target.files && e.target.files[0];
+    if(!file) return;
+    if(typeof XLSX==='undefined'){
+      showModal('Import Gagal','Library Microsoft Excel (SheetJS) tidak tersedia. Silakan cek koneksi internet lalu coba lagi.','fa-solid fa-circle-xmark text-rose-600');
+      e.target.value=''; return;
+    }
+    try{
+      const buffer=await file.arrayBuffer();
+      const wb=XLSX.read(buffer,{type:'array',cellDates:true});
+      const sheetName=wb.SheetNames[0];
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:''});
+      if(!rows.length) throw new Error('File Excel tidak memiliki data.');
+      const imported=convertImportedRows(rows);
+      if(!imported.length) throw new Error('Kolom data keuangan tidak ditemukan atau seluruh baris kosong.');
+      saveImportedHistory(imported);
+      showModal('Import Berhasil',`${imported.length} data dari Excel berhasil dimasukkan ke History akun aktif.`);
+      e.target.value='';
+      if(typeof switchTab==='function') switchTab('history');
+    }catch(err){
+      console.error('Import Excel:',err);
+      showModal('Import Gagal',err.message || 'File Excel tidak dapat dibaca.','fa-solid fa-circle-xmark text-rose-600');
+      e.target.value='';
+    }
+  }
+
+  function getPdfStateFromActiveReport(){
+    const fDateEl=document.getElementById('filter-report-date');
+    const fMonthEl=document.getElementById('filter-report-month');
+    const fYearEl=document.getElementById('filter-report-year');
+    const fDate=fDateEl ? fDateEl.value : '';
+    const fMonth=fMonthEl ? fMonthEl.value : '';
+    const fYear=fYearEl ? fYearEl.value : '';
+    return {fDate,fMonth,fYear};
+  }
+
+  function buildPdfState(fDate,fMonth,fYear){
+    const filtered=(historyData||[]).filter(item=>{
+      const matchDate=fDate==='' || String(item.date)===String(fDate);
+      const matchMonth=fMonth==='' || String(item.month)===String(fMonth);
+      const matchYear=fYear==='' || String(item.year)===String(fYear);
+      return matchDate && matchMonth && matchYear;
+    });
+    return {fDate:fDate||'',fMonth:fMonth||'',fYear:fYear||'',filtered,
+      totalIncome:filtered.reduce((s,i)=>s+(Number(i.income)||0),0),
+      totalExpense:filtered.reduce((s,i)=>s+(Number(i.expense)||0),0),
+      totalCashout:filtered.reduce((s,i)=>s+(Number(i.cashout)||0),0),
+      totalProfit:filtered.reduce((s,i)=>s+(Number(i.profit)||0),0)};
+  }
+
+  function exportPdfViewDataToExcel(){
+    if(typeof XLSX==='undefined'){
+      showModal('Export Gagal','Library Excel (SheetJS) tidak tersedia. Silakan cek koneksi internet lalu coba lagi.','fa-solid fa-circle-xmark text-rose-600');
+      return;
+    }
+    const state=lastPdfViewState || buildPdfState(getPdfStateFromActiveReport().fDate,getPdfStateFromActiveReport().fMonth,getPdfStateFromActiveReport().fYear);
+    if(!state.filtered.length){
+      showModal('Export Gagal','Tidak ada data pada View di PDF untuk filter yang dipilih.','fa-solid fa-circle-exclamation text-rose-600');
+      return;
+    }
+    const rows=state.filtered.map(item=>({
+      'Tanggal':`${item.date} ${item.month} ${item.year}`,
+      'Hari':item.day || '',
+      'Waktu':item.time || '',
+      'Pendapatan':Number(item.income)||0,
+      'Belanja':Number(item.expense)||0,
+      'Pengeluaran':Number(item.cashout)||0,
+      'Profit Persen':Number(item.profitPercentage)||0,
+      'Profit':Number(item.profit)||0
+    }));
+    const summary=[
+      ['LAPORAN KEUANGAN REKAPINYU',''],
+      ['Sumber','View di PDF - Laporan Bulanan'],
+      ['Filter Tanggal',state.fDate||'Semua'],
+      ['Filter Bulan',state.fMonth||'Semua'],
+      ['Filter Tahun',state.fYear||'Semua'],
+      [],
+      ['Total Pendapatan',state.totalIncome],
+      ['Total Belanja',state.totalExpense],
+      ['Total Pengeluaran',state.totalCashout],
+      ['Total Profit',state.totalProfit]
+    ];
+    const wb=XLSX.utils.book_new();
+    const wsSummary=XLSX.utils.aoa_to_sheet(summary);
+    const wsData=XLSX.utils.json_to_sheet(rows);
+    wsSummary['!cols']=[{wch:24},{wch:28}];
+    wsData['!cols']=[{wch:22},{wch:12},{wch:10},{wch:18},{wch:18},{wch:18},{wch:15},{wch:18}];
+    XLSX.utils.book_append_sheet(wb,wsSummary,'Ringkasan PDF');
+    XLSX.utils.book_append_sheet(wb,wsData,'Data View PDF');
+    const safeMonth=(state.fMonth||'Semua').replace(/[^A-Za-z0-9_-]/g,'_');
+    const safeYear=state.fYear||new Date().getFullYear();
+    XLSX.writeFile(wb,`Rekapin_View_PDF_${safeMonth}_${safeYear}.xlsx`);
+    showModal('Export Berhasil',`${rows.length} data dari View di PDF berhasil diekspor ke Excel.`);
+  }
+
+  function wrapPdfFunction(){
+    if(typeof window.openPdfModal!=='function' || window.openPdfModal.__rekapinWrapped) return false;
+    const original=window.openPdfModal;
+    function wrapped(fDate,fMonth,fYear){
+      lastPdfViewState=buildPdfState(fDate||'',fMonth||'',fYear||'');
+      const info=document.getElementById('backup-export-info');
+      if(info) info.innerHTML=`Export mengambil <b>${lastPdfViewState.filtered.length} data</b> yang sama dengan View di PDF (${escHtml(fMonth||'Semua Bulan')}, ${escHtml(fYear||'Semua Tahun')}).`;
+      return original.apply(this,arguments);
+    }
+    wrapped.__rekapinWrapped=true;
+    window.openPdfModal=wrapped;
+    return true;
+  }
+
+  function init(){
+    buildBackupIOPanel();
+    wrapPdfFunction();
+  }
+
+  const timer=setInterval(()=>{ if(document.getElementById('view-backup') && typeof window.openPdfModal==='function'){ init(); clearInterval(timer); } },250);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
