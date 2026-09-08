@@ -971,6 +971,7 @@
             let coverX = 50;
             let coverY = 50;
             let coverSaved = true;
+            let coverEditingUnsaved = false;
             let dragging = false;
             let startPointerX = 0;
             let startPointerY = 0;
@@ -987,6 +988,8 @@
 
             function setEditorState(show) {
                 coverSaved = !show;
+                coverEditingUnsaved = !!show;
+                window.__shopCoverEditingUnsaved = !!show;
                 saveButton.classList.toggle('hidden', !show);
                 editHint.classList.toggle('hidden', !show);
                 coverFrame.classList.toggle('cursor-move', show);
@@ -1029,22 +1032,6 @@
                 }
             });
 
-            if (moveControls) {
-                moveControls.querySelectorAll('[data-cover-move]').forEach(function (btn) {
-                    btn.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        if (coverSaved || coverImage.classList.contains('hidden')) return;
-                        const step = 5;
-                        const dir = btn.getAttribute('data-cover-move');
-                        if (dir === 'left') coverX = Math.max(0, coverX - step);
-                        if (dir === 'right') coverX = Math.min(100, coverX + step);
-                        if (dir === 'up') coverY = Math.max(0, coverY - step);
-                        if (dir === 'down') coverY = Math.min(100, coverY + step);
-                        setObjectPosition();
-                    });
-                });
-            }
-
             coverInput.addEventListener('change', function () {
                 const file = this.files && this.files[0];
                 if (!file || !file.type.startsWith('image/')) return;
@@ -1082,21 +1069,35 @@
             coverFrame.addEventListener('pointercancel', stopDrag);
             coverFrame.addEventListener('lostpointercapture', stopDrag);
 
+            saveButton.addEventListener('pointerdown', function (e) {
+                e.stopPropagation();
+            });
+            saveButton.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.saveShopCoverPhoto();
+            });
+
             window.saveShopCoverPhoto = function () {
                 if (coverImage.classList.contains('hidden') || !coverImage.src) return;
                 const data = {src: coverImage.src, x: coverX, y: coverY};
                 try {
                     localStorage.setItem(storageKey(), JSON.stringify(data));
+                    // Pastikan data benar-benar sudah tersimpan sebelum mode edit ditutup.
+                    const verify = localStorage.getItem(storageKey());
+                    if (!verify) throw new Error('Penyimpanan foto sampul gagal diverifikasi');
                     setEditorState(false);
                 } catch (e) {
                     console.warn('Foto sampul toko tidak dapat disimpan:', e);
                 }
             };
 
+            window.__shopCoverEditingUnsaved = false;
             loadShopCover();
         })();
 
         window.refreshShopCoverPhoto = function () {
+            if (window.__shopCoverEditingUnsaved) return;
             const input = document.getElementById('shop-cover-input');
             const image = document.getElementById('shop-cover-image');
             const placeholder = document.getElementById('shop-cover-placeholder');
@@ -2762,7 +2763,7 @@
     if (typeof originalLoadUserData === 'function' && !originalLoadUserData.__shopCoverWrapped) {
         window.loadUserData = function(){
             const result = originalLoadUserData.apply(this, arguments);
-            if (typeof window.refreshShopCoverPhoto === 'function') setTimeout(window.refreshShopCoverPhoto, 0);
+            if (typeof window.refreshShopCoverPhoto === 'function' && !window.__shopCoverEditingUnsaved) setTimeout(window.refreshShopCoverPhoto, 0);
             return result;
         };
         window.loadUserData.__shopCoverWrapped = true;
