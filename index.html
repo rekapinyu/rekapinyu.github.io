@@ -347,6 +347,35 @@
                 </div>
             </div>
 
+            <!-- BACKUP OTOMATIS STICKY FILTER -->
+            <div id="backup-sticky-container" class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-30">
+                <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
+                    <div class="grid grid-cols-12 gap-2 items-center">
+                        <div class="col-span-4 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" id="filter-backup-search" oninput="renderBackupGrid()" placeholder="Search" class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+                        <div class="col-span-2">
+                            <select id="filter-backup-date" onchange="renderBackupGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                                <option value="">Tgl</option>
+                            </select>
+                        </div>
+                        <div class="col-span-3">
+                            <select id="filter-backup-month" onchange="renderBackupGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                                <option value="">Bulan</option>
+                            </select>
+                        </div>
+                        <div class="col-span-3">
+                            <select id="filter-backup-year" onchange="renderBackupGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                                <option value="">Tahun</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="max-w-4xl mx-auto w-full my-auto">
                 
                 <!-- MOBILE ONLY: BERANDA -->
@@ -1081,6 +1110,7 @@
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
             const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
             const kasbonStickyContainer = document.getElementById('kasbon-sticky-container');
+            const backupStickyContainer = document.getElementById('backup-sticky-container');
 
             views.forEach(v => {
                 const viewEl = document.getElementById(`view-${v}`);
@@ -1147,16 +1177,21 @@
 
             if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.add('hidden');
             if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden');
+            if (backupStickyContainer) backupStickyContainer.classList.add('hidden');
 
             if (tab === 'pengeluaran') {
                 if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
             } else if (tab === 'kasbon') {
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
+            } else if (tab === 'backup') {
+                if (backupStickyContainer) backupStickyContainer.classList.remove('hidden');
             }
 
             if (tab === 'input' || tab === 'backup') {
                 stickyFilterContainer.classList.add('hidden');
                 if (tab === 'backup') {
+                    renderStickyFilterBackup();
+                    populateBackupFilters();
                     renderBackupGrid();
                 }
             } else {
@@ -1186,6 +1221,30 @@
 
             loadUserData();
 
+            const searchEl = document.getElementById('filter-backup-search');
+            const dateEl = document.getElementById('filter-backup-date');
+            const monthEl = document.getElementById('filter-backup-month');
+            const yearEl = document.getElementById('filter-backup-year');
+            const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
+            const fDate = dateEl ? dateEl.value : '';
+            const fMonth = monthEl ? monthEl.value : '';
+            const fYear = yearEl ? yearEl.value : '';
+
+            let filtered = backupOtomatisData.filter(backup => {
+                const text = `${backup.day || ''} ${backup.date || ''} ${backup.month || ''} ${backup.year || ''}`.toLowerCase();
+                const matchSearch = !search || text.includes(search);
+                const matchDate = !fDate || String(backup.date) === String(fDate);
+                const matchMonth = !fMonth || String(backup.month) === String(fMonth);
+                const matchYear = !fYear || String(backup.year) === String(fYear);
+                return matchSearch && matchDate && matchMonth && matchYear;
+            });
+
+            filtered.sort((a,b) => {
+                const ad = new Date(Number(a.year)||0, Number(a.monthIndex ?? monthNames.indexOf(a.month))||0, Number(a.date)||1).getTime();
+                const bd = new Date(Number(b.year)||0, Number(b.monthIndex ?? monthNames.indexOf(b.month))||0, Number(b.date)||1).getTime();
+                return bd - ad || (Number(b.id)||0) - (Number(a.id)||0);
+            });
+
             if (backupOtomatisData.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
@@ -1196,7 +1255,16 @@
                 return;
             }
 
-            container.innerHTML = backupOtomatisData.map(backup => {
+            if (!filtered.length) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-filter-circle-xmark text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Tidak ada backup yang sesuai filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(backup => {
                 return `
                     <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 flex flex-col justify-between space-y-4 hover:shadow-xl transition">
                         <div>
@@ -1231,6 +1299,37 @@
 
             showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
             switchTab('history');
+        }
+
+        function renderStickyFilterBackup() {
+            // Filter Backup sudah dibuat sebagai sticky khusus di posisi yang sama dengan Pengeluaran.
+        }
+
+        function populateBackupFilters() {
+            const dateSelect = document.getElementById('filter-backup-date');
+            const monthSelect = document.getElementById('filter-backup-month');
+            const yearSelect = document.getElementById('filter-backup-year');
+            if (!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentDate = dateSelect.value;
+            const currentMonth = monthSelect.value;
+            const currentYear = yearSelect.value;
+            const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+            dateSelect.innerHTML = '<option value="">Tgl</option>' + Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+            monthSelect.innerHTML = '<option value="">Bulan</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+            const years = [...new Set(backupOtomatisData.map(b=>Number(b.year)).filter(y=>y))].sort((a,b)=>b-a);
+            if (!years.length) {
+                const currentYearNow = new Date().getFullYear();
+                for(let y=2000;y<=2030;y++) years.push(y);
+                years.sort((a,b)=>b-a);
+            }
+            yearSelect.innerHTML = '<option value="">Tahun</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+
+            dateSelect.value = currentDate;
+            monthSelect.value = currentMonth;
+            yearSelect.value = currentYear;
         }
 
         function renderStickyFilterPengeluaran() {
@@ -1858,6 +1957,24 @@
                 return matchDate && matchMonth && matchYear;
             });
 
+            // History selalu diurutkan: bulan/tahun terbaru berada paling atas,
+            // bulan sebelumnya di bawahnya. Di dalam bulan yang sama, input terbaru di atas.
+            filtered.sort((a, b) => {
+                const monthNamesSort = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                const aMonth = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : monthNamesSort.indexOf(a.month);
+                const bMonth = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : monthNamesSort.indexOf(b.month);
+                const aKey = (Number(a.year)||0) * 12 + (aMonth >= 0 ? aMonth : 0);
+                const bKey = (Number(b.year)||0) * 12 + (bMonth >= 0 ? bMonth : 0);
+                if (bKey !== aKey) return bKey - aKey;
+                const aDate = Number(a.date)||0;
+                const bDate = Number(b.date)||0;
+                if (bDate !== aDate) return bDate - aDate;
+                const aTime = String(a.time||'00:00');
+                const bTime = String(b.time||'00:00');
+                if (bTime !== aTime) return bTime.localeCompare(aTime);
+                return (Number(b.id)||0) - (Number(a.id)||0);
+            });
+
             const countLabel = document.getElementById('sticky-count-label');
             if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
 
@@ -2224,7 +2341,7 @@
     (function(){
       const originalSwitchTab=window.switchTab;
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home')}
+      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home')}
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
       window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
       window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
