@@ -136,15 +136,6 @@
 
     <!-- Sidebar Navigation for Desktop & Mobile Responsive -->
     <aside id="sidebar" class="w-64 bg-[#0d235a] text-blue-100 border-r border-[#15327a] flex flex-col z-20 shrink-0 hidden md:flex sidebar-transition relative">
-        <!-- Logo / Brand Area -->
-        <div class="p-5 border-b border-[#15327a] flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
-                <i class="fa-solid fa-wallet"></i>
-            </div>
-            <div class="sidebar-text truncate">
-                <h1 class="font-bold text-white text-base tracking-tight">REKAPINYU</h1>
-            </div>
-        </div>
 
         <!-- User Profile Card Section -->
         <div class="p-4 border-b border-[#15327a] flex items-center justify-between gap-3 bg-[#0a1c47]/50 relative toggle-profile-setting-container">
@@ -232,6 +223,15 @@
 
         <!-- Sidebar Footer Info -->
         <div class="p-4 border-t border-[#15327a] space-y-3 bg-[#0a1c47]">
+            <!-- Brand dipindahkan ke bawah, tepat di atas Kritik & Saran -->
+            <div class="sidebar-text flex items-center gap-3 pb-1">
+                <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div class="truncate">
+                    <h1 class="font-bold text-white text-base tracking-tight">REKAPINYU</h1>
+                </div>
+            </div>
             <div class="sidebar-text px-1 text-[10px] font-bold uppercase tracking-wider text-blue-400/70">Kritik & Saran</div>
             
             <div class="sidebar-text flex items-center gap-2 pt-1">
@@ -249,8 +249,7 @@
                 </a>
             </div>
 
-            <div class="flex items-center justify-between pt-1">
-                <span id="current-date-sidebar" class="text-[11px] text-blue-300 sidebar-text"></span>
+            <div class="flex items-center justify-end pt-1">
                 <button onclick="toggleSidebar()" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/50 hover:bg-blue-800 transition shrink-0" title="Minimalisir Sidebar">
                     <i id="sidebar-toggle-icon" class="fa-solid fa-arrow-left text-xs"></i>
                 </button>
@@ -267,9 +266,11 @@
         <!-- Top Navigation Bar -->
         <header class="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
-                    <i class="fa-solid fa-wallet text-sm"></i>
-                </div>
+                <button type="button" id="shop-cover-button" onclick="document.getElementById('shop-cover-input').click()" class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm hover:ring-2 hover:ring-emerald-400 transition shrink-0" title="Ganti Foto Sampul Toko">
+                    <img id="shop-cover-image" src="" alt="Foto Toko" class="w-full h-full object-cover hidden">
+                    <i id="shop-cover-placeholder" class="fa-solid fa-store text-emerald-600 text-sm"></i>
+                </button>
+                <input id="shop-cover-input" type="file" accept="image/*" class="hidden">
                 <div>
                     <h1 class="font-bold text-slate-800 text-sm md:hidden">REKAPIN</h1>
                     <h2 id="page-title-header" class="text-base font-bold text-slate-800 hidden md:block">Form Input Keuangan Harian</h2>
@@ -945,10 +946,80 @@
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const dateStr = new Date().toLocaleDateString('id-ID', options);
             document.getElementById('current-date-header').innerText = dateStr;
-            document.getElementById('current-date-sidebar').innerText = dateStr;
         }
         updateHeaderDate();
 
+        // Foto sampul toko: fitur tambahan yang berdiri sendiri dan tidak mengubah fungsi data lainnya.
+        (function initShopCoverPhoto() {
+            const coverInput = document.getElementById('shop-cover-input');
+            const coverImage = document.getElementById('shop-cover-image');
+            const coverPlaceholder = document.getElementById('shop-cover-placeholder');
+            if (!coverInput || !coverImage || !coverPlaceholder) return;
+
+            const storageKey = () => currentSessionUser
+                ? `finance_shop_cover_${currentSessionUser.phone}`
+                : 'finance_shop_cover_guest';
+
+            function renderShopCover(src) {
+                if (src) {
+                    coverImage.src = src;
+                    coverImage.classList.remove('hidden');
+                    coverPlaceholder.classList.add('hidden');
+                } else {
+                    coverImage.removeAttribute('src');
+                    coverImage.classList.add('hidden');
+                    coverPlaceholder.classList.remove('hidden');
+                }
+            }
+
+            function loadShopCover() {
+                try {
+                    renderShopCover(localStorage.getItem(storageKey()) || '');
+                } catch (e) {
+                    renderShopCover('');
+                }
+            }
+
+            coverInput.addEventListener('change', function () {
+                const file = this.files && this.files[0];
+                if (!file || !file.type.startsWith('image/')) return;
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const src = event.target.result;
+                    renderShopCover(src);
+                    try {
+                        localStorage.setItem(storageKey(), src);
+                    } catch (e) {
+                        console.warn('Foto sampul toko tidak dapat disimpan:', e);
+                    }
+                };
+                reader.readAsDataURL(file);
+                this.value = '';
+            });
+
+            loadShopCover();
+        })();
+
+        window.refreshShopCoverPhoto = function () {
+            const input = document.getElementById('shop-cover-input');
+            const image = document.getElementById('shop-cover-image');
+            const placeholder = document.getElementById('shop-cover-placeholder');
+            if (!input || !image || !placeholder) return;
+            const key = currentSessionUser ? `finance_shop_cover_${currentSessionUser.phone}` : 'finance_shop_cover_guest';
+            try {
+                const src = localStorage.getItem(key) || '';
+                if (src) {
+                    image.src = src;
+                    image.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                } else {
+                    image.removeAttribute('src');
+                    image.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                }
+            } catch (e) {}
+        };
         const profitDisplay = document.getElementById('profit-display');
 
         function togglePasswordVisibility() {
@@ -2581,5 +2652,18 @@
 })();
 </script>
 
+<script>
+(function(){
+    const originalLoadUserData = window.loadUserData;
+    if (typeof originalLoadUserData === 'function' && !originalLoadUserData.__shopCoverWrapped) {
+        window.loadUserData = function(){
+            const result = originalLoadUserData.apply(this, arguments);
+            if (typeof window.refreshShopCoverPhoto === 'function') window.refreshShopCoverPhoto();
+            return result;
+        };
+        window.loadUserData.__shopCoverWrapped = true;
+    }
+})();
+</script>
 </body>
 </html>
