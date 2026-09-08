@@ -669,6 +669,7 @@
                     dateKey: dateKey,
                     day: dayName,
                     date: dateNum,
+                    monthIndex: now.getMonth(),
                     month: monthName,
                     year: yearNum,
                     historySnapshot: JSON.parse(JSON.stringify(historyData))
@@ -1239,9 +1240,14 @@
                 return matchSearch && matchDate && matchMonth && matchYear;
             });
 
+            // Backup selalu ditampilkan dari tanggal terbaru ke terlama.
+            // Gunakan daftar bulan lokal agar tidak bergantung pada variabel dari script lain.
+            const backupMonthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
             filtered.sort((a,b) => {
-                const ad = new Date(Number(a.year)||0, Number(a.monthIndex ?? monthNames.indexOf(a.month))||0, Number(a.date)||1).getTime();
-                const bd = new Date(Number(b.year)||0, Number(b.monthIndex ?? monthNames.indexOf(b.month))||0, Number(b.date)||1).getTime();
+                const aMonth = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : backupMonthNames.indexOf(a.month);
+                const bMonth = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : backupMonthNames.indexOf(b.month);
+                const ad = new Date(Number(a.year)||0, aMonth >= 0 ? aMonth : 0, Number(a.date)||1).getTime();
+                const bd = new Date(Number(b.year)||0, bMonth >= 0 ? bMonth : 0, Number(b.date)||1).getTime();
                 return bd - ad || (Number(b.id)||0) - (Number(a.id)||0);
             });
 
