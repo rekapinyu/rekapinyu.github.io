@@ -8,8 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS for Excel Export (Dibiarkan untuk fungsi lain jika diperlukan) -->
-    <script src="https://cdn.xlsxjs.com/xlsx.full.min.js"></script>
+    <!-- SheetJS for Excel Import & Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -440,11 +440,20 @@
                     <div id="report-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
 
-                <!-- VIEW NEW: BACKUP OTOMATIS -->
+                <!-- VIEW NEW: BACKUP OTOMATIS DAN IMPORT EXCEL -->
                 <section id="view-backup" class="hidden space-y-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
-                        <span class="text-xs text-slate-400">Pulihkan history dari backup jika data hilang</span>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
+                            <span class="text-xs text-slate-400">Pulihkan history dari backup atau import file Excel</span>
+                        </div>
+                        <!-- Toggle / Button Pilih & Import File Excel -->
+                        <div class="flex items-center gap-2">
+                            <label for="excel-file-input" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs py-2 px-3.5 rounded-xl cursor-pointer shadow-sm transition flex items-center gap-2">
+                                <i class="fa-solid fa-file-excel"></i> Pilih & Import File Excel
+                            </label>
+                            <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importFromExcel(event)">
+                        </div>
                     </div>
                     <div id="backup-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                 </section>
@@ -1191,7 +1200,7 @@
                     <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
                         <i class="fa-solid fa-cloud-arrow-down text-4xl mb-3 text-slate-300"></i>
                         <p class="text-sm font-medium">Belum ada data backup otomatis.</p>
-                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi.</p>
+                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi atau mengimpor Excel.</p>
                     </div>`;
                 return;
             }
@@ -1218,6 +1227,84 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        /* FUNGSI IMPORT DATA DARI FILE EXCEL */
+        function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!currentSessionUser || !currentSessionUser.phone) {
+                showModal("Gagal Import", "Silakan masuk / login terlebih dahulu untuk melakukan import.", "fa-solid fa-circle-exclamation text-rose-600");
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (!jsonData || jsonData.length === 0) {
+                        showModal("File Kosong", "Data dalam file Excel yang dipilih kosong atau format tidak sesuai.", "fa-solid fa-circle-exclamation text-rose-600");
+                        event.target.value = '';
+                        return;
+                    }
+
+                    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                    const now = new Date();
+
+                    let importedCount = 0;
+                    jsonData.forEach((row, index) => {
+                        const income = parseNum(row['Pendapatan'] || row['Income'] || row['pendapatan'] || row['income'] || 0);
+                        const expense = parseNum(row['Total Belanja'] || row['Belanja'] || row['Expense'] || row['expense'] || 0);
+                        const cashout = parseNum(row['Pengeluaran'] || row['Cashout'] || row['pengeluaran'] || row['cashout'] || 0);
+                        const profitPct = parseFloat(row['Profit Persen'] || row['Profit %'] || row['profitPercentage'] || 10) || 10;
+                        
+                        let day = row['Hari'] || row['hari'] || days[now.getDay()];
+                        let date = parseInt(row['Tanggal'] || row['tanggal'] || row['Date'] || row['date']) || now.getDate();
+                        let monthStr = row['Bulan'] || row['bulan'] || row['Month'] || row['month'] || months[now.getMonth()];
+                        let year = parseInt(row['Tahun'] || row['tahun'] || row['Year'] || row['year']) || now.getFullYear();
+                        let time = row['Waktu'] || row['Jam'] || row['time'] || now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                        let monthIndex = months.findIndex(m => m.toLowerCase() === monthStr.toString().toLowerCase());
+                        if (monthIndex === -1) monthIndex = now.getMonth();
+
+                        const newItem = {
+                            id: Date.now() + index,
+                            day: day,
+                            date: date,
+                            monthIndex: monthIndex,
+                            month: months[monthIndex],
+                            year: year,
+                            time: time,
+                            income: income,
+                            expense: expense,
+                            cashout: cashout,
+                            profitPercentage: profitPct
+                        };
+
+                        historyData.unshift(newItem);
+                        importedCount++;
+                    });
+
+                    localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                    triggerDailyAutoBackup();
+                    renderBackupGrid();
+                    showModal("Import Berhasil", `Berhasil mengimpor ${importedCount} data transaksi dari file Excel!`);
+                } catch (err) {
+                    console.error(err);
+                    showModal("Gagal Import", "Terjadi kesalahan saat membaca file Excel. Pastikan file berformat Excel (.xlsx/.xls/.csv).", "fa-solid fa-circle-xmark text-rose-600");
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function restoreHistoryFromBackup(backupId) {
@@ -1499,12 +1586,8 @@
                 const newGroup = {
                     id: currentTimeMillis,
                     timestamp: currentTimeMillis,
-                    day: dayName,
-                    date: dateNum,
-                    month: monthName,
-                    year: yearNum,
-                    time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                     namaPelanggan: nama,
+                    dateStr: `${dayName}, ${dateNum} ${monthName} ${yearNum}`,
                     items: [{ produk, harga }],
                     total: harga,
                     isLunas: false
@@ -1518,262 +1601,21 @@
 
             document.getElementById('kasbon-form').reset();
             renderKasbonGrid();
-            showModal("Berhasil", "Data kasbon berhasil disimpan.");
+            showModal("Berhasil", "Data kasbon pelanggan berhasil ditambahkan.");
         });
-
-        function toggleLunasKasbon(id) {
-            const item = kasbonData.find(d => d.id === id);
-            if(item) {
-                item.isLunas = !item.isLunas;
-                if (currentSessionUser && currentSessionUser.phone) {
-                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
-                }
-                renderKasbonGrid();
-            }
-        }
-
-        function editNamaPelangganKasbon(id) {
-            const item = kasbonData.find(d => d.id === id);
-            if (!item) return;
-
-            const modal = document.getElementById('edit-modal');
-            const modalTitle = document.getElementById('edit-modal-title');
-            const modalBody = document.getElementById('edit-modal-body');
-            const saveBtn = document.getElementById('save-edit-btn');
-
-            modalTitle.innerText = "Ganti Nama Pelanggan";
-            modalBody.innerHTML = `
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nama Pelanggan Baru</label>
-                    <input type="text" id="edit-val-nama-pelanggan" value="${item.namaPelanggan}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                </div>
-            `;
-
-            saveBtn.onclick = function() {
-                const newName = document.getElementById('edit-val-nama-pelanggan').value.trim();
-                if (!newName) return;
-
-                item.namaPelanggan = newName;
-                if (currentSessionUser && currentSessionUser.phone) {
-                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
-                }
-                closeEditModal();
-                renderKasbonGrid();
-                showModal("Berhasil", "Nama pelanggan berhasil diperbarui.");
-            };
-
-            modal.classList.remove('hidden');
-        }
-
-        function populatePengeluaranFilters() {
-            const dateSelect = document.getElementById('filter-pengeluaran-date');
-            const monthSelect = document.getElementById('filter-pengeluaran-month');
-            const yearSelect = document.getElementById('filter-pengeluaran-year');
-            
-            if(!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            let datesHtml = '<option value="">Semua Tgl</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
-            }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
-        }
-
-        function renderPengeluaranGrid() {
-            const container = document.getElementById('pengeluaran-grid');
-            if (!container) return;
-
-            const fDateEl = document.getElementById('filter-pengeluaran-date');
-            const fMonthEl = document.getElementById('filter-pengeluaran-month');
-            const fYearEl = document.getElementById('filter-pengeluaran-year');
-
-            const fDate = fDateEl ? fDateEl.value : "";
-            const fMonth = fMonthEl ? fMonthEl.value : "";
-            const fYear = fYearEl ? fYearEl.value : "";
-
-            let filtered = pengeluaranData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
-            });
-
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-medium">Belum ada riwayat pengeluaran yang sesuai filter.</p>
-                    </div>`;
-                return;
-            }
-
-            const groups = {};
-            filtered.forEach(item => {
-                const groupKey = `${item.day}, ${item.date} ${item.month} ${item.year}`;
-                if (!groups[groupKey]) {
-                    groups[groupKey] = [];
-                }
-                groups[groupKey].push(item);
-            });
-
-            container.innerHTML = Object.entries(groups).map(([dateHeader, items]) => {
-                const totalNominalGroup = items.reduce((sum, curr) => sum + curr.nominal, 0);
-
-                return `
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/85 space-y-4">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${dateHeader}
-                            </h3>
-                            <span class="text-[10px] bg-rose-50 text-rose-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(totalNominalGroup)}</span>
-                        </div>
-
-                        <div class="space-y-3">
-                            ${items.map(item => `
-                                <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
-                                    <div>
-                                        <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Pukul ${item.time}</span>
-                                        <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-xs text-slate-500 block mb-0.5">Nominal</span>
-                                        <span class="text-sm font-extrabold text-rose-600">${formatRupiah(item.nominal)}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderKasbonGrid() {
-            const container = document.getElementById('kasbon-grid');
-            if (!container) return;
-
-            const fStatusEl = document.getElementById('filter-kasbon-status');
-            const fNamaEl = document.getElementById('filter-kasbon-nama');
-            const fStatus = fStatusEl ? fStatusEl.value : "";
-            const fNama = fNamaEl ? fNamaEl.value.trim().toLowerCase() : "";
-
-            let filtered = kasbonData.filter(item => {
-                let matchStatus = true;
-                if (fStatus === "lunas") {
-                    matchStatus = item.isLunas === true;
-                } else if (fStatus === "belum_lunas") {
-                    matchStatus = item.isLunas === false;
-                }
-
-                let matchNama = true;
-                if (fNama !== "") {
-                    matchNama = item.namaPelanggan.toLowerCase().includes(fNama);
-                }
-
-                return matchStatus && matchNama;
-            });
-
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-medium">Belum ada riwayat kasbon yang sesuai filter.</p>
-                    </div>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(group => {
-                return `
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-lg border border-slate-200/85 space-y-4 relative overflow-hidden">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                            <div>
-                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">${group.day}, ${group.date} ${group.month} ${group.year} - ${group.time}</span>
-                                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                                    <i class="fa-solid fa-user text-emerald-600"></i> ${group.namaPelanggan}
-                                </h3>
-                            </div>
-                            <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">Total: ${formatRupiah(group.total)}</span>
-                        </div>
-
-                        ${group.isLunas ? `
-                            <div class="flex items-center">
-                                <span class="text-xs font-black text-emerald-600 border-2 border-emerald-600 px-3 py-1 rounded-lg tracking-wider uppercase shadow-sm inline-block bg-emerald-50/80">
-                                    <i class="fa-solid fa-check mr-1"></i> LUNAS
-                                </span>
-                            </div>
-                        ` : ''}
-
-                        <div class="space-y-2">
-                            ${group.items.map(sub => `
-                                <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                                        <i class="fa-solid fa-box text-slate-400"></i> ${sub.produk}
-                                    </div>
-                                    <div class="text-right text-xs font-extrabold text-slate-800">
-                                        ${formatRupiah(sub.harga)}
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-
-                        <!-- TOMBOL TOGGLE SUDAH BAYAR DAN GANTI NAMA (DIBUAT FLEX WRAP & AMAN DARI TABRAKAN SAAT SCROLL) -->
-                        <div class="kasbon-action-row pt-2 flex flex-wrap items-center justify-end gap-2 relative z-10">
-                            <button onclick="editNamaPelangganKasbon(${group.id})" class="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
-                                <i class="fa-solid fa-pen-to-square text-amber-500"></i> Ganti Nama
-                            </button>
-                            ${!group.isLunas ? `
-                                <button onclick="toggleLunasKasbon(${group.id})" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md bg-emerald-600 text-white hover:bg-emerald-700">
-                                    <i class="fa-solid fa-check"></i> Sudah Bayar
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
 
         document.getElementById('finance-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const income = parseNum(document.getElementById('income').value);
             const expense = parseNum(document.getElementById('expense').value);
             const cashout = parseNum(document.getElementById('cashout').value);
-            const profitPercentage = parseFloat(document.getElementById('profit-percentage').value) || 0;
-            
-            const profit = (income - cashout) * (profitPercentage / 100);
+            const profitPct = parseFloat(document.getElementById('profit-percentage').value) || 10;
 
             const now = new Date();
             const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-            const newEntry = {
+            const newItem = {
                 id: Date.now(),
                 day: days[now.getDay()],
                 date: now.getDate(),
@@ -1784,145 +1626,254 @@
                 income: income,
                 expense: expense,
                 cashout: cashout,
-                profitPercentage: profitPercentage,
-                profit: profit > 0 ? profit : 0
+                profitPercentage: profitPct
             };
 
-            historyData.unshift(newEntry);
+            historyData.unshift(newItem);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
             }
 
+            triggerDailyAutoBackup();
             document.getElementById('finance-form').reset();
-            document.getElementById('profit-percentage').value = "10";
-            profitDisplay.innerText = "Rp 0";
-
-            showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
+            updateLiveProfit();
+            showModal("Berhasil", "Data transaksi harian berhasil disimpan.");
         });
 
-        function populateHistoryFilters() {
-            const dateSelect = document.getElementById('filter-history-date');
-            const monthSelect = document.getElementById('filter-history-month');
-            const yearSelect = document.getElementById('filter-history-year');
-            
-            if(!dateSelect || !monthSelect || !yearSelect) return;
+        function populatePengeluaranFilters() {
+            const dateSel = document.getElementById('filter-pengeluaran-date');
+            const monthSel = document.getElementById('filter-pengeluaran-month');
+            const yearSel = document.getElementById('filter-pengeluaran-year');
+            if (!dateSel || !monthSel || !yearSel) return;
 
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
+            const dates = [...new Set(pengeluaranData.map(d => d.date))].sort((a,b) => a-b);
+            const months = [...new Set(pengeluaranData.map(d => d.month))];
+            const years = [...new Set(pengeluaranData.map(d => d.year))].sort((a,b) => b-a);
 
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const currDate = dateSel.value;
+            const currMonth = monthSel.value;
+            const currYear = yearSel.value;
 
-            let datesHtml = '<option value="">Semua Tgl</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
-            }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
+            dateSel.innerHTML = '<option value="">Semua Tgl</option>' + dates.map(d => `<option value="${d}" ${currDate == d ? 'selected' : ''}>Tgl ${d}</option>`).join('');
+            monthSel.innerHTML = '<option value="">Semua Bln</option>' + months.map(m => `<option value="${m}" ${currMonth == m ? 'selected' : ''}>${m}</option>`).join('');
+            yearSel.innerHTML = '<option value="">Semua Thn</option>' + years.map(y => `<option value="${y}" ${currYear == y ? 'selected' : ''}>${y}</option>`).join('');
         }
 
-        // RENDER HISTORY DENGAN ICON (BEARISH, BULLISH, PROFIT)
+        function renderPengeluaranGrid() {
+            const container = document.getElementById('pengeluaran-grid');
+            if (!container) return;
+
+            const dateVal = document.getElementById('filter-pengeluaran-date')?.value || '';
+            const monthVal = document.getElementById('filter-pengeluaran-month')?.value || '';
+            const yearVal = document.getElementById('filter-pengeluaran-year')?.value || '';
+
+            let filtered = pengeluaranData.filter(item => {
+                if (dateVal && item.date != dateVal) return false;
+                if (monthVal && item.month !== monthVal) return false;
+                if (yearVal && item.year != yearVal) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-receipt text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-semibold">Tidak ada data pengeluaran ditemukan.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}</span>
+                        <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm font-extrabold text-rose-600">${formatRupiah(item.nominal)}</span>
+                        <button onclick="deletePengeluaranItem(${item.id})" class="text-slate-300 hover:text-rose-500 transition text-xs p-1" title="Hapus">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deletePengeluaranItem(id) {
+            pengeluaranData = pengeluaranData.filter(d => d.id !== id);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
+            }
+            populatePengeluaranFilters();
+            renderPengeluaranGrid();
+        }
+
+        function renderKasbonGrid() {
+            const container = document.getElementById('kasbon-grid');
+            if (!container) return;
+
+            const statusVal = document.getElementById('filter-kasbon-status')?.value || '';
+            const searchVal = (document.getElementById('filter-kasbon-nama')?.value || '').toLowerCase();
+
+            let filtered = kasbonData.filter(group => {
+                if (statusVal === 'lunas' && !group.isLunas) return false;
+                if (statusVal === 'belum_lunas' && group.isLunas) return false;
+                if (searchVal && !group.namaPelanggan.toLowerCase().includes(searchVal)) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-book-bookmark text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-semibold">Tidak ada data kasbon ditemukan.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(group => `
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${group.namaPelanggan}</h4>
+                            <span class="text-[10px] text-slate-400 font-medium">${group.dateStr}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${group.isLunas ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                                ${group.isLunas ? 'LUNAS' : 'BELUM LUNAS'}
+                            </span>
+                            <button onclick="toggleKasbonLunas(${group.id})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition font-semibold">
+                                ${group.isLunas ? 'Batal Lunas' : 'Tandai Lunas'}
+                            </button>
+                            <button onclick="deleteKasbonGroup(${group.id})" class="text-slate-300 hover:text-rose-500 transition text-xs p-1">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        ${group.items.map(it => `
+                            <div class="flex justify-between text-xs text-slate-600">
+                                <span>${it.produk}</span>
+                                <span class="font-semibold">${formatRupiah(it.harga)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="pt-2 border-t border-slate-100 flex justify-between items-center text-xs font-bold text-slate-800">
+                        <span>Total Kasbon:</span>
+                        <span class="text-rose-600 text-sm">${formatRupiah(group.total)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleKasbonLunas(id) {
+            const group = kasbonData.find(g => g.id === id);
+            if (group) {
+                group.isLunas = !group.isLunas;
+                if (currentSessionUser && currentSessionUser.phone) {
+                    localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                }
+                renderKasbonGrid();
+            }
+        }
+
+        function deleteKasbonGroup(id) {
+            kasbonData = kasbonData.filter(g => g.id !== id);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+            }
+            renderKasbonGrid();
+        }
+
+        function populateHistoryFilters() {
+            const dateSel = document.getElementById('filter-history-date');
+            const monthSel = document.getElementById('filter-history-month');
+            const yearSel = document.getElementById('filter-history-year');
+            if (!dateSel || !monthSel || !yearSel) return;
+
+            const dates = [...new Set(historyData.map(d => d.date))].sort((a,b) => a-b);
+            const months = [...new Set(historyData.map(d => d.month))];
+            const years = [...new Set(historyData.map(d => d.year))].sort((a,b) => b-a);
+
+            const currDate = dateSel.value;
+            const currMonth = monthSel.value;
+            const currYear = yearSel.value;
+
+            dateSel.innerHTML = '<option value="">Semua Tgl</option>' + dates.map(d => `<option value="${d}" ${currDate == d ? 'selected' : ''}>Tgl ${d}</option>`).join('');
+            monthSel.innerHTML = '<option value="">Semua Bln</option>' + months.map(m => `<option value="${m}" ${currMonth == m ? 'selected' : ''}>${m}</option>`).join('');
+            yearSel.innerHTML = '<option value="">Semua Thn</option>' + years.map(y => `<option value="${y}" ${currYear == y ? 'selected' : ''}>${y}</option>`).join('');
+        }
+
         function renderHistory() {
             const container = document.getElementById('history-grid');
             if (!container) return;
 
-            const fDateEl = document.getElementById('filter-history-date');
-            const fMonthEl = document.getElementById('filter-history-month');
-            const fYearEl = document.getElementById('filter-history-year');
-
-            const fDate = fDateEl ? fDateEl.value : "";
-            const fMonth = fMonthEl ? fMonthEl.value : "";
-            const fYear = fYearEl ? fYearEl.value : "";
+            const dateVal = document.getElementById('filter-history-date')?.value || '';
+            const monthVal = document.getElementById('filter-history-month')?.value || '';
+            const yearVal = document.getElementById('filter-history-year')?.value || '';
 
             let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
+                if (dateVal && item.date != dateVal) return false;
+                if (monthVal && item.month !== monthVal) return false;
+                if (yearVal && item.year != yearVal) return false;
+                return true;
             });
-
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-clock-rotate-left text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada riwayat transaksi yang tercatat.</p>
+                    <div class="text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-semibold">Tidak ada riwayat transaksi ditemukan.</p>
                     </div>`;
                 return;
             }
 
             container.innerHTML = filtered.map(item => {
+                const profitPct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                const netIncome = (item.income || 0) - (item.cashout || 0);
+                const profit = netIncome > 0 ? netIncome * (profitPct / 100) : 0;
+
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/85 space-y-4 relative">
-                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                             <div>
-                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">ID: #${item.id.toString().slice(-4)} • Pukul ${item.time}</span>
-                                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                                    <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
-                                </h3>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">${item.day}, ${item.date} ${item.month} ${item.year} - ${item.time}</span>
+                                <span class="text-xs font-extrabold text-slate-700">ID: #${item.id.toString().slice(-6)}</span>
                             </div>
-                            <div class="relative toggle-edit-container">
-                                <button onclick="toggleEditMenu(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
-                                    <i class="fa-solid fa-pen-to-square text-emerald-600"></i> Edit
+                            <div class="flex items-center gap-2 relative toggle-edit-container">
+                                <button onclick="toggleEditMenu(${item.id})" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition">
+                                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
                                 </button>
-                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 hidden z-30">
-                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
-                                        <i class="fa-solid fa-coins text-emerald-600 w-4"></i> Edit Nominal
+                                <div id="edit-menu-${item.id}" class="absolute right-0 top-8 w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1 hidden z-30">
+                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-pen-to-square text-blue-500 w-4"></i> Edit Nominal
                                     </button>
-                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
-                                        <i class="fa-solid fa-calendar text-blue-600 w-4"></i> Edit Tanggal & Waktu
+                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i class="fa-solid fa-calendar-days text-amber-500 w-4"></i> Edit Tanggal & Jam
+                                    </button>
+                                    <button onclick="deleteHistoryItem(${item.id})" class="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 border-t border-slate-100">
+                                        <i class="fa-solid fa-trash w-4"></i> Hapus
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <!-- Bullish / Pendapatan Naik -->
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <div class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-1">
-                                    <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Pendapatan
-                                </div>
-                                <div class="text-sm font-extrabold text-emerald-600">${formatRupiah(item.income)}</div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase text-slate-400 block">Pendapatan</span>
+                                <span class="text-xs font-bold text-slate-800">${formatRupiah(item.income || 0)}</span>
                             </div>
-                            <!-- Belanja -->
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <div class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-1">
-                                    <i class="fa-solid fa-bag-shopping text-blue-600"></i> Total Belanja
-                                </div>
-                                <div class="text-sm font-extrabold text-slate-800">${formatRupiah(item.expense || 0)}</div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase text-slate-400 block">Belanja</span>
+                                <span class="text-xs font-bold text-slate-800">${formatRupiah(item.expense || 0)}</span>
                             </div>
-                            <!-- Bearish / Pengeluaran Turun -->
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <div class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-1">
-                                    <i class="fa-solid fa-arrow-trend-down text-rose-600"></i> Pengeluaran
-                                </div>
-                                <div class="text-sm font-extrabold text-rose-600">${formatRupiah(item.cashout || 0)}</div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase text-slate-400 block">Pengeluaran</span>
+                                <span class="text-xs font-bold text-slate-800">${formatRupiah(item.cashout || 0)}</span>
                             </div>
-                            <!-- Profit Keuntungan -->
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <div class="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold mb-1">
-                                    <i class="fa-solid fa-wallet text-amber-600"></i> Profit/Keuntungan (${item.profitPercentage !== undefined ? item.profitPercentage : 10}%)
-                                </div>
-                                <div class="text-sm font-extrabold text-amber-600">${formatRupiah(item.profit || 0)}</div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase text-emerald-600 block">Profit (${profitPct}%)</span>
+                                <span class="text-xs font-extrabold text-emerald-600">${formatRupiah(profit)}</span>
                             </div>
                         </div>
                     </div>
@@ -1930,256 +1881,175 @@
             }).join('');
         }
 
-        function populateReportFilters() {
-            const dateSelect = document.getElementById('filter-report-date');
-            const monthSelect = document.getElementById('filter-report-month');
-            const yearSelect = document.getElementById('filter-report-year');
-            
-            if(!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            let datesHtml = '<option value="">Semua Tgl (1-31)</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
+        function deleteHistoryItem(id) {
+            historyData = historyData.filter(d => d.id !== id);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
             }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
+            populateHistoryFilters();
+            renderHistory();
         }
 
-        // RENDER LAPORAN PER BULAN & TAHUN.
-        // Default: semua kombinasi Bulan + Tahun yang tersedia di History.
-        // Jika filter tanggal/bulan/tahun dipilih, data tetap diringkas sesuai filter aktif.
+        function populateReportFilters() {
+            const dateSel = document.getElementById('filter-report-date');
+            const monthSel = document.getElementById('filter-report-month');
+            const yearSel = document.getElementById('filter-report-year');
+            if (!dateSel || !monthSel || !yearSel) return;
+
+            const months = [...new Set(historyData.map(d => d.month))];
+            const years = [...new Set(historyData.map(d => d.year))].sort((a,b) => b-a);
+
+            const currDate = dateSel.value;
+            const currMonth = monthSel.value;
+            const currYear = yearSel.value;
+
+            let dateOpts = '<option value="">Semua Tgl (1-31)</option>';
+            for(let i=1; i<=31; i++) {
+                dateOpts += `<option value="${i}" ${currDate == i ? 'selected' : ''}>Tgl ${i}</option>`;
+            }
+
+            dateSel.innerHTML = dateOpts;
+            monthSel.innerHTML = '<option value="">Semua Bln</option>' + months.map(m => `<option value="${m}" ${currMonth == m ? 'selected' : ''}>${m}</option>`).join('');
+            yearSel.innerHTML = '<option value="">Semua Thn</option>' + years.map(y => `<option value="${y}" ${currYear == y ? 'selected' : ''}>${y}</option>`).join('');
+        }
+
         function renderReport() {
             const container = document.getElementById('report-grid');
             if (!container) return;
 
-            const fDateEl = document.getElementById('filter-report-date');
-            const fMonthEl = document.getElementById('filter-report-month');
-            const fYearEl = document.getElementById('filter-report-year');
-
-            const fDate = fDateEl ? fDateEl.value : "";
-            const fMonth = fMonthEl ? fMonthEl.value : "";
-            const fYear = fYearEl ? fYearEl.value : "";
+            const dateVal = document.getElementById('filter-report-date')?.value || '';
+            const monthVal = document.getElementById('filter-report-month')?.value || '';
+            const yearVal = document.getElementById('filter-report-year')?.value || '';
 
             let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
+                if (dateVal && item.date != dateVal) return false;
+                if (monthVal && item.month !== monthVal) return false;
+                if (yearVal && item.year != yearVal) return false;
+                return true;
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if (countLabel) countLabel.innerText = `${filtered.length} Data Rekap`;
+            const totalIncome = filtered.reduce((acc, curr) => acc + (curr.income || 0), 0);
+            const totalExpense = filtered.reduce((acc, curr) => acc + (curr.expense || 0), 0);
+            const totalCashout = filtered.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
+            const totalProfit = filtered.reduce((acc, curr) => {
+                const pct = curr.profitPercentage !== undefined ? curr.profitPercentage : 10;
+                const net = (curr.income || 0) - (curr.cashout || 0);
+                return acc + (net > 0 ? net * (pct / 100) : 0);
+            }, 0);
 
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-chart-pie text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data laporan yang dapat direkap.</p>
-                    </div>`;
-                return;
-            }
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            // Kelompokkan berdasarkan Bulan + Tahun.
-            const groups = {};
-            filtered.forEach(item => {
-                const monthIndex = Number.isInteger(item.monthIndex)
-                    ? item.monthIndex
-                    : months.indexOf(item.month);
-                const monthName = item.month || months[monthIndex] || '';
-                const year = item.year;
-                const key = `${year}-${String(monthIndex >= 0 ? monthIndex : 99).padStart(2, '0')}`;
-
-                if (!groups[key]) {
-                    groups[key] = {
-                        monthIndex,
-                        month: monthName,
-                        year,
-                        items: []
-                    };
-                }
-                groups[key].items.push(item);
-            });
-
-            const sortedGroups = Object.values(groups).sort((a, b) => {
-                const yearA = Number(a.year) || 0;
-                const yearB = Number(b.year) || 0;
-                if (yearA !== yearB) return yearB - yearA;
-                return (b.monthIndex ?? 99) - (a.monthIndex ?? 99);
-            });
-
-            container.innerHTML = sortedGroups.map(group => {
-                const items = group.items;
-                const totalIncome = items.reduce((s, i) => s + (Number(i.income) || 0), 0);
-                const totalExpense = items.reduce((s, i) => s + (Number(i.expense) || 0), 0);
-                const totalCashout = items.reduce((s, i) => s + (Number(i.cashout) || 0), 0);
-                const totalProfit = items.reduce((s, i) => s + (Number(i.profit) || 0), 0);
-
-                const safeMonth = String(group.month).replace(/'/g, "\\'");
-                const safeYear = String(group.year).replace(/'/g, "\\'");
-
-                return `
-                    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200/85 space-y-6">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
-                            <div>
-                                <h3 class="font-bold text-slate-800 text-base">Rekap ${group.month} ${group.year}</h3>
-                                <p class="text-xs text-slate-400 mt-0.5">Rekap berdasarkan data History pada ${group.month} ${group.year}${fDate ? `, tanggal ${fDate}` : ''}</p>
-                            </div>
-                            <button onclick="openPdfModal('${fDate}', '${safeMonth}', '${safeYear}')" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer">
-                                <i class="fa-solid fa-file-pdf"></i> View di PDF
-                            </button>
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 space-y-6">
+                    <div class="flex items-center justify-between border-b pb-4">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-800">Ringkasan Laporan Rekapitulasi</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Total akumulasi dari ${filtered.length} entri data history</p>
                         </div>
+                        <button onclick="openPdfModal()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-md transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-pdf"></i> Cetak / Export PDF
+                        </button>
+                    </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-arrow-trend-up text-emerald-600 text-base"></i> Total Pendapatan
-                                    </div>
-                                    <div class="text-lg font-extrabold text-emerald-600">${formatRupiah(totalIncome)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-wallet"></i>
-                                </span>
-                            </div>
-
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-bag-shopping text-blue-600 text-base"></i> Total Belanja
-                                    </div>
-                                    <div class="text-lg font-extrabold text-slate-800">${formatRupiah(totalExpense)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-cart-shopping"></i>
-                                </span>
-                            </div>
-
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-arrow-trend-down text-rose-600 text-base"></i> Total Pengeluaran
-                                    </div>
-                                    <div class="text-lg font-extrabold text-rose-600">${formatRupiah(totalCashout)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-receipt"></i>
-                                </span>
-                            </div>
-
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-sack-dollar text-amber-600 text-base"></i> Total Keuntungan Bersih
-                                    </div>
-                                    <div class="text-lg font-extrabold text-amber-600">${formatRupiah(totalProfit)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-chart-line"></i>
-                                </span>
-                            </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                            <span class="text-xs font-bold uppercase text-emerald-600 block mb-1">Total Pendapatan</span>
+                            <span class="text-lg font-extrabold text-emerald-800">${formatRupiah(totalIncome)}</span>
+                        </div>
+                        <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                            <span class="text-xs font-bold uppercase text-blue-600 block mb-1">Total Belanja</span>
+                            <span class="text-lg font-extrabold text-blue-800">${formatRupiah(totalExpense)}</span>
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                            <span class="text-xs font-bold uppercase text-amber-600 block mb-1">Total Pengeluaran</span>
+                            <span class="text-lg font-extrabold text-amber-800">${formatRupiah(totalCashout)}</span>
+                        </div>
+                        <div class="p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                            <span class="text-xs font-bold uppercase text-purple-600 block mb-1">Total Profit</span>
+                            <span class="text-lg font-extrabold text-purple-800">${formatRupiah(totalProfit)}</span>
                         </div>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `;
         }
 
-        // FUNGSI MODAL VIEW PDF DENGAN DATA HISTORY TANGGAL 1-31
-        function openPdfModal(fDate, fMonth, fYear) {
+        function openPdfModal() {
             const modal = document.getElementById('pdf-modal');
-            const contentBody = document.getElementById('pdf-content-body');
+            const body = document.getElementById('pdf-content-body');
+            if (!modal || !body) return;
+
+            const dateVal = document.getElementById('filter-report-date')?.value || '';
+            const monthVal = document.getElementById('filter-report-month')?.value || '';
+            const yearVal = document.getElementById('filter-report-year')?.value || '';
 
             let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
+                if (dateVal && item.date != dateVal) return false;
+                if (monthVal && item.month !== monthVal) return false;
+                if (yearVal && item.year != yearVal) return false;
+                return true;
             });
 
-            const totalIncome = filtered.reduce((s, i) => s + i.income, 0);
-            const totalExpense = filtered.reduce((s, i) => s + (i.expense || 0), 0);
-            const totalCashout = filtered.reduce((s, i) => s + (i.cashout || 0), 0);
-            const totalProfit = filtered.reduce((s, i) => s + (i.profit || 0), 0);
+            const totalIncome = filtered.reduce((acc, curr) => acc + (curr.income || 0), 0);
+            const totalExpense = filtered.reduce((acc, curr) => acc + (curr.expense || 0), 0);
+            const totalCashout = filtered.reduce((acc, curr) => acc + (curr.cashout || 0), 0);
+            const totalProfit = filtered.reduce((acc, curr) => {
+                const pct = curr.profitPercentage !== undefined ? curr.profitPercentage : 10;
+                const net = (curr.income || 0) - (curr.cashout || 0);
+                return acc + (net > 0 ? net * (pct / 100) : 0);
+            }, 0);
 
-            contentBody.innerHTML = `
-                <div class="bg-white p-6 rounded-2xl shadow border border-slate-200 space-y-6">
+            body.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6 text-slate-800">
                     <div class="text-center border-b pb-4">
-                        <h2 class="font-extrabold text-slate-800 text-lg">LAPORAN KEUANGAN REKAPINYU</h2>
-                        <p class="text-xs text-slate-500 mt-1">Data History Dari Tanggal 1 s/d 31</p>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Data Realtime: ${fMonth || 'Semua Bulan'}, ${fYear || 'Semua Tahun'}</p>
+                        <h2 class="text-xl font-bold uppercase tracking-wide text-slate-800">Laporan Keuangan Toko</h2>
+                        <p class="text-xs text-slate-500 mt-1">Dicetak pada: ${new Date().toLocaleString('id-ID')}</p>
                     </div>
 
-                    <!-- Ringkasan Total -->
-                    <div class="grid grid-cols-2 gap-3 text-xs">
-                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <span class="text-emerald-700 font-semibold block">Total Pendapatan:</span>
-                            <span class="font-bold text-emerald-800 text-sm">${formatRupiah(totalIncome)}</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div class="p-3 bg-slate-50 rounded-xl border">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Pendapatan</span>
+                            <span class="text-xs font-extrabold text-emerald-600">${formatRupiah(totalIncome)}</span>
                         </div>
-                        <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                            <span class="text-blue-700 font-semibold block">Total Belanja:</span>
-                            <span class="font-bold text-blue-800 text-sm">${formatRupiah(totalExpense)}</span>
+                        <div class="p-3 bg-slate-50 rounded-xl border">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Belanja</span>
+                            <span class="text-xs font-extrabold text-blue-600">${formatRupiah(totalExpense)}</span>
                         </div>
-                        <div class="p-3 bg-rose-50 rounded-xl border border-rose-100">
-                            <span class="text-rose-700 font-semibold block">Total Pengeluaran:</span>
-                            <span class="font-bold text-rose-800 text-sm">${formatRupiah(totalCashout)}</span>
+                        <div class="p-3 bg-slate-50 rounded-xl border">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Pengeluaran</span>
+                            <span class="text-xs font-extrabold text-amber-600">${formatRupiah(totalCashout)}</span>
                         </div>
-                        <div class="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                            <span class="text-amber-700 font-semibold block">Total Profit:</span>
-                            <span class="font-bold text-amber-800 text-sm">${formatRupiah(totalProfit)}</span>
+                        <div class="p-3 bg-slate-50 rounded-xl border">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Profit</span>
+                            <span class="text-xs font-extrabold text-purple-600">${formatRupiah(totalProfit)}</span>
                         </div>
                     </div>
 
-                    <!-- Tabel Rincian Data History Tanggal 1-31 -->
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide mb-3">Rincian Data History Harian</h4>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 text-slate-600 border-b">
-                                        <th class="p-2.5 font-bold">Tanggal</th>
-                                        <th class="p-2.5 font-bold">Pendapatan</th>
-                                        <th class="p-2.5 font-bold">Belanja</th>
-                                        <th class="p-2.5 font-bold">Pengeluaran</th>
-                                        <th class="p-2.5 font-bold">Profit</th>
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                                <th class="p-2.5">Tanggal</th>
+                                <th class="p-2.5 text-right">Pendapatan</th>
+                                <th class="p-2.5 text-right">Belanja</th>
+                                <th class="p-2.5 text-right">Pengeluaran</th>
+                                <th class="p-2.5 text-right">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${filtered.map(item => {
+                                const pct = item.profitPercentage !== undefined ? item.profitPercentage : 10;
+                                const net = (item.income || 0) - (item.cashout || 0);
+                                const prof = net > 0 ? net * (pct / 100) : 0;
+                                return `
+                                    <tr>
+                                        <td class="p-2.5 font-medium">${item.day}, ${item.date} ${item.month} ${item.year}</td>
+                                        <td class="p-2.5 text-right font-semibold">${formatRupiah(item.income || 0)}</td>
+                                        <td class="p-2.5 text-right font-semibold">${formatRupiah(item.expense || 0)}</td>
+                                        <td class="p-2.5 text-right font-semibold">${formatRupiah(item.cashout || 0)}</td>
+                                        <td class="p-2.5 text-right font-bold text-emerald-600">${formatRupiah(prof)}</td>
                                     </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    ${filtered.map(item => `
-                                        <tr>
-                                            <td class="p-2.5 font-medium text-slate-700">${item.date} ${item.month} ${item.year}</td>
-                                            <td class="p-2.5 text-emerald-600 font-semibold">${formatRupiah(item.income)}</td>
-                                            <td class="p-2.5 text-slate-800 font-semibold">${formatRupiah(item.expense || 0)}</td>
-                                            <td class="p-2.5 text-rose-600 font-semibold">${formatRupiah(item.cashout || 0)}</td>
-                                            <td class="p-2.5 text-amber-600 font-semibold">${formatRupiah(item.profit || 0)}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
 
@@ -2189,341 +2059,18 @@
         function closePdfModal() {
             document.getElementById('pdf-modal').classList.add('hidden');
         }
+
+        function toggleMobileKasbonSettings(event) {
+            event.stopPropagation();
+            const popup = document.getElementById('mobile-kasbon-settings-popup');
+            if (popup) popup.classList.toggle('hidden');
+        }
+
+        function handleMobileKasbonSetting(action) {
+            const popup = document.getElementById('mobile-kasbon-settings-popup');
+            if (popup) popup.classList.add('hidden');
+            handleKasbonSubMenuAction(action);
+        }
     </script>
-
-    <!-- MOBILE ONLY: SIMPLIFIED BOTTOM DOCK -->
-    <nav id="mobile-simplified-dock" class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-6px_20px_rgba(15,23,42,.08)] z-40">
-        <div class="max-w-md mx-auto grid grid-cols-3 px-3 py-2">
-            <button type="button" onclick="switchTab('home')" id="nav-mobile-home" class="flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition"><i class="fa-solid fa-house text-lg mb-0.5"></i><span class="text-[11px] font-semibold">Beranda</span></button>
-            <button type="button" onclick="switchTab('input')" id="nav-mobile-input" class="flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-file-pen text-lg mb-0.5"></i><span class="text-[11px] font-medium">Input</span></button>
-            <button type="button" onclick="switchTab('history')" id="nav-mobile-history" class="flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i><span class="text-[11px] font-medium">History</span></button>
-        </div>
-    </nav>
-
-    <!-- MOBILE-ONLY OVERRIDE: original desktop UI is not changed -->
-    <style>
-    @media (max-width:767px){
-      body{overflow:hidden} main{padding-bottom:92px!important}
-      body > nav.md\:hidden.fixed.bottom-0:not(#mobile-simplified-dock){display:none!important}
-      .mobile-home-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%}
-      .mobile-home-card{min-height:128px;position:relative;overflow:visible;border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.06);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px 8px;color:#334155;transition:transform .18s ease}
-      .mobile-home-card:active{transform:scale(.98)}
-      .mobile-home-card-main{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;display:flex;align-items:center;justify-content:center;padding:14px 8px;color:inherit}
-      .mobile-home-card-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;pointer-events:none}
-      .mobile-home-card-content>span{display:block;max-width:100%;font-size:12px;line-height:1.25;font-weight:700}
-      .mobile-home-icon{width:42px;height:42px;border-radius:13px;background:#ecfdf5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:18px}
-      .mobile-home-watermark{position:absolute;right:-8px;bottom:-12px;font-size:74px;line-height:1;color:#0f172a;opacity:.10;pointer-events:none;z-index:1}
-      .mobile-home-settings{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#64748b;background:rgba(248,250,252,.95);border:1px solid #e2e8f0;z-index:5;font-size:13px}
-      .mobile-kasbon-settings-popup{position:absolute;top:45px;right:8px;width:172px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.16);z-index:20}
-      .mobile-kasbon-settings-popup button{width:100%;display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:10px;color:#475569;font-size:11px;font-weight:700;text-align:left}
-      .mobile-kasbon-settings-popup button:active{background:#f1f5f9}.mobile-kasbon-settings-popup button i{width:16px;text-align:center}
-    }
-    @media (max-width:370px){.mobile-home-grid{gap:8px}.mobile-home-card{min-height:116px;border-radius:17px;padding-left:5px;padding-right:5px}.mobile-home-card-content>span{font-size:10.5px}.mobile-home-icon{width:37px;height:37px;font-size:16px}.mobile-home-watermark{font-size:62px}}
-    </style>
-    <script>
-    (function(){
-      const originalSwitchTab=window.switchTab;
-      function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home')}
-      window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
-      window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
-      window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
-      document.addEventListener('click',e=>{const p=document.getElementById('mobile-kasbon-settings-popup'),c=document.querySelector('.mobile-home-kasbon-card');if(p&&c&&!c.contains(e.target))p.classList.add('hidden')});
-      function init(){if(window.matchMedia('(max-width:767px)').matches)home()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-    })();
-    </script>
-
 </body>
 </html>
-
-<!-- BACKUP OTOMATIS: TOGGLE IMPORT / EXPORT (ADDED WITHOUT CHANGING ORIGINAL LOGIC) -->
-<style>
-@media (max-width:767px){
-  #backup-io-panel{margin-bottom:16px}
-  #backup-io-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  #backup-io-toggle button{min-height:46px;border:1px solid #e2e8f0;border-radius:14px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;transition:.18s}
-  #backup-io-toggle button.active{background:#0d235a;color:#fff;border-color:#0d235a;box-shadow:0 6px 16px rgba(13,35,90,.18)}
-  #backup-io-content{margin-top:10px}
-}
-@media (min-width:768px){
-  #backup-io-panel{margin-bottom:18px}
-  #backup-io-toggle{display:flex;gap:8px}
-  #backup-io-toggle button{min-height:42px;border:1px solid #e2e8f0;border-radius:12px;padding:0 16px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;transition:.18s}
-  #backup-io-toggle button.active{background:#0d235a;color:#fff;border-color:#0d235a;box-shadow:0 5px 14px rgba(13,35,90,.15)}
-  #backup-io-content{margin-top:10px}
-}
-#backup-import-box,#backup-export-box{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;box-shadow:0 5px 16px rgba(15,23,42,.05)}
-#backup-import-file{display:none}
-.backup-io-action{width:100%;min-height:44px;border:0;border-radius:12px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
-#backup-import-trigger{background:#059669;color:#fff}
-#backup-export-trigger{background:#dc2626;color:#fff}
-.backup-io-note{font-size:11px;color:#64748b;line-height:1.5;margin-bottom:12px}
-</style>
-<script>
-(function(){
-  'use strict';
-
-  let lastPdfViewState = null;
-  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-
-  function escHtml(v){
-    return String(v == null ? '' : v).replace(/[&<>'"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]); });
-  }
-
-  function normalizeKey(v){
-    return String(v == null ? '' : v).toLowerCase().trim().replace(/[\s_\-\/\\().%]/g,'');
-  }
-
-  function numberFromExcel(v){
-    if (typeof v === 'number') return isFinite(v) ? v : 0;
-    if (v == null || v === '') return 0;
-    let str = String(v).trim();
-    str = str.replace(/rp/ig,'').replace(/\s/g,'');
-    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) str = str.replace(/\./g,'').replace(',','.');
-    else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(str)) str = str.replace(/,/g,'');
-    else str = str.replace(/[^0-9,.-]/g,'').replace(/,/g,'.');
-    const n = parseFloat(str);
-    return isFinite(n) ? n : 0;
-  }
-
-  function findValue(row, aliases){
-    const keys = Object.keys(row);
-    for(const alias of aliases){
-      const a = normalizeKey(alias);
-      const key = keys.find(k => normalizeKey(k) === a);
-      if(key !== undefined) return row[key];
-    }
-    for(const alias of aliases){
-      const a = normalizeKey(alias);
-      const key = keys.find(k => normalizeKey(k).includes(a) || a.includes(normalizeKey(k)));
-      if(key !== undefined) return row[key];
-    }
-    return '';
-  }
-
-  function monthIndexFromValue(v){
-    if(v == null || v === '') return null;
-    if(typeof v === 'number' && v >= 0 && v <= 11) return Math.floor(v);
-    const s=String(v).trim().toLowerCase();
-    const idx=monthNames.findIndex(m=>m.toLowerCase()===s || m.toLowerCase().startsWith(s));
-    if(idx>=0) return idx;
-    const n=parseInt(s,10);
-    if(isFinite(n) && n>=1 && n<=12) return n-1;
-    return null;
-  }
-
-  function parseDateParts(row){
-    let dateVal=findValue(row,['Tanggal','Date','Hari']);
-    let monthVal=findValue(row,['Bulan','Month']);
-    let yearVal=findValue(row,['Tahun','Year']);
-    let dateNum=numberFromExcel(dateVal);
-    let monthIndex=monthIndexFromValue(monthVal);
-    let year=numberFromExcel(yearVal);
-
-    if(typeof dateVal === 'number' && dateVal > 30000){
-      const d = new Date(Date.UTC(1899,11,30) + dateVal*86400000);
-      dateNum=d.getUTCDate(); monthIndex=d.getUTCMonth(); year=d.getUTCFullYear();
-    } else if(typeof dateVal === 'string'){
-      const m=dateVal.match(/(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/i);
-      if(m){ dateNum=parseInt(m[1],10); monthIndex=monthIndexFromValue(m[2]); year=parseInt(m[3],10); }
-      else {
-        const m2=dateVal.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-        if(m2){ dateNum=parseInt(m2[1],10); monthIndex=parseInt(m2[2],10)-1; year=parseInt(m2[3],10); }
-      }
-    }
-    if(monthIndex == null) monthIndex = 0;
-    if(!year) year = new Date().getFullYear();
-    if(!dateNum) dateNum = 1;
-    return {date:dateNum,monthIndex,month:monthNames[monthIndex]||monthNames[0],year};
-  }
-
-  function convertImportedRows(rows){
-    const now=new Date();
-    return rows.map((row,index)=>{
-      const p=parseDateParts(row);
-      const time=findValue(row,['Waktu','Time','Pukul']) || '00:00';
-      const income=numberFromExcel(findValue(row,['Pendapatan','Income','Total Pendapatan']));
-      const expense=numberFromExcel(findValue(row,['Belanja','Expense','Total Belanja']));
-      const cashout=numberFromExcel(findValue(row,['Pengeluaran','Cashout','Cash Out','Total Pengeluaran']));
-      const profitPercentage=numberFromExcel(findValue(row,['Profit Persen','Profit Percentage','Profit%','Persentase Profit']));
-      const profitVal=numberFromExcel(findValue(row,['Profit','Laba']));
-      return {
-        id: Date.now()+index,
-        day: findValue(row,['Hari','Day']) || new Date(p.year,p.monthIndex,p.date).toLocaleDateString('id-ID',{weekday:'long'}),
-        date:p.date, monthIndex:p.monthIndex, month:p.month, year:p.year,
-        time:String(time), income, expense, cashout,
-        profitPercentage: profitPercentage || 0,
-        profit: profitVal || Math.max((income-cashout)*(profitPercentage/100),0)
-      };
-    }).filter(x => x.income || x.expense || x.cashout || x.profit || x.date);
-  }
-
-  function saveImportedHistory(imported){
-    historyData = imported;
-    if(currentSessionUser && currentSessionUser.phone){
-      localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-      if(typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
-    }
-    if(typeof renderHistory === 'function') renderHistory();
-    if(typeof renderReport === 'function') renderReport();
-  }
-
-  function buildBackupIOPanel(){
-    const backupView=document.getElementById('view-backup');
-    if(!backupView || document.getElementById('backup-io-panel')) return;
-    const panel=document.createElement('div');
-    panel.id='backup-io-panel';
-    panel.innerHTML=`
-      <div id="backup-io-toggle">
-        <button type="button" id="backup-io-import-tab" class="active" onclick="backupIOToggle('import')"><i class="fa-solid fa-file-import"></i> Import Excel</button>
-        <button type="button" id="backup-io-export-tab" onclick="backupIOToggle('export')"><i class="fa-solid fa-file-export"></i> Export Data</button>
-      </div>
-      <div id="backup-io-content">
-        <div id="backup-import-box">
-          <div class="font-extrabold text-slate-800 text-sm mb-1">Import Data dari Microsoft Excel</div>
-          <div class="backup-io-note">Pilih file Excel <b>.xlsx</b> atau <b>.xls</b>. Data akan dibaca sebagai History dan disimpan ke akun yang sedang aktif.</div>
-          <input id="backup-import-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-          <button type="button" id="backup-import-trigger" class="backup-io-action"><i class="fa-solid fa-file-excel"></i> Pilih File Excel</button>
-        </div>
-        <div id="backup-export-box" class="hidden">
-          <div class="font-extrabold text-slate-800 text-sm mb-1">Export Data dari View di PDF</div>
-          <div id="backup-export-info" class="backup-io-note">Export memakai data yang sama dengan <b>View di PDF</b> pada menu Laporan Bulanan. Jika belum membuka PDF, data akan mengikuti filter laporan yang sedang aktif.</div>
-          <button type="button" id="backup-export-trigger" class="backup-io-action"><i class="fa-solid fa-file-excel"></i> Export ke Excel</button>
-        </div>
-      </div>`;
-    const heading=backupView.querySelector('.flex.items-center.justify-between.mb-2');
-    if(heading) heading.insertAdjacentElement('afterend',panel); else backupView.insertBefore(panel,backupView.firstChild);
-
-    const input=document.getElementById('backup-import-file');
-    document.getElementById('backup-import-trigger').onclick=()=>input.click();
-    input.addEventListener('change',handleExcelImport);
-    document.getElementById('backup-export-trigger').onclick=exportPdfViewDataToExcel;
-  }
-
-  window.backupIOToggle=function(mode){
-    const ib=document.getElementById('backup-io-import-box'), eb=document.getElementById('backup-export-box');
-    const it=document.getElementById('backup-io-import-tab'), et=document.getElementById('backup-io-export-tab');
-    if(!ib||!eb) return;
-    const imp=mode==='import';
-    ib.classList.toggle('hidden',!imp); eb.classList.toggle('hidden',imp);
-    it.classList.toggle('active',imp); et.classList.toggle('active',!imp);
-  };
-
-  async function handleExcelImport(e){
-    const file=e.target.files && e.target.files[0];
-    if(!file) return;
-    if(typeof XLSX==='undefined'){
-      showModal('Import Gagal','Library Microsoft Excel (SheetJS) tidak tersedia. Silakan cek koneksi internet lalu coba lagi.','fa-solid fa-circle-xmark text-rose-600');
-      e.target.value=''; return;
-    }
-    try{
-      const buffer=await file.arrayBuffer();
-      const wb=XLSX.read(buffer,{type:'array',cellDates:true});
-      const sheetName=wb.SheetNames[0];
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:''});
-      if(!rows.length) throw new Error('File Excel tidak memiliki data.');
-      const imported=convertImportedRows(rows);
-      if(!imported.length) throw new Error('Kolom data keuangan tidak ditemukan atau seluruh baris kosong.');
-      saveImportedHistory(imported);
-      showModal('Import Berhasil',`${imported.length} data dari Excel berhasil dimasukkan ke History akun aktif.`);
-      e.target.value='';
-      if(typeof switchTab==='function') switchTab('history');
-    }catch(err){
-      console.error('Import Excel:',err);
-      showModal('Import Gagal',err.message || 'File Excel tidak dapat dibaca.','fa-solid fa-circle-xmark text-rose-600');
-      e.target.value='';
-    }
-  }
-
-  function getPdfStateFromActiveReport(){
-    const fDateEl=document.getElementById('filter-report-date');
-    const fMonthEl=document.getElementById('filter-report-month');
-    const fYearEl=document.getElementById('filter-report-year');
-    const fDate=fDateEl ? fDateEl.value : '';
-    const fMonth=fMonthEl ? fMonthEl.value : '';
-    const fYear=fYearEl ? fYearEl.value : '';
-    return {fDate,fMonth,fYear};
-  }
-
-  function buildPdfState(fDate,fMonth,fYear){
-    const filtered=(historyData||[]).filter(item=>{
-      const matchDate=fDate==='' || String(item.date)===String(fDate);
-      const matchMonth=fMonth==='' || String(item.month)===String(fMonth);
-      const matchYear=fYear==='' || String(item.year)===String(fYear);
-      return matchDate && matchMonth && matchYear;
-    });
-    return {fDate:fDate||'',fMonth:fMonth||'',fYear:fYear||'',filtered,
-      totalIncome:filtered.reduce((s,i)=>s+(Number(i.income)||0),0),
-      totalExpense:filtered.reduce((s,i)=>s+(Number(i.expense)||0),0),
-      totalCashout:filtered.reduce((s,i)=>s+(Number(i.cashout)||0),0),
-      totalProfit:filtered.reduce((s,i)=>s+(Number(i.profit)||0),0)};
-  }
-
-  function exportPdfViewDataToExcel(){
-    if(typeof XLSX==='undefined'){
-      showModal('Export Gagal','Library Excel (SheetJS) tidak tersedia. Silakan cek koneksi internet lalu coba lagi.','fa-solid fa-circle-xmark text-rose-600');
-      return;
-    }
-    const state=lastPdfViewState || buildPdfState(getPdfStateFromActiveReport().fDate,getPdfStateFromActiveReport().fMonth,getPdfStateFromActiveReport().fYear);
-    if(!state.filtered.length){
-      showModal('Export Gagal','Tidak ada data pada View di PDF untuk filter yang dipilih.','fa-solid fa-circle-exclamation text-rose-600');
-      return;
-    }
-    const rows=state.filtered.map(item=>({
-      'Tanggal':`${item.date} ${item.month} ${item.year}`,
-      'Hari':item.day || '',
-      'Waktu':item.time || '',
-      'Pendapatan':Number(item.income)||0,
-      'Belanja':Number(item.expense)||0,
-      'Pengeluaran':Number(item.cashout)||0,
-      'Profit Persen':Number(item.profitPercentage)||0,
-      'Profit':Number(item.profit)||0
-    }));
-    const summary=[
-      ['LAPORAN KEUANGAN REKAPINYU',''],
-      ['Sumber','View di PDF - Laporan Bulanan'],
-      ['Filter Tanggal',state.fDate||'Semua'],
-      ['Filter Bulan',state.fMonth||'Semua'],
-      ['Filter Tahun',state.fYear||'Semua'],
-      [],
-      ['Total Pendapatan',state.totalIncome],
-      ['Total Belanja',state.totalExpense],
-      ['Total Pengeluaran',state.totalCashout],
-      ['Total Profit',state.totalProfit]
-    ];
-    const wb=XLSX.utils.book_new();
-    const wsSummary=XLSX.utils.aoa_to_sheet(summary);
-    const wsData=XLSX.utils.json_to_sheet(rows);
-    wsSummary['!cols']=[{wch:24},{wch:28}];
-    wsData['!cols']=[{wch:22},{wch:12},{wch:10},{wch:18},{wch:18},{wch:18},{wch:15},{wch:18}];
-    XLSX.utils.book_append_sheet(wb,wsSummary,'Ringkasan PDF');
-    XLSX.utils.book_append_sheet(wb,wsData,'Data View PDF');
-    const safeMonth=(state.fMonth||'Semua').replace(/[^A-Za-z0-9_-]/g,'_');
-    const safeYear=state.fYear||new Date().getFullYear();
-    XLSX.writeFile(wb,`Rekapin_View_PDF_${safeMonth}_${safeYear}.xlsx`);
-    showModal('Export Berhasil',`${rows.length} data dari View di PDF berhasil diekspor ke Excel.`);
-  }
-
-  function wrapPdfFunction(){
-    if(typeof window.openPdfModal!=='function' || window.openPdfModal.__rekapinWrapped) return false;
-    const original=window.openPdfModal;
-    function wrapped(fDate,fMonth,fYear){
-      lastPdfViewState=buildPdfState(fDate||'',fMonth||'',fYear||'');
-      const info=document.getElementById('backup-export-info');
-      if(info) info.innerHTML=`Export mengambil <b>${lastPdfViewState.filtered.length} data</b> yang sama dengan View di PDF (${escHtml(fMonth||'Semua Bulan')}, ${escHtml(fYear||'Semua Tahun')}).`;
-      return original.apply(this,arguments);
-    }
-    wrapped.__rekapinWrapped=true;
-    window.openPdfModal=wrapped;
-    return true;
-  }
-
-  function init(){
-    buildBackupIOPanel();
-    wrapPdfFunction();
-  }
-
-  const timer=setInterval(()=>{ if(document.getElementById('view-backup') && typeof window.openPdfModal==='function'){ init(); clearInterval(timer); } },250);
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
-})();
-</script>
