@@ -2259,6 +2259,64 @@
 #backup-export-trigger{background:#dc2626;color:#fff}
 .backup-io-note{font-size:11px;color:#64748b;line-height:1.5;margin-bottom:12px}
 </style>
+/* POSISI BARU: toggle Import/Export dipindahkan ke menu History, bulat vertikal dan sticky saat scroll */
+#view-history .backup-io-floating{
+  position:fixed;
+  right:18px;
+  bottom:82px;
+  z-index:45;
+  margin:0 !important;
+  padding:0 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  width:auto !important;
+}
+#view-history .backup-io-floating #backup-io-toggle{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:10px !important;
+}
+#view-history .backup-io-floating #backup-io-toggle button{
+  width:54px !important;
+  height:54px !important;
+  min-height:54px !important;
+  padding:0 !important;
+  border-radius:9999px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  font-size:0 !important;
+  box-shadow:0 8px 20px rgba(15,23,42,.18) !important;
+}
+#view-history .backup-io-floating #backup-io-toggle button i{
+  font-size:17px !important;
+}
+#view-history .backup-io-floating #backup-io-toggle button.active{
+  background:#0d235a !important;
+  color:#fff !important;
+  border-color:#0d235a !important;
+}
+#view-history .backup-io-floating #backup-io-toggle button:not(.active){
+  background:#fff !important;
+  color:#0d235a !important;
+  border-color:#e2e8f0 !important;
+}
+#view-history .backup-io-floating #backup-io-content{
+  display:none !important;
+}
+@media (max-width:767px){
+  #view-history .backup-io-floating{
+    right:14px;
+    bottom:76px;
+  }
+  #view-history .backup-io-floating #backup-io-toggle button{
+    width:50px !important;
+    height:50px !important;
+    min-height:50px !important;
+  }
+}
+
 <script>
 (function(){
   'use strict';
@@ -2391,8 +2449,14 @@
           <button type="button" id="backup-export-trigger" class="backup-io-action"><i class="fa-solid fa-file-excel"></i> Export ke Excel</button>
         </div>
       </div>`;
-    const heading=backupView.querySelector('.flex.items-center.justify-between.mb-2');
-    if(heading) heading.insertAdjacentElement('afterend',panel); else backupView.insertBefore(panel,backupView.firstChild);
+    const historyView=document.getElementById('view-history');
+    if(historyView){
+      historyView.appendChild(panel);
+      panel.classList.add('backup-io-floating');
+    } else {
+      const heading=backupView.querySelector('.flex.items-center.justify-between.mb-2');
+      if(heading) heading.insertAdjacentElement('afterend',panel); else backupView.insertBefore(panel,backupView.firstChild);
+    }
 
     const input=document.getElementById('backup-import-file');
     document.getElementById('backup-import-trigger').onclick=()=>input.click();
