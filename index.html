@@ -1033,8 +1033,29 @@
                 if (!file || !file.type.startsWith('image/')) return;
                 const reader = new FileReader();
                 reader.onload = function (event) {
-                    coverX = 50; coverY = 50;
-                    renderShopCover({src: event.target.result, x: coverX, y: coverY}, true);
+                    // Kompres ukuran foto sebelum masuk localStorage agar foto landscape/beresolusi besar
+                    // tidak gagal disimpan karena batas kapasitas localStorage.
+                    const tempImage = new Image();
+                    tempImage.onload = function () {
+                        const maxWidth = 1600;
+                        const maxHeight = 1200;
+                        const scale = Math.min(1, maxWidth / tempImage.naturalWidth, maxHeight / tempImage.naturalHeight);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(tempImage.naturalWidth * scale));
+                        canvas.height = Math.max(1, Math.round(tempImage.naturalHeight * scale));
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return;
+                        ctx.drawImage(tempImage, 0, 0, canvas.width, canvas.height);
+                        const compressedSrc = canvas.toDataURL('image/jpeg', 0.82);
+                        coverX = 50; coverY = 50;
+                        renderShopCover({src: compressedSrc, x: coverX, y: coverY}, true);
+                    };
+                    tempImage.onerror = function () {
+                        // Fallback untuk format gambar yang tidak dapat dikonversi browser.
+                        coverX = 50; coverY = 50;
+                        renderShopCover({src: event.target.result, x: coverX, y: coverY}, true);
+                    };
+                    tempImage.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
                 this.value = '';
