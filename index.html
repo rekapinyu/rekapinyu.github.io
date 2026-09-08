@@ -2326,16 +2326,47 @@
     return {date:dateNum,monthIndex,month:monthNames[monthIndex]||monthNames[0],year};
   }
   function convertImportedRows(rows){
+    /*
+      PEMETAAN EXCEL -> INPUT DATA HARIAN REKAPIN
+      Pendapatan      -> PENDAPATAN HARI INI (#income)
+      Laba 10%        -> SET PROFIT PERSEN (#profit-percentage)
+      Total Belanja   -> TOTAL BELANJA HARI INI (#expense)
+      Pengeluaran     -> sengaja dikosongkan / 0 karena tidak ada di Excel
+    */
     return rows.map((row,index)=>{
       const p=parseDateParts(row);
       const time=findValue(row,['Waktu','Time','Pukul'])||'00:00';
-      const income=numberFromExcel(findValue(row,['Pendapatan','Income','Total Pendapatan']));
-      const expense=numberFromExcel(findValue(row,['Belanja','Expense','Total Belanja']));
-      const cashout=numberFromExcel(findValue(row,['Pengeluaran','Cashout','Cash Out','Total Pengeluaran']));
-      const pct=numberFromExcel(findValue(row,['Profit Persen','Profit Percentage','Profit%','Persentase Profit']));
-      const profit=numberFromExcel(findValue(row,['Profit','Laba']));
-      return {id:Date.now()+index,day:new Date(p.year,p.monthIndex,p.date).toLocaleDateString('id-ID',{weekday:'long'}),date:p.date,monthIndex:p.monthIndex,month:p.month,year:p.year,time:String(time),income,expense,cashout,profitPercentage:pct,profit:profit||Math.max((income-cashout)*(pct/100),0)};
-    }).filter(x=>x.income||x.expense||x.cashout||x.profit);
+
+      // Kolom Excel "Pendapatan" masuk ke Pendapatan Hari Ini.
+      const income=numberFromExcel(findValue(row,['Pendapatan']));
+
+      // Kolom Excel "Total Belanja" masuk ke Total Belanja Hari Ini.
+      const expense=numberFromExcel(findValue(row,['Total Belanja']));
+
+      // Excel tidak memiliki kolom Pengeluaran Hari Ini, jadi selalu kosong (0).
+      const cashout=0;
+
+      // Kolom Excel "Laba 10%" adalah nilai SET PROFIT PERSEN, bukan nominal profit.
+      const pct=numberFromExcel(findValue(row,['Laba 10%','Laba 10','Set Profit Persen','Profit Persen']));
+
+      // Samakan perhitungan dengan Form Input Data Harian: (Pendapatan - Pengeluaran) x %.
+      const profit=Math.max((income-cashout)*(pct/100),0);
+
+      return {
+        id:Date.now()+index,
+        day:new Date(p.year,p.monthIndex,p.date).toLocaleDateString('id-ID',{weekday:'long'}),
+        date:p.date,
+        monthIndex:p.monthIndex,
+        month:p.month,
+        year:p.year,
+        time:String(time),
+        income,
+        expense,
+        cashout,
+        profitPercentage:pct,
+        profit
+      };
+    }).filter(x=>x.income||x.expense||x.profitPercentage||x.profit);
   }
   function showResult(title,message,icon){if(typeof showModal==='function')showModal(title,message,icon);else alert(title+'\n\n'+message)}
 
@@ -2346,11 +2377,12 @@
       const rows=XLSX.utils.sheet_to_json(sheet,{defval:'',header:1,range:0});
       if(!rows.length)return;
       const header=(rows[0]||[]).map(normalizeKey);
-      const wanted=['tanggal','pendapatan','belanja','pengeluaran','profit'];
+      // Utamakan struktur Excel yang memang dipakai untuk Import Rekapin.
+      const wanted=['tanggal','pendapatan','laba10','totallbelanja','totalbelanja'];
       const score=wanted.reduce((n,k)=>n+(header.some(h=>h===k||h.includes(k))?1:0),0);
       if(score>bestScore){bestScore=score;best={sheet,rows};}
     });
-    if(!best||bestScore<2)throw new Error('Kolom data keuangan tidak ditemukan. Pastikan Excel memiliki kolom Tanggal, Pendapatan, Belanja, Pengeluaran, atau Profit.');
+    if(!best||bestScore<2)throw new Error('Kolom Excel tidak cocok. Gunakan kolom Pendapatan, Laba 10%, dan Total Belanja.');
     return best.sheet;
   }
 
