@@ -5,13 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Aplikasi Keuangan - Toko</title>
     <!-- Tailwind CSS -->
-    <!-- Tailwind CSS -->
-     <!-- Tailwind CSS -->
-     <!-- Tailwind CSS -->
-     <!-- Tailwind CSS -->
-     <!-- Tailwind CSS -->
-     <!-- Tailwind CSS -->
-     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -3294,25 +3287,56 @@ window.__rekapinyuSaveProfilePhoto=async function(){
 
 window.__rekapinyuSaveCoverPhoto=async function(){
   const btn=document.getElementById("shop-cover-save");
+  const img=document.getElementById("shop-cover-image");
   if(!btn||btn.classList.contains("hidden")||btn.dataset.saving==="1")return false;
-  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Simpan";}
+  if(!img||img.classList.contains("hidden")||!img.src)return false;
+  btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";
   try{
-    const fn=window.saveShopCoverPhoto;
-    if(typeof fn!=="function")throw new Error("Fungsi simpan foto sampul belum siap.");
+    const src=img.getAttribute("src")||img.src;
+    const pos=img.style.objectPosition||"50% 50%";
+    const nums=pos.match(/([0-9.]+)%\s+([0-9.]+)%/);
+    const x=nums?Math.max(0,Math.min(100,Number(nums[1]))):50;
+    const y=nums?Math.max(0,Math.min(100,Number(nums[2]))):50;
+    const data={src:src,x:x,y:y};
+    const phone=(typeof currentSessionUser!=="undefined"&&currentSessionUser)?phoneOf(currentSessionUser.phone):"";
+    const key=phone?`finance_shop_cover_${phone}`:"finance_shop_cover_guest";
+    try{localStorage.setItem(key,JSON.stringify(data));}catch(localErr){
+      console.warn("Cache foto sampul lokal gagal:",localErr);
+    }
+    window.__shopCoverEditingUnsaved=false;
+    img.style.objectPosition=`${x}% ${y}%`;
+    btn.classList.add("hidden");
+    const hint=document.getElementById("shop-cover-edit-hint");
+    if(hint)hint.classList.add("hidden");
+    const frame=document.getElementById("shop-cover-frame");
+    if(frame)frame.classList.remove("cursor-move");
 
-    // Jangan menunggu upload Firebase. Fungsi ini menyimpan preview + posisi secara lokal terlebih dahulu.
-    const ok=await fn({localOnly:true});
-    if(ok===false)throw new Error("Foto sampul belum dipilih.");
-
+    // Popup sukses ditampilkan segera; proses Firebase tidak menahan tombol.
     showModal("Berhasil","Foto sampul berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
     setTimeout(()=>{try{closeModal();}catch{}},1600);
+
+    // Sinkronisasi Firebase dilakukan di belakang layar.
+    const pending=window.__shopCoverPendingFile||null;
+    window.__shopCoverPendingFile=null;
+    if(pending&&typeof auth!=="undefined"&&auth.currentUser){
+      Promise.resolve().then(async()=>{
+        try{
+          const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
+          await uploadBytes(r,pending,{contentType:pending.type,cacheControl:"public,max-age=31536000"});
+          const url=await getDownloadURL(r);
+          const cloudData={src:url,x:x,y:y};
+          if(phone)try{localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));}catch{}
+          try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
+        }catch(err){console.warn("Storage sampul:",err)}
+      });
+    }
     return true;
   }catch(err){
     console.error("Simpan foto sampul:",err);
-    showModal("Gagal",err?.message||"Foto sampul tidak dapat disimpan.","fa-solid fa-circle-xmark text-rose-600");
+    showModal("Gagal","Foto sampul tidak dapat disimpan.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }finally{
-    if(btn){btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";}
+    btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";
   }
 };
 
