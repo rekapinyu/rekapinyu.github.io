@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Aplikasi Keuangan - Toko</title>
     <!-- Tailwind CSS -->
+    <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -3322,7 +3329,17 @@ window.__rekapinyuSaveCoverPhoto=async function(){
       Promise.resolve().then(async()=>{
         try{
           const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
-          await uploadBytes(r,pending,{contentType:pending.type,cacheControl:"public,max-age=31536000"});
+          // Upload salinan yang SAMA dengan preview yang sudah diproses browser,
+          // bukan File asli. Ini mencegah file sampul menjadi rusak setelah sinkronisasi Firebase.
+          let uploadData=pending;
+          if(/^data:image\/jpeg;base64,/i.test(src)){
+            const base64=src.split(',')[1]||'';
+            const binary=atob(base64);
+            const bytes=new Uint8Array(binary.length);
+            for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+            uploadData=new Blob([bytes],{type:'image/jpeg'});
+          }
+          await uploadBytes(r,uploadData,{contentType:'image/jpeg',cacheControl:"public,max-age=31536000"});
           const url=await getDownloadURL(r);
           const cloudData={src:url,x:x,y:y};
           if(phone)try{localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));}catch{}
