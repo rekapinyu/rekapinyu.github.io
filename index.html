@@ -819,26 +819,87 @@
 
             const dayName = days[now.getDay()];
             const dateNum = now.getDate();
-            const monthName = months[now.getMonth()];
+            const monthIndex = now.getMonth();
+            const monthName = months[monthIndex];
             const yearNum = now.getFullYear();
-            const dateKey = `${dateNum}-${now.getMonth()}-${yearNum}`;
+            const dateKey = `${dateNum}-${monthIndex}-${yearNum}`;
 
+            /*
+             * PATCH MINIMAL: Backup Otomatis tetap menggunakan mekanisme lama,
+             * tetapi setiap backup sekarang mempunyai sourceHistoryId. Dengan ID
+             * ini backup selalu mengikuti item History yang sama walaupun Hari,
+             * Tanggal, Bulan, Tahun, atau nominalnya diedit dari History.
+             */
             let existingBackup = backupOtomatisData.find(b => b.dateKey === dateKey);
+
             if (!existingBackup) {
+                existingBackup = backupOtomatisData.find(b => {
+                    const sourceId = b.sourceHistoryId;
+                    return sourceId != null && historyData.some(h => String(h.id) === String(sourceId));
+                });
+            }
+
+            if (!existingBackup) {
+                const sourceHistory = historyData.length ? historyData[0] : null;
                 const newBackup = {
                     id: Date.now(),
                     dateKey: dateKey,
                     day: dayName,
                     date: dateNum,
-                    monthIndex: now.getMonth(),
+                    monthIndex: monthIndex,
                     month: monthName,
                     year: yearNum,
+                    sourceHistoryId: sourceHistory ? sourceHistory.id : null,
                     historySnapshot: JSON.parse(JSON.stringify(historyData))
                 };
                 backupOtomatisData.unshift(newBackup);
             } else {
                 existingBackup.historySnapshot = JSON.parse(JSON.stringify(historyData));
+                if (existingBackup.sourceHistoryId == null && historyData.length) {
+                    existingBackup.sourceHistoryId = historyData[0].id;
+                }
             }
+
+            /*
+             * Sinkronisasi dua arah dari History -> Backup.
+             * Metadata kartu backup mengambil data langsung dari item History
+             * yang menjadi sumbernya, bukan dari tanggal saat backup dibuat.
+             */
+            backupOtomatisData.forEach(backup => {
+                backup.historySnapshot = JSON.parse(JSON.stringify(historyData));
+
+                let source = null;
+                if (backup.sourceHistoryId != null) {
+                    source = historyData.find(h => String(h.id) === String(backup.sourceHistoryId)) || null;
+                }
+
+                /* Dukungan untuk backup lama yang belum mempunyai sourceHistoryId. */
+                if (!source) {
+                    const oldMonthIndex = Number.isFinite(Number(backup.monthIndex))
+                        ? Number(backup.monthIndex)
+                        : months.indexOf(backup.month);
+                    source = historyData.find(h =>
+                        Number(h.date) === Number(backup.date) &&
+                        Number(h.year) === Number(backup.year) &&
+                        Number(h.monthIndex) === oldMonthIndex
+                    ) || null;
+                    if (source) backup.sourceHistoryId = source.id;
+                }
+
+                if (source) {
+                    const sourceMonthIndex = Number.isFinite(Number(source.monthIndex))
+                        ? Number(source.monthIndex)
+                        : months.indexOf(source.month);
+                    backup.day = source.day || days[new Date(Number(source.year), sourceMonthIndex, Number(source.date)).getDay()];
+                    backup.date = Number(source.date) || backup.date;
+                    backup.monthIndex = sourceMonthIndex >= 0 ? sourceMonthIndex : backup.monthIndex;
+                    backup.month = source.month || months[backup.monthIndex] || backup.month;
+                    backup.year = Number(source.year) || backup.year;
+                    backup.dateKey = `${backup.date}-${backup.monthIndex}-${backup.year}`;
+                    backup.historyName = `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;
+                    backup.sourceHistory = JSON.parse(JSON.stringify(source));
+                }
+            });
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
@@ -1681,8 +1742,27 @@
                                 </span>
                                 <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Backup Aktif</span>
                             </div>
-                            <h4 class="font-extrabold text-slate-800 text-base">${backup.day}, ${backup.date} ${backup.month} ${backup.year}</h4>
+                            <h4 class="font-extrabold text-slate-800 text-base">${backup.historyName || `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`}</h4>
                             <p class="text-xs text-slate-500 mt-1">Total riwayat tersimpan: ${backup.historySnapshot.length} item data</p>
+                            ${backup.sourceHistory ? `
+                            <div class="grid grid-cols-2 gap-2 mt-3">
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <div class="text-[10px] text-slate-500 font-semibold">Pendapatan</div>
+                                    <div class="text-xs font-extrabold text-emerald-600">${formatRupiah(backup.sourceHistory.income || 0)}</div>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <div class="text-[10px] text-slate-500 font-semibold">Total Belanja</div>
+                                    <div class="text-xs font-extrabold text-slate-800">${formatRupiah(backup.sourceHistory.expense || 0)}</div>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <div class="text-[10px] text-slate-500 font-semibold">Pengeluaran</div>
+                                    <div class="text-xs font-extrabold text-rose-600">${formatRupiah(backup.sourceHistory.cashout || 0)}</div>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <div class="text-[10px] text-slate-500 font-semibold">Profit (${backup.sourceHistory.profitPercentage !== undefined ? backup.sourceHistory.profitPercentage : 10}%)</div>
+                                    <div class="text-xs font-extrabold text-amber-600">${formatRupiah(backup.sourceHistory.profit || 0)}</div>
+                                </div>
+                            </div>` : ''}
                         </div>
                         <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
                             <span class="text-[11px] font-semibold text-slate-400">Pulihkan jika history hilang</span>
