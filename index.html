@@ -3331,19 +3331,28 @@ window.__rekapinyuSaveCoverPhoto=async function(){
           const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
           // Upload salinan yang SAMA dengan preview yang sudah diproses browser,
           // bukan File asli. Ini mencegah file sampul menjadi rusak setelah sinkronisasi Firebase.
-          let uploadData=pending;
-          if(/^data:image\/jpeg;base64,/i.test(src)){
-            const base64=src.split(',')[1]||'';
-            const binary=atob(base64);
+          // Gunakan HASIL PREVIEW yang sedang tampil sebagai sumber upload.
+          // Jangan pernah mengganti tampilan lokal dengan URL Firebase setelah klik Simpan,
+          // karena itu dapat membuat gambar terlihat rusak/berubah sebelum URL siap.
+          let uploadData=null;
+          if(/^data:image\/[^;]+;base64,/i.test(src)){
+            const parts=src.split(',');
+            const mime=(parts[0].match(/^data:([^;]+);base64$/i)||[])[1]||'image/jpeg';
+            const binary=atob(parts[1]||'');
             const bytes=new Uint8Array(binary.length);
             for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-            uploadData=new Blob([bytes],{type:'image/jpeg'});
+            uploadData=new Blob([bytes],{type:mime});
           }
-          await uploadBytes(r,uploadData,{contentType:'image/jpeg',cacheControl:"public,max-age=31536000"});
+          if(!uploadData){
+            uploadData=pending;
+          }
+          if(!uploadData)throw new Error('Data foto sampul tidak tersedia.');
+          const uploadType=uploadData.type||'image/jpeg';
+          await uploadBytes(r,uploadData,{contentType:uploadType,cacheControl:"public,max-age=31536000"});
           const url=await getDownloadURL(r);
-          const cloudData={src:url,x:x,y:y};
-          if(phone)try{localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));}catch{}
-          try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
+          // Simpan URL cloud hanya untuk data Firebase. Tampilan yang sudah benar
+          // tetap memakai preview lokal beserta posisi x/y yang dipilih pengguna.
+          try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,shopCoverX:x,shopCoverY:y,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
         }catch(err){console.warn("Storage sampul:",err)}
       });
     }
@@ -3376,7 +3385,15 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(d.historyData));if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${p}`,JSON.stringify(d.pengeluaranData));if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${p}`,JSON.stringify(d.kasbonData));if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${p}`,JSON.stringify(d.backupOtomatisData));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:"))nativeSet.call(localStorage,`finance_shop_cover_${p}`,JSON.stringify({src:d.shopCover,x:50,y:50}));redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(d.historyData));if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${p}`,JSON.stringify(d.pengeluaranData));if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${p}`,JSON.stringify(d.kasbonData));if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${p}`,JSON.stringify(d.backupOtomatisData));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
+  try{
+    const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
+    if(!existing||!existing.src||String(existing.src).startsWith("http")){
+      nativeSet.call(localStorage,`finance_shop_cover_${p}`,JSON.stringify({src:d.shopCover,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
+    }
+  }catch{}
+}
+redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
 
 onAuthStateChanged(auth,async u=>{window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");checkAuth();return}try{await hydrate(u.uid);realtime(u);checkAuth();redraw()}catch(e){console.error("Firebase hydrate:",e)}});
 </script>
