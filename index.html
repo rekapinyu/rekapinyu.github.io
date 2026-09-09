@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Aplikasi Keuangan - Toko</title>
     <!-- Tailwind CSS -->
+    <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
+     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -3048,14 +3055,37 @@ if(!Storage.prototype.__rekapinyuFirebaseFull){
 const rf=document.getElementById("register-form");
 if(rf)rf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
  const name=document.getElementById("reg-name").value.trim(),phone=phoneOf(document.getElementById("reg-phone").value),password=document.getElementById("reg-password").value;
+ if(!name){notify("Gagal Daftar","Nama wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
+ if(!phone){notify("Gagal Daftar","Nomor HP wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
+ if(password.length<6){notify("Gagal Daftar","Kata sandi minimal 6 karakter.","fa-solid fa-circle-exclamation text-rose-600");return;}
  try{
-   const q=await getDocs(query(collection(db,USERS),where("phone","==",phone))); if(!q.empty){notify("Gagal Daftar","Nomor HP sudah terdaftar. Silakan langsung masuk.","fa-solid fa-circle-exclamation text-rose-600");return;}
-   const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password); await updateProfile(c.user,{displayName:name});
+   // Jangan melakukan query Firestore sebelum login. Query tersebut membutuhkan
+   // permission read dan menyebabkan error "Missing or insufficient permissions"
+   // pada Rules yang benar/aman. Firebase Auth sendiri menangani duplikasi akun.
+   const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
+   await updateProfile(c.user,{displayName:name});
    await setDoc(uref(c.user.uid),{uid:c.user.uid,name,phone,email:c.user.email,photo:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
    await setDoc(dref(c.user.uid),{historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasbonPass:"",shopCover:"",updatedAt:serverTimestamp()});
-   currentSessionUser={uid:c.user.uid,name,phone,photo:"",email:c.user.email};nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([currentSessionUser]));
-   rf.reset();toggleAuthView("login");notify("Pendaftaran Berhasil","Akun berhasil dibuat dan tersimpan di Firebase. Silakan masuk.");
- }catch(err){console.error(err);notify("Gagal Daftar",err.code==="auth/email-already-in-use"?"Nomor HP tersebut sudah memiliki akun Firebase.":(err.message||"Pendaftaran gagal."),"fa-solid fa-circle-xmark text-rose-600")}
+   // Pertahankan perilaku original: setelah daftar, pengguna kembali ke halaman Login.
+   // Firebase Auth dibuat lalu langsung sign-out; akun tetap tersimpan di Firebase.
+   await signOut(auth);
+   currentSessionUser=null;
+   nativeRemove.call(localStorage,"finance_active_session");
+   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{uid:c.user.uid,name,phone,photo:"",email:c.user.email}]));
+   rf.reset();
+   toggleAuthView("login");
+   notify("Pendaftaran Berhasil","Akun berhasil dibuat dan tersimpan di Firebase. Silakan masuk.");
+ }catch(err){
+   console.error("Rekapinyu Firebase registration:",err);
+   let msg="Pendaftaran gagal. Silakan coba lagi.";
+   if(err.code==="auth/email-already-in-use") msg="Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.";
+   else if(err.code==="auth/invalid-email") msg="Format nomor HP tidak valid.";
+   else if(err.code==="auth/weak-password") msg="Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
+   else if(err.code==="auth/operation-not-allowed") msg="Login Email/Password belum diaktifkan di Firebase Console.";
+   else if(err.code==="permission-denied" || /insufficient permissions/i.test(err.message||"")) msg="Akun Firebase berhasil dibuat, tetapi Firestore menolak penyimpanan profil. Periksa Firestore Security Rules.";
+   else if(err.message) msg=err.message;
+   notify("Gagal Daftar",msg,"fa-solid fa-circle-xmark text-rose-600");
+ }
 },true);
 
 // Firebase login + one-time migration of old localStorage accounts.
