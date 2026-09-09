@@ -2996,5 +2996,318 @@
     }
 })();
 </script>
+
+<!-- PATCH PAKET LANGGANAN v1: hanya tambahan, kode original di atas tidak diubah. -->
+<style>
+  #package-admin-modal .pkg-admin-card{max-height:88vh;overflow:auto}
+  .package-status-expired{color:#e11d48!important;background:#fff1f2!important;border-color:#fecdd3!important}
+  .package-status-active{color:#047857!important}
+  .package-admin-user{border:1px solid #e2e8f0;border-radius:14px;padding:12px;background:#f8fafc}
+</style>
+
+<!-- Dashboard Super Admin Paket -->
+<div id="package-admin-modal" class="fixed inset-0 bg-slate-900/75 z-[80] hidden items-center justify-center p-4">
+  <div class="pkg-admin-card bg-white rounded-2xl p-5 md:p-6 max-w-2xl w-full shadow-2xl border border-slate-200">
+    <div class="flex items-center justify-between border-b pb-3 mb-4">
+      <div>
+        <h3 class="font-bold text-slate-800 text-base">Dashboard Super Admin — Paket</h3>
+        <p class="text-[11px] text-slate-400 mt-1">Atur nama paket, durasi, dan paket pengguna.</p>
+      </div>
+      <button type="button" onclick="closePackageAdmin()" class="text-slate-400 hover:text-slate-600 p-2"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="mb-5">
+      <h4 class="text-xs font-bold uppercase tracking-wide text-slate-600 mb-2">Database Paket</h4>
+      <div id="package-admin-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </div>
+
+    <div>
+      <h4 class="text-xs font-bold uppercase tracking-wide text-slate-600 mb-2">Pengguna</h4>
+      <div id="package-user-list" class="space-y-2"></div>
+    </div>
+
+    <div class="flex justify-end gap-2 pt-4 mt-4 border-t">
+      <button type="button" onclick="closePackageAdmin()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tombol Super Admin di halaman login -->
+<script>
+(function initPackagePatch(){
+  const DEFAULT_PACKAGES = {
+    gratis:     { name: 'Gratis',     days: 30 },
+    reguler:    { name: 'Reguler',    days: 90 },
+    bestseller: { name: 'Best Seller',days: 180 },
+    bisnis:     { name: 'Bisnis',     days: 360 }
+  };
+
+  function getPackages(){
+    try {
+      const saved = JSON.parse(localStorage.getItem('rekapinyu_package_database') || 'null');
+      return (saved && typeof saved === 'object') ? Object.assign({}, DEFAULT_PACKAGES, saved) : DEFAULT_PACKAGES;
+    } catch(e){ return DEFAULT_PACKAGES; }
+  }
+  function savePackages(pkgs){
+    localStorage.setItem('rekapinyu_package_database', JSON.stringify(pkgs));
+  }
+
+  function ensureUserPackage(user){
+    if(!user) return;
+    let changed = false;
+    if(!user.packageKey || !getPackages()[user.packageKey]) { user.packageKey = 'gratis'; changed = true; }
+    if(!user.packageStartAt) { user.packageStartAt = Date.now(); changed = true; }
+    if(changed){
+      const users = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
+      const idx = users.findIndex(u => u.phone === user.phone);
+      if(idx !== -1){ users[idx] = user; localStorage.setItem('finance_registered_users', JSON.stringify(users)); }
+      if(window.currentSessionUser === user || (currentSessionUser && currentSessionUser.phone === user.phone)){
+        localStorage.setItem('finance_active_session', JSON.stringify(user));
+      }
+    }
+  }
+
+  function getPackageState(user){
+    ensureUserPackage(user);
+    const pkgs = getPackages();
+    const pkg = pkgs[user.packageKey] || pkgs.gratis;
+    const start = Number(user.packageStartAt) || Date.now();
+    const durationMs = Number(pkg.days) * 24 * 60 * 60 * 1000;
+    const end = start + durationMs;
+    const remainingMs = Math.max(0, end - Date.now());
+    const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    return { pkg, start, end, remainingMs, remainingDays, expired: Date.now() >= end };
+  }
+
+  function formatCountdown(state){
+    if(state.expired) return '0 Hari';
+    return state.remainingDays + ' Hari';
+  }
+
+  function updatePackageHeader(){
+    const el = document.getElementById('current-date-header');
+    if(!el) return;
+    if(!currentSessionUser){
+      el.innerText = 'Paket — Belum Login';
+      return;
+    }
+    const state = getPackageState(currentSessionUser);
+    el.innerText = state.pkg.name + ' • ' + formatCountdown(state);
+    el.parentElement.classList.toggle('package-status-expired', state.expired);
+    el.parentElement.classList.toggle('package-status-active', !state.expired);
+    el.parentElement.title = state.expired
+      ? 'Paket telah habis. Input data dinonaktifkan.'
+      : 'Sisa masa input: ' + state.remainingDays + ' hari';
+  }
+
+  function packageAllowsInput(){
+    if(!currentSessionUser) return false;
+    const state = getPackageState(currentSessionUser);
+    if(state.expired){
+      showModal(
+        'Paket Telah Habis',
+        'Masa aktif paket ' + state.pkg.name + ' sudah habis. Anda tidak dapat input data lagi. Silakan hubungi Super Admin untuk mengganti paket.',
+        'fa-solid fa-circle-exclamation text-rose-600'
+      );
+      updatePackageHeader();
+      return false;
+    }
+    return true;
+  }
+
+  // Blokir SEMUA submit input data sebelum handler original berjalan.
+  document.addEventListener('submit', function(e){
+    const form = e.target;
+    if(['finance-form','pengeluaran-form','kasbon-form'].includes(form && form.id)){
+      if(!packageAllowsInput()){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }
+  }, true);
+
+  function refreshPackageUser(){
+    if(!currentSessionUser) return;
+    const users = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
+    const fresh = users.find(u => u.phone === currentSessionUser.phone);
+    if(fresh){
+      currentSessionUser = fresh;
+      localStorage.setItem('finance_active_session', JSON.stringify(fresh));
+      ensureUserPackage(currentSessionUser);
+    }
+    updatePackageHeader();
+  }
+
+  window.openPackageAdmin = function(){
+    const modal = document.getElementById('package-admin-modal');
+    if(!modal) return;
+    renderPackageAdmin();
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  };
+
+  window.closePackageAdmin = function(){
+    const modal = document.getElementById('package-admin-modal');
+    if(!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  };
+
+  window.renderPackageAdmin = function(){
+    const pkgs = getPackages();
+    const pkgList = document.getElementById('package-admin-list');
+    const userList = document.getElementById('package-user-list');
+    if(!pkgList || !userList) return;
+
+    pkgList.innerHTML = Object.entries(pkgs).map(([key,pkg]) => `
+      <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Nama</label>
+            <input id="pkg-name-${key}" value="${String(pkg.name).replace(/"/g,'&quot;')}" class="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Durasi (Hari)</label>
+            <input id="pkg-days-${key}" type="number" min="1" value="${Number(pkg.days)||1}" class="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold">
+          </div>
+        </div>
+        <button type="button" onclick="savePackageSetting('${key}')" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg">Simpan Paket</button>
+      </div>
+    `).join('');
+
+    const users = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
+    if(!users.length){
+      userList.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">Belum ada pengguna.</div>';
+      return;
+    }
+
+    userList.innerHTML = users.map((u,idx) => {
+      ensureUserPackage(u);
+      const state = getPackageState(u);
+      return `
+        <div class="package-admin-user">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-slate-800 truncate">${String(u.name||'Tanpa Nama').replace(/</g,'&lt;')}</div>
+              <div class="text-[10px] text-slate-400">${String(u.phone||'').replace(/</g,'&lt;')}</div>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-1 rounded-full ${state.expired?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">
+              ${state.pkg.name} • ${state.expired?'Habis':state.remainingDays+' Hari'}
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <select id="user-pkg-${idx}" class="flex-1 px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold">
+              ${Object.entries(pkgs).map(([key,p]) => `<option value="${key}" ${u.packageKey===key?'selected':''}>${p.name} — ${p.days} Hari</option>`).join('')}
+            </select>
+            <button type="button" onclick="assignPackageToUser(${idx})" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg">Pasang</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  window.savePackageSetting = function(key){
+    const pkgs = getPackages();
+    const nameEl = document.getElementById('pkg-name-'+key);
+    const daysEl = document.getElementById('pkg-days-'+key);
+    const name = nameEl ? nameEl.value.trim() : '';
+    const days = daysEl ? parseInt(daysEl.value,10) : 0;
+    if(!name || !days || days < 1){
+      showModal('Gagal', 'Nama paket dan durasi hari harus diisi dengan benar.', 'fa-solid fa-circle-exclamation text-rose-600');
+      return;
+    }
+    pkgs[key] = {name, days};
+    savePackages(pkgs);
+    refreshPackageUser();
+    renderPackageAdmin();
+    showModal('Berhasil', 'Pengaturan paket ' + name + ' berhasil disimpan.');
+  };
+
+  window.assignPackageToUser = function(index){
+    const users = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
+    const user = users[index];
+    if(!user) return;
+    const select = document.getElementById('user-pkg-'+index);
+    const key = select ? select.value : 'gratis';
+    const pkgs = getPackages();
+    if(!pkgs[key]) return;
+
+    user.packageKey = key;
+    // Saat paket dipasang/diganti, hitung mundur dimulai ulang dari waktu pemasangan.
+    user.packageStartAt = Date.now();
+    users[index] = user;
+    localStorage.setItem('finance_registered_users', JSON.stringify(users));
+
+    if(currentSessionUser && currentSessionUser.phone === user.phone){
+      currentSessionUser = user;
+      localStorage.setItem('finance_active_session', JSON.stringify(user));
+    }
+    renderPackageAdmin();
+    updatePackageHeader();
+    showModal('Berhasil', 'Paket ' + pkgs[key].name + ' untuk ' + user.name + ' aktif selama ' + pkgs[key].days + ' hari.');
+  };
+
+  // Tambahkan akses Super Admin tanpa mengubah form/login original.
+  function addSuperAdminButton(){
+    if(document.getElementById('package-super-admin-btn')) return;
+    const loginCard = document.getElementById('login-card');
+    if(!loginCard) return;
+    const btn = document.createElement('button');
+    btn.id = 'package-super-admin-btn';
+    btn.type = 'button';
+    btn.className = 'mt-3 w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 rounded-xl text-xs transition border border-slate-200';
+    btn.innerHTML = '<i class="fa-solid fa-shield-halved mr-1.5"></i> Super Admin — Kelola Paket';
+    btn.onclick = function(){
+      const pass = prompt('Masukkan password Super Admin:');
+      // Default password hanya untuk dashboard lokal ini dan dapat diubah di source.
+      if(pass === 'admin123'){
+        openPackageAdmin();
+      } else if(pass !== null) {
+        showModal('Akses Ditolak', 'Password Super Admin salah.', 'fa-solid fa-lock text-rose-600');
+      }
+    };
+    const registerInfo = loginCard.querySelector('.mt-6.text-center');
+    if(registerInfo) registerInfo.parentNode.insertBefore(btn, registerInfo);
+    else loginCard.appendChild(btn);
+  }
+
+  // Default package database dibuat sekali; durasi sesuai permintaan.
+  if(!localStorage.getItem('rekapinyu_package_database')) savePackages(DEFAULT_PACKAGES);
+
+  // Perbaiki user lama/new user agar mempunyai paket.
+  if(typeof registeredUsers !== 'undefined' && Array.isArray(registeredUsers)){
+    registeredUsers.forEach(ensureUserPackage);
+  }
+  if(typeof currentSessionUser !== 'undefined' && currentSessionUser) ensureUserPackage(currentSessionUser);
+
+  addSuperAdminButton();
+  refreshPackageUser();
+  updatePackageHeader();
+  setInterval(updatePackageHeader, 1000 * 60);
+
+  // Setelah register/login original selesai, sinkronkan paket.
+  const regForm = document.getElementById('register-form');
+  if(regForm) regForm.addEventListener('submit', function(){
+    setTimeout(function(){
+      const users = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
+      const phone = document.getElementById('reg-phone') ? document.getElementById('reg-phone').value.trim() : '';
+      // Form sudah di-reset oleh kode original, jadi gunakan user terakhir yang belum punya paket.
+      users.forEach(ensureUserPackage);
+      localStorage.setItem('finance_registered_users', JSON.stringify(users));
+      addSuperAdminButton();
+    }, 50);
+  });
+
+  const loginForm = document.getElementById('login-form');
+  if(loginForm) loginForm.addEventListener('submit', function(){
+    setTimeout(function(){ refreshPackageUser(); }, 50);
+  });
+
+  // Override visual tanggal header: paket + countdown, bukan tanggal.
+  // Tetap mempertahankan fungsi tanggal original untuk data History/Backup.
+  window.updatePackageHeader = updatePackageHeader;
+})();
+</script>
+
 </body>
 </html>
