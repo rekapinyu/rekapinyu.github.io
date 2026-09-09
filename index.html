@@ -3059,22 +3059,32 @@ if(rf)rf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
  if(!phone){notify("Gagal Daftar","Nomor HP wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
  if(password.length<6){notify("Gagal Daftar","Kata sandi minimal 6 karakter.","fa-solid fa-circle-exclamation text-rose-600");return;}
  try{
-   // Jangan melakukan query Firestore sebelum login. Query tersebut membutuhkan
-   // permission read dan menyebabkan error "Missing or insufficient permissions"
-   // pada Rules yang benar/aman. Firebase Auth sendiri menangani duplikasi akun.
+   // Akun dibuat di Firebase Auth terlebih dahulu. Penyimpanan Firestore
+   // tidak boleh membuat proses pendaftaran dianggap gagal.
    const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
    await updateProfile(c.user,{displayName:name});
-   await setDoc(uref(c.user.uid),{uid:c.user.uid,name,phone,email:c.user.email,photo:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-   await setDoc(dref(c.user.uid),{historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasbonPass:"",shopCover:"",updatedAt:serverTimestamp()});
-   // Pertahankan perilaku original: setelah daftar, pengguna kembali ke halaman Login.
-   // Firebase Auth dibuat lalu langsung sign-out; akun tetap tersimpan di Firebase.
+
+   const userData={uid:c.user.uid,name,phone,email:c.user.email,photo:""};
+   const emptyData={historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasbonPass:"",shopCover:""};
+
+   // Coba simpan ke Firestore. Jika Rules menolak, akun Auth tetap valid
+   // dan data lokal tetap menjadi fallback sehingga pengguna tetap bisa masuk.
+   try{
+     await setDoc(uref(c.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+     await setDoc(dref(c.user.uid),{...emptyData,updatedAt:serverTimestamp()});
+   }catch(firestoreErr){
+     console.warn("Rekapinyu: Firestore belum mengizinkan penyimpanan awal. Akun Auth tetap dibuat.",firestoreErr);
+   }
+
+   // Simpan cache lokal termasuk password agar akun yang baru dibuat
+   // tetap dapat dipakai jika Firestore belum memiliki permission.
+   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
    await signOut(auth);
    currentSessionUser=null;
    nativeRemove.call(localStorage,"finance_active_session");
-   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{uid:c.user.uid,name,phone,photo:"",email:c.user.email}]));
    rf.reset();
    toggleAuthView("login");
-   notify("Pendaftaran Berhasil","Akun berhasil dibuat dan tersimpan di Firebase. Silakan masuk.");
+   notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
  }catch(err){
    console.error("Rekapinyu Firebase registration:",err);
    let msg="Pendaftaran gagal. Silakan coba lagi.";
@@ -3082,7 +3092,6 @@ if(rf)rf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
    else if(err.code==="auth/invalid-email") msg="Format nomor HP tidak valid.";
    else if(err.code==="auth/weak-password") msg="Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
    else if(err.code==="auth/operation-not-allowed") msg="Login Email/Password belum diaktifkan di Firebase Console.";
-   else if(err.code==="permission-denied" || /insufficient permissions/i.test(err.message||"")) msg="Akun Firebase berhasil dibuat, tetapi Firestore menolak penyimpanan profil. Periksa Firestore Security Rules.";
    else if(err.message) msg=err.message;
    notify("Gagal Daftar",msg,"fa-solid fa-circle-xmark text-rose-600");
  }
@@ -3093,17 +3102,36 @@ const lf=document.getElementById("login-form");
 if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
  const phone=phoneOf(document.getElementById("login-phone").value),password=document.getElementById("login-password").value;
  try{
-   const c=await signInWithEmailAndPassword(auth,emailOf(phone),password),s=await getDoc(uref(c.user.uid)),u=s.exists()?s.data():{};localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||phone),email:c.user.email});await hydrate(c.user.uid);checkAuth();lf.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name}!`);
+   // Login Auth tetap menjadi sumber autentikasi utama.
+   const c=await signInWithEmailAndPassword(auth,emailOf(phone),password);
+   let u={name:c.user.displayName||"",phone,email:c.user.email,photo:""};
+   let firestoreAvailable=true;
+   try{
+     const s=await getDoc(uref(c.user.uid));
+     if(s.exists())u={...u,...s.data()};
+   }catch(firestoreErr){
+     firestoreAvailable=false;
+     console.warn("Rekapinyu: profil Firestore belum dapat dibaca. Menggunakan data lokal/Auth.",firestoreErr);
+   }
+   localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||phone),email:c.user.email});
+   if(firestoreAvailable){
+     try{await hydrate(c.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat. Menggunakan cache lokal.",hydrateErr)}
+   }
+   checkAuth();lf.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
  }catch(err){
    const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
    if(!legacy){notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");return;}
    try{
      const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);await updateProfile(c.user,{displayName:legacy.name||""});
-     await setDoc(uref(c.user.uid),{uid:c.user.uid,name:legacy.name||"",phone,email:c.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-     let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-     await setDoc(dref(c.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),kasbonPass:localStorage.getItem(`finance_kasbon_pass_${phone}`)||"",shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
-     localSession({uid:c.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:c.user.email});await hydrate(c.user.uid);checkAuth();lf.reset();notify("Migrasi Berhasil","Akun dan data lama berhasil dipindahkan ke Firebase.");
-   }catch(m){console.error(m);notify("Gagal Migrasi",m.message||"Akun lama tidak dapat dipindahkan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}
+     try{
+       await setDoc(uref(c.user.uid),{uid:c.user.uid,name:legacy.name||"",phone,email:c.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+       let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
+       await setDoc(dref(c.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),kasbonPass:localStorage.getItem(`finance_kasbon_pass_${phone}`)||"",shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
+     }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
+     localSession({uid:c.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:c.user.email});
+     try{await hydrate(c.user.uid)}catch{}
+     checkAuth();lf.reset();notify("Masuk Berhasil","Akun berhasil masuk. Data lokal tetap digunakan sampai Firebase siap.");
+   }catch(m){console.error(m);notify("Gagal Masuk",m.message||"Akun tidak dapat masuk.","fa-solid fa-circle-xmark text-rose-600")}
  }
 },true);
 
