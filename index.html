@@ -811,97 +811,51 @@
         }
         loadUserData();
 
-        function triggerDailyAutoBackup() {
+        async function triggerDailyAutoBackup(sourceHistoryId = null) {
             if (!currentSessionUser || !currentSessionUser.phone) return;
-            const now = new Date();
+
             const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-            const dayName = days[now.getDay()];
-            const dateNum = now.getDate();
-            const monthIndex = now.getMonth();
-            const monthName = months[monthIndex];
-            const yearNum = now.getFullYear();
-            const dateKey = `${dateNum}-${monthIndex}-${yearNum}`;
+            // Setiap Input Data baru membuat SATU kartu backup baru.
+            // Tidak ada lagi pencarian berdasarkan tanggal yang menyebabkan backup
+            // pada hari yang sama digabung menjadi satu kartu.
+            const sourceHistory = sourceHistoryId != null
+                ? historyData.find(h => String(h.id) === String(sourceHistoryId))
+                : (historyData.length ? historyData[0] : null);
+            const now = new Date();
+            const sourceDate = sourceHistory ? Number(sourceHistory.date) : now.getDate();
+            const sourceMonthIndex = sourceHistory && Number.isFinite(Number(sourceHistory.monthIndex))
+                ? Number(sourceHistory.monthIndex) : now.getMonth();
+            const sourceYear = sourceHistory ? Number(sourceHistory.year) : now.getFullYear();
+            const sourceDay = sourceHistory?.day || days[new Date(sourceYear, sourceMonthIndex, sourceDate).getDay()];
+            const sourceMonth = sourceHistory?.month || months[sourceMonthIndex];
 
-            /*
-             * PATCH MINIMAL: Backup Otomatis tetap menggunakan mekanisme lama,
-             * tetapi setiap backup sekarang mempunyai sourceHistoryId. Dengan ID
-             * ini backup selalu mengikuti item History yang sama walaupun Hari,
-             * Tanggal, Bulan, Tahun, atau nominalnya diedit dari History.
-             */
-            let existingBackup = backupOtomatisData.find(b => b.dateKey === dateKey);
+            const newBackup = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                dateKey: `${sourceDate}-${sourceMonthIndex}-${sourceYear}-${Date.now()}`,
+                day: sourceDay,
+                date: sourceDate,
+                monthIndex: sourceMonthIndex,
+                month: sourceMonth,
+                year: sourceYear,
+                sourceHistoryId: sourceHistory ? sourceHistory.id : null,
+                sourceHistory: sourceHistory ? JSON.parse(JSON.stringify(sourceHistory)) : null,
+                historyName: `${sourceDay}, ${sourceDate} ${sourceMonth} ${sourceYear}`,
+                // Snapshot lengkap pada saat Input Data baru dibuat.
+                historySnapshot: JSON.parse(JSON.stringify(historyData))
+            };
 
-            if (!existingBackup) {
-                existingBackup = backupOtomatisData.find(b => {
-                    const sourceId = b.sourceHistoryId;
-                    return sourceId != null && historyData.some(h => String(h.id) === String(sourceId));
-                });
+            backupOtomatisData.unshift(newBackup);
+
+            try {
+                // Simpan langsung agar kartu terbaru masuk ke daftar tanpa menunggu refresh.
+                localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
+                populateBackupFilters();
+                renderBackupGrid();
+            } catch (err) {
+                console.warn('Backup otomatis gagal disimpan:', err);
             }
-
-            if (!existingBackup) {
-                const sourceHistory = historyData.length ? historyData[0] : null;
-                const newBackup = {
-                    id: Date.now(),
-                    dateKey: dateKey,
-                    day: dayName,
-                    date: dateNum,
-                    monthIndex: monthIndex,
-                    month: monthName,
-                    year: yearNum,
-                    sourceHistoryId: sourceHistory ? sourceHistory.id : null,
-                    historySnapshot: JSON.parse(JSON.stringify(historyData))
-                };
-                backupOtomatisData.unshift(newBackup);
-            } else {
-                existingBackup.historySnapshot = JSON.parse(JSON.stringify(historyData));
-                if (existingBackup.sourceHistoryId == null && historyData.length) {
-                    existingBackup.sourceHistoryId = historyData[0].id;
-                }
-            }
-
-            /*
-             * Sinkronisasi dua arah dari History -> Backup.
-             * Metadata kartu backup mengambil data langsung dari item History
-             * yang menjadi sumbernya, bukan dari tanggal saat backup dibuat.
-             */
-            backupOtomatisData.forEach(backup => {
-                backup.historySnapshot = JSON.parse(JSON.stringify(historyData));
-
-                let source = null;
-                if (backup.sourceHistoryId != null) {
-                    source = historyData.find(h => String(h.id) === String(backup.sourceHistoryId)) || null;
-                }
-
-                /* Dukungan untuk backup lama yang belum mempunyai sourceHistoryId. */
-                if (!source) {
-                    const oldMonthIndex = Number.isFinite(Number(backup.monthIndex))
-                        ? Number(backup.monthIndex)
-                        : months.indexOf(backup.month);
-                    source = historyData.find(h =>
-                        Number(h.date) === Number(backup.date) &&
-                        Number(h.year) === Number(backup.year) &&
-                        Number(h.monthIndex) === oldMonthIndex
-                    ) || null;
-                    if (source) backup.sourceHistoryId = source.id;
-                }
-
-                if (source) {
-                    const sourceMonthIndex = Number.isFinite(Number(source.monthIndex))
-                        ? Number(source.monthIndex)
-                        : months.indexOf(source.month);
-                    backup.day = source.day || days[new Date(Number(source.year), sourceMonthIndex, Number(source.date)).getDay()];
-                    backup.date = Number(source.date) || backup.date;
-                    backup.monthIndex = sourceMonthIndex >= 0 ? sourceMonthIndex : backup.monthIndex;
-                    backup.month = source.month || months[backup.monthIndex] || backup.month;
-                    backup.year = Number(source.year) || backup.year;
-                    backup.dateKey = `${backup.date}-${backup.monthIndex}-${backup.year}`;
-                    backup.historyName = `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;
-                    backup.sourceHistory = JSON.parse(JSON.stringify(source));
-                }
-            });
-
-            localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
 
         let isSidebarMinimized = false;
@@ -2160,7 +2114,6 @@
             historyData = historyData.filter(d => d.id !== id);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
             }
             populateHistoryFilters();
             renderHistory();
@@ -2170,7 +2123,6 @@
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
             }
             renderHistory();
         }
@@ -2527,7 +2479,7 @@
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
+                triggerDailyAutoBackup(newEntry.id);
             }
 
             document.getElementById('finance-form').reset();
