@@ -1846,6 +1846,8 @@
                     item.expense = parseNum(document.getElementById('edit-val-expense').value);
                     item.cashout = parseNum(document.getElementById('edit-val-cashout').value);
                     item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct').value) || 10;
+                    // Samakan hitungan profit History dengan Form Input Data Harian.
+                    item.profit = Math.max((item.income - item.cashout) * (item.profitPercentage / 100), 0);
                     saveAndRefreshHistory();
                     closeEditModal();
                     showModal("Berhasil", "Nominal dan profit persen transaksi berhasil diperbarui.");
@@ -1898,6 +1900,23 @@
 
         function closeEditModal() {
             document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function deleteHistoryItem(id) {
+            const item = historyData.find(d => d.id === id);
+            if (!item) return;
+
+            const ok = confirm(`Hapus data History ${item.date} ${item.month} ${item.year} dengan ID #${item.id.toString().slice(-4)}?`);
+            if (!ok) return;
+
+            historyData = historyData.filter(d => d.id !== id);
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                triggerDailyAutoBackup();
+            }
+            populateHistoryFilters();
+            renderHistory();
+            showModal("Berhasil", "Data History berhasil dihapus.");
         }
 
         function saveAndRefreshHistory() {
@@ -2320,6 +2339,15 @@
             const fMonth = fMonthEl ? fMonthEl.value : "";
             const fYear = fYearEl ? fYearEl.value : "";
 
+            // Pastikan profit History selalu mengikuti rumus pada Form Input Data Harian.
+            historyData.forEach(item => {
+                const income = Number(item.income) || 0;
+                const cashout = Number(item.cashout) || 0;
+                const pct = item.profitPercentage !== undefined ? (parseFloat(item.profitPercentage) || 0) : 10;
+                item.profitPercentage = pct;
+                item.profit = Math.max((income - cashout) * (pct / 100), 0);
+            });
+
             let filtered = historyData.filter(item => {
                 let matchDate = fDate === "" || item.date.toString() === fDate;
                 let matchMonth = fMonth === "" || item.month === fMonth;
@@ -2377,6 +2405,9 @@
                                     </button>
                                     <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
                                         <i class="fa-solid fa-calendar text-blue-600 w-4"></i> Edit Tanggal & Waktu
+                                    </button>
+                                    <button onclick="deleteHistoryItem(${item.id})" class="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 flex items-center gap-2">
+                                        <i class="fa-solid fa-trash text-rose-600 w-4"></i> Hapus
                                     </button>
                                 </div>
                             </div>
