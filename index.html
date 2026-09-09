@@ -3228,6 +3228,67 @@ if(ci)ci.addEventListener("change",async e=>{
 // Password update uses Firebase Auth. Recent login may be required by Firebase.
 window.__rekapinyuFirebaseChangePassword=async p=>{if(!auth.currentUser)throw new Error("Belum login Firebase.");await updatePassword(auth.currentUser,p)};
 
+// Hook final: tombol Simpan profil dan sampul dipasang ulang setelah seluruh kode original
+// selesai dimuat, sehingga handler original tidak dapat menimpa fungsi Firebase.
+window.__rekapinyuSaveProfilePhoto=async function(){
+  const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
+  if(!file){notify("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return false;}
+  if(!/^image\/(jpeg|png)$/i.test(file.type)){notify("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return false;}
+  if(!auth.currentUser){notify("Gagal","Sesi Firebase belum siap. Silakan coba lagi.","fa-solid fa-circle-exclamation text-rose-600");return false;}
+  try{
+    const localUrl=await imageToDataURL(file,900,0.88);
+    const phone=phoneOf(currentSessionUser?.phone);
+    currentSessionUser.photo=localUrl;
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+    if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
+    const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
+    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
+    updateUserAvatarUI();
+    try{await saveCloudUser({photo:localUrl})}catch(err){console.warn("Profil lokal tersimpan; Firestore belum menerima foto.",err)}
+    try{
+      const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
+      await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
+      const url=await getDownloadURL(r);
+      currentSessionUser.photo=url;
+      nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+      if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
+      await saveCloudUser({photo:url});
+      updateUserAvatarUI();
+    }catch(err){console.warn("Storage profil gagal; foto lokal tetap digunakan.",err)}
+    closeProfileModal();
+    notify("Berhasil","Foto profil berhasil diganti.");
+    return true;
+  }catch(err){
+    console.error("Simpan foto profil:",err);
+    notify("Gagal","Foto profil tidak dapat disimpan. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600");
+    return false;
+  }
+};
+
+// Pastikan saat modal foto profil dibuka, tombol Simpan selalu memakai handler di atas.
+const __originalOpenProfileModal=window.openProfileModal;
+if(typeof __originalOpenProfileModal==="function"){
+  window.openProfileModal=function(type){
+    __originalOpenProfileModal(type);
+    if(type==="ganti-foto"){
+      const b=document.getElementById("save-profile-btn");
+      if(b)b.onclick=function(e){e.preventDefault();e.stopPropagation();return window.__rekapinyuSaveProfilePhoto();};
+    }
+  };
+}
+
+// Pastikan tombol Simpan sampul selalu dapat diklik dan menampilkan popup hasil.
+const __coverSaveFinal=document.getElementById("shop-cover-save");
+if(__coverSaveFinal){
+  __coverSaveFinal.onclick=function(e){
+    e.preventDefault();e.stopPropagation();
+    if(typeof window.saveShopCoverPhoto==="function")window.saveShopCoverPhoto();
+    else notify("Gagal","Fungsi simpan foto sampul belum siap.","fa-solid fa-circle-xmark text-rose-600");
+    return false;
+  };
+}
+
+
 let dataUnsub=null,userUnsub=null;
 function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(d.historyData));if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${p}`,JSON.stringify(d.pengeluaranData));if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${p}`,JSON.stringify(d.kasbonData));if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${p}`,JSON.stringify(d.backupOtomatisData));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:"))nativeSet.call(localStorage,`finance_shop_cover_${p}`,JSON.stringify({src:d.shopCover,x:50,y:50}));redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
 
