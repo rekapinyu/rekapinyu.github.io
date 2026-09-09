@@ -294,8 +294,8 @@
         <!-- Foto Sampul Toko: menggantikan area Logo + REKAPINYU sebelumnya -->
         <div class="border-b border-[#15327a] bg-[#0a1c47] relative">
             <div id="shop-cover-frame" class="w-full h-20 bg-slate-100 overflow-hidden flex items-center justify-center shadow-sm relative cursor-pointer" title="Ganti Foto Sampul Toko">
-                <img id="shop-cover-image" src="" alt="Foto Sampul Toko" class="w-full h-full object-cover hidden select-none pointer-events-none" draggable="false">
-                <i id="shop-cover-placeholder" class="fa-solid fa-store text-emerald-600 text-2xl"></i>
+                <img id="shop-cover-image" src="" alt="Foto Sampul Toko" class="w-full h-full object-contain hidden select-none pointer-events-none" draggable="false">
+                <span id="shop-cover-placeholder" class="text-slate-400 text-[10px] font-semibold text-center px-2 select-none">Pasang foto sampul disini</span>
                 <div id="shop-cover-edit-hint" class="absolute inset-x-0 bottom-0 bg-black/45 text-white text-[9px] text-center py-1 hidden pointer-events-none">Geser foto dengan mouse</div>
                 <button type="button" id="shop-cover-save" class="absolute bottom-1 right-1 hidden px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-bold shadow-lg transition z-10" title="Simpan posisi foto">Simpan</button>
             </div>
@@ -896,7 +896,7 @@
             if (!avatarContainer || !currentSessionUser) return;
 
             if (currentSessionUser.photo) {
-                avatarContainer.innerHTML = `<img src="${currentSessionUser.photo}" class="w-full h-full object-cover">`;
+                avatarContainer.innerHTML = `<img src="${currentSessionUser.photo}" class="w-full h-full object-contain bg-slate-100" alt="Foto profil">`;
             } else {
                 avatarContainer.innerHTML = `<i id="sidebar-user-avatar-icon" class="fa-solid fa-user"></i>`;
             }
@@ -3143,11 +3143,98 @@ window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)r
 
 // Profile photo is stored in Firebase Storage.
 const profileSave=document.getElementById("save-profile-btn");
-if(profileSave)profileSave.addEventListener("click",async e=>{const inp=document.getElementById("input-new-photo");if(!inp?.files?.[0]||!auth.currentUser)return;e.preventDefault();e.stopImmediatePropagation();try{const f=inp.files[0],r=ref(storage,`users/${auth.currentUser.uid}/profile`);await uploadBytes(r,f,{contentType:f.type,cacheControl:"public,max-age=31536000"});const url=await getDownloadURL(r);currentSessionUser.photo=url;await saveCloudUser({photo:url});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));updateUserAvatarUI();closeProfileModal();notify("Berhasil","Foto profil tersimpan di Firebase Storage.")}catch(x){console.error(x);notify("Gagal","Foto profil gagal diunggah ke Firebase Storage.","fa-solid fa-circle-xmark text-rose-600")}},true);
+if(profileSave)profileSave.addEventListener("click",async e=>{
+  const inp=document.getElementById("input-new-photo");
+  const file=inp?.files?.[0];
+  if(!file||!auth.currentUser){e.preventDefault();e.stopImmediatePropagation();notify("Gagal","Silakan pilih file foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return;}
+  e.preventDefault();e.stopImmediatePropagation();
+  try{
+    const prepareImage=()=>new Promise((resolve,reject)=>{
+      if(!file.type.startsWith("image/")){reject(new Error("File bukan gambar."));return;}
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error("Foto tidak dapat dibaca."));
+      reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          const maxSide=1600, scale=Math.min(1,maxSide/img.naturalWidth,maxSide/img.naturalHeight);
+          const canvas=document.createElement("canvas");
+          canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+          const ctx=canvas.getContext("2d");
+          if(!ctx){resolve(file);return;}
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          canvas.toBlob(blob=>resolve(blob||file),"image/jpeg",0.86);
+        };
+        img.onerror=()=>resolve(file);
+        img.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    const uploadFile=await prepareImage();
+    const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
+    await uploadBytes(r,uploadFile,{contentType:"image/jpeg",cacheControl:"public,max-age=31536000"});
+    const url=await getDownloadURL(r);
+    currentSessionUser.photo=url;
+    try{await saveCloudUser({photo:url})}catch(firestoreErr){console.warn("Foto profil sudah di Storage, tetapi profil Firestore belum tersimpan.",firestoreErr)}
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+    const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phoneOf(currentSessionUser.phone));
+    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],...currentSessionUser};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
+    updateUserAvatarUI();
+    closeProfileModal();
+    notify("Berhasil","Foto profil berhasil diganti dan disimpan.");
+  }catch(x){
+    console.error(x);
+    let msg="Foto profil gagal diganti.";
+    if(x?.code==="storage/unauthorized"||x?.code==="storage/permission-denied")msg="Firebase Storage menolak akses. Periksa Storage Rules agar UID pengguna boleh menulis ke users/{uid}/profile.";
+    notify("Gagal",msg,"fa-solid fa-circle-xmark text-rose-600");
+  }
+},true);
 
 // Shop cover is stored in Firebase Storage. Position changes remain in Firestore data.
 const ci=document.getElementById("shop-cover-input");
-if(ci)ci.addEventListener("change",async e=>{e.preventDefault();e.stopImmediatePropagation();const f=ci.files?.[0];if(!f||!auth.currentUser)return;try{const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);await uploadBytes(r,f,{contentType:f.type,cacheControl:"public,max-age=31536000"});const url=await getDownloadURL(r),phone=phoneOf(currentSessionUser.phone);nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:url,x:50,y:50}));await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});refreshShopCoverPhoto();notify("Berhasil","Foto sampul toko tersimpan di Firebase Storage.")}catch(x){console.error(x);notify("Gagal","Foto sampul gagal diunggah ke Firebase Storage.","fa-solid fa-circle-xmark text-rose-600")}},true);
+if(ci)ci.addEventListener("change",async e=>{
+  e.preventDefault();e.stopImmediatePropagation();
+  const f=ci.files?.[0];
+  ci.value="";
+  if(!f||!auth.currentUser)return;
+  try{
+    const prepareImage=()=>new Promise((resolve,reject)=>{
+      if(!f.type.startsWith("image/")){reject(new Error("File bukan gambar."));return;}
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error("Foto tidak dapat dibaca."));
+      reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          const maxSide=2000, scale=Math.min(1,maxSide/img.naturalWidth,maxSide/img.naturalHeight);
+          const canvas=document.createElement("canvas");
+          canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+          const ctx=canvas.getContext("2d");
+          if(!ctx){resolve(f);return;}
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          canvas.toBlob(blob=>resolve(blob||f),"image/jpeg",0.86);
+        };
+        img.onerror=()=>resolve(f);
+        img.src=reader.result;
+      };
+      reader.readAsDataURL(f);
+    });
+    const uploadFile=await prepareImage();
+    const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
+    await uploadBytes(r,uploadFile,{contentType:"image/jpeg",cacheControl:"public,max-age=31536000"});
+    const url=await getDownloadURL(r),phone=phoneOf(currentSessionUser.phone);
+    const coverData={src:url,x:50,y:50};
+    nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify(coverData));
+    try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true})}catch(firestoreErr){console.warn("Foto sampul sudah di Storage, tetapi Firestore belum menyimpan URL.",firestoreErr)}
+    refreshShopCoverPhoto();
+    notify("Berhasil","Foto sampul berhasil diganti dan disimpan.");
+  }catch(x){
+    console.error(x);
+    let msg="Foto sampul gagal diganti.";
+    if(x?.code==="storage/unauthorized"||x?.code==="storage/permission-denied")msg="Firebase Storage menolak akses. Periksa Storage Rules agar UID pengguna boleh menulis ke users/{uid}/shop-cover.";
+    notify("Gagal",msg,"fa-solid fa-circle-xmark text-rose-600");
+  }
+},true);
 
 // Password update uses Firebase Auth. Recent login may be required by Firebase.
 window.__rekapinyuFirebaseChangePassword=async p=>{if(!auth.currentUser)throw new Error("Belum login Firebase.");await updatePassword(auth.currentUser,p)};
