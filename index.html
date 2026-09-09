@@ -1261,7 +1261,7 @@
                 return false;
             };
 
-            window.saveShopCoverPhoto = async function () {
+            window.saveShopCoverPhoto = async function (options = {}) {
                 try {
                     const src = coverImage.getAttribute('src') || coverImage.src || '';
                     if (!src || coverImage.classList.contains('hidden')) return false;
@@ -1275,21 +1275,36 @@
                     localStorage.setItem(storageKey(), JSON.stringify(data));
                     coverX = data.x; coverY = data.y; setObjectPosition(); setEditorState(false);
                     const pending = window.__shopCoverPendingFile || null;
-                    if (auth.currentUser && pending) {
+                    window.__shopCoverPendingFile=null;
+
+                    // Upload Firebase dilakukan di belakang layar agar tombol Simpan langsung selesai.
+                    if (!options.localOnly && auth.currentUser && pending) {
                         try {
                             const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
                             await uploadBytes(r,pending,{contentType:pending.type,cacheControl:'public,max-age=31536000'});
                             const url=await getDownloadURL(r);
                             const cloudData={src:url,x:data.x,y:data.y};
                             if(phone)localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));
-                            await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});
+                            try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
                             renderShopCover(cloudData,false);
                         } catch(storageErr) {
                             console.warn('Sampul tersimpan lokal; Firebase Storage belum mengizinkan upload.',storageErr);
                         }
+                    } else if (auth.currentUser && pending) {
+                        // Tetap sinkronkan cloud tanpa menahan hasil klik.
+                        Promise.resolve().then(async()=>{
+                            try {
+                                const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
+                                await uploadBytes(r,pending,{contentType:pending.type,cacheControl:'public,max-age=31536000'});
+                                const url=await getDownloadURL(r);
+                                const cloudData={src:url,x:data.x,y:data.y};
+                                if(phone)localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));
+                                try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
+                                renderShopCover(cloudData,false);
+                            } catch(storageErr) { console.warn('Sinkronisasi sampul Firebase gagal; versi lokal tetap tersimpan.',storageErr); }
+                        });
                     }
-                    window.__shopCoverPendingFile=null;
-                    notify('Berhasil','Foto sampul berhasil disimpan.');
+                    if(!options.localOnly) notify('Berhasil','Foto sampul berhasil disimpan.');
                     return true;
                 } catch (e) {
                     console.warn('Foto sampul toko tidak dapat disimpan:', e);
@@ -3236,8 +3251,9 @@ window.__rekapinyuSaveProfilePhoto=async function(){
   if(!/^image\/(jpeg|png)$/i.test(file.type)){showModal("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return false;}
   if(!auth.currentUser){showModal("Gagal","Sesi Firebase belum siap. Silakan coba lagi.","fa-solid fa-circle-exclamation text-rose-600");return false;}
   const btn=document.getElementById("save-profile-btn");
-  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";}
+  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Simpan";}
   try{
+    // Simpan ke tampilan/cache lokal terlebih dahulu agar hasil terasa instan.
     const localUrl=await imageToDataURL(file,900,0.88);
     const phone=phoneOf(currentSessionUser?.phone);
     currentSessionUser.photo=localUrl;
@@ -3246,19 +3262,26 @@ window.__rekapinyuSaveProfilePhoto=async function(){
     const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
     if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
     updateUserAvatarUI();
-    try{await saveCloudUser({photo:localUrl});}catch(err){console.warn("Firestore foto profil:",err)}
-    try{
-      const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
-      await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
-      const url=await getDownloadURL(r);
-      currentSessionUser.photo=url;
-      nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-      if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-      try{await saveCloudUser({photo:url});}catch(err){console.warn("Firestore URL foto profil:",err)}
-      updateUserAvatarUI();
-    }catch(err){console.warn("Storage foto profil:",err)}
     closeProfileModal();
-    showModal("Berhasil","Foto profil berhasil diganti.","fa-solid fa-circle-check text-emerald-600");
+
+    // Popup sukses langsung setelah foto berhasil diproses/disimpan ke perangkat.
+    showModal("Berhasil","Foto profil berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
+    setTimeout(()=>{try{closeModal();}catch{}},1600);
+
+    // Sinkronisasi Firebase berjalan di belakang layar dan tidak menahan popup/tombol.
+    Promise.resolve().then(async()=>{
+      try{await saveCloudUser({photo:localUrl});}catch(err){console.warn("Firestore foto profil:",err)}
+      try{
+        const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
+        await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
+        const url=await getDownloadURL(r);
+        currentSessionUser.photo=url;
+        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+        if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
+        try{await saveCloudUser({photo:url});}catch(err){console.warn("Firestore URL foto profil:",err)}
+        updateUserAvatarUI();
+      }catch(err){console.warn("Storage foto profil:",err)}
+    });
     return true;
   }catch(err){
     console.error("Simpan foto profil:",err);
@@ -3270,24 +3293,23 @@ window.__rekapinyuSaveProfilePhoto=async function(){
 };
 
 window.__rekapinyuSaveCoverPhoto=async function(){
-  if(typeof window.saveShopCoverPhoto!=="function"){
-    showModal("Gagal","Fungsi simpan foto sampul belum siap.","fa-solid fa-circle-xmark text-rose-600");
-    return false;
-  }
   const btn=document.getElementById("shop-cover-save");
-  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";}
+  if(!btn||btn.classList.contains("hidden")||btn.dataset.saving==="1")return false;
+  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Simpan";}
   try{
-    const ok=await window.saveShopCoverPhoto();
-    if(ok===false){
-      showModal("Gagal","Silakan pilih foto sampul terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");
-      return false;
-    }
-    // saveShopCoverPhoto sudah menyimpan preview/cloud. Popup dipastikan tampil di sini.
+    const fn=window.saveShopCoverPhoto;
+    if(typeof fn!=="function")throw new Error("Fungsi simpan foto sampul belum siap.");
+
+    // Jangan menunggu upload Firebase. Fungsi ini menyimpan preview + posisi secara lokal terlebih dahulu.
+    const ok=await fn({localOnly:true});
+    if(ok===false)throw new Error("Foto sampul belum dipilih.");
+
     showModal("Berhasil","Foto sampul berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
+    setTimeout(()=>{try{closeModal();}catch{}},1600);
     return true;
   }catch(err){
     console.error("Simpan foto sampul:",err);
-    showModal("Gagal","Foto sampul tidak dapat disimpan.","fa-solid fa-circle-xmark text-rose-600");
+    showModal("Gagal",err?.message||"Foto sampul tidak dapat disimpan.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }finally{
     if(btn){btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";}
