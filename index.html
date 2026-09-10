@@ -932,7 +932,7 @@
             const authContainer = document.getElementById('auth-container');
             // PATCH KHUSUS LANDING PAGE: saat datang dari tombol "Masuk ke Aplikasi",
             // jangan tampilkan popup login aplikasi selama sesi handoff sedang diproses.
-            const landingLoginPending = /^#rekapinyu_login=/.test(window.location.hash || '');
+            const landingLoginPending = window.__rekapinyuLandingHandoffPending === true || /^#rekapinyu_login=/.test(window.location.hash || '');
             if (landingLoginPending) {
                 authContainer.classList.add('hidden');
             }
@@ -3477,6 +3477,7 @@ redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!cu
 // LOGIN HANDOFF DARI LANDING PAGE
 // Landing Page dan aplikasi memakai origin berbeda, jadi localStorage tidak dapat dibagi.
 // Kredensial dikirim sekali melalui URL fragment, lalu langsung dihapus dari address bar.
+window.__rekapinyuLandingHandoffPending = /^#rekapinyu_login=/.test(window.location.hash||"");
 async function consumeLandingLogin(){
   try{
     const hash=window.location.hash||"";
@@ -3497,10 +3498,12 @@ async function consumeLandingLogin(){
     }catch(e){console.warn("Rekapinyu handoff: profil Firestore belum dapat dibaca.",e)}
     localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||data.phone),email:c.user.email});
     try{await hydrate(c.user.uid)}catch(e){console.warn("Rekapinyu handoff: data belum dapat dimuat.",e)}
+    window.__rekapinyuLandingHandoffPending=false;
     return true;
   }catch(e){
     console.error("Rekapinyu landing login handoff:",e);
     try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}
+    window.__rekapinyuLandingHandoffPending=false;
     notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }
