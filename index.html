@@ -3505,5 +3505,158 @@ onAuthStateChanged(auth,async u=>{
   await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");checkAuth();return}try{await hydrate(u.uid);realtime(u);checkAuth();redraw()}catch(e){console.error("Firebase hydrate:",e)}});
 </script>
 
+
+<script>
+/* PATCH TAMBAHAN SAJA: ikon Gir pada kartu Backup Otomatis.
+   Tidak mengubah fungsi/kode original; hanya menambahkan kontrol pada kartu. */
+(function(){
+    const originalRenderBackupGrid = window.renderBackupGrid;
+    if (typeof originalRenderBackupGrid !== 'function') return;
+
+    function backupStorageKey(){
+        return currentSessionUser && currentSessionUser.phone
+            ? `finance_backup_desktop_${currentSessionUser.phone}` : null;
+    }
+    function saveBackupOnly(){
+        const key = backupStorageKey();
+        if(key) localStorage.setItem(key, JSON.stringify(backupOtomatisData));
+    }
+    function getBackup(id){
+        return backupOtomatisData.find(b => String(b.id) === String(id));
+    }
+
+    window.toggleBackupGearMenu = function(event, id){
+        if(event) event.stopPropagation();
+        document.querySelectorAll('.backup-gear-menu').forEach(el=>{
+            if(el.id !== `backup-gear-menu-${id}`) el.classList.add('hidden');
+        });
+        const menu=document.getElementById(`backup-gear-menu-${id}`);
+        if(menu) menu.classList.toggle('hidden');
+    };
+
+    window.editBackupDateOnly = function(id){
+        const backup=getBackup(id);
+        if(!backup) return;
+
+        document.querySelectorAll('.backup-gear-menu').forEach(el=>el.classList.add('hidden'));
+
+        const modal=document.getElementById('edit-modal');
+        const title=document.getElementById('edit-modal-title');
+        const body=document.getElementById('edit-modal-body');
+        const saveBtn=document.getElementById('save-edit-btn');
+        if(!modal || !title || !body || !saveBtn) return;
+
+        const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+        const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const monthIndex=Number.isFinite(Number(backup.monthIndex))
+            ? Number(backup.monthIndex) : Math.max(0,months.indexOf(backup.month));
+
+        title.innerText=`Edit Waktu & Tanggal (Backup)`;
+        body.innerHTML=`
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
+                <select id="edit-backup-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                    ${days.map(d=>`<option value="${d}" ${d===backup.day?'selected':''}>${d}</option>`).join('')}
+                </select>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
+                    <input type="number" id="edit-backup-date" min="1" max="31" value="${Number(backup.date)||1}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
+                    <select id="edit-backup-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        ${months.map((m,idx)=>`<option value="${m}" data-index="${idx}" ${idx===monthIndex?'selected':''}>${m}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
+                    <input type="number" id="edit-backup-year" min="2000" max="2100" value="${Number(backup.year)||new Date().getFullYear()}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                </div>
+            </div>`;
+
+        saveBtn.onclick=function(){
+            const day=document.getElementById('edit-backup-day')?.value;
+            const date=Math.max(1,Math.min(31,parseInt(document.getElementById('edit-backup-date')?.value,10)||1));
+            const monthEl=document.getElementById('edit-backup-month');
+            const month=monthEl?.value || backup.month;
+            const mi=parseInt(monthEl?.selectedOptions?.[0]?.dataset?.index,10);
+            const year=parseInt(document.getElementById('edit-backup-year')?.value,10)||backup.year;
+
+            backup.day=day;
+            backup.date=date;
+            backup.month=month;
+            backup.monthIndex=Number.isFinite(mi)?mi:monthIndex;
+            backup.year=year;
+            backup.dateKey=`${date}-${backup.monthIndex}-${year}`;
+            backup.historyName=`${day}, ${date} ${month} ${year}`;
+
+            saveBackupOnly();
+            closeEditModal();
+            originalRenderBackupGrid();
+        };
+
+        modal.classList.remove('hidden');
+    };
+
+    window.deleteBackupCardOnly = function(id){
+        const backup=getBackup(id);
+        if(!backup) return;
+        document.querySelectorAll('.backup-gear-menu').forEach(el=>el.classList.add('hidden'));
+
+        const ok=confirm(`Hapus data Backup Otomatis ${backup.date} ${backup.month} ${backup.year}?`);
+        if(!ok) return;
+
+        backupOtomatisData=backupOtomatisData.filter(b=>String(b.id)!==String(id));
+        saveBackupOnly();
+        originalRenderBackupGrid();
+    };
+
+    function addBackupGear(){
+        const container=document.getElementById('backup-grid');
+        if(!container) return;
+
+        container.querySelectorAll(':scope > div').forEach(card=>{
+            if(card.querySelector('.backup-gear-button')) return;
+
+            const text=card.querySelector('h4')?.textContent || '';
+            const backup=backupOtomatisData.find(b=>{
+                const label=b.historyName || `${b.day}, ${b.date} ${b.month} ${b.year}`;
+                return label === text;
+            });
+            if(!backup) return;
+
+            card.style.position='relative';
+
+            const wrap=document.createElement('div');
+            wrap.className='absolute top-4 right-4 z-20';
+            wrap.innerHTML=`
+                <button type="button" class="backup-gear-button w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition" title="Pengaturan Backup" onclick="toggleBackupGearMenu(event, ${backup.id})">
+                    <i class="fa-solid fa-gear text-xs"></i>
+                </button>
+                <div id="backup-gear-menu-${backup.id}" class="backup-gear-menu hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50">
+                    <button type="button" onclick="editBackupDateOnly(${backup.id})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-pen text-emerald-500 w-4"></i> Edit Waktu &amp; Tanggal
+                    </button>
+                    <button type="button" onclick="deleteBackupCardOnly(${backup.id})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+                        <i class="fa-solid fa-trash text-rose-500 w-4"></i> Hapus Data
+                    </button>
+                </div>`;
+            card.appendChild(wrap);
+        });
+    }
+
+    window.renderBackupGrid=function(){
+        originalRenderBackupGrid();
+        addBackupGear();
+    };
+
+    document.addEventListener('click',function(){
+        document.querySelectorAll('.backup-gear-menu').forEach(el=>el.classList.add('hidden'));
+    });
+})();
+</script>
+
 </body>
 </html>
