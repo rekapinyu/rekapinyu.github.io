@@ -936,11 +936,15 @@
 
         function checkAuth() {
             const authContainer = document.getElementById('auth-container');
-            if (currentSessionUser) {
+            if (currentSessionUser || window.__rekapinyuLandingHandoffActive) {
+                // Saat datang dari Landing Page, jangan tampilkan login bawaan aplikasi
+                // sebelum proses handoff Firebase selesai.
                 authContainer.classList.add('hidden');
-                document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
-                updateUserAvatarUI();
-                loadUserData();
+                if (currentSessionUser) {
+                    document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
+                    updateUserAvatarUI();
+                    loadUserData();
+                }
             } else {
                 authContainer.classList.remove('hidden');
                 historyData = [];
@@ -949,6 +953,10 @@
                 backupOtomatisData = [];
             }
         }
+
+        // Deteksi handoff SEBELUM checkAuth pertama kali dijalankan.
+        // Ini mencegah race condition yang sempat menampilkan popup login aplikasi.
+        window.__rekapinyuLandingHandoffActive = /^#rekapinyu_login=/.test(window.location.hash || '');
         checkAuth();
 
         function updateUserAvatarUI() {
@@ -3496,10 +3504,12 @@ async function consumeLandingLogin(){
       if(s.exists())u={...u,...s.data()};
     }catch(e){console.warn("Rekapinyu handoff: profil Firestore belum dapat dibaca.",e)}
     localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||data.phone),email:c.user.email});
+    window.__rekapinyuLandingHandoffActive = true;
     try{await hydrate(c.user.uid)}catch(e){console.warn("Rekapinyu handoff: data belum dapat dimuat.",e)}
     return true;
   }catch(e){
     console.error("Rekapinyu landing login handoff:",e);
+    window.__rekapinyuLandingHandoffActive = false;
     try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}
     notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");
     return false;
@@ -3508,7 +3518,30 @@ async function consumeLandingLogin(){
 const landingHandoffPromise=consumeLandingLogin();
 
 onAuthStateChanged(auth,async u=>{
-  await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");checkAuth();return}try{await hydrate(u.uid);realtime(u);checkAuth();redraw()}catch(e){console.error("Firebase hydrate:",e)}});
+  await landingHandoffPromise;
+  window.RekapinyuFirebase.ready=true;
+  window.RekapinyuFirebase.uid=u?.uid||null;
+  if(!u){
+    if(dataUnsub)dataUnsub();
+    if(userUnsub)userUnsub();
+    currentSessionUser=null;
+    nativeRemove.call(localStorage,"finance_active_session");
+    window.__rekapinyuLandingHandoffActive=false;
+    checkAuth();
+    return
+  }
+  try{
+    await hydrate(u.uid);
+    realtime(u);
+    window.__rekapinyuLandingHandoffActive=false;
+    checkAuth();
+    redraw()
+  }catch(e){
+    console.error("Firebase hydrate:",e);
+    window.__rekapinyuLandingHandoffActive=false;
+    checkAuth();
+  }
+});
 </script>
 
 
