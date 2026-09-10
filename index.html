@@ -2911,7 +2911,63 @@
             document.getElementById('pdf-modal').classList.add('hidden');
         }
     </script>
+<script>
+  // Inisialisasi Firebase Database
+  const firebaseConfig = {
+    databaseURL: "https://rekapinyu-default-rtdb.firebaseio.com"
+  };
 
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.database();
+
+  // Proses Login memeriksa data dari Firebase
+  document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const phone = document.getElementById('login-phone').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+
+    if (!phone || !password) {
+      alert('Harap isi Nomor HP dan Kata Sandi!');
+      return;
+    }
+
+    const userKey = phone.replace(/[^0-9]/g, '');
+
+    // Cek akun di Firebase
+    db.ref('users/' + userKey).once('value').then((snapshot) => {
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+
+        if (userData.password === password) {
+          const sessionUser = {
+            phone: userData.phone,
+            name: userData.ownerName || userData.storeName || 'Pengguna REKAPINYU',
+            storeName: userData.storeName
+          };
+
+          localStorage.setItem('finance_active_session', JSON.stringify(sessionUser));
+          currentSessionUser = sessionUser;
+
+          document.getElementById('auth-container').classList.add('hidden');
+          if (typeof loadUserData === 'function') {
+            loadUserData();
+          }
+
+          alert('Selamat datang kembali, ' + sessionUser.name + '!');
+        } else {
+          alert('Kata Sandi salah. Silakan periksa kembali!');
+        }
+      } else {
+        alert('Nomor HP belum terdaftar. Silakan daftar terlebih dahulu!');
+      }
+    }).catch((error) => {
+      alert('Terjadi kesalahan koneksi: ' + error.message);
+    });
+  });
+</script>
     <!-- MOBILE ONLY: SIMPLIFIED BOTTOM DOCK -->
     <nav id="mobile-simplified-dock" class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-6px_20px_rgba(15,23,42,.08)] z-40">
         <div class="max-w-md mx-auto grid grid-cols-3 px-3 py-2">
