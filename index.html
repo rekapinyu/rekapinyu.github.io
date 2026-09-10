@@ -811,7 +811,7 @@
         }
         loadUserData();
 
-        function triggerDailyAutoBackup() {
+        function triggerDailyAutoBackup(sourceHistoryId = null) {
             if (!currentSessionUser || !currentSessionUser.phone) return;
             const now = new Date();
             const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -830,9 +830,13 @@
              * ini backup selalu mengikuti item History yang sama walaupun Hari,
              * Tanggal, Bulan, Tahun, atau nominalnya diedit dari History.
              */
-            let existingBackup = backupOtomatisData.find(b => b.dateKey === dateKey);
+            // Jika dipanggil setelah Input Data baru, cari backup berdasarkan ID input tersebut.
+            // Dengan begitu setiap input baru mempunyai kartu backup sendiri.
+            let existingBackup = sourceHistoryId != null
+                ? backupOtomatisData.find(b => String(b.sourceHistoryId) === String(sourceHistoryId))
+                : backupOtomatisData.find(b => b.dateKey === dateKey);
 
-            if (!existingBackup) {
+            if (!existingBackup && sourceHistoryId == null) {
                 existingBackup = backupOtomatisData.find(b => {
                     const sourceId = b.sourceHistoryId;
                     return sourceId != null && historyData.some(h => String(h.id) === String(sourceId));
@@ -840,7 +844,9 @@
             }
 
             if (!existingBackup) {
-                const sourceHistory = historyData.length ? historyData[0] : null;
+                const sourceHistory = sourceHistoryId != null
+                    ? (historyData.find(h => String(h.id) === String(sourceHistoryId)) || null)
+                    : (historyData.length ? historyData[0] : null);
                 const newBackup = {
                     id: Date.now(),
                     dateKey: dateKey,
@@ -930,14 +936,6 @@
 
         function checkAuth() {
             const authContainer = document.getElementById('auth-container');
-            // PATCH KHUSUS LANDING PAGE: saat datang dari tombol "Masuk ke Aplikasi",
-            // jangan tampilkan popup login aplikasi selama sesi handoff sedang diproses.
-            const landingLoginPending = window.__rekapinyuLandingHandoffPending === true || /^#rekapinyu_login=/.test(window.location.hash || '');
-            if (landingLoginPending) {
-                authContainer.classList.add('hidden');
-                // Jangan lanjut ke blok login di bawah selama handoff Landing Page belum selesai.
-                if (!currentSessionUser) return;
-            }
             if (currentSessionUser) {
                 authContainer.classList.add('hidden');
                 document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
@@ -2404,7 +2402,7 @@
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                triggerDailyAutoBackup();
+                triggerDailyAutoBackup(newEntry.id);
             }
 
             document.getElementById('finance-form').reset();
@@ -3479,7 +3477,6 @@ redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!cu
 // LOGIN HANDOFF DARI LANDING PAGE
 // Landing Page dan aplikasi memakai origin berbeda, jadi localStorage tidak dapat dibagi.
 // Kredensial dikirim sekali melalui URL fragment, lalu langsung dihapus dari address bar.
-window.__rekapinyuLandingHandoffPending = /^#rekapinyu_login=/.test(window.location.hash||"");
 async function consumeLandingLogin(){
   try{
     const hash=window.location.hash||"";
@@ -3500,12 +3497,10 @@ async function consumeLandingLogin(){
     }catch(e){console.warn("Rekapinyu handoff: profil Firestore belum dapat dibaca.",e)}
     localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||data.phone),email:c.user.email});
     try{await hydrate(c.user.uid)}catch(e){console.warn("Rekapinyu handoff: data belum dapat dimuat.",e)}
-    window.__rekapinyuLandingHandoffPending=false;
     return true;
   }catch(e){
     console.error("Rekapinyu landing login handoff:",e);
     try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}
-    window.__rekapinyuLandingHandoffPending=false;
     notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }
@@ -3518,156 +3513,235 @@ onAuthStateChanged(auth,async u=>{
 
 
 <script>
-/* PATCH TAMBAHAN SAJA: ikon Gir pada kartu Backup Otomatis.
-   Tidak mengubah fungsi/kode original; hanya menambahkan kontrol pada kartu. */
-(function(){
-    const originalRenderBackupGrid = window.renderBackupGrid;
-    if (typeof originalRenderBackupGrid !== 'function') return;
+/* PATCH TAMBAHAN: Pengaturan kartu Backup Otomatis.
+   Tidak mengubah fungsi asli; hanya menambahkan UI dan wrapper setelah fungsi asli. */
+(function () {
+  const originalBackupRender = window.renderBackupGrid;
+  const originalDailyBackup = window.triggerDailyAutoBackup;
 
-    function backupStorageKey(){
-        return currentSessionUser && currentSessionUser.phone
-            ? `finance_backup_desktop_${currentSessionUser.phone}` : null;
-    }
-    function saveBackupOnly(){
-        const key = backupStorageKey();
-        if(key) localStorage.setItem(key, JSON.stringify(backupOtomatisData));
-    }
-    function getBackup(id){
-        return backupOtomatisData.find(b => String(b.id) === String(id));
-    }
+  function backupStorageKey() {
+    return (typeof currentSessionUser !== 'undefined' && currentSessionUser && currentSessionUser.phone)
+      ? `finance_backup_desktop_${currentSessionUser.phone}` : null;
+  }
+  function persistBackupData() {
+    const key = backupStorageKey();
+    if (key) localStorage.setItem(key, JSON.stringify(backupOtomatisData));
+  }
+  function closeBackupSettings() {
+    document.querySelectorAll('.backup-settings-popup').forEach(m => m.classList.add('hidden'));
+  }
 
-    window.toggleBackupGearMenu = function(event, id){
-        if(event) event.stopPropagation();
-        document.querySelectorAll('.backup-gear-menu').forEach(el=>{
-            if(el.id !== `backup-gear-menu-${id}`) el.classList.add('hidden');
-        });
-        const menu=document.getElementById(`backup-gear-menu-${id}`);
-        if(menu) menu.classList.toggle('hidden');
+  /* Pertahankan perubahan manual ketika backup otomatis berikutnya berjalan. */
+  window.triggerDailyAutoBackup = function () {
+    const oldValues = new Map((backupOtomatisData || []).map(b => [String(b.id), {
+      customName: b.customName,
+      manualDate: b.manualDate,
+      manualDay: b.manualDay,
+      manualDateNumber: b.manualDateNumber,
+      manualMonthIndex: b.manualMonthIndex,
+      manualMonth: b.manualMonth,
+      manualYear: b.manualYear
+    }]));
+    const result = originalDailyBackup ? originalDailyBackup.apply(this, arguments) : undefined;
+
+    const restoreManual = function () {
+      (backupOtomatisData || []).forEach(b => {
+        const old = oldValues.get(String(b.id));
+        if (!old) return;
+        if (old.customName !== undefined) b.customName = old.customName;
+        if (old.manualDate) {
+          b.manualDate = true;
+          b.manualDay = old.manualDay;
+          b.manualDateNumber = old.manualDateNumber;
+          b.manualMonthIndex = old.manualMonthIndex;
+          b.manualMonth = old.manualMonth;
+          b.manualYear = old.manualYear;
+          b.day = old.manualDay;
+          b.date = old.manualDateNumber;
+          b.monthIndex = old.manualMonthIndex;
+          b.month = old.manualMonth;
+          b.year = old.manualYear;
+          b.dateKey = `${b.date}-${b.monthIndex}-${b.year}`;
+        }
+        if (b.customName) b.historyName = b.customName;
+      });
+      persistBackupData();
     };
+    if (result && typeof result.then === 'function') return result.then(restoreManual);
+    restoreManual();
+    return result;
+  };
 
-    window.editBackupDateOnly = function(id){
-        const backup=getBackup(id);
-        if(!backup) return;
-
-        document.querySelectorAll('.backup-gear-menu').forEach(el=>el.classList.add('hidden'));
-
-        const modal=document.getElementById('edit-modal');
-        const title=document.getElementById('edit-modal-title');
-        const body=document.getElementById('edit-modal-body');
-        const saveBtn=document.getElementById('save-edit-btn');
-        if(!modal || !title || !body || !saveBtn) return;
-
-        const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-        const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-        const monthIndex=Number.isFinite(Number(backup.monthIndex))
-            ? Number(backup.monthIndex) : Math.max(0,months.indexOf(backup.month));
-
-        title.innerText=`Edit Waktu & Tanggal (Backup)`;
-        body.innerHTML=`
-            <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
-                <select id="edit-backup-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                    ${days.map(d=>`<option value="${d}" ${d===backup.day?'selected':''}>${d}</option>`).join('')}
-                </select>
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
-                    <input type="number" id="edit-backup-date" min="1" max="31" value="${Number(backup.date)||1}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
-                    <select id="edit-backup-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                        ${months.map((m,idx)=>`<option value="${m}" data-index="${idx}" ${idx===monthIndex?'selected':''}>${m}</option>`).join('')}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
-                    <input type="number" id="edit-backup-year" min="2000" max="2100" value="${Number(backup.year)||new Date().getFullYear()}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                </div>
-            </div>`;
-
-        saveBtn.onclick=function(){
-            const day=document.getElementById('edit-backup-day')?.value;
-            const date=Math.max(1,Math.min(31,parseInt(document.getElementById('edit-backup-date')?.value,10)||1));
-            const monthEl=document.getElementById('edit-backup-month');
-            const month=monthEl?.value || backup.month;
-            const mi=parseInt(monthEl?.selectedOptions?.[0]?.dataset?.index,10);
-            const year=parseInt(document.getElementById('edit-backup-year')?.value,10)||backup.year;
-
-            backup.day=day;
-            backup.date=date;
-            backup.month=month;
-            backup.monthIndex=Number.isFinite(mi)?mi:monthIndex;
-            backup.year=year;
-            backup.dateKey=`${date}-${backup.monthIndex}-${year}`;
-            backup.historyName=`${day}, ${date} ${month} ${year}`;
-
-            saveBackupOnly();
-            closeEditModal();
-            originalRenderBackupGrid();
-        };
-
-        modal.classList.remove('hidden');
-    };
-
-    window.deleteBackupCardOnly = function(id){
-        const backup=getBackup(id);
-        if(!backup) return;
-        document.querySelectorAll('.backup-gear-menu').forEach(el=>el.classList.add('hidden'));
-
-        const ok=confirm(`Hapus data Backup Otomatis ${backup.date} ${backup.month} ${backup.year}?`);
-        if(!ok) return;
-
-        backupOtomatisData=backupOtomatisData.filter(b=>String(b.id)!==String(id));
-        saveBackupOnly();
-        originalRenderBackupGrid();
-    };
-
-    function addBackupGear(){
-        const container=document.getElementById('backup-grid');
-        if(!container) return;
-
-        container.querySelectorAll(':scope > div').forEach(card=>{
-            if(card.querySelector('.backup-gear-button')) return;
-
-            const text=card.querySelector('h4')?.textContent || '';
-            const backup=backupOtomatisData.find(b=>{
-                const label=b.historyName || `${b.day}, ${b.date} ${b.month} ${b.year}`;
-                return label === text;
-            });
-            if(!backup) return;
-
-            card.style.position='relative';
-
-            const wrap=document.createElement('div');
-            wrap.className='absolute top-14 right-4 z-20';
-            wrap.innerHTML=`
-                <button type="button" class="backup-gear-button w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition" title="Pengaturan Backup" onclick="toggleBackupGearMenu(event, ${backup.id})">
-                    <i class="fa-solid fa-gear text-xs"></i>
-                </button>
-                <div id="backup-gear-menu-${backup.id}" class="backup-gear-menu hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50">
-                    <button type="button" onclick="editBackupDateOnly(${backup.id})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-emerald-500 w-4"></i> Edit Waktu &amp; Tanggal
-                    </button>
-                    <button type="button" onclick="deleteBackupCardOnly(${backup.id})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-                        <i class="fa-solid fa-trash text-rose-500 w-4"></i> Hapus Data
-                    </button>
-                </div>`;
-            card.appendChild(wrap);
-        });
-    }
-
-    window.renderBackupGrid=function(){
-        originalRenderBackupGrid();
-        addBackupGear();
-    };
-
-    document.addEventListener('click',function(){
-        document.querySelectorAll('.backup-gear-menu').forEach(el=>el.classList.add('hidden'));
+  window.toggleBackupSettings = function (event, backupId) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const id = String(backupId);
+    document.querySelectorAll('.backup-settings-popup').forEach(menu => {
+      if (menu.dataset.backupId !== id) menu.classList.add('hidden');
     });
+    const menu = document.querySelector(`.backup-settings-popup[data-backup-id="${CSS.escape(id)}"]`);
+    if (menu) menu.classList.toggle('hidden');
+  };
+
+  /* EDIT: memakai modal edit History yang asli, bukan prompt. */
+  window.editBackupDate = function (event, backupId) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    closeBackupSettings();
+
+    const backup = backupOtomatisData.find(b => String(b.id) === String(backupId));
+    if (!backup) return;
+
+    const modal = document.getElementById('edit-modal');
+    const modalTitle = document.getElementById('edit-modal-title');
+    const modalBody = document.getElementById('edit-modal-body');
+    const saveBtn = document.getElementById('save-edit-btn');
+    if (!modal || !modalTitle || !modalBody || !saveBtn) return;
+
+    const daysOptions = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const monthsOptions = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+    /* SAMA dengan struktur popup Edit Waktu & Tanggal pada History. */
+    modalTitle.innerText = `Edit Waktu & Tanggal Backup (ID: ${String(backup.id).slice(-4)})`;
+    modalBody.innerHTML = `
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
+        <select id="edit-val-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+          ${daysOptions.map(d => `<option value="${d}" ${d === backup.day ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
+          <input type="number" id="edit-val-date" min="1" max="31" value="${Number(backup.date) || 1}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
+          <select id="edit-val-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+            ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${m === backup.month ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
+          <input type="number" id="edit-val-year" value="${Number(backup.year) || new Date().getFullYear()}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        </div>
+      </div>
+    `;
+
+    saveBtn.onclick = function () {
+      const day = document.getElementById('edit-val-day').value;
+      const date = parseInt(document.getElementById('edit-val-date').value, 10);
+      const monthSelect = document.getElementById('edit-val-month');
+      const month = monthSelect.value;
+      const monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'), 10);
+      const year = parseInt(document.getElementById('edit-val-year').value, 10);
+
+      if (!day || !Number.isInteger(date) || date < 1 || date > 31 ||
+          !month || !Number.isInteger(monthIndex) || !Number.isInteger(year) || year < 1900 || year > 9999) {
+        showModal("Gagal", "Tanggal dan waktu backup tidak valid.", "fa-solid fa-circle-exclamation text-rose-600");
+        return;
+      }
+
+      backup.manualDate = true;
+      backup.manualDay = day;
+      backup.manualDateNumber = date;
+      backup.manualMonthIndex = monthIndex;
+      backup.manualMonth = month;
+      backup.manualYear = year;
+
+      backup.day = day;
+      backup.date = date;
+      backup.monthIndex = monthIndex;
+      backup.month = month;
+      backup.year = year;
+      backup.dateKey = `${date}-${monthIndex}-${year}`;
+      if (!backup.customName) backup.historyName = `${day}, ${date} ${month} ${year}`;
+
+      persistBackupData();
+      closeEditModal();
+      renderBackupGrid();
+      showModal("Berhasil", "Tanggal dan waktu backup berhasil diperbarui.");
+    };
+
+    modal.classList.remove('hidden');
+  };
+
+  window.deleteBackupCard = function (event, backupId) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const backup = backupOtomatisData.find(b => String(b.id) === String(backupId));
+    if (!backup) return;
+
+    const label = backup.customName || backup.historyName || `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;
+    if (!confirm(`Hapus data Backup "${label}"?\n\nData History utama tidak akan ikut terhapus.`)) return;
+
+    backupOtomatisData = backupOtomatisData.filter(b => String(b.id) !== String(backupId));
+    persistBackupData();
+    closeBackupSettings();
+    if (typeof populateBackupFilters === 'function') populateBackupFilters();
+    renderBackupGrid();
+    showModal("Berhasil", "Data Backup berhasil dihapus.");
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.backup-settings-wrap')) closeBackupSettings();
+  });
+
+  /* Render ulang dengan fungsi asli, lalu tambahkan gear. */
+  window.renderBackupGrid = function () {
+    if (typeof originalBackupRender === 'function') originalBackupRender.apply(this, arguments);
+
+    const container = document.getElementById('backup-grid');
+    if (!container) return;
+
+    /* Bersihkan patch UI lama jika ada agar tidak dobel. */
+    container.querySelectorAll('.backup-settings-wrap').forEach(el => el.remove());
+
+    const restoreButtons = Array.from(container.querySelectorAll('button[onclick*="restoreHistoryFromBackup("]'));
+    restoreButtons.forEach(restoreBtn => {
+      const match = restoreBtn.getAttribute('onclick')?.match(/restoreHistoryFromBackup\(([^)]+)\)/);
+      if (!match) return;
+
+      const backupId = String(match[1]).trim();
+      const card = restoreBtn.closest('.bg-white');
+      if (!card) return;
+
+      const header = card.querySelector('.flex.items-center.justify-between.mb-3');
+      if (!header) return;
+
+      const oldStatus = header.querySelector('span.text-\\[10px\\]');
+      const wrap = document.createElement('div');
+      wrap.className = 'backup-settings-wrap relative ml-auto flex items-center gap-1';
+
+      wrap.innerHTML = `
+        <button type="button"
+          onclick="toggleBackupSettings(event, ${backupId})"
+          class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition"
+          title="Pengaturan Backup" aria-label="Pengaturan Backup">
+          <i class="fa-solid fa-gear text-xs"></i>
+        </button>
+
+        <div class="backup-settings-popup hidden absolute right-0 top-10 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50"
+             data-backup-id="${backupId}">
+          <button type="button" onclick="editBackupDate(event, ${backupId})"
+            class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-blue-500 w-4"></i>
+            <span>Edit Waktu & Tanggal</span>
+          </button>
+          <button type="button" onclick="deleteBackupCard(event, ${backupId})"
+            class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+            <i class="fa-solid fa-trash-can text-rose-500 w-4"></i>
+            <span>Hapus Data</span>
+          </button>
+        </div>
+      `;
+
+      if (oldStatus) oldStatus.remove();
+      header.appendChild(wrap);
+
+      const backup = backupOtomatisData.find(b => String(b.id) === backupId);
+      const title = card.querySelector('h4');
+      if (title && backup && backup.customName) title.textContent = backup.customName;
+    });
+  };
 })();
 </script>
-
 </body>
 </html>
