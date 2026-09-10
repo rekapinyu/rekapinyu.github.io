@@ -3094,452 +3094,235 @@
 </script>
 
 <script>
-(function(){
-    const originalLoadUserData = window.loadUserData;
-    if (typeof originalLoadUserData === 'function' && !originalLoadUserData.__shopCoverWrapped) {
-        window.loadUserData = function(){
-            const result = originalLoadUserData.apply(this, arguments);
-            if (typeof window.refreshShopCoverPhoto === 'function' && !window.__shopCoverEditingUnsaved) setTimeout(window.refreshShopCoverPhoto, 0);
-            return result;
-        };
-        window.loadUserData.__shopCoverWrapped = true;
-    }
-})();
-</script>
-<!-- REKAPINYU: FIREBASE FULL INTEGRATION -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
-
-const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
-const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app), storage=getStorage(app);
-window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,unsubscribe:null};
-const USERS="rekapinyu_users", DATA="rekapinyu_data", MAX=850000;
-const phoneOf=v=>String(v||"").replace(/\D/g,"");
-const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
-const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid);
-const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
-const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
-function cloudUid(){return auth.currentUser?.uid||null;}
-function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
-
-async function saveCloudData(){
- const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
- let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";
- if(shop.length>MAX)shop="";
- await setDoc(dref(uid),{historyData:Array.isArray(historyData)?historyData:[],pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],kasbonData:Array.isArray(kasbonData)?kasbonData:[],backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],kasbonPass:localStorage.getItem(`finance_kasbon_pass_${phone}`)||"",shopCover:shop,updatedAt:serverTimestamp()},{merge:true});
-}
-async function saveCloudUser(extra={}){
- const u=auth.currentUser;if(!u)return;
- const old=(await getDoc(uref(u.uid))).data()||{};
- await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),photo:extra.photo??currentSessionUser?.photo??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
-}
-function localSession(u){currentSessionUser={uid:u.uid,name:u.name||"",phone:phoneOf(u.phone),photo:u.photo||"",email:u.email||auth.currentUser?.email||""};nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([currentSessionUser]));}
-async function hydrate(uid){
- const us=await getDoc(uref(uid)), ds=await getDoc(dref(uid)); const u=us.exists()?us.data():{}, d=ds.exists()?ds.data():{}, phone=phoneOf(u.phone||currentSessionUser?.phone);
- if(!phone)return;
- localSession({...u,uid});
- if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(d.historyData));
- if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(d.pengeluaranData));
- if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(d.kasbonData));
- if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(d.backupOtomatisData));
- if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${phone}`,d.kasbonPass);
- if(typeof d.shopCover==="string"&&d.shopCover)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,d.shopCover);
- loadUserData(); if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto(); if(typeof updateUserAvatarUI==="function")updateUserAvatarUI();
-}
-function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
-
-// Every original localStorage write is mirrored to Firebase. localStorage remains only a cache/offline layer.
-if(!Storage.prototype.__rekapinyuFirebaseFull){
- Storage.prototype.setItem=function(k,v){const r=nativeSet.call(this,k,v);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){
-   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_kasbon_pass_${p}`,`finance_shop_cover_${p}`];
-   if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>saveCloudData().catch(console.warn),200)}
- }return r};
- Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>saveCloudData().catch(console.warn),100)}return r};
- Storage.prototype.__rekapinyuFirebaseFull=true;
-}
-
-// Firebase registration replaces the original registration handler.
-const rf=document.getElementById("register-form");
-if(rf)rf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
- const name=document.getElementById("reg-name").value.trim(),phone=phoneOf(document.getElementById("reg-phone").value),password=document.getElementById("reg-password").value;
- if(!name){notify("Gagal Daftar","Nama wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
- if(!phone){notify("Gagal Daftar","Nomor HP wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
- if(password.length<6){notify("Gagal Daftar","Kata sandi minimal 6 karakter.","fa-solid fa-circle-exclamation text-rose-600");return;}
- try{
-   // Akun dibuat di Firebase Auth terlebih dahulu. Penyimpanan Firestore
-   // tidak boleh membuat proses pendaftaran dianggap gagal.
-   const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
-   await updateProfile(c.user,{displayName:name});
-
-   const userData={uid:c.user.uid,name,phone,email:c.user.email,photo:""};
-   const emptyData={historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasbonPass:"",shopCover:""};
-
-   // Coba simpan ke Firestore. Jika Rules menolak, akun Auth tetap valid
-   // dan data lokal tetap menjadi fallback sehingga pengguna tetap bisa masuk.
-   try{
-     await setDoc(uref(c.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-     await setDoc(dref(c.user.uid),{...emptyData,updatedAt:serverTimestamp()});
-   }catch(firestoreErr){
-     console.warn("Rekapinyu: Firestore belum mengizinkan penyimpanan awal. Akun Auth tetap dibuat.",firestoreErr);
-   }
-
-   // Simpan cache lokal termasuk password agar akun yang baru dibuat
-   // tetap dapat dipakai jika Firestore belum memiliki permission.
-   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
-   await signOut(auth);
-   currentSessionUser=null;
-   nativeRemove.call(localStorage,"finance_active_session");
-   rf.reset();
-   toggleAuthView("login");
-   notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
- }catch(err){
-   console.error("Rekapinyu Firebase registration:",err);
-   let msg="Pendaftaran gagal. Silakan coba lagi.";
-   if(err.code==="auth/email-already-in-use") msg="Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.";
-   else if(err.code==="auth/invalid-email") msg="Format nomor HP tidak valid.";
-   else if(err.code==="auth/weak-password") msg="Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
-   else if(err.code==="auth/operation-not-allowed") msg="Login Email/Password belum diaktifkan di Firebase Console.";
-   else if(err.message) msg=err.message;
-   notify("Gagal Daftar",msg,"fa-solid fa-circle-xmark text-rose-600");
- }
-},true);
-
-// Firebase login + one-time migration of old localStorage accounts.
-const lf=document.getElementById("login-form");
-if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
- const phone=phoneOf(document.getElementById("login-phone").value),password=document.getElementById("login-password").value;
- try{
-   // Login Auth tetap menjadi sumber autentikasi utama.
-   const c=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-   let u={name:c.user.displayName||"",phone,email:c.user.email,photo:""};
-   let firestoreAvailable=true;
-   try{
-     const s=await getDoc(uref(c.user.uid));
-     if(s.exists())u={...u,...s.data()};
-   }catch(firestoreErr){
-     firestoreAvailable=false;
-     console.warn("Rekapinyu: profil Firestore belum dapat dibaca. Menggunakan data lokal/Auth.",firestoreErr);
-   }
-   localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||phone),email:c.user.email});
-   if(firestoreAvailable){
-     try{await hydrate(c.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat. Menggunakan cache lokal.",hydrateErr)}
-   }
-   checkAuth();lf.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
- }catch(err){
-   const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-   if(!legacy){notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");return;}
-   try{
-     const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);await updateProfile(c.user,{displayName:legacy.name||""});
-     try{
-       await setDoc(uref(c.user.uid),{uid:c.user.uid,name:legacy.name||"",phone,email:c.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-       let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-       await setDoc(dref(c.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),kasbonPass:localStorage.getItem(`finance_kasbon_pass_${phone}`)||"",shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
-     }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
-     localSession({uid:c.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:c.user.email});
-     try{await hydrate(c.user.uid)}catch{}
-     checkAuth();lf.reset();notify("Masuk Berhasil","Akun berhasil masuk. Data lokal tetap digunakan sampai Firebase siap.");
-   }catch(m){console.error(m);notify("Gagal Masuk",m.message||"Akun tidak dapat masuk.","fa-solid fa-circle-xmark text-rose-600")}
- }
-},true);
-
-// Logout now signs out from Firebase Auth.
-window.handleLogout=async()=>{try{await saveCloudData()}catch{}try{await signOut(auth)}catch{}currentSessionUser=null;isKasbonUnlocked=false;nativeRemove.call(localStorage,"finance_active_session");checkAuth();toggleAuthView("login")};
-
-// Profile changes save to Firestore instead of only localStorage.
-window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
-
-// Pengolah gambar: menerima JPG/PNG, portrait maupun landscape, dan membuat preview yang ringan.
-function imageToDataURL(file,maxSide=1600,quality=0.88){return new Promise((resolve,reject)=>{
-  if(!file||!/^image\/(jpeg|png)$/i.test(file.type))return reject(new Error("Format gambar harus JPG atau PNG."));
-  const reader=new FileReader();
-  reader.onerror=()=>reject(new Error("File gambar tidak dapat dibaca."));
-  reader.onload=()=>{const img=new Image();img.onload=()=>{
-    const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height,scale=Math.min(1,maxSide/Math.max(w,h));
-    const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(w*scale));canvas.height=Math.max(1,Math.round(h*scale));
-    const ctx=canvas.getContext("2d");if(!ctx)return reject(new Error("Browser tidak mendukung pemrosesan gambar."));
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL("image/jpeg",quality));
-  };img.onerror=()=>reject(new Error("Format gambar tidak dapat diproses."));img.src=reader.result};reader.readAsDataURL(file);
-})}
-
-// Profile photo: JPG/PNG portrait maupun landscape. Storage adalah sinkronisasi cloud,
-// sedangkan cache lokal dipakai agar pergantian foto tetap langsung berfungsi bila Rules belum siap.
-const profileSave=document.getElementById("save-profile-btn");
-if(profileSave)profileSave.addEventListener("click",async e=>{
-  const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
-  if(!file||!auth.currentUser){e.preventDefault();e.stopImmediatePropagation();notify("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return;}
-  e.preventDefault();e.stopImmediatePropagation();
-  if(!/^image\/(jpeg|png)$/i.test(file.type)){notify("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return;}
-  try{
-    const localUrl=await imageToDataURL(file,900,0.88);
-    const phone=phoneOf(currentSessionUser.phone);
-    currentSessionUser.photo=localUrl;
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
-    const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
-    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
-    updateUserAvatarUI();
-    // Simpan profil lokal/Firestore tanpa menjadikan kegagalan Rules sebagai kegagalan UI.
-    try{await saveCloudUser({photo:localUrl})}catch(err){console.warn("Foto profil lokal tersimpan; Firestore belum menerima foto.",err)}
-    // Sinkronkan ke Storage bila Rules mengizinkan.
-    try{
-      const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
-      await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
-      const url=await getDownloadURL(r);
-      currentSessionUser.photo=url;
-      nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-      nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-      await saveCloudUser({photo:url});
-      updateUserAvatarUI();
-    }catch(storageErr){console.warn("Storage profil belum mengizinkan upload; cache lokal tetap digunakan.",storageErr)}
-    closeProfileModal();
-    notify("Berhasil","Foto profil berhasil diganti.");
-  }catch(x){console.error(x);notify("Gagal","Foto profil tidak dapat diproses. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600")}
-},true);
-
-// Shop cover: file baru hanya menjadi preview/editor. Upload cloud dilakukan setelah tombol Simpan ditekan,
-// sehingga foto dapat digeser bebas ke atas/bawah/kiri/kanan sebelum disimpan.
-const ci=document.getElementById("shop-cover-input");
-if(ci)ci.addEventListener("change",async e=>{
-  e.preventDefault();e.stopImmediatePropagation();
-  const file=ci.files?.[0];ci.value="";
-  if(!file||!auth.currentUser)return;
-  if(!/^image\/(jpeg|png)$/i.test(file.type)){notify("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return;}
-  try{
-    const preview=await imageToDataURL(file,1800,0.88);
-    if(typeof window.__setShopCoverPreview==="function")window.__setShopCoverPreview(preview,file);
-  }catch(x){console.error(x);notify("Gagal","Foto sampul tidak dapat diproses. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600")}
-},true);
-
-// Password update uses Firebase Auth. Recent login may be required by Firebase.
-window.__rekapinyuFirebaseChangePassword=async p=>{if(!auth.currentUser)throw new Error("Belum login Firebase.");await updatePassword(auth.currentUser,p)};
-
-// Hook final: tombol Simpan profil dan sampul dibuat melalui event capture tingkat dokumen.
-// Ini memastikan handler tetap aktif walaupun kode original mengisi ulang onclick tombol.
-window.__rekapinyuSaveProfilePhoto=async function(){
-  const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
-  if(!file){showModal("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return false;}
-  if(!/^image\/(jpeg|png)$/i.test(file.type)){showModal("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return false;}
-  if(!auth.currentUser){showModal("Gagal","Sesi Firebase belum siap. Silakan coba lagi.","fa-solid fa-circle-exclamation text-rose-600");return false;}
-  const btn=document.getElementById("save-profile-btn");
-  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Simpan";}
-  try{
-    // Simpan ke tampilan/cache lokal terlebih dahulu agar hasil terasa instan.
-    const localUrl=await imageToDataURL(file,900,0.88);
-    const phone=phoneOf(currentSessionUser?.phone);
-    currentSessionUser.photo=localUrl;
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
-    const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
-    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
-    updateUserAvatarUI();
-    closeProfileModal();
-
-    // Popup sukses langsung setelah foto berhasil diproses/disimpan ke perangkat.
-    showModal("Berhasil","Foto profil berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
-    setTimeout(()=>{try{closeModal();}catch{}},1600);
-
-    // Sinkronisasi Firebase berjalan di belakang layar dan tidak menahan popup/tombol.
-    Promise.resolve().then(async()=>{
-      try{await saveCloudUser({photo:localUrl});}catch(err){console.warn("Firestore foto profil:",err)}
-      try{
-        const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
-        await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
-        const url=await getDownloadURL(r);
-        currentSessionUser.photo=url;
-        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-        if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-        try{await saveCloudUser({photo:url});}catch(err){console.warn("Firestore URL foto profil:",err)}
-        updateUserAvatarUI();
-      }catch(err){console.warn("Storage foto profil:",err)}
-    });
-    return true;
-  }catch(err){
-    console.error("Simpan foto profil:",err);
-    showModal("Gagal","Foto profil tidak dapat disimpan. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600");
-    return false;
-  }finally{
-    if(btn){btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";}
-  }
-};
-
-window.__rekapinyuSaveCoverPhoto=async function(){
-  const btn=document.getElementById("shop-cover-save");
-  const img=document.getElementById("shop-cover-image");
-  if(!btn||btn.classList.contains("hidden")||btn.dataset.saving==="1")return false;
-  if(!img||img.classList.contains("hidden")||!img.src)return false;
-  btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";
-  try{
-    const src=img.getAttribute("src")||img.src;
-    const pos=img.style.objectPosition||"50% 50%";
-    const nums=pos.match(/([0-9.]+)%\s+([0-9.]+)%/);
-    const x=nums?Math.max(0,Math.min(100,Number(nums[1]))):50;
-    const y=nums?Math.max(0,Math.min(100,Number(nums[2]))):50;
-    const data={src:src,x:x,y:y};
-    const phone=(typeof currentSessionUser!=="undefined"&&currentSessionUser)?phoneOf(currentSessionUser.phone):"";
-    const key=phone?`finance_shop_cover_${phone}`:"finance_shop_cover_guest";
-    try{localStorage.setItem(key,JSON.stringify(data));}catch(localErr){
-      console.warn("Cache foto sampul lokal gagal:",localErr);
-    }
-    window.__shopCoverEditingUnsaved=false;
-    img.style.objectPosition=`${x}% ${y}%`;
-    btn.classList.add("hidden");
-    const hint=document.getElementById("shop-cover-edit-hint");
-    if(hint)hint.classList.add("hidden");
-    const frame=document.getElementById("shop-cover-frame");
-    if(frame)frame.classList.remove("cursor-move");
-
-    // Popup sukses ditampilkan segera; proses Firebase tidak menahan tombol.
-    showModal("Berhasil","Foto sampul berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
-    setTimeout(()=>{try{closeModal();}catch{}},1600);
-
-    // Sinkronisasi Firebase dilakukan di belakang layar.
-    const pending=window.__shopCoverPendingFile||null;
-    window.__shopCoverPendingFile=null;
-    if(pending&&typeof auth!=="undefined"&&auth.currentUser){
-      Promise.resolve().then(async()=>{
-        try{
-          const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
-          // Upload salinan yang SAMA dengan preview yang sudah diproses browser,
-          // bukan File asli. Ini mencegah file sampul menjadi rusak setelah sinkronisasi Firebase.
-          // Gunakan HASIL PREVIEW yang sedang tampil sebagai sumber upload.
-          // Jangan pernah mengganti tampilan lokal dengan URL Firebase setelah klik Simpan,
-          // karena itu dapat membuat gambar terlihat rusak/berubah sebelum URL siap.
-          let uploadData=null;
-          if(/^data:image\/[^;]+;base64,/i.test(src)){
-            const parts=src.split(',');
-            const mime=(parts[0].match(/^data:([^;]+);base64$/i)||[])[1]||'image/jpeg';
-            const binary=atob(parts[1]||'');
-            const bytes=new Uint8Array(binary.length);
-            for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-            uploadData=new Blob([bytes],{type:mime});
-          }
-          if(!uploadData){
-            uploadData=pending;
-          }
-          if(!uploadData)throw new Error('Data foto sampul tidak tersedia.');
-          const uploadType=uploadData.type||'image/jpeg';
-          await uploadBytes(r,uploadData,{contentType:uploadType,cacheControl:"public,max-age=31536000"});
-          const url=await getDownloadURL(r);
-          // Simpan URL cloud hanya untuk data Firebase. Tampilan yang sudah benar
-          // tetap memakai preview lokal beserta posisi x/y yang dipilih pengguna.
-          try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,shopCoverX:x,shopCoverY:y,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
-        }catch(err){console.warn("Storage sampul:",err)}
-      });
-    }
-    return true;
-  }catch(err){
-    console.error("Simpan foto sampul:",err);
-    showModal("Gagal","Foto sampul tidak dapat disimpan.","fa-solid fa-circle-xmark text-rose-600");
-    return false;
-  }finally{
-    btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";
-  }
-};
-
-// Satu pintu untuk klik tombol Simpan. Event capture menghentikan onclick lama sebelum berjalan,
-// tetapi tidak mengganggu tombol Simpan Nama/Kata Sandi.
-document.addEventListener("click",function(e){
-  const target=e.target?.closest?.("#save-profile-btn, #shop-cover-save");
-  if(!target)return;
-  if(target.id==="save-profile-btn"){
-    if(!document.getElementById("input-new-photo"))return;
-    if(target.dataset.saving==="1")return;
-    e.preventDefault();e.stopImmediatePropagation();
-    window.__rekapinyuSaveProfilePhoto();
-  }else if(target.id==="shop-cover-save"){
-    if(target.classList.contains("hidden")||target.dataset.saving==="1")return;
-    e.preventDefault();e.stopImmediatePropagation();
-    window.__rekapinyuSaveCoverPhoto();
-  }
-},true);
-
-
-let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(d.historyData));if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${p}`,JSON.stringify(d.pengeluaranData));if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${p}`,JSON.stringify(d.kasbonData));if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${p}`,JSON.stringify(d.backupOtomatisData));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
-  try{
-    const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
-    if(!existing||!existing.src||String(existing.src).startsWith("http")){
-      nativeSet.call(localStorage,`finance_shop_cover_${p}`,JSON.stringify({src:d.shopCover,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
-    }
-  }catch{}
-}
-redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
-
-// LOGIN HANDOFF DARI LANDING PAGE
-// Landing Page dan aplikasi memakai origin berbeda, jadi localStorage tidak dapat dibagi.
-// Kredensial dikirim sekali melalui URL fragment, lalu langsung dihapus dari address bar.
-async function consumeLandingLogin(){
-  try{
-    const hash=window.location.hash||"";
-    const m=hash.match(/^#rekapinyu_login=([^&]+)$/);
-    if(!m)return false;
-    const raw=m[1].replace(/-/g,"+").replace(/_/g,"/");
-    const padded=raw+"=".repeat((4-raw.length%4)%4);
-    let bin=atob(padded), bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-    const data=JSON.parse(new TextDecoder().decode(bytes));
-    history.replaceState(null,document.title,window.location.pathname+window.location.search);
-    if(!data?.phone||!data?.password)throw new Error("Data login dari Landing Page tidak lengkap.");
-    const c=await signInWithEmailAndPassword(auth,emailOf(data.phone),data.password);
-    let u={uid:c.user.uid,name:c.user.displayName||"",phone:phoneOf(data.phone),email:c.user.email,photo:""};
-    try{
-      const s=await getDoc(uref(c.user.uid));
-      if(s.exists())u={...u,...s.data()};
-    }catch(e){console.warn("Rekapinyu handoff: profil Firestore belum dapat dibaca.",e)}
-    localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||data.phone),email:c.user.email});
-    try{await hydrate(c.user.uid)}catch(e){console.warn("Rekapinyu handoff: data belum dapat dimuat.",e)}
-    return true;
-  }catch(e){
-    console.error("Rekapinyu landing login handoff:",e);
-    try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}
-    notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");
-    return false;
-  }
-}
-const landingHandoffPromise=consumeLandingLogin();
-
-onAuthStateChanged(auth,async u=>{
-  await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");checkAuth();return}try{await hydrate(u.uid);realtime(u);checkAuth();redraw()}catch(e){console.error("Firebase hydrate:",e)}});
-/* PATCH TAMBAHAN: Gear di setiap kartu Backup Otomatis. */
-(function(){
+/* PATCH TAMBAHAN: Pengaturan kartu Backup Otomatis.
+   Tidak mengubah fungsi asli; hanya menambahkan UI dan wrapper setelah fungsi asli. */
+(function () {
   const originalBackupRender = window.renderBackupGrid;
   const originalDailyBackup = window.triggerDailyAutoBackup;
-  function backupStorageKey(){return currentSessionUser&&currentSessionUser.phone?`finance_backup_desktop_${currentSessionUser.phone}`:null;}
-  function persistBackupData(){const key=backupStorageKey();if(!key)return;localStorage.setItem(key,JSON.stringify(backupOtomatisData));}
-  window.triggerDailyAutoBackup=function(){
-    const manual=new Map((backupOtomatisData||[]).map(b=>[String(b.id),{customName:b.customName,manualDate:b.manualDate,manualDay:b.manualDay,manualDateNumber:b.manualDateNumber,manualMonthIndex:b.manualMonthIndex,manualMonth:b.manualMonth,manualYear:b.manualYear}]));
-    const result=originalDailyBackup?originalDailyBackup.apply(this,arguments):undefined;
-    (backupOtomatisData||[]).forEach(b=>{const old=manual.get(String(b.id));if(!old)return;if(old.customName!==undefined)b.customName=old.customName;if(old.manualDate){b.manualDate=true;b.manualDay=old.manualDay;b.manualDateNumber=old.manualDateNumber;b.manualMonthIndex=old.manualMonthIndex;b.manualMonth=old.manualMonth;b.manualYear=old.manualYear;b.day=old.manualDay;b.date=old.manualDateNumber;b.monthIndex=old.manualMonthIndex;b.month=old.manualMonth;b.year=old.manualYear;b.dateKey=`${b.date}-${b.monthIndex}-${b.year}`;}if(b.customName)b.historyName=b.customName;else b.historyName=`${b.day}, ${b.date} ${b.month} ${b.year}`;});
-    persistBackupData();return result;
+
+  function backupStorageKey() {
+    return (typeof currentSessionUser !== 'undefined' && currentSessionUser && currentSessionUser.phone)
+      ? `finance_backup_desktop_${currentSessionUser.phone}` : null;
+  }
+  function persistBackupData() {
+    const key = backupStorageKey();
+    if (key) localStorage.setItem(key, JSON.stringify(backupOtomatisData));
+  }
+  function closeBackupSettings() {
+    document.querySelectorAll('.backup-settings-popup').forEach(m => m.classList.add('hidden'));
+  }
+
+  /* Pertahankan perubahan manual ketika backup otomatis berikutnya berjalan. */
+  window.triggerDailyAutoBackup = function () {
+    const oldValues = new Map((backupOtomatisData || []).map(b => [String(b.id), {
+      customName: b.customName,
+      manualDate: b.manualDate,
+      manualDay: b.manualDay,
+      manualDateNumber: b.manualDateNumber,
+      manualMonthIndex: b.manualMonthIndex,
+      manualMonth: b.manualMonth,
+      manualYear: b.manualYear
+    }]));
+    const result = originalDailyBackup ? originalDailyBackup.apply(this, arguments) : undefined;
+
+    const restoreManual = function () {
+      (backupOtomatisData || []).forEach(b => {
+        const old = oldValues.get(String(b.id));
+        if (!old) return;
+        if (old.customName !== undefined) b.customName = old.customName;
+        if (old.manualDate) {
+          b.manualDate = true;
+          b.manualDay = old.manualDay;
+          b.manualDateNumber = old.manualDateNumber;
+          b.manualMonthIndex = old.manualMonthIndex;
+          b.manualMonth = old.manualMonth;
+          b.manualYear = old.manualYear;
+          b.day = old.manualDay;
+          b.date = old.manualDateNumber;
+          b.monthIndex = old.manualMonthIndex;
+          b.month = old.manualMonth;
+          b.year = old.manualYear;
+          b.dateKey = `${b.date}-${b.monthIndex}-${b.year}`;
+        }
+        if (b.customName) b.historyName = b.customName;
+      });
+      persistBackupData();
+    };
+    if (result && typeof result.then === 'function') return result.then(restoreManual);
+    restoreManual();
+    return result;
   };
-  window.toggleBackupSettings=function(event,backupId){if(event)event.stopPropagation();document.querySelectorAll('.backup-settings-popup').forEach(el=>{if(el.dataset.backupId!==String(backupId))el.classList.add('hidden');});const popup=document.querySelector(`.backup-settings-popup[data-backup-id="${String(backupId)}"]`);if(popup)popup.classList.toggle('hidden');};
-  function closeBackupSettings(){document.querySelectorAll('.backup-settings-popup').forEach(el=>el.classList.add('hidden'));}
-  window.renameBackupCard=function(event,backupId){if(event){event.preventDefault();event.stopPropagation();}const backup=backupOtomatisData.find(b=>String(b.id)===String(backupId));if(!backup)return;const currentName=backup.customName||backup.historyName||`${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;const name=prompt('Ganti Nama Backup:',currentName);if(name===null)return;const cleanName=name.trim();if(!cleanName){alert('Nama backup tidak boleh kosong.');return;}backup.customName=cleanName;backup.historyName=cleanName;persistBackupData();closeBackupSettings();renderBackupGrid();};
-  window.editBackupDate=function(event,backupId){
-    if(event){event.preventDefault();event.stopPropagation();}const backup=backupOtomatisData.find(b=>String(b.id)===String(backupId));if(!backup)return;
-    const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    let day=prompt('Hari:',backup.day||'');if(day===null)return;day=day.trim();if(!day){alert('Hari tidak boleh kosong.');return;}
-    let date=prompt('Tanggal (1-31):',String(backup.date||1));if(date===null)return;date=parseInt(date,10);if(!Number.isInteger(date)||date<1||date>31){alert('Tanggal harus antara 1 sampai 31.');return;}
-    let month=prompt('Bulan (Januari-Desember):',backup.month||months[backup.monthIndex]||months[0]);if(month===null)return;month=month.trim();const monthIndex=months.findIndex(m=>m.toLowerCase()===month.toLowerCase());if(monthIndex<0){alert('Nama bulan tidak valid. Gunakan Januari sampai Desember.');return;}
-    let year=prompt('Tahun:',String(backup.year||new Date().getFullYear()));if(year===null)return;year=parseInt(year,10);if(!Number.isInteger(year)||year<1900||year>9999){alert('Tahun tidak valid.');return;}
-    backup.manualDate=true;backup.manualDay=day;backup.manualDateNumber=date;backup.manualMonthIndex=monthIndex;backup.manualMonth=months[monthIndex];backup.manualYear=year;backup.day=day;backup.date=date;backup.monthIndex=monthIndex;backup.month=months[monthIndex];backup.year=year;backup.dateKey=`${date}-${monthIndex}-${year}`;backup.historyName=backup.customName||`${day}, ${date} ${months[monthIndex]} ${year}`;
-    persistBackupData();closeBackupSettings();renderBackupGrid();
+
+  window.toggleBackupSettings = function (event, backupId) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const id = String(backupId);
+    document.querySelectorAll('.backup-settings-popup').forEach(menu => {
+      if (menu.dataset.backupId !== id) menu.classList.add('hidden');
+    });
+    const menu = document.querySelector(`.backup-settings-popup[data-backup-id="${CSS.escape(id)}"]`);
+    if (menu) menu.classList.toggle('hidden');
   };
-  window.deleteBackupCard=function(event,backupId){if(event){event.preventDefault();event.stopPropagation();}const backup=backupOtomatisData.find(b=>String(b.id)===String(backupId));if(!backup)return;const label=backup.customName||backup.historyName||`${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;if(!confirm(`Hapus Backup "${label}"?\n\nData History utama tidak akan ikut terhapus.`))return;backupOtomatisData=backupOtomatisData.filter(b=>String(b.id)!==String(backupId));persistBackupData();closeBackupSettings();populateBackupFilters();renderBackupGrid();showModal('Berhasil','Data Backup berhasil dihapus.');};
-  document.addEventListener('click',function(e){if(!e.target.closest('.backup-settings-wrap'))closeBackupSettings();});
-  window.renderBackupGrid=function(){
-    if(typeof originalBackupRender==='function')originalBackupRender.apply(this,arguments);
-    const container=document.getElementById('backup-grid');if(!container)return;
-    const restoreButtons=Array.from(container.querySelectorAll('button[onclick*="restoreHistoryFromBackup("]'));
-    restoreButtons.forEach(restoreBtn=>{const match=restoreBtn.getAttribute('onclick')?.match(/restoreHistoryFromBackup\(([^)]+)\)/);if(!match)return;const backupId=String(match[1]).trim();const card=restoreBtn.closest('.bg-white');if(!card||card.dataset.backupGearReady==='1')return;card.dataset.backupGearReady='1';card.classList.add('relative');const header=card.querySelector('.flex.items-center.justify-between.mb-3');if(!header)return;const status=header.querySelector('span.text-\\[10px\\]');const gearWrap=document.createElement('div');gearWrap.className='backup-settings-wrap relative ml-auto flex items-center gap-1';gearWrap.innerHTML=`${status?status.outerHTML:''}<button type="button" onclick="toggleBackupSettings(event, ${backupId})" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition" title="Pengaturan Backup" aria-label="Pengaturan Backup"><i class="fa-solid fa-gear text-xs"></i></button><div class="backup-settings-popup hidden absolute right-0 top-10 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50" data-backup-id="${backupId}"><button type="button" onclick="renameBackupCard(event, ${backupId})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"><i class="fa-solid fa-pen text-emerald-500 w-4"></i> Ganti Nama</button><button type="button" onclick="editBackupDate(event, ${backupId})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-500 w-4"></i> Hari / Tanggal / Bulan / Tahun</button><button type="button" onclick="deleteBackupCard(event, ${backupId})" class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2"><i class="fa-solid fa-trash-can text-rose-500 w-4"></i> Hapus Data</button></div>`;if(status)status.remove();header.appendChild(gearWrap);});
-    Array.from(container.querySelectorAll('h4')).forEach(title=>{const card=title.closest('.bg-white');if(!card)return;const restoreBtn=card.querySelector('button[onclick*="restoreHistoryFromBackup("]');const match=restoreBtn?.getAttribute('onclick')?.match(/restoreHistoryFromBackup\(([^)]+)\)/);if(!match)return;const backup=backupOtomatisData.find(b=>String(b.id)===String(match[1]).trim());if(backup?.customName)title.textContent=backup.customName;});
+
+  /* EDIT: memakai modal edit History yang asli, bukan prompt. */
+  window.editBackupDate = function (event, backupId) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    closeBackupSettings();
+
+    const backup = backupOtomatisData.find(b => String(b.id) === String(backupId));
+    if (!backup) return;
+
+    const modal = document.getElementById('edit-modal');
+    const modalTitle = document.getElementById('edit-modal-title');
+    const modalBody = document.getElementById('edit-modal-body');
+    const saveBtn = document.getElementById('save-edit-btn');
+    if (!modal || !modalTitle || !modalBody || !saveBtn) return;
+
+    const daysOptions = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const monthsOptions = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+    /* SAMA dengan struktur popup Edit Waktu & Tanggal pada History. */
+    modalTitle.innerText = `Edit Waktu & Tanggal Backup (ID: ${String(backup.id).slice(-4)})`;
+    modalBody.innerHTML = `
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
+        <select id="edit-val-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+          ${daysOptions.map(d => `<option value="${d}" ${d === backup.day ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
+          <input type="number" id="edit-val-date" min="1" max="31" value="${Number(backup.date) || 1}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
+          <select id="edit-val-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+            ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${m === backup.month ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
+          <input type="number" id="edit-val-year" value="${Number(backup.year) || new Date().getFullYear()}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        </div>
+      </div>
+    `;
+
+    saveBtn.onclick = function () {
+      const day = document.getElementById('edit-val-day').value;
+      const date = parseInt(document.getElementById('edit-val-date').value, 10);
+      const monthSelect = document.getElementById('edit-val-month');
+      const month = monthSelect.value;
+      const monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'), 10);
+      const year = parseInt(document.getElementById('edit-val-year').value, 10);
+
+      if (!day || !Number.isInteger(date) || date < 1 || date > 31 ||
+          !month || !Number.isInteger(monthIndex) || !Number.isInteger(year) || year < 1900 || year > 9999) {
+        showModal("Gagal", "Tanggal dan waktu backup tidak valid.", "fa-solid fa-circle-exclamation text-rose-600");
+        return;
+      }
+
+      backup.manualDate = true;
+      backup.manualDay = day;
+      backup.manualDateNumber = date;
+      backup.manualMonthIndex = monthIndex;
+      backup.manualMonth = month;
+      backup.manualYear = year;
+
+      backup.day = day;
+      backup.date = date;
+      backup.monthIndex = monthIndex;
+      backup.month = month;
+      backup.year = year;
+      backup.dateKey = `${date}-${monthIndex}-${year}`;
+      if (!backup.customName) backup.historyName = `${day}, ${date} ${month} ${year}`;
+
+      persistBackupData();
+      closeEditModal();
+      renderBackupGrid();
+      showModal("Berhasil", "Tanggal dan waktu backup berhasil diperbarui.");
+    };
+
+    modal.classList.remove('hidden');
+  };
+
+  window.deleteBackupCard = function (event, backupId) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const backup = backupOtomatisData.find(b => String(b.id) === String(backupId));
+    if (!backup) return;
+
+    const label = backup.customName || backup.historyName || `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;
+    if (!confirm(`Hapus data Backup "${label}"?\n\nData History utama tidak akan ikut terhapus.`)) return;
+
+    backupOtomatisData = backupOtomatisData.filter(b => String(b.id) !== String(backupId));
+    persistBackupData();
+    closeBackupSettings();
+    if (typeof populateBackupFilters === 'function') populateBackupFilters();
+    renderBackupGrid();
+    showModal("Berhasil", "Data Backup berhasil dihapus.");
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.backup-settings-wrap')) closeBackupSettings();
+  });
+
+  /* Render ulang dengan fungsi asli, lalu tambahkan gear. */
+  window.renderBackupGrid = function () {
+    if (typeof originalBackupRender === 'function') originalBackupRender.apply(this, arguments);
+
+    const container = document.getElementById('backup-grid');
+    if (!container) return;
+
+    /* Bersihkan patch UI lama jika ada agar tidak dobel. */
+    container.querySelectorAll('.backup-settings-wrap').forEach(el => el.remove());
+
+    const restoreButtons = Array.from(container.querySelectorAll('button[onclick*="restoreHistoryFromBackup("]'));
+    restoreButtons.forEach(restoreBtn => {
+      const match = restoreBtn.getAttribute('onclick')?.match(/restoreHistoryFromBackup\(([^)]+)\)/);
+      if (!match) return;
+
+      const backupId = String(match[1]).trim();
+      const card = restoreBtn.closest('.bg-white');
+      if (!card) return;
+
+      const header = card.querySelector('.flex.items-center.justify-between.mb-3');
+      if (!header) return;
+
+      const oldStatus = header.querySelector('span.text-\\[10px\\]');
+      const wrap = document.createElement('div');
+      wrap.className = 'backup-settings-wrap relative ml-auto flex items-center gap-1';
+
+      wrap.innerHTML = `
+        <button type="button"
+          onclick="toggleBackupSettings(event, ${backupId})"
+          class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition"
+          title="Pengaturan Backup" aria-label="Pengaturan Backup">
+          <i class="fa-solid fa-gear text-xs"></i>
+        </button>
+
+        <div class="backup-settings-popup hidden absolute right-0 top-10 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50"
+             data-backup-id="${backupId}">
+          <button type="button" onclick="editBackupDate(event, ${backupId})"
+            class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-blue-500 w-4"></i>
+            <span>Edit Waktu & Tanggal</span>
+          </button>
+          <button type="button" onclick="deleteBackupCard(event, ${backupId})"
+            class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+            <i class="fa-solid fa-trash-can text-rose-500 w-4"></i>
+            <span>Hapus Data</span>
+          </button>
+        </div>
+      `;
+
+      if (oldStatus) oldStatus.remove();
+      header.appendChild(wrap);
+
+      const backup = backupOtomatisData.find(b => String(b.id) === backupId);
+      const title = card.querySelector('h4');
+      if (title && backup && backup.customName) title.textContent = backup.customName;
+    });
   };
 })();
-
 </script>
-
 </body>
 </html>
