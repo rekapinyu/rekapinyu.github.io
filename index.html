@@ -930,6 +930,12 @@
 
         function checkAuth() {
             const authContainer = document.getElementById('auth-container');
+            // PATCH KHUSUS LANDING PAGE: saat datang dari tombol "Masuk ke Aplikasi",
+            // jangan tampilkan popup login aplikasi selama sesi handoff sedang diproses.
+            const landingLoginPending = /^#rekapinyu_login=/.test(window.location.hash || '');
+            if (landingLoginPending) {
+                authContainer.classList.add('hidden');
+            }
             if (currentSessionUser) {
                 authContainer.classList.add('hidden');
                 document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
