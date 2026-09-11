@@ -440,13 +440,22 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <div class="bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
+                <div id="mobile-date-header" class="bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                     <span id="current-date-header">Memuat...</span>
                 </div>
                 <button onclick="handleLogout()" class="md:hidden bg-rose-50 text-rose-600 p-2 rounded-lg text-xs">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
+                <div id="mobile-profile-menu-container" class="hidden md:hidden relative">
+                    <button type="button" onclick="toggleMobileProfileMenu(event)" id="mobile-profile-button" class="mobile-profile-button" aria-label="Menu profil">
+                        <i class="fa-solid fa-user"></i>
+                    </button>
+                    <div id="mobile-profile-menu" class="mobile-profile-menu hidden">
+                        <button type="button" onclick="openProfileModal('ganti-nama');closeMobileProfileMenu()"><i class="fa-solid fa-user-pen"></i><span>Ganti Nama</span></button>
+                        <button type="button" onclick="handleLogout();closeMobileProfileMenu()"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -2916,9 +2925,9 @@
     <!-- MOBILE ONLY: SIMPLIFIED BOTTOM DOCK -->
     <nav id="mobile-simplified-dock" class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-6px_20px_rgba(15,23,42,.08)] z-40">
         <div class="max-w-md mx-auto grid grid-cols-3 px-3 py-2">
-            <button type="button" onclick="switchTab('home')" id="nav-mobile-home" class="flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition"><i class="fa-solid fa-house text-lg mb-0.5"></i><span class="text-[11px] font-semibold">Beranda</span></button>
-            <button type="button" onclick="switchTab('input')" id="nav-mobile-input" class="flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-file-pen text-lg mb-0.5"></i><span class="text-[11px] font-medium">Input</span></button>
-            <button type="button" onclick="switchTab('history')" id="nav-mobile-history" class="flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i><span class="text-[11px] font-medium">History</span></button>
+            <button type="button" onclick="switchTab('home')" id="nav-mobile-home" class="mobile-dock-item flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition"><i class="fa-solid fa-house-chimney text-lg mb-0.5"></i><span class="text-[11px] font-semibold">Beranda</span></button>
+            <button type="button" onclick="switchTab('input')" id="nav-mobile-input" class="mobile-dock-item mobile-dock-input flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-square-plus text-lg mb-0.5"></i><span class="text-[11px] font-medium">Input</span></button>
+            <button type="button" onclick="switchTab('history')" id="nav-mobile-history" class="mobile-dock-item flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition"><i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i><span class="text-[11px] font-medium">History</span></button>
         </div>
     </nav>
 
@@ -2927,6 +2936,25 @@
     @media (max-width:767px){
       body{overflow:hidden} main{padding-bottom:92px!important}
       body > nav.md\:hidden.fixed.bottom-0:not(#mobile-simplified-dock){display:none!important}
+            #mobile-date-header{display:none!important}
+            header .md\:hidden.bg-rose-50{display:none!important}
+            .mobile-home-settings,.mobile-kasbon-settings-popup{display:none!important}
+            #mobile-profile-menu-container{display:block!important}
+            .mobile-profile-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ecfdf5;color:#059669;border:2px solid #a7f3d0;overflow:hidden;font-size:15px;box-shadow:0 3px 10px rgba(5,150,105,.15)}
+            .mobile-profile-button img{width:100%;height:100%;object-fit:cover}
+            .mobile-profile-menu{position:absolute;right:0;top:44px;width:142px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.16);z-index:50}
+            .mobile-profile-menu button{width:100%;display:flex;align-items:center;gap:9px;padding:10px 9px;border-radius:10px;color:#475569;font-size:11px;font-weight:700;text-align:left}
+            .mobile-profile-menu button:active{background:#f1f5f9}.mobile-profile-menu button i{width:16px;text-align:center;color:#059669}
+            #mobile-simplified-dock{height:82px;background:#fff!important;border-top:0!important;border-radius:0!important;box-shadow:0 -8px 22px rgba(15,23,42,.12)!important;padding:0 18px!important;overflow:visible}
+            #mobile-simplified-dock:before{content:"";position:absolute;left:50%;top:-22px;width:104px;height:48px;transform:translateX(-50%);background:#fff;border-radius:52% 52% 0 0;box-shadow:0 -2px 0 #fff;z-index:0}
+            #mobile-simplified-dock>div{height:100%;max-width:none;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;padding:0!important;position:relative;z-index:1}
+            #mobile-simplified-dock .mobile-dock-item{height:58px;gap:2px;padding:7px 4px!important;border-radius:16px;color:#94a3b8}
+            #mobile-simplified-dock .mobile-dock-item i{font-size:18px;line-height:1}
+            #mobile-simplified-dock #nav-mobile-home.text-emerald-600,#mobile-simplified-dock #nav-mobile-input.text-emerald-600,#mobile-simplified-dock #nav-mobile-history.text-emerald-600{color:#059669}
+            #mobile-simplified-dock #nav-mobile-input{width:62px;height:62px;justify-self:center;align-self:start;margin-top:-17px;border-radius:50%;background:#059669;color:#fff!important;border:6px solid #fff;box-shadow:0 8px 18px rgba(5,150,105,.3);padding:0!important;gap:1px}
+            #mobile-simplified-dock #nav-mobile-input i{font-size:21px}
+            #mobile-simplified-dock #nav-mobile-input span{font-size:9px;font-weight:800}
+            #mobile-simplified-dock #nav-mobile-input.text-emerald-600{background:#047857;color:#fff!important}
       .mobile-home-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%}
       .mobile-home-card{min-height:128px;position:relative;overflow:visible;border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.06);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px 8px;color:#334155;transition:transform .18s ease}
       .mobile-home-card:active{transform:scale(.98)}
@@ -2979,6 +3007,14 @@
         expenseEl.textContent=formatMobileAdminCurrency(latest?.expense);
         profitEl.textContent=formatMobileAdminCurrency(latest?.profit);
       }
+            function syncMobileProfileButton(){
+                const button=document.getElementById('mobile-profile-button');
+                if(!button)return;
+                const photo=currentSessionUser&&currentSessionUser.photo;
+                button.innerHTML=photo?`<img src="${photo}" alt="Foto profil">`:'<i class="fa-solid fa-user"></i>';
+            }
+            window.toggleMobileProfileMenu=function(e){if(e)e.stopPropagation();const menu=document.getElementById('mobile-profile-menu');if(menu)menu.classList.toggle('hidden')};
+            window.closeMobileProfileMenu=function(){const menu=document.getElementById('mobile-profile-menu');if(menu)menu.classList.add('hidden')};
       window.renderMobileAdminSummary=renderMobileAdminSummary;
       const originalSwitchTab=window.switchTab;
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
@@ -2986,8 +3022,8 @@
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
       window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
       window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
-      document.addEventListener('click',e=>{const p=document.getElementById('mobile-kasbon-settings-popup'),c=document.querySelector('.mobile-home-kasbon-card');if(p&&c&&!c.contains(e.target))p.classList.add('hidden')});
-      function init(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+    document.addEventListener('click',e=>{const p=document.getElementById('mobile-kasbon-settings-popup'),c=document.querySelector('.mobile-home-kasbon-card');if(p&&c&&!c.contains(e.target))p.classList.add('hidden');const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
+    function init(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
     })();
     </script>
 
