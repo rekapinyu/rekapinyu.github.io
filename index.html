@@ -2885,6 +2885,52 @@
     </script>
 
 
+<!-- REKAPIN MOBILE HISTORY FILTER BUTTON: MOBILE ONLY -->
+<style>
+@media (max-width:767px){
+  /* Desktop/tablet filter tetap original. Di mobile digantikan tombol bulat. */
+  #history-io-filter{display:flex}
+  #sticky-filter-container{display:none!important}
+  #history-io-filter{display:none;background:#fff;color:#0d235a;border-color:#e2e8f0}
+  #history-io-filter.active{background:#059669;color:#fff;border-color:#059669}
+  #sticky-filter-container.mobile-history-filter-open{
+    display:block!important;
+    position:fixed!important;
+    left:14px!important;
+    right:14px!important;
+    bottom:196px!important;
+    top:auto!important;
+    z-index:44!important;
+    padding:0!important;
+    pointer-events:none!important;
+  }
+  #sticky-filter-container.mobile-history-filter-open > div{
+    max-width:none!important;
+    width:100%!important;
+    margin:0!important;
+    padding:12px!important;
+    border-radius:20px!important;
+    box-shadow:0 14px 35px rgba(15,23,42,.20)!important;
+    pointer-events:auto!important;
+  }
+  #sticky-filter-container.mobile-history-filter-open > div > div:first-child{display:none!important}
+  #sticky-filter-container.mobile-history-filter-open #filter-inputs-wrapper{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    min-width:0!important;
+    width:100%!important;
+    gap:8px!important;
+  }
+  #sticky-filter-container.mobile-history-filter-open #filter-inputs-wrapper select{
+    min-width:0!important;
+    width:100%!important;
+    border-radius:9999px!important;
+    padding:10px 8px!important;
+    font-size:11px!important;
+  }
+}
+</style>
+
 <!-- REKAPIN HISTORY IMPORT EXPORT FLOATING -->
 <style>
 #history-io-file{display:none}
@@ -2897,6 +2943,7 @@
 </style>
 
 <div id="history-io-floating" aria-label="Import dan Export History">
+  <button type="button" id="history-io-filter" title="Filter History" aria-label="Filter History"><i class="fa-solid fa-filter"></i></button>
   <button type="button" id="history-io-import" title="Import Excel" aria-label="Import Excel"><i class="fa-solid fa-file-import"></i></button>
   <button type="button" id="history-io-export" title="Export Data dari View PDF" aria-label="Export Data dari View PDF"><i class="fa-solid fa-file-export"></i></button>
 </div>
@@ -3092,9 +3139,10 @@
     function wrapped(fDate,fMonth,fYear){lastPdfViewState=getPdfState(fDate||'',fMonth||'',fYear||'');return original.apply(this,arguments)}
     wrapped.__historyIOWrapped=true;window.openPdfModal=wrapped;
   }
-  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history');if(!panel||!history)return;panel.style.display=history.classList.contains('hidden')?'none':'flex'}
+  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history'),filter=document.getElementById('sticky-filter-container'),filterBtn=document.getElementById('history-io-filter');if(!panel||!history)return;const isHistory=!history.classList.contains('hidden');panel.style.display=isHistory?'flex':'none';if(!isHistory&&filter){filter.classList.remove('mobile-history-filter-open');if(filterBtn)filterBtn.classList.remove('active')}}
   function init(){
-    const file=document.getElementById('history-io-file'),imp=document.getElementById('history-io-import'),exp=document.getElementById('history-io-export');
+    const file=document.getElementById('history-io-file'),filterBtn=document.getElementById('history-io-filter'),imp=document.getElementById('history-io-import'),exp=document.getElementById('history-io-export');
+    if(filterBtn&&!filterBtn.__bound){filterBtn.__bound=true;filterBtn.addEventListener('click',()=>{const panel=document.getElementById('sticky-filter-container');if(!panel)return;const open=panel.classList.toggle('mobile-history-filter-open');filterBtn.classList.toggle('active',open);});document.addEventListener('click',e=>{const panel=document.getElementById('sticky-filter-container');if(!panel||!panel.classList.contains('mobile-history-filter-open'))return;if(panel.contains(e.target)||e.target===filterBtn||filterBtn.contains(e.target))return;panel.classList.remove('mobile-history-filter-open');filterBtn.classList.remove('active')});}
     if(file&&imp&&!imp.__bound){imp.__bound=true;imp.addEventListener('click',()=>file.click());file.addEventListener('change',()=>importExcel(file))}
     if(exp&&!exp.__bound){exp.__bound=true;exp.addEventListener('click',exportPdfView)}
     wrapPdf();updateFloating();
