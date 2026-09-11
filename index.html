@@ -542,6 +542,33 @@
                 
                 <!-- MOBILE ONLY: BERANDA -->
                 <section id="mobile-home-view" class="hidden md:hidden space-y-4">
+                    <!-- MOBILE ONLY: HEADER ADMIN + RINGKASAN INPUT TERBARU -->
+                    <div id="mobile-admin-summary" class="mobile-admin-summary">
+                        <div class="mobile-admin-title-row">
+                            <div>
+                                <div class="mobile-admin-title"><i class="fa-solid fa-user-shield"></i> ADMIN</div>
+                                <div class="mobile-admin-subtitle">Ringkasan input terbaru hari ini</div>
+                            </div>
+                            <i class="fa-solid fa-chart-simple mobile-admin-title-icon"></i>
+                        </div>
+                        <div class="mobile-admin-grid">
+                            <div class="mobile-admin-card">
+                                <div class="mobile-admin-card-icon"><i class="fa-solid fa-wallet"></i></div>
+                                <div class="mobile-admin-card-label">Pendapatan Hari Ini</div>
+                                <div id="mobile-admin-income" class="mobile-admin-card-value">Rp 0</div>
+                            </div>
+                            <div class="mobile-admin-card">
+                                <div class="mobile-admin-card-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                                <div class="mobile-admin-card-label">Total Belanja Hari Ini</div>
+                                <div id="mobile-admin-expense" class="mobile-admin-card-value">Rp 0</div>
+                            </div>
+                            <div class="mobile-admin-card">
+                                <div class="mobile-admin-card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                                <div class="mobile-admin-card-label">Profit</div>
+                                <div id="mobile-admin-profit" class="mobile-admin-card-value">Rp 0</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="px-1"><h2 class="text-lg font-extrabold text-slate-800">Beranda</h2><p class="text-xs text-slate-400 mt-0.5">Pilih menu yang ingin Anda gunakan</p></div>
                     <div class="mobile-home-grid">
                         <button type="button" onclick="switchTab('input')" class="mobile-home-card"><i class="fa-solid fa-file-pen mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-file-pen"></i></div><span>Menu Input</span></div></button>
@@ -2419,6 +2446,7 @@
             document.getElementById('profit-percentage').value = "10";
             profitDisplay.innerText = "Rp 0";
 
+            if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
 
@@ -2868,68 +2896,56 @@
       .mobile-kasbon-settings-popup{position:absolute;top:45px;right:8px;width:172px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.16);z-index:20}
       .mobile-kasbon-settings-popup button{width:100%;display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:10px;color:#475569;font-size:11px;font-weight:700;text-align:left}
       .mobile-kasbon-settings-popup button:active{background:#f1f5f9}.mobile-kasbon-settings-popup button i{width:16px;text-align:center}
+      .mobile-admin-summary{position:sticky;top:0;z-index:25;background:#2563eb;color:#fff;border-radius:18px;padding:12px;box-shadow:0 8px 22px rgba(37,99,235,.24);border:1px solid rgba(255,255,255,.16)}
+      .mobile-admin-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+      .mobile-admin-title{font-size:14px;font-weight:900;letter-spacing:.4px;display:flex;align-items:center;gap:7px}
+      .mobile-admin-subtitle{font-size:9px;font-weight:600;opacity:.82;margin-top:2px}
+      .mobile-admin-title-icon{font-size:22px;opacity:.3}
+      .mobile-admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+      .mobile-admin-card{min-width:0;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:13px;padding:9px 6px 8px;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+      .mobile-admin-card-icon{width:27px;height:27px;margin:0 auto 5px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px}
+      .mobile-admin-card-label{font-size:8.5px;line-height:1.2;font-weight:700;min-height:20px;display:flex;align-items:center;justify-content:center}
+      .mobile-admin-card-value{font-size:10px;line-height:1.2;font-weight:900;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #history-io-filter-mobile{display:none!important}
+      #history-io-floating{display:none!important}
     }
     @media (max-width:370px){.mobile-home-grid{gap:8px}.mobile-home-card{min-height:116px;border-radius:17px;padding-left:5px;padding-right:5px}.mobile-home-card-content>span{font-size:10.5px}.mobile-home-icon{width:37px;height:37px;font-size:16px}.mobile-home-watermark{font-size:62px}}
     </style>
     <script>
     (function(){
+      function formatMobileAdminCurrency(value){
+        const n=Number(value)||0;
+        return 'Rp ' + n.toLocaleString('id-ID');
+      }
+      function renderMobileAdminSummary(){
+        if(!window.matchMedia('(max-width:767px)').matches)return;
+        const incomeEl=document.getElementById('mobile-admin-income');
+        const expenseEl=document.getElementById('mobile-admin-expense');
+        const profitEl=document.getElementById('mobile-admin-profit');
+        if(!incomeEl||!expenseEl||!profitEl)return;
+        const data=Array.isArray(historyData)?historyData:[];
+        const now=new Date();
+        const todayDate=now.getDate();
+        const todayMonth=now.getMonth();
+        const todayYear=now.getFullYear();
+        const today= data.find(item=>Number(item.date)===todayDate && Number(item.monthIndex)===todayMonth && Number(item.year)===todayYear);
+        const latest=today || data[0] || null;
+        incomeEl.textContent=formatMobileAdminCurrency(latest?.income);
+        expenseEl.textContent=formatMobileAdminCurrency(latest?.expense);
+        profitEl.textContent=formatMobileAdminCurrency(latest?.profit);
+      }
+      window.renderMobileAdminSummary=renderMobileAdminSummary;
       const originalSwitchTab=window.switchTab;
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home')}
+      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
       window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
       window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
       document.addEventListener('click',e=>{const p=document.getElementById('mobile-kasbon-settings-popup'),c=document.querySelector('.mobile-home-kasbon-card');if(p&&c&&!c.contains(e.target))p.classList.add('hidden')});
-      function init(){if(window.matchMedia('(max-width:767px)').matches)home()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+      function init(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
     })();
     </script>
 
-
-<!-- REKAPIN MOBILE HISTORY FILTER BUTTON: MOBILE ONLY -->
-<style>
-@media (max-width:767px){
-  /* Desktop/tablet filter tetap original. Di mobile digantikan tombol bulat. */
-  #history-io-filter{display:flex}
-  #sticky-filter-container{display:none!important}
-  #history-io-filter{display:none;background:#fff;color:#0d235a;border-color:#e2e8f0}
-  #history-io-filter.active{background:#059669;color:#fff;border-color:#059669}
-  #sticky-filter-container.mobile-history-filter-open{
-    display:block!important;
-    position:fixed!important;
-    left:14px!important;
-    right:14px!important;
-    bottom:196px!important;
-    top:auto!important;
-    z-index:44!important;
-    padding:0!important;
-    pointer-events:none!important;
-  }
-  #sticky-filter-container.mobile-history-filter-open > div{
-    max-width:none!important;
-    width:100%!important;
-    margin:0!important;
-    padding:12px!important;
-    border-radius:20px!important;
-    box-shadow:0 14px 35px rgba(15,23,42,.20)!important;
-    pointer-events:auto!important;
-  }
-  #sticky-filter-container.mobile-history-filter-open > div > div:first-child{display:none!important}
-  #sticky-filter-container.mobile-history-filter-open #filter-inputs-wrapper{
-    display:grid!important;
-    grid-template-columns:repeat(3,minmax(0,1fr))!important;
-    min-width:0!important;
-    width:100%!important;
-    gap:8px!important;
-  }
-  #sticky-filter-container.mobile-history-filter-open #filter-inputs-wrapper select{
-    min-width:0!important;
-    width:100%!important;
-    border-radius:9999px!important;
-    padding:10px 8px!important;
-    font-size:11px!important;
-  }
-}
-</style>
 
 <!-- REKAPIN HISTORY IMPORT EXPORT FLOATING -->
 <style>
@@ -2939,11 +2955,13 @@
 #history-io-floating button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.22)}
 #history-io-import{background:#059669;color:#fff;border-color:#059669}
 #history-io-export{background:#fff;color:#0d235a}
-@media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}}
+@media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}#history-io-filter-mobile{display:flex!important;background:#fff;color:#2563eb;border-color:#dbeafe}}
+@media (max-width:767px){#sticky-filter-container{display:none!important;bottom:120px!important;z-index:35!important}.mobile-history-filter-open{display:block!important}}
+@media (min-width:768px){#history-io-filter-mobile{display:none!important}}
 </style>
 
 <div id="history-io-floating" aria-label="Import dan Export History">
-  <button type="button" id="history-io-filter" title="Filter History" aria-label="Filter History"><i class="fa-solid fa-filter"></i></button>
+  <button type="button" id="history-io-filter-mobile" title="Filter History" aria-label="Filter History"><i class="fa-solid fa-filter"></i></button>
   <button type="button" id="history-io-import" title="Import Excel" aria-label="Import Excel"><i class="fa-solid fa-file-import"></i></button>
   <button type="button" id="history-io-export" title="Export Data dari View PDF" aria-label="Export Data dari View PDF"><i class="fa-solid fa-file-export"></i></button>
 </div>
@@ -3139,12 +3157,13 @@
     function wrapped(fDate,fMonth,fYear){lastPdfViewState=getPdfState(fDate||'',fMonth||'',fYear||'');return original.apply(this,arguments)}
     wrapped.__historyIOWrapped=true;window.openPdfModal=wrapped;
   }
-  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history'),filter=document.getElementById('sticky-filter-container'),filterBtn=document.getElementById('history-io-filter');if(!panel||!history)return;const isHistory=!history.classList.contains('hidden');panel.style.display=isHistory?'flex':'none';if(!isHistory&&filter){filter.classList.remove('mobile-history-filter-open');if(filterBtn)filterBtn.classList.remove('active')}}
+  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history');if(!panel||!history)return;panel.style.display=history.classList.contains('hidden')?'none':'flex'}
   function init(){
-    const file=document.getElementById('history-io-file'),filterBtn=document.getElementById('history-io-filter'),imp=document.getElementById('history-io-import'),exp=document.getElementById('history-io-export');
-    if(filterBtn&&!filterBtn.__bound){filterBtn.__bound=true;filterBtn.addEventListener('click',()=>{const panel=document.getElementById('sticky-filter-container');if(!panel)return;const open=panel.classList.toggle('mobile-history-filter-open');filterBtn.classList.toggle('active',open);});document.addEventListener('click',e=>{const panel=document.getElementById('sticky-filter-container');if(!panel||!panel.classList.contains('mobile-history-filter-open'))return;if(panel.contains(e.target)||e.target===filterBtn||filterBtn.contains(e.target))return;panel.classList.remove('mobile-history-filter-open');filterBtn.classList.remove('active')});}
+    const file=document.getElementById('history-io-file'),imp=document.getElementById('history-io-import'),exp=document.getElementById('history-io-export');
     if(file&&imp&&!imp.__bound){imp.__bound=true;imp.addEventListener('click',()=>file.click());file.addEventListener('change',()=>importExcel(file))}
     if(exp&&!exp.__bound){exp.__bound=true;exp.addEventListener('click',exportPdfView)}
+    const filterBtn=document.getElementById('history-io-filter-mobile');
+    if(filterBtn&&!filterBtn.__bound){filterBtn.__bound=true;filterBtn.addEventListener('click',()=>{const filter=document.getElementById('sticky-filter-container');if(!filter)return;const isOpen=filter.classList.toggle('mobile-history-filter-open');filter.style.display=isOpen?'block':'none';filterBtn.classList.toggle('active',isOpen)});}
     wrapPdf();updateFloating();
     if(typeof window.switchTab==='function'&&!window.switchTab.__historyIOWrapped){
       const originalSwitch=window.switchTab;
