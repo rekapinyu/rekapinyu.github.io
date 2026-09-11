@@ -538,6 +538,35 @@
                 </div>
             </div>
 
+            <!-- HISTORY STICKY FILTER MOBILE -->
+            <div id="history-sticky-container" class="w-full max-w-4xl mx-auto hidden md:hidden mb-6 sticky top-0 z-30">
+                <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
+                    <div class="grid grid-cols-12 gap-2 items-center">
+                        <div class="col-span-4 relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" id="filter-history-mobile-search" oninput="renderHistory()" placeholder="Search" class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition">
+                        </div>
+                        <div class="col-span-2">
+                            <select id="filter-history-mobile-date" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                                <option value="">Tgl</option>
+                            </select>
+                        </div>
+                        <div class="col-span-3">
+                            <select id="filter-history-mobile-month" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                                <option value="">Bulan</option>
+                            </select>
+                        </div>
+                        <div class="col-span-3">
+                            <select id="filter-history-mobile-year" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
+                                <option value="">Tahun</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="max-w-4xl mx-auto w-full my-auto">
                 
                 <!-- MOBILE ONLY: BERANDA -->
@@ -1616,6 +1645,7 @@
             const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
             const kasbonStickyContainer = document.getElementById('kasbon-sticky-container');
             const backupStickyContainer = document.getElementById('backup-sticky-container');
+            const historyStickyContainer = document.getElementById('history-sticky-container');
 
             views.forEach(v => {
                 const viewEl = document.getElementById(`view-${v}`);
@@ -1683,6 +1713,7 @@
             if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.add('hidden');
             if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden');
             if (backupStickyContainer) backupStickyContainer.classList.add('hidden');
+            if (historyStickyContainer) historyStickyContainer.classList.add('hidden');
 
             if (tab === 'pengeluaran') {
                 if (pengeluaranStickyContainer) pengeluaranStickyContainer.classList.remove('hidden');
@@ -1690,6 +1721,8 @@
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             } else if (tab === 'backup') {
                 if (backupStickyContainer) backupStickyContainer.classList.remove('hidden');
+            } else if (tab === 'history' && window.matchMedia('(max-width:767px)').matches) {
+                if (historyStickyContainer) historyStickyContainer.classList.remove('hidden');
             }
 
             if (tab === 'input' || tab === 'backup') {
@@ -1700,7 +1733,11 @@
                     renderBackupGrid();
                 }
             } else {
-                stickyFilterContainer.classList.remove('hidden');
+                if (tab === 'history' && window.matchMedia('(max-width:767px)').matches) {
+                    stickyFilterContainer.classList.add('hidden');
+                } else {
+                    stickyFilterContainer.classList.remove('hidden');
+                }
                 if (tab === 'pengeluaran') {
                     renderStickyFilterPengeluaran();
                     populatePengeluaranFilters();
@@ -1902,6 +1939,7 @@
 
         function renderStickyFilterHistory() {
             const wrapper = document.getElementById('filter-inputs-wrapper');
+            if (window.matchMedia('(max-width:767px)').matches) return;
             wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
             wrapper.innerHTML = `
                 <div>
@@ -2450,9 +2488,10 @@
         });
 
         function populateHistoryFilters() {
-            const dateSelect = document.getElementById('filter-history-date');
-            const monthSelect = document.getElementById('filter-history-month');
-            const yearSelect = document.getElementById('filter-history-year');
+            const mobile = window.matchMedia('(max-width:767px)').matches;
+            const dateSelect = document.getElementById(mobile ? 'filter-history-mobile-date' : 'filter-history-date');
+            const monthSelect = document.getElementById(mobile ? 'filter-history-mobile-month' : 'filter-history-month');
+            const yearSelect = document.getElementById(mobile ? 'filter-history-mobile-year' : 'filter-history-year');
             
             if(!dateSelect || !monthSelect || !yearSelect) return;
 
@@ -2491,10 +2530,13 @@
             const container = document.getElementById('history-grid');
             if (!container) return;
 
-            const fDateEl = document.getElementById('filter-history-date');
-            const fMonthEl = document.getElementById('filter-history-month');
-            const fYearEl = document.getElementById('filter-history-year');
+            const mobile = window.matchMedia('(max-width:767px)').matches;
+            const searchEl = document.getElementById(mobile ? 'filter-history-mobile-search' : 'filter-history-search');
+            const fDateEl = document.getElementById(mobile ? 'filter-history-mobile-date' : 'filter-history-date');
+            const fMonthEl = document.getElementById(mobile ? 'filter-history-mobile-month' : 'filter-history-month');
+            const fYearEl = document.getElementById(mobile ? 'filter-history-mobile-year' : 'filter-history-year');
 
+            const fSearch = searchEl ? searchEl.value.trim().toLowerCase() : "";
             const fDate = fDateEl ? fDateEl.value : "";
             const fMonth = fMonthEl ? fMonthEl.value : "";
             const fYear = fYearEl ? fYearEl.value : "";
@@ -2509,10 +2551,12 @@
             });
 
             let filtered = historyData.filter(item => {
+                const text = `${item.day || ''} ${item.date || ''} ${item.month || ''} ${item.year || ''}`.toLowerCase();
+                let matchSearch = !fSearch || text.includes(fSearch);
                 let matchDate = fDate === "" || item.date.toString() === fDate;
                 let matchMonth = fMonth === "" || item.month === fMonth;
                 let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
+                return matchSearch && matchDate && matchMonth && matchYear;
             });
 
             // History selalu diurutkan: bulan/tahun terbaru berada paling atas,
@@ -2938,7 +2982,7 @@
       window.renderMobileAdminSummary=renderMobileAdminSummary;
       const originalSwitchTab=window.switchTab;
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-      function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
+    function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','history-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
       window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
       window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
