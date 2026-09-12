@@ -4082,5 +4082,254 @@ onAuthStateChanged(auth,async u=>{
   };
 })();
 </script>
+<!-- PATCH FINAL: filter Kasbon dan Import/Export History berbentuk tombol bulat. -->
+<style>
+    #history-io-export { order: 1 !important; }
+    #history-io-import { order: 2 !important; }
+    #rekapinyu-kasbon-filter-wrap {
+        position: fixed;
+        right: 18px;
+        bottom: 78px;
+        z-index: 45;
+        display: none;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+    #rekapinyu-kasbon-filter-button {
+        width: 54px;
+        height: 54px;
+        border-radius: 9999px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #2563eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 20px rgba(15,23,42,.18);
+        cursor: pointer;
+    }
+    #rekapinyu-kasbon-filter-menu {
+        width: 170px;
+        padding: 6px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 14px 30px rgba(15,23,42,.16);
+    }
+    #rekapinyu-kasbon-filter-menu button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 8px;
+        border-radius: 10px;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: left;
+    }
+    #rekapinyu-kasbon-filter-menu button:hover { background: #f1f5f9; }
+    @media (max-width: 767px) {
+        #rekapinyu-kasbon-filter-wrap { right: 14px; bottom: 76px; }
+        #rekapinyu-kasbon-filter-button { width: 50px; height: 50px; }
+    }
+</style>
+<div id="rekapinyu-kasbon-filter-wrap">
+    <div id="rekapinyu-kasbon-filter-menu" class="hidden">
+        <button type="button" data-kasbon-filter=""><i class="fa-solid fa-list w-4"></i> Semua Status</button>
+        <button type="button" data-kasbon-filter="lunas"><i class="fa-solid fa-circle-check text-emerald-600 w-4"></i> Lunas</button>
+        <button type="button" data-kasbon-filter="belum_lunas"><i class="fa-solid fa-clock text-amber-500 w-4"></i> Belum Lunas</button>
+    </div>
+    <button type="button" id="rekapinyu-kasbon-filter-button" title="Filter Kasbon" aria-label="Filter Kasbon">
+        <i class="fa-solid fa-filter"></i>
+    </button>
+</div>
+<script>
+(function () {
+    'use strict';
+
+    const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+    function parseExcelNumber(value) {
+        if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+        const text = String(value == null ? '' : value).trim().replace(/rp/ig, '').replace(/\s/g, '');
+        if (!text) return 0;
+        const normalized = text.replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+        const number = parseFloat(normalized);
+        return Number.isFinite(number) ? number : 0;
+    }
+
+    function rowValue(row, names) {
+        const keys = Object.keys(row);
+        const normalize = value => String(value == null ? '' : value).toLowerCase().replace(/[\s_\-\/\\().%]/g, '');
+        for (const name of names) {
+            const wanted = normalize(name);
+            const key = keys.find(item => normalize(item) === wanted || normalize(item).includes(wanted));
+            if (key !== undefined) return row[key];
+        }
+        return '';
+    }
+
+    function parseImportedDate(value) {
+        const now = new Date();
+        if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+        const text = String(value == null ? '' : value).trim();
+        let match = text.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})$/i);
+        if (match) {
+            const month = monthNames.findIndex(item => item.toLowerCase().startsWith(match[2].toLowerCase()));
+            return new Date(Number(match[3]), month >= 0 ? month : 0, Number(match[1]));
+        }
+        match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+        if (match) return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+        return now;
+    }
+
+    function buildHistoryRows(rows) {
+        return rows.map((row, index) => {
+            const date = parseImportedDate(rowValue(row, ['Tanggal', 'Date']));
+            const income = parseExcelNumber(rowValue(row, ['Pendapatan']));
+            const cashout = parseExcelNumber(rowValue(row, ['Pengeluaran']));
+            const expense = parseExcelNumber(rowValue(row, ['Total Belanja', 'Belanja']));
+            const profitPercentage = parseExcelNumber(rowValue(row, ['Profit 10%', 'Profit Persen']));
+            const profit = Math.max((income - cashout) * (profitPercentage / 100), 0);
+            return {
+                id: Date.now() + index,
+                day: dayNames[date.getDay()],
+                date: date.getDate(),
+                monthIndex: date.getMonth(),
+                month: monthNames[date.getMonth()],
+                year: date.getFullYear(),
+                time: String(rowValue(row, ['Waktu', 'Time']) || '00:00'),
+                income,
+                expense,
+                cashout,
+                profitPercentage,
+                profit
+            };
+        }).filter(item => item.income || item.expense || item.cashout || item.profitPercentage);
+    }
+
+    function loadXlsx() {
+        if (window.XLSX) return Promise.resolve(window.XLSX);
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+            script.onload = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('Library Excel tidak tersedia.'));
+            script.onerror = () => reject(new Error('Library Excel tidak dapat dimuat.'));
+            document.head.appendChild(script);
+        });
+    }
+
+    function exportAllHistory() {
+        loadXlsx().then(XLSX => {
+            const rows = (Array.isArray(historyData) ? historyData : []).map(item => ({
+                'Tanggal': `${item.date} ${item.month} ${item.year}`,
+                'Waktu': item.time || '00:00',
+                'Pendapatan': Number(item.income) || 0,
+                'Pengeluaran': Number(item.cashout) || 0,
+                'Total Belanja': Number(item.expense) || 0,
+                'Profit 10%': Number(item.profitPercentage !== undefined ? item.profitPercentage : 10) || 0
+            }));
+            if (!rows.length) {
+                showModal('Export Gagal', 'Belum ada data History untuk diekspor.', 'fa-solid fa-circle-exclamation text-rose-600');
+                return;
+            }
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'History');
+            XLSX.writeFile(workbook, `Rekapin_History_${new Date().getFullYear()}.xlsx`);
+            showModal('Export Berhasil', `${rows.length} data History berhasil diekspor ke Microsoft Excel.`);
+        }).catch(error => showModal('Export Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
+    }
+
+    function importHistory(file) {
+        if (!file) return;
+        loadXlsx().then(async XLSX => {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const imported = buildHistoryRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }));
+            if (!imported.length) throw new Error('Tidak ada data History yang valid pada file Excel.');
+            historyData = [...imported, ...(Array.isArray(historyData) ? historyData : [])];
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+            }
+            populateHistoryFilters();
+            renderHistory();
+            renderReport();
+            switchTab('history');
+            showModal('Import Berhasil', `${imported.length} data Excel berhasil ditambahkan ke History.`);
+        }).catch(error => showModal('Import Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
+    }
+
+    function bindHistoryIo() {
+        const exportButton = document.getElementById('history-io-export');
+        const importButton = document.getElementById('history-io-import');
+        let fileInput = document.getElementById('history-io-file');
+        if (exportButton && !exportButton.dataset.finalHistoryIo) {
+            const replacement = exportButton.cloneNode(true);
+            replacement.dataset.finalHistoryIo = '1';
+            replacement.__bound = true;
+            exportButton.replaceWith(replacement);
+            replacement.addEventListener('click', exportAllHistory);
+        }
+        if (importButton && fileInput && !importButton.dataset.finalHistoryIo) {
+            const inputReplacement = fileInput.cloneNode(true);
+            inputReplacement.dataset.finalHistoryIo = '1';
+            fileInput.replaceWith(inputReplacement);
+            fileInput = inputReplacement;
+            const replacement = importButton.cloneNode(true);
+            replacement.dataset.finalHistoryIo = '1';
+            replacement.__bound = true;
+            importButton.replaceWith(replacement);
+            replacement.addEventListener('click', () => fileInput.click());
+            fileInput.onchange = () => { importHistory(fileInput.files && fileInput.files[0]); fileInput.value = ''; };
+        }
+    }
+
+    function updateKasbonFilter() {
+        const wrap = document.getElementById('rekapinyu-kasbon-filter-wrap');
+        const view = document.getElementById('view-kasbon');
+        if (wrap && view) wrap.style.display = view.classList.contains('hidden') ? 'none' : 'flex';
+    }
+
+    function bindKasbonFilter() {
+        const button = document.getElementById('rekapinyu-kasbon-filter-button');
+        const menu = document.getElementById('rekapinyu-kasbon-filter-menu');
+        if (!button || !menu || button.dataset.bound) return;
+        button.dataset.bound = '1';
+        button.addEventListener('click', event => { event.stopPropagation(); menu.classList.toggle('hidden'); });
+        menu.addEventListener('click', event => {
+            const option = event.target.closest('[data-kasbon-filter]');
+            if (!option) return;
+            const select = document.getElementById('filter-kasbon-status');
+            if (select) { select.value = option.dataset.kasbonFilter; renderKasbonGrid(); }
+            menu.classList.add('hidden');
+        });
+        document.addEventListener('click', event => {
+            if (!event.target.closest('#rekapinyu-kasbon-filter-wrap')) menu.classList.add('hidden');
+        });
+    }
+
+    function init() {
+        bindHistoryIo();
+        bindKasbonFilter();
+        updateKasbonFilter();
+    }
+
+    const originalSwitchTab = window.switchTab;
+    if (typeof originalSwitchTab === 'function' && !originalSwitchTab.__finalFilterIoWrapped) {
+        window.switchTab = function (tab) {
+            const result = originalSwitchTab.apply(this, arguments);
+            setTimeout(updateKasbonFilter, 0);
+            return result;
+        };
+        window.switchTab.__finalFilterIoWrapped = true;
+    }
+    init();
+    setInterval(init, 700);
+})();
+</script>
 </body>
 </html>
