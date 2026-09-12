@@ -257,6 +257,55 @@
             }
         </style>
 
+        <!-- PATCH LOGIN: desktop full-screen seperti banner referensi, tanpa mengubah markup/event form. -->
+        <style>
+            @media (min-width:768px){
+                #auth-container{
+                    align-items:stretch!important;
+                    justify-content:flex-start!important;
+                    padding:0!important;
+                    overflow:hidden!important;
+                    background:#f8fafc url('FotoBanner login.jpg') right center / cover no-repeat!important;
+                }
+                #auth-container::after{
+                    content:"";
+                    position:absolute;
+                    inset:0 0 0 34%;
+                    background:linear-gradient(90deg,rgba(248,250,252,.12),rgba(15,23,42,.08));
+                    pointer-events:none;
+                }
+                #login-card,#register-card{
+                    position:relative!important;
+                    z-index:1!important;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    width:34%!important;
+                    min-width:360px!important;
+                    max-width:500px!important;
+                    height:100vh!important;
+                    margin:0!important;
+                    padding:clamp(2.5rem,6vw,6rem) clamp(2rem,5vw,5rem)!important;
+                    border:0!important;
+                    border-radius:0!important;
+                    box-shadow:18px 0 45px rgba(15,23,42,.12)!important;
+                }
+                #login-card.hidden,#register-card.hidden{display:none!important}
+                #login-card h2,#register-card h2{font-size:clamp(1.6rem,2.2vw,2.25rem)!important}
+                #login-card input,#register-card input{
+                    min-height:3.35rem;
+                    background:#f8fafc!important;
+                    border-color:#dbe4ee!important;
+                    border-radius:.85rem!important;
+                }
+                #login-card form button[type="submit"],#register-card form button[type="submit"]{
+                    min-height:3.35rem;
+                    border-radius:.85rem!important;
+                    box-shadow:0 10px 22px rgba(5,150,105,.18)!important;
+                }
+            }
+        </style>
+
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -3385,7 +3434,16 @@ async function saveCloudUser(extra={}){
  const old=(await getDoc(uref(u.uid))).data()||{};
  await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),photo:extra.photo??currentSessionUser?.photo??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
 }
-function localSession(u){currentSessionUser={uid:u.uid,name:u.name||"",phone:phoneOf(u.phone),photo:u.photo||"",email:u.email||auth.currentUser?.email||""};nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([currentSessionUser]));}
+function localSession(u){
+ currentSessionUser={uid:u.uid,name:u.name||"",phone:phoneOf(u.phone),photo:u.photo||"",email:u.email||auth.currentUser?.email||""};
+ nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+ const users=safe(localStorage.getItem("finance_registered_users"),[]);
+ const list=Array.isArray(users)?users:[];
+ const index=list.findIndex(item=>phoneOf(item.phone)===currentSessionUser.phone);
+ if(index>=0)list[index]={...list[index],...currentSessionUser};
+ else list.push(currentSessionUser);
+ nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
+}
 function syncCloudArrayToCache(phone,key,cloudValue){
  const localKey=`finance_${key}_desktop_${phone}`;
  const localValue=safe(localStorage.getItem(localKey),[]);
