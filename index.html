@@ -3157,13 +3157,12 @@
 #history-io-floating button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.22)}
 #history-io-import{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
 #history-io-export{background:#fff;color:#0d235a}
-@media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}#history-io-filter-mobile{display:flex!important;background:#fff;color:#2563eb;border-color:#dbeafe}}
+@media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}#history-io-filter-mobile{display:none!important}}
 @media (max-width:767px){#sticky-filter-container{display:none!important;bottom:120px!important;z-index:35!important}.mobile-history-filter-open{display:block!important}}
 @media (min-width:768px){#history-io-filter-mobile{display:none!important}}
 </style>
 
 <div id="history-io-floating" aria-label="Backup History ke Excel">
-  <button type="button" id="history-io-filter-mobile" title="Filter History" aria-label="Filter History"><i class="fa-solid fa-filter"></i></button>
     <button type="button" id="history-io-import" title="Import Backup Excel" aria-label="Import Backup Excel"><i class="fa-solid fa-file-import"></i></button>
     <button type="button" id="history-io-export" title="Backup Semua History ke Excel" aria-label="Backup Semua History ke Excel"><i class="fa-solid fa-database"></i></button>
 </div>
@@ -4062,20 +4061,52 @@ onAuthStateChanged(auth,async u=>{
 
     function backupAllHistoryToExcel() {
         loadXlsx().then(XLSX => {
-            const rows = (Array.isArray(historyData) ? historyData : []).map(item => ({
-                'Tanggal': `${item.date} ${item.month} ${item.year}`,
-                'Waktu': item.time || '00:00',
-                'Pendapatan': Number(item.income) || 0,
-                'Total Belanja': Number(item.expense) || 0,
-                'Pengeluaran': Number(item.cashout) || 0,
-                'Profit 10%': Number(item.profitPercentage !== undefined ? item.profitPercentage : 10) || 0
-            }));
+            const monthNamesSort = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+            const rows = (Array.isArray(historyData) ? [...historyData] : []).sort((a, b) => {
+                const aMonth = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : monthNamesSort.indexOf(a.month);
+                const bMonth = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : monthNamesSort.indexOf(b.month);
+                const aKey = (Number(a.year)||0) * 12 + (aMonth >= 0 ? aMonth : 0);
+                const bKey = (Number(b.year)||0) * 12 + (bMonth >= 0 ? bMonth : 0);
+                if (bKey !== aKey) return bKey - aKey;
+                const aDate = Number(a.date)||0;
+                const bDate = Number(b.date)||0;
+                if (bDate !== aDate) return bDate - aDate;
+                const aTime = String(a.time||'00:00');
+                const bTime = String(b.time||'00:00');
+                if (bTime !== aTime) return bTime.localeCompare(aTime);
+                return (Number(b.id)||0) - (Number(a.id)||0);
+            }).map(item => {
+                const income = Number(item.income) || 0;
+                const expense = Number(item.expense) || 0;
+                const cashout = Number(item.cashout) || 0;
+                const profitPercentage = item.profitPercentage !== undefined ? (parseFloat(item.profitPercentage) || 0) : 10;
+                const profit = Math.max((income - cashout) * (profitPercentage / 100), 0);
+
+                return {
+                    'ID': item.id || '',
+                    'Hari': item.day || '',
+                    'Tanggal': `${item.date} ${item.month} ${item.year}`,
+                    'Waktu': item.time || '00:00',
+                    'Pendapatan': income,
+                    'Total Belanja': expense,
+                    'Pengeluaran': cashout,
+                    'Profit (%)': profitPercentage,
+                    'Profit/Keuntungan': profit
+                };
+            });
+
             if (!rows.length) {
                 showModal('Export Gagal', 'Belum ada data History untuk diekspor.', 'fa-solid fa-circle-exclamation text-rose-600');
                 return;
             }
+
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'Backup History');
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            worksheet['!cols'] = [
+                { wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 12 },
+                { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 22 }
+            ];
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'History');
             XLSX.writeFile(workbook, `Rekapin_History_${new Date().getFullYear()}.xlsx`);
             showModal('Backup Berhasil', `${rows.length} data History berhasil dibackup ke Microsoft Excel.`);
         }).catch(error => showModal('Export Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
