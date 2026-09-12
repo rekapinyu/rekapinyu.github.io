@@ -3361,6 +3361,10 @@ const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.remove
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
+function openDashboardAfterLogin(){
+ const tab=window.matchMedia("(max-width:767px)").matches?"home":"input";
+ if(typeof window.switchTab==="function")window.switchTab(tab);
+}
 
 async function saveCloudData(){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
@@ -3374,17 +3378,30 @@ async function saveCloudUser(extra={}){
  await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),photo:extra.photo??currentSessionUser?.photo??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
 }
 function localSession(u){currentSessionUser={uid:u.uid,name:u.name||"",phone:phoneOf(u.phone),photo:u.photo||"",email:u.email||auth.currentUser?.email||""};nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([currentSessionUser]));}
+function syncCloudArrayToCache(phone,key,cloudValue){
+ const localKey=`finance_${key}_desktop_${phone}`;
+ const localValue=safe(localStorage.getItem(localKey),[]);
+ if(Array.isArray(cloudValue)&& (cloudValue.length>0 || !Array.isArray(localValue) || localValue.length===0)){
+  nativeSet.call(localStorage,localKey,JSON.stringify(cloudValue));
+  return cloudValue;
+ }
+ return Array.isArray(localValue)?localValue:[];
+}
 async function hydrate(uid){
  const us=await getDoc(uref(uid)), ds=await getDoc(dref(uid)); const u=us.exists()?us.data():{}, d=ds.exists()?ds.data():{}, phone=phoneOf(u.phone||currentSessionUser?.phone);
  if(!phone)return;
  localSession({...u,uid});
- if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(d.historyData));
- if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(d.pengeluaranData));
- if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(d.kasbonData));
- if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(d.backupOtomatisData));
+ const preservedHistory=syncCloudArrayToCache(phone,"history",d.historyData);
+ const preservedPengeluaran=syncCloudArrayToCache(phone,"pengeluaran",d.pengeluaranData);
+ const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
+ const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
  if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${phone}`,d.kasbonPass);
  if(typeof d.shopCover==="string"&&d.shopCover)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,d.shopCover);
- loadUserData(); if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto(); if(typeof updateUserAvatarUI==="function")updateUserAvatarUI();
+ loadUserData();
+ if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length)){
+  saveCloudData().catch(console.warn);
+ }
+ if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto(); if(typeof updateUserAvatarUI==="function")updateUserAvatarUI();
 }
 function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
 
@@ -3464,7 +3481,7 @@ if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
    if(firestoreAvailable){
      try{await hydrate(c.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat. Menggunakan cache lokal.",hydrateErr)}
    }
-   checkAuth();lf.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+    checkAuth();openDashboardAfterLogin();lf.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
  }catch(err){
    const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
    if(!legacy){notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");return;}
@@ -3477,7 +3494,7 @@ if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
      }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
      localSession({uid:c.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:c.user.email});
      try{await hydrate(c.user.uid)}catch{}
-     checkAuth();lf.reset();notify("Masuk Berhasil","Akun berhasil masuk. Data lokal tetap digunakan sampai Firebase siap.");
+    checkAuth();openDashboardAfterLogin();lf.reset();notify("Masuk Berhasil","Akun berhasil masuk. Data lokal tetap digunakan sampai Firebase siap.");
    }catch(m){console.error(m);notify("Gagal Masuk",m.message||"Akun tidak dapat masuk.","fa-solid fa-circle-xmark text-rose-600")}
  }
 },true);
@@ -3695,7 +3712,7 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;if(Array.isArray(d.historyData))nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(d.historyData));if(Array.isArray(d.pengeluaranData))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${p}`,JSON.stringify(d.pengeluaranData));if(Array.isArray(d.kasbonData))nativeSet.call(localStorage,`finance_kasbon_desktop_${p}`,JSON.stringify(d.kasbonData));if(Array.isArray(d.backupOtomatisData))nativeSet.call(localStorage,`finance_backup_desktop_${p}`,JSON.stringify(d.backupOtomatisData));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
     if(!existing||!existing.src||String(existing.src).startsWith("http")){
@@ -3703,7 +3720,7 @@ function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub
     }
   }catch{}
 }
-redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
+if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
 
 // LOGIN HANDOFF DARI LANDING PAGE
 // Landing Page dan aplikasi memakai origin berbeda, jadi localStorage tidak dapat dibagi.
