@@ -3152,30 +3152,25 @@
 
 <!-- REKAPIN HISTORY IMPORT EXPORT FLOATING -->
 <style>
-#history-io-file{display:none}
 #history-io-floating{position:fixed;right:18px;bottom:82px;z-index:45;display:none;flex-direction:column;gap:10px;align-items:center}
 #history-io-floating button{width:54px;height:54px;border-radius:9999px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(15,23,42,.18);cursor:pointer;transition:transform .18s,box-shadow .18s}
 #history-io-floating button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.22)}
-#history-io-import{background:#059669;color:#fff;border-color:#059669}
 #history-io-export{background:#fff;color:#0d235a}
 @media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}#history-io-filter-mobile{display:flex!important;background:#fff;color:#2563eb;border-color:#dbeafe}}
 @media (max-width:767px){#sticky-filter-container{display:none!important;bottom:120px!important;z-index:35!important}.mobile-history-filter-open{display:block!important}}
 @media (min-width:768px){#history-io-filter-mobile{display:none!important}}
 </style>
 
-<div id="history-io-floating" aria-label="Import dan Export History">
+<div id="history-io-floating" aria-label="Backup History ke Excel">
   <button type="button" id="history-io-filter-mobile" title="Filter History" aria-label="Filter History"><i class="fa-solid fa-filter"></i></button>
-  <button type="button" id="history-io-import" title="Import Excel" aria-label="Import Excel"><i class="fa-solid fa-file-import"></i></button>
-    <button type="button" id="history-io-export" title="Export Semua History ke Excel" aria-label="Export Semua History ke Excel"><i class="fa-solid fa-file-excel"></i></button>
+    <button type="button" id="history-io-export" title="Backup Semua History ke Excel" aria-label="Backup Semua History ke Excel"><i class="fa-solid fa-database"></i></button>
 </div>
-<input id="history-io-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
 
 <script>
 (function(){
   'use strict';
 
   let xlsxLoading=null;
-  const monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
   function ensureXLSX(){
     if(typeof window.XLSX!=='undefined') return Promise.resolve(window.XLSX);
@@ -3202,137 +3197,8 @@
     return xlsxLoading;
   }
 
-  function numberFromExcel(v){
-    if(typeof v==='number') return isFinite(v)?v:0;
-    if(v==null||v==='') return 0;
-    let s=String(v).trim().replace(/rp/ig,'').replace(/\s/g,'');
-    if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s=s.replace(/\./g,'').replace(',','.');
-    else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s=s.replace(/,/g,'');
-    else s=s.replace(/[^0-9,.-]/g,'').replace(/,/g,'.');
-    const n=parseFloat(s);return isFinite(n)?n:0;
-  }
-  function normalizeKey(v){return String(v==null?'':v).toLowerCase().trim().replace(/[\s_\-\/\\().%]/g,'')}
-  function findValue(row,aliases){
-    const keys=Object.keys(row);
-    for(const alias of aliases){const a=normalizeKey(alias);const k=keys.find(x=>normalizeKey(x)===a);if(k!==undefined)return row[k]}
-    for(const alias of aliases){const a=normalizeKey(alias);const k=keys.find(x=>normalizeKey(x).includes(a));if(k!==undefined)return row[k]}
-    return '';
-  }
-  function monthIndexFromValue(v){
-    if(v==null||v==='')return null;
-    const s=String(v).trim().toLowerCase();
-    const idx=monthNames.findIndex(m=>m.toLowerCase()===s||m.toLowerCase().startsWith(s));
-    if(idx>=0)return idx;
-    const n=parseInt(s,10);if(isFinite(n)&&n>=1&&n<=12)return n-1;
-    return null;
-  }
-  function parseDateParts(row){
-    const dateVal=findValue(row,['Tanggal','Date']);
-    const monthVal=findValue(row,['Bulan','Month']);
-    const yearVal=findValue(row,['Tahun','Year']);
-    let dateNum=numberFromExcel(dateVal),monthIndex=monthIndexFromValue(monthVal),year=numberFromExcel(yearVal);
-    if(dateVal instanceof Date&&!isNaN(dateVal)){dateNum=dateVal.getDate();monthIndex=dateVal.getMonth();year=dateVal.getFullYear()}
-    else if(typeof dateVal==='number'&&dateVal>30000){const d=new Date(Date.UTC(1899,11,30)+dateVal*86400000);dateNum=d.getUTCDate();monthIndex=d.getUTCMonth();year=d.getUTCFullYear()}
-    else if(typeof dateVal==='string'){
-      const text=dateVal.trim();
-      const m=text.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})$/i);
-      const m2=text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-      if(m){dateNum=parseInt(m[1],10);monthIndex=monthIndexFromValue(m[2]);year=parseInt(m[3],10)}
-      else if(m2){dateNum=parseInt(m2[1],10);monthIndex=parseInt(m2[2],10)-1;year=parseInt(m2[3],10)}
-    }
-    if(monthIndex==null)monthIndex=0;if(!year)year=new Date().getFullYear();if(!dateNum)dateNum=1;
-    return {date:dateNum,monthIndex,month:monthNames[monthIndex]||monthNames[0],year};
-  }
-  function convertImportedRows(rows){
-    /*
-      PEMETAAN EXCEL -> INPUT DATA HARIAN REKAPIN
-      Pendapatan      -> PENDAPATAN HARI INI (#income)
-      Laba 10%        -> SET PROFIT PERSEN (#profit-percentage)
-      Total Belanja   -> TOTAL BELANJA HARI INI (#expense)
-      Pengeluaran     -> sengaja dikosongkan / 0 karena tidak ada di Excel
-    */
-    return rows.map((row,index)=>{
-      const p=parseDateParts(row);
-      const time=findValue(row,['Waktu','Time','Pukul'])||'00:00';
-
-      // Kolom Excel "Pendapatan" masuk ke Pendapatan Hari Ini.
-      const income=numberFromExcel(findValue(row,['Pendapatan']));
-
-      // Kolom Excel "Total Belanja" masuk ke Total Belanja Hari Ini.
-      const expense=numberFromExcel(findValue(row,['Total Belanja']));
-
-      // Excel tidak memiliki kolom Pengeluaran Hari Ini, jadi selalu kosong (0).
-      const cashout=0;
-
-      // Kolom Excel "Laba 10%" adalah nilai SET PROFIT PERSEN, bukan nominal profit.
-      const pct=numberFromExcel(findValue(row,['Laba 10%','Laba 10','Set Profit Persen','Profit Persen']));
-
-      // Samakan perhitungan dengan Form Input Data Harian: (Pendapatan - Pengeluaran) x %.
-      const profit=Math.max((income-cashout)*(pct/100),0);
-
-      return {
-        id:Date.now()+index,
-        day:new Date(p.year,p.monthIndex,p.date).toLocaleDateString('id-ID',{weekday:'long'}),
-        date:p.date,
-        monthIndex:p.monthIndex,
-        month:p.month,
-        year:p.year,
-        time:String(time),
-        income,
-        expense,
-        cashout,
-        profitPercentage:pct,
-        profit
-      };
-    }).filter(x=>x.income||x.expense||x.profitPercentage||x.profit);
-  }
-  function showResult(title,message,icon){if(typeof showModal==='function')showModal(title,message,icon);else alert(title+'\n\n'+message)}
-
-  function chooseDataSheet(wb,XLSX){
-    let best=null,bestScore=-1;
-    wb.SheetNames.forEach(name=>{
-      const sheet=wb.Sheets[name];
-      const rows=XLSX.utils.sheet_to_json(sheet,{defval:'',header:1,range:0});
-      if(!rows.length)return;
-      const header=(rows[0]||[]).map(normalizeKey);
-      // Utamakan struktur Excel yang memang dipakai untuk Import Rekapin.
-      const wanted=['tanggal','pendapatan','laba10','totallbelanja','totalbelanja'];
-      const score=wanted.reduce((n,k)=>n+(header.some(h=>h===k||h.includes(k))?1:0),0);
-      if(score>bestScore){bestScore=score;best={sheet,rows};}
-    });
-    if(!best||bestScore<2)throw new Error('Kolom Excel tidak cocok. Gunakan kolom Pendapatan, Laba 10%, dan Total Belanja.');
-    return best.sheet;
-  }
-
-  async function importExcel(fileInput){
-    const file=fileInput.files&&fileInput.files[0];if(!file)return;
-    try{
-      const XLSX=await ensureXLSX();
-      let data;
-      if(file.arrayBuffer)data=await file.arrayBuffer();
-      else data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsArrayBuffer(file)});
-      const wb=XLSX.read(data,{type:'array',cellDates:true});
-      const sheet=chooseDataSheet(wb,XLSX);
-      const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
-      const imported=convertImportedRows(rows);
-      if(!imported.length)throw new Error('Tidak ada data keuangan yang valid pada file Excel.');
-      historyData=imported;
-      if(currentSessionUser&&currentSessionUser.phone){
-        localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`,JSON.stringify(historyData));
-        if(typeof triggerDailyAutoBackup==='function')triggerDailyAutoBackup();
-      }
-      if(typeof renderHistory==='function')renderHistory();
-      if(typeof renderReport==='function')renderReport();
-      fileInput.value='';
-      if(typeof switchTab==='function')switchTab('history');
-      showResult('Import Berhasil',imported.length+' data Excel berhasil dimasukkan ke History.');
-    }catch(err){console.error('Rekapin Import Excel:',err);fileInput.value='';showResult('Import Gagal',err&&err.message?err.message:'File Excel tidak dapat dibaca.','fa-solid fa-circle-xmark text-rose-600')}
-  }
-
   function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history');if(!panel||!history)return;panel.style.display=history.classList.contains('hidden')?'none':'flex'}
   function init(){
-    const file=document.getElementById('history-io-file'),imp=document.getElementById('history-io-import');
-    if(file&&imp&&!imp.__bound){imp.__bound=true;imp.addEventListener('click',()=>file.click());file.addEventListener('change',()=>importExcel(file))}
     const filterBtn=document.getElementById('history-io-filter-mobile');
     if(filterBtn&&!filterBtn.__bound){filterBtn.__bound=true;filterBtn.addEventListener('click',()=>{const filter=document.getElementById('sticky-filter-container');if(!filter)return;const isOpen=filter.classList.toggle('mobile-history-filter-open');filter.style.display=isOpen?'block':'none';filterBtn.classList.toggle('active',isOpen)});}
     updateFloating();
@@ -4053,7 +3919,6 @@ onAuthStateChanged(auth,async u=>{
 <!-- PATCH FINAL: filter Kasbon dan Import/Export History berbentuk tombol bulat. -->
 <style>
     #history-io-export { order: 1 !important; }
-    #history-io-import { order: 2 !important; }
     #history-io-floating.history-io-visible { display: flex !important; }
     #history-io-floating.history-io-hidden { display: none !important; }
     #rekapinyu-kasbon-filter-wrap {
@@ -4192,14 +4057,14 @@ onAuthStateChanged(auth,async u=>{
         });
     }
 
-    function exportAllHistory() {
+    function backupAllHistoryToExcel() {
         loadXlsx().then(XLSX => {
             const rows = (Array.isArray(historyData) ? historyData : []).map(item => ({
                 'Tanggal': `${item.date} ${item.month} ${item.year}`,
                 'Waktu': item.time || '00:00',
                 'Pendapatan': Number(item.income) || 0,
-                'Pengeluaran': Number(item.cashout) || 0,
                 'Total Belanja': Number(item.expense) || 0,
+                'Pengeluaran': Number(item.cashout) || 0,
                 'Profit 10%': Number(item.profitPercentage !== undefined ? item.profitPercentage : 10) || 0
             }));
             if (!rows.length) {
@@ -4209,52 +4074,18 @@ onAuthStateChanged(auth,async u=>{
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'History');
             XLSX.writeFile(workbook, `Rekapin_History_${new Date().getFullYear()}.xlsx`);
-            showModal('Export Berhasil', `${rows.length} data History berhasil diekspor ke Microsoft Excel.`);
+            showModal('Backup Berhasil', `${rows.length} data History berhasil dibackup ke Microsoft Excel.`);
         }).catch(error => showModal('Export Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
-    }
-
-    function importHistory(file) {
-        if (!file) return;
-        loadXlsx().then(async XLSX => {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const imported = buildHistoryRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }));
-            if (!imported.length) throw new Error('Tidak ada data History yang valid pada file Excel.');
-            historyData = [...imported, ...(Array.isArray(historyData) ? historyData : [])];
-            if (currentSessionUser && currentSessionUser.phone) {
-                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-            }
-            populateHistoryFilters();
-            renderHistory();
-            renderReport();
-            switchTab('history');
-            showModal('Import Berhasil', `${imported.length} data Excel berhasil ditambahkan ke History.`);
-        }).catch(error => showModal('Import Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
     }
 
     function bindHistoryIo() {
         const exportButton = document.getElementById('history-io-export');
-        const importButton = document.getElementById('history-io-import');
-        let fileInput = document.getElementById('history-io-file');
         if (exportButton && !exportButton.dataset.finalHistoryIo) {
             const replacement = exportButton.cloneNode(true);
             replacement.dataset.finalHistoryIo = '1';
             replacement.__bound = true;
             exportButton.replaceWith(replacement);
-            replacement.addEventListener('click', exportAllHistory);
-        }
-        if (importButton && fileInput && !importButton.dataset.finalHistoryIo) {
-            const inputReplacement = fileInput.cloneNode(true);
-            inputReplacement.dataset.finalHistoryIo = '1';
-            fileInput.replaceWith(inputReplacement);
-            fileInput = inputReplacement;
-            const replacement = importButton.cloneNode(true);
-            replacement.dataset.finalHistoryIo = '1';
-            replacement.__bound = true;
-            importButton.replaceWith(replacement);
-            replacement.addEventListener('click', () => fileInput.click());
-            fileInput.onchange = () => { importHistory(fileInput.files && fileInput.files[0]); fileInput.value = ''; };
+            replacement.addEventListener('click', backupAllHistoryToExcel);
         }
     }
 
