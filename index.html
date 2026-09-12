@@ -3370,7 +3370,15 @@ async function saveCloudData(){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";
  if(shop.length>MAX)shop="";
- await setDoc(dref(uid),{historyData:Array.isArray(historyData)?historyData:[],pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],kasbonData:Array.isArray(kasbonData)?kasbonData:[],backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],kasbonPass:localStorage.getItem(`finance_kasbon_pass_${phone}`)||"",shopCover:shop,updatedAt:serverTimestamp()},{merge:true});
+ const payload={updatedAt:serverTimestamp()};
+ if(Array.isArray(historyData)&&historyData.length)payload.historyData=historyData;
+ if(Array.isArray(pengeluaranData)&&pengeluaranData.length)payload.pengeluaranData=pengeluaranData;
+ if(Array.isArray(kasbonData)&&kasbonData.length)payload.kasbonData=kasbonData;
+ if(Array.isArray(backupOtomatisData)&&backupOtomatisData.length)payload.backupOtomatisData=backupOtomatisData;
+ const kasbonPass=localStorage.getItem(`finance_kasbon_pass_${phone}`)||"";
+ if(kasbonPass)payload.kasbonPass=kasbonPass;
+ if(shop)payload.shopCover=shop;
+ await setDoc(dref(uid),payload,{merge:true});
 }
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
