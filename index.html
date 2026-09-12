@@ -3155,6 +3155,7 @@
 #history-io-floating{position:fixed;right:18px;bottom:82px;z-index:45;display:none;flex-direction:column;gap:10px;align-items:center}
 #history-io-floating button{width:54px;height:54px;border-radius:9999px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(15,23,42,.18);cursor:pointer;transition:transform .18s,box-shadow .18s}
 #history-io-floating button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.22)}
+#history-io-import{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
 #history-io-export{background:#fff;color:#0d235a}
 @media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}#history-io-filter-mobile{display:flex!important;background:#fff;color:#2563eb;border-color:#dbeafe}}
 @media (max-width:767px){#sticky-filter-container{display:none!important;bottom:120px!important;z-index:35!important}.mobile-history-filter-open{display:block!important}}
@@ -3163,8 +3164,10 @@
 
 <div id="history-io-floating" aria-label="Backup History ke Excel">
   <button type="button" id="history-io-filter-mobile" title="Filter History" aria-label="Filter History"><i class="fa-solid fa-filter"></i></button>
+    <button type="button" id="history-io-import" title="Import Backup Excel" aria-label="Import Backup Excel"><i class="fa-solid fa-file-import"></i></button>
     <button type="button" id="history-io-export" title="Backup Semua History ke Excel" aria-label="Backup Semua History ke Excel"><i class="fa-solid fa-database"></i></button>
 </div>
+<input id="history-io-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
 
 <script>
 (function(){
@@ -4072,14 +4075,48 @@ onAuthStateChanged(auth,async u=>{
                 return;
             }
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'History');
+            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), 'Backup History');
             XLSX.writeFile(workbook, `Rekapin_History_${new Date().getFullYear()}.xlsx`);
             showModal('Backup Berhasil', `${rows.length} data History berhasil dibackup ke Microsoft Excel.`);
         }).catch(error => showModal('Export Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
     }
 
+    function importBackupExcel(file) {
+        if (!file) return;
+        loadXlsx().then(async XLSX => {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames.find(name => name === 'Backup History') || workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const imported = buildHistoryRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }));
+            if (!imported.length) throw new Error('Tidak ada data History yang valid pada file backup Excel.');
+            historyData = [...imported, ...(Array.isArray(historyData) ? historyData : [])];
+            if (currentSessionUser && currentSessionUser.phone) {
+                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                if (typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
+            }
+            populateHistoryFilters();
+            renderHistory();
+            renderReport();
+            switchTab('history');
+            showModal('Import Berhasil', `${imported.length} data backup berhasil ditambahkan ke History.`);
+        }).catch(error => showModal('Import Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
+    }
+
     function bindHistoryIo() {
+        const importButton = document.getElementById('history-io-import');
+        const fileInput = document.getElementById('history-io-file');
         const exportButton = document.getElementById('history-io-export');
+        if (importButton && fileInput && !importButton.dataset.finalHistoryIo) {
+            const replacement = importButton.cloneNode(true);
+            replacement.dataset.finalHistoryIo = '1';
+            importButton.replaceWith(replacement);
+            replacement.addEventListener('click', () => fileInput.click());
+            fileInput.onchange = () => {
+                importBackupExcel(fileInput.files && fileInput.files[0]);
+                fileInput.value = '';
+            };
+        }
         if (exportButton && !exportButton.dataset.finalHistoryIo) {
             const replacement = exportButton.cloneNode(true);
             replacement.dataset.finalHistoryIo = '1';
