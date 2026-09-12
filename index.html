@@ -4086,6 +4086,8 @@ onAuthStateChanged(auth,async u=>{
 <style>
     #history-io-export { order: 1 !important; }
     #history-io-import { order: 2 !important; }
+    #history-io-floating.history-io-visible { display: flex !important; }
+    #history-io-floating.history-io-hidden { display: none !important; }
     #rekapinyu-kasbon-filter-wrap {
         position: fixed;
         right: 18px;
@@ -4294,6 +4296,15 @@ onAuthStateChanged(auth,async u=>{
         if (wrap && view) wrap.style.display = view.classList.contains('hidden') ? 'none' : 'flex';
     }
 
+    function updateHistoryIo() {
+        const panel = document.getElementById('history-io-floating');
+        const view = document.getElementById('view-history');
+        if (!panel || !view) return;
+        const visible = !view.classList.contains('hidden');
+        panel.classList.toggle('history-io-visible', visible);
+        panel.classList.toggle('history-io-hidden', !visible);
+    }
+
     function bindKasbonFilter() {
         const button = document.getElementById('rekapinyu-kasbon-filter-button');
         const menu = document.getElementById('rekapinyu-kasbon-filter-menu');
@@ -4316,6 +4327,7 @@ onAuthStateChanged(auth,async u=>{
         bindHistoryIo();
         bindKasbonFilter();
         updateKasbonFilter();
+        updateHistoryIo();
     }
 
     const originalSwitchTab = window.switchTab;
@@ -4323,6 +4335,7 @@ onAuthStateChanged(auth,async u=>{
         window.switchTab = function (tab) {
             const result = originalSwitchTab.apply(this, arguments);
             setTimeout(updateKasbonFilter, 0);
+            setTimeout(updateHistoryIo, 0);
             return result;
         };
         window.switchTab.__finalFilterIoWrapped = true;
