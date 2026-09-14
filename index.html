@@ -3368,13 +3368,23 @@ async function saveCloudData(){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";
  if(shop.length>MAX)shop="";
- const payload={updatedAt:serverTimestamp()};
- if(Array.isArray(historyData)&&historyData.length)payload.historyData=historyData;
- if(Array.isArray(pengeluaranData)&&pengeluaranData.length)payload.pengeluaranData=pengeluaranData;
- if(Array.isArray(kasbonData)&&kasbonData.length)payload.kasbonData=kasbonData;
- if(Array.isArray(backupOtomatisData)&&backupOtomatisData.length)payload.backupOtomatisData=backupOtomatisData;
+ /*
+  * Firestore menjadi sumber data permanen.
+  * Semua array selalu dikirim, termasuk [].
+  * Jangan hanya menyimpan jika length > 0, karena ketika pengguna
+  * menghapus data sampai kosong, Firebase juga harus menerima [] agar
+  * data lama di cloud ikut terhapus dan tidak muncul lagi saat login
+  * dari perangkat/browser lain.
+  */
+ const payload={
+   historyData:Array.isArray(historyData)?historyData:[],
+   pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
+   kasbonData:Array.isArray(kasbonData)?kasbonData:[],
+   backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
+   updatedAt:serverTimestamp()
+ };
  const kasbonPass=localStorage.getItem(`finance_kasbon_pass_${phone}`)||"";
- if(kasbonPass)payload.kasbonPass=kasbonPass;
+ payload.kasbonPass=kasbonPass;
  if(shop)payload.shopCover=shop;
  await setDoc(dref(uid),payload,{merge:true});
 }
@@ -3395,11 +3405,16 @@ function localSession(u){
 }
 function syncCloudArrayToCache(phone,key,cloudValue){
  const localKey=`finance_${key}_desktop_${phone}`;
- const localValue=safe(localStorage.getItem(localKey),[]);
- if(Array.isArray(cloudValue)&& (cloudValue.length>0 || !Array.isArray(localValue) || localValue.length===0)){
+ /*
+  * Jika Firestore memiliki array, array tersebut selalu menjadi sumber
+  * kebenaran. Termasuk array kosong: ini penting agar data yang sudah
+  * dihapus tidak hidup kembali dari cache browser/perangkat lama.
+  */
+ if(Array.isArray(cloudValue)){
   nativeSet.call(localStorage,localKey,JSON.stringify(cloudValue));
   return cloudValue;
  }
+ const localValue=safe(localStorage.getItem(localKey),[]);
  return Array.isArray(localValue)?localValue:[];
 }
 async function hydrate(uid){
@@ -3419,14 +3434,27 @@ async function hydrate(uid){
  if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto(); if(typeof updateUserAvatarUI==="function")updateUserAvatarUI();
 }
 function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
+/*
+ * Sinkronisasi eksplisit untuk perubahan data.
+ * Handler lama tetap bekerja seperti semula melalui localStorage; helper ini
+ * hanya memastikan perubahan terakhir juga dikirim ke Firestore dan tidak
+ * bergantung pada timer 200 ms saat pengguna berpindah halaman/perangkat.
+ */
+let cloudSaveChain=Promise.resolve();
+window.__rekapinyuSaveCloudData=()=>{
+ cloudSaveChain=cloudSaveChain.then(()=>saveCloudData()).catch(err=>{
+   console.warn("Rekapinyu: sinkronisasi Firestore gagal, cache lokal tetap dipertahankan.",err);
+ });
+ return cloudSaveChain;
+};
 
 // Every original localStorage write is mirrored to Firebase. localStorage remains only a cache/offline layer.
 if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.setItem=function(k,v){const r=nativeSet.call(this,k,v);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){
    const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_kasbon_pass_${p}`,`finance_shop_cover_${p}`];
-   if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>saveCloudData().catch(console.warn),200)}
+   if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),200)}
  }return r};
- Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>saveCloudData().catch(console.warn),100)}return r};
+ Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),100)}return r};
  Storage.prototype.__rekapinyuFirebaseFull=true;
 }
 
