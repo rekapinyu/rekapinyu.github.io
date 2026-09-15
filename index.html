@@ -247,16 +247,127 @@
             }
         </style>
 
-        <!-- PATCH MINIMAL: ikon sosial sejajar di bawah teks brand footer -->
+        <!-- PATCH MINIMAL v7: warna menu aktif/hover lebih jelas + ikon footer lebih kecil + logo kiri. -->
         <style>
-            #sidebar > div:last-child > div:nth-child(2){
+            /* Jangan ubah warna dasar sidebar. Hanya warna hover/aktif menu. */
+            #sidebar nav button:hover,
+            #sidebar nav > div > div:hover,
+            #sidebar [class*="hover:bg-blue-800"]:hover,
+            #sidebar [class*="hover:bg-blue-800/60"]:hover{
+                background:#334155!important;
+                color:#ffffff!important;
+            }
+            #sidebar nav button:hover i,
+            #sidebar nav > div > div:hover i{
+                color:#ffffff!important;
+            }
+
+            /* Saat menu diklik/aktif: biru, bukan hijau, dengan teks putih jelas. */
+            #sidebar nav button[class*="bg-blue-600"],
+            #sidebar nav > div > div[class*="bg-blue-600"]{
+                background:#2563eb!important;
+                color:#ffffff!important;
+                box-shadow:0 4px 12px rgba(37,99,235,.28)!important;
+            }
+            #sidebar nav button[class*="bg-blue-600"] span,
+            #sidebar nav button[class*="bg-blue-600"] i,
+            #sidebar nav > div > div[class*="bg-blue-600"] span,
+            #sidebar nav > div > div[class*="bg-blue-600"] i{
+                color:#ffffff!important;
+            }
+            #sidebar nav button[class*="bg-blue-600"] .absolute{
+                background:#ffffff!important;
+            }
+
+            /* Logo footer: tetap dalam kotak, tetapi foto menempel ke kiri. */
+            #sidebar > div:last-child > div:first-child{
+                justify-content:flex-start!important;
+                padding-left:12px!important;
+            }
+            #sidebar > div:last-child > div:first-child > div{
+                margin-left:0!important;
+            }
+            #sidebar > div:last-child > div:first-child .sidebar-footer-logo{
+                width:145px!important;
+                height:48px!important;
+                max-width:100%!important;
+                object-fit:contain!important;
+                object-position:left center!important;
+                border-radius:0!important;
+                display:block!important;
+            }
+
+            /* Ikon sosial/logout dibuat lebih kecil dan seragam bulat. */
+            #sidebar .sidebar-social-row{
+                display:flex!important;
+                align-items:center!important;
                 justify-content:center!important;
-                padding-left:0!important;
-                top:0!important;
-                transform:none!important;
+                gap:7px!important;
+                padding:2px 0 5px!important;
+            }
+            #sidebar .sidebar-social-btn{
+                width:27px!important;
+                height:27px!important;
+                min-width:27px!important;
+                padding:0!important;
+                border-radius:9999px!important;
+                display:flex!important;
+                align-items:center!important;
+                justify-content:center!important;
+                font-size:12px!important;
+                line-height:1!important;
+                border:0!important;
+                box-shadow:none!important;
+            }
+            #sidebar .sidebar-social-btn i{
+                font-size:12px!important;
+            }
+            #sidebar .sidebar-social-tiktok{background:#111827!important;color:#fff!important;}
+            #sidebar .sidebar-social-whatsapp{background:#22c55e!important;color:#fff!important;}
+            #sidebar .sidebar-social-facebook{background:#1877f2!important;color:#fff!important;}
+            #sidebar .sidebar-social-instagram{background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4)!important;color:#fff!important;}
+            #sidebar .sidebar-social-logout{background:#ef4444!important;color:#fff!important;}
+
+            /* Ganti tombol Keluar Akun persegi panjang menjadi ikon logout bulat. */
+            #sidebar > div:last-child > button[onclick="handleLogout()"]{
+                width:27px!important;
+                height:27px!important;
+                min-width:27px!important;
+                margin:0 auto!important;
+                padding:0!important;
+                border-radius:9999px!important;
+                display:flex!important;
+                align-items:center!important;
+                justify-content:center!important;
+                background:#ef4444!important;
+                color:#fff!important;
+                border:0!important;
+            }
+            #sidebar > div:last-child > button[onclick="handleLogout()"] .sidebar-text{
+                display:none!important;
             }
         </style>
 
+
+        <!-- PATCH MINIMAL v8: logo proporsional + logout sejajar dengan ikon sosial. -->
+        <style>
+            @media (min-width:768px){
+                #sidebar .sidebar-social-row{
+                    width:100%!important;
+                    flex-wrap:nowrap!important;
+                    justify-content:flex-start!important;
+                    padding-left:12px!important;
+                    padding-right:12px!important;
+                    gap:8px!important;
+                }
+                #sidebar .sidebar-social-row .sidebar-social-btn{
+                    flex:0 0 27px!important;
+                }
+                #sidebar > div:last-child > div:first-child{
+                    justify-content:flex-start!important;
+                }
+            }
+        </style>
         <!-- PATCH LOGIN: desktop full-screen seperti banner referensi, tanpa mengubah markup/event form. -->
         <style>
             @media (min-width:768px){
@@ -920,121 +1031,104 @@
             }
         }
     </style>
-    <!-- PATCH MINIMAL v7: koreksi keterbacaan menu hover/aktif + logo footer + ikon sosial/logout.
-         Hanya bagian visual yang diminta, tanpa mengubah background dashboard atau logika aplikasi. -->
-    <style id="rekapinyu-final-request-patch">
-      /* Jangan ubah background menu yang sudah ada; hanya pastikan teks & ikon terbaca. */
-      #sidebar nav button:hover,
-      #sidebar nav > div > div:hover,
-      #sidebar nav button:hover span,
-      #sidebar nav > div > div:hover span,
-      #sidebar nav button:hover i,
-      #sidebar nav > div > div:hover i {
-        color:#ffffff!important;
-      }
 
-      /* Menu aktif: background tetap dari kode asli; teks/ikon dibuat putih agar tidak hilang. */
-      #sidebar nav button[class*="bg-blue-600"],
-      #sidebar nav button[class*="bg-blue-600"] span,
-      #sidebar nav button[class*="bg-blue-600"] i,
-      #sidebar nav > div > div[class*="bg-blue-600"],
-      #sidebar nav > div > div[class*="bg-blue-600"] span,
-      #sidebar nav > div > div[class*="bg-blue-600"] i {
-        color:#ffffff!important;
-      }
+        <!-- PATCH FOKUS TERAKHIR: hover/aktif jelas + logo header + footer ikon/logout. -->
+        <style>
+            /* Hover dan menu yang sedang diklik: hindari hijau palet agar teks selalu terbaca. */
+            #sidebar nav button:hover,
+            #sidebar nav > div > div:hover,
+            #sidebar nav button[class*="hover:bg-blue-800"]:hover,
+            #sidebar [class*="hover:bg-blue-800"]:hover,
+            #sidebar [class*="hover:bg-blue-800/60"]:hover{
+                background:#475569!important;
+                color:#ffffff!important;
+            }
+            #sidebar nav button:hover span,
+            #sidebar nav button:hover i,
+            #sidebar nav > div > div:hover span,
+            #sidebar nav > div > div:hover i{
+                color:#ffffff!important;
+            }
+            #sidebar nav button[class*="bg-blue-600"],
+            #sidebar nav > div > div[class*="bg-blue-600"]{
+                background:#2563eb!important;
+                color:#ffffff!important;
+            }
+            #sidebar nav button[class*="bg-blue-600"] span,
+            #sidebar nav button[class*="bg-blue-600"] i,
+            #sidebar nav > div > div[class*="bg-blue-600"] span,
+            #sidebar nav > div > div[class*="bg-blue-600"] i{
+                color:#ffffff!important;
+            }
 
-      .rekapinyu-footer-logo {
-        display:block!important;
-        width:161px!important;
-        max-width:100%!important;
-        height:41px!important;
-        object-fit:contain!important;
-        object-position:center!important;
-        border:0!important;
-      }
+            /* Desktop: tanggal di header diganti logo, di posisi yang sama. */
+            @media (min-width:768px){
+                #mobile-date-header{
+                    width:120px!important;
+                    height:30px!important;
+                    padding:0!important;
+                    border:0!important;
+                    background:transparent!important;
+                    border-radius:0!important;
+                    display:flex!important;
+                    align-items:center!important;
+                    justify-content:flex-end!important;
+                    overflow:hidden!important;
+                }
+                #mobile-date-header > *{display:none!important;}
+                #mobile-date-header::before{
+                    content:url('https://github.com/rekapinyu/rekapinyu.github.io/blob/main/LogoRekpinyuBiru.jpg?raw=true');
+                    display:block!important;
+                    width:120px!important;
+                    height:30px!important;
+                    object-fit:contain!important;
+                    object-position:right center!important;
+                    transform:scale(1)!important;
+                }
+            }
 
-      .sidebar-social-row {
-        width:100%!important;
-        min-height:42px!important;
-      }
-
-      .sidebar-social-btn {
-        width:34px!important;
-        height:34px!important;
-        min-width:34px!important;
-        border-radius:9999px!important;
-        border:0!important;
-        display:flex!important;
-        align-items:center!important;
-        justify-content:center!important;
-        color:#ffffff!important;
-        font-size:14px!important;
-        line-height:1!important;
-        padding:0!important;
-        box-shadow:0 3px 9px rgba(15,23,42,.12)!important;
-        transition:transform .16s ease,filter .16s ease!important;
-      }
-
-      .sidebar-social-btn:hover {
-        transform:translateY(-2px)!important;
-        filter:brightness(.94)!important;
-      }
-
-      .sidebar-social-tiktok { background:#111827!important; }
-      .sidebar-social-whatsapp { background:#25d366!important; }
-      .sidebar-social-facebook { background:#1877f2!important; }
-      .sidebar-social-instagram { background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)!important; }
-      .sidebar-social-logout { background:#ef4444!important; }
-
-      @media (max-width:767px) {
-        .rekapinyu-footer-logo {
-          width:161px!important;
-          height:41px!important;
-        }
-        .sidebar-social-btn {
-          width:32px!important;
-          height:32px!important;
-          min-width:32px!important;
-          font-size:13px!important;
-        }
-      }
-    </style>
-
-
-<!-- PATCH FOKUS v5: ukuran logo header + tombol Logout footer. Bagian lain tetap original. -->
-<style id="rekapinyu-v5-logo-logout">
-  /* Logo header: proporsional mengikuti tinggi header, tidak membesar. */
-  .rekapinyu-header-logo {
-    width:32px!important;
-    height:32px!important;
-    max-width:32px!important;
-    max-height:32px!important;
-    object-fit:contain!important;
-    object-position:center!important;
-    display:block!important;
-    border:0!important;
-  }
-  /* Logout footer: tombol biru dengan ikon + teks, bukan lingkaran merah. */
-  .sidebar-social-logout {
-    width:auto!important;
-    min-width:92px!important;
-    height:34px!important;
-    border-radius:9px!important;
-    padding:0 12px!important;
-    gap:7px!important;
-    background:#2563eb!important;
-    color:#ffffff!important;
-    font-size:12px!important;
-    font-weight:700!important;
-  }
-  .sidebar-social-logout i { font-size:12px!important; }
-  .sidebar-social-logout:hover { background:#1d4ed8!important; }
-  @media (max-width:767px){
-    .rekapinyu-header-logo { width:30px!important; height:30px!important; max-width:30px!important; max-height:30px!important; }
-    .sidebar-social-logout { min-width:86px!important; height:32px!important; padding:0 10px!important; }
-  }
-</style>
-
+            /* Footer: kotak atas khusus ikon sosial, logout kotak terpisah di bawah. */
+            #sidebar .sidebar-social-box{
+                padding:12px!important;
+                min-height:52px!important;
+            }
+            #sidebar .sidebar-social-box .sidebar-social-row{
+                display:flex!important;
+                align-items:center!important;
+                justify-content:center!important;
+                gap:8px!important;
+                padding:0!important;
+                width:auto!important;
+            }
+            #sidebar .sidebar-social-box .sidebar-social-btn{
+                width:27px!important;
+                height:27px!important;
+                min-width:27px!important;
+                flex:0 0 27px!important;
+            }
+            #sidebar .sidebar-logout-box{
+                display:flex!important;
+                align-items:center!important;
+                justify-content:center!important;
+                padding:7px 0 8px!important;
+                border-bottom:1px solid #15327a!important;
+            }
+            #sidebar .sidebar-logout-box .sidebar-social-btn{
+                width:auto!important;
+                min-width:110px!important;
+                height:34px!important;
+                flex:0 0 auto!important;
+                padding:0 14px!important;
+                border-radius:8px!important;
+                background:#2563eb!important;
+                color:#ffffff!important;
+                gap:7px!important;
+            }
+            #sidebar .sidebar-logout-box .sidebar-social-btn i{color:#ffffff!important;}
+            #sidebar .sidebar-logout-box .sidebar-social-btn span{color:#ffffff!important;}
+            /* Sembunyikan tombol logout lama bila selector lama masih terbawa CSS. */
+            #sidebar > div:last-child > button[onclick="handleLogout()"]{display:none!important;}
+        </style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -1229,34 +1323,31 @@
 
         <!-- Sidebar Footer Info -->
         <div class="p-4 border-t border-[#15327a] space-y-1 bg-[#0a1c47]">
-            <!-- Logo / Brand Area: diganti dengan logo REKAPINYU yang diberikan -->
-            <div class="p-4 border-b border-[#15327a] flex items-center justify-center bg-[#0a1c47]/50 relative">
-                <img src="data:image/jpeg;base64,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" alt="REKAPINYU" class="rekapinyu-footer-logo" draggable="false">
+            <!-- Kotak ikon sosial -->
+            <div class="p-4 border-b border-[#15327a] flex items-center justify-center gap-3 bg-[#0a1c47]/50 relative sidebar-social-box">
+                <div class="sidebar-social-row" aria-label="Sosial">
+                    <button type="button" class="sidebar-social-btn sidebar-social-tiktok" title="TikTok" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></button>
+                    <button type="button" class="sidebar-social-btn sidebar-social-whatsapp" title="WhatsApp" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
+                    <button type="button" class="sidebar-social-btn sidebar-social-facebook" title="Facebook" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
+                    <button type="button" class="sidebar-social-btn sidebar-social-instagram" title="Instagram" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></button>
+                </div>
             </div>
 
-            <!-- Ikon sosial + Logout: bulat dan berwarna -->
-            <div class="sidebar-social-row flex items-center justify-center gap-2 pt-1">
-                <button type="button" class="sidebar-social-btn sidebar-social-tiktok" aria-label="TikTok" title="TikTok">
-                    <i class="fa-brands fa-tiktok"></i>
-                </button>
-                <button type="button" class="sidebar-social-btn sidebar-social-whatsapp" aria-label="WhatsApp" title="WhatsApp">
-                    <i class="fa-brands fa-whatsapp"></i>
-                </button>
-                <button type="button" class="sidebar-social-btn sidebar-social-facebook" aria-label="Facebook" title="Facebook">
-                    <i class="fa-brands fa-facebook-f"></i>
-                </button>
-                <button type="button" class="sidebar-social-btn sidebar-social-instagram" aria-label="Instagram" title="Instagram">
-                    <i class="fa-brands fa-instagram"></i>
-                </button>
-                <button type="button" onclick="handleLogout()" class="sidebar-social-btn sidebar-social-logout" aria-label="Logout" title="Logout">
-                    <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
+            <!-- Logout tetap di footer, tetapi dibuat kotak sendiri di bawah ikon sosial. -->
+            <div class="sidebar-logout-box">
+                <button type="button" onclick="handleLogout()" class="sidebar-social-btn sidebar-social-logout" title="Keluar Akun" aria-label="Keluar Akun"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+            <div class="sidebar-text flex items-center justify-between gap-2 pt-0">
+                <div class="flex items-center gap-2">
+
+
+                    
+                                    </div>
+                <button onclick="toggleSidebar()" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/50 hover:bg-blue-800 transition shrink-0" title="Minimalisir Sidebar">
+                    <i id="sidebar-toggle-icon" class="fa-solid fa-arrow-left text-xs"></i>
                 </button>
             </div>
 
-            <!-- Tombol minimize tetap ada di markup/fungsi asli, tetapi sudah disembunyikan oleh patch sebelumnya. -->
-            <button onclick="toggleSidebar()" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/50 hover:bg-blue-800 transition shrink-0 hidden" title="Minimalisir Sidebar">
-                <i id="sidebar-toggle-icon" class="fa-solid fa-arrow-left text-xs"></i>
-            </button>
         </div>
     </aside>
 
@@ -1265,8 +1356,8 @@
         <!-- Top Navigation Bar -->
         <header class="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 flex items-center justify-center shrink-0">
-                    <img src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/LogoRekpinyuBiru.jpg?raw=true" alt="REKAPINYU" class="rekapinyu-header-logo" draggable="false">
+                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-wallet text-sm"></i>
                 </div>
                 <div>
                     <h1 class="font-bold text-slate-800 text-sm md:hidden">REKAPIN</h1>
