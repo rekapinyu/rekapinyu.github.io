@@ -5154,7 +5154,11 @@ onAuthStateChanged(auth,async u=>{
 
 
 <!-- PATCH FOKUS: ikon sidebar tanpa kotak ikon; ikon warna berbeda dengan opacity 5%. -->
+
+
 <!-- PATCH FINAL FOKUS: ikon terlihat jelas di dalam kartu grid sidebar. -->
+
+
 <!-- PATCH FOKUS: kartu menu desktop disamakan dengan kartu menu mobile. -->
 <style id="patch-sidebar-match-mobile-cards">
 @media (min-width:768px){
@@ -5491,6 +5495,24 @@ onAuthStateChanged(auth,async u=>{
 
 
 <!-- PATCH FOKUS: hanya hilangkan hover pada kartu Kasbon. Bagian lain dipertahankan. -->
+<style id="patch-remove-kasbon-card-hover">
+@media (min-width:768px){
+  #sidebar nav > .toggle-kasbon-menu-container:hover{
+    background:#fff!important;
+    transform:none!important;
+    color:inherit!important;
+    box-shadow:0 3px 10px rgba(15,23,42,.10)!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container:hover #nav-kasbon-wrapper{
+    background:transparent!important;
+    color:inherit!important;
+    box-shadow:none!important;
+  }
+}
+</style>
+
+
 <!-- PATCH FOKUS: hapus hanya toggle pengaturan gembok Kasbon. -->
 <style id="patch-hide-kasbon-settings-toggle">
 @media (min-width:768px){
@@ -5515,6 +5537,30 @@ onAuthStateChanged(auth,async u=>{
 
 
 <!-- PATCH FOKUS: hilangkan warna hitam saat cursor berada di kartu Kasbon saja. -->
+<style id="patch-kasbon-no-black-hover">
+@media (min-width:768px){
+  #sidebar nav > .toggle-kasbon-menu-container,
+  #sidebar nav > .toggle-kasbon-menu-container:hover,
+  #sidebar nav > .toggle-kasbon-menu-container:focus,
+  #sidebar nav > .toggle-kasbon-menu-container:focus-within,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:hover,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:focus,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:focus-within,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
+    background:#fff!important;
+    color:#334155!important;
+    box-shadow:0 3px 10px rgba(15,23,42,.10)!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon:hover{
+    background:#fff!important;
+    color:#334155!important;
+  }
+}
+</style>
+
+
 <!-- PATCH FOKUS TERAKHIR: reload tanpa flash + ikon Kasbon hanya gembok baru. -->
 <style id="patch-final-reload-kasbon">
   /* Selama boot, sidebar tidak boleh menampilkan model lama walau CSS/JS sedang selesai dimuat. */
@@ -5629,71 +5675,66 @@ onAuthStateChanged(auth,async u=>{
      Hanya fokus pada tampilan menu sidebar, tanpa mengubah fungsi/JavaScript/menu. -->
 
 
-<!-- PATCH SIDEBAR FINAL BERSIH: hanya shadow + ikon jelas, tanpa border/box ikon. -->
-<style id="patch-sidebar-final-clean">
+
+
+
+
+
+<style id="patch-sidebar-icon-white-remove-v5">
+/* Final kecil:
+   - Hilangkan kotak putih pada area ikon di dalam menu
+   - Ikon dibuat lebih pekat/jelas
+   - Kotak menu tetap siku dan hanya memakai shadow */
 @media (min-width:768px){
-  /* Semua kartu menu: siku, tanpa garis/border, hanya shadow ringan. */
-  #sidebar nav > button[id^="nav-"],
-  #sidebar nav > .toggle-kasbon-menu-container{
+  #sidebar nav button,
+  #sidebar nav > div,
+  #sidebar nav > div > div,
+  #sidebar nav a{
     border:0!important;
     outline:0!important;
-    border-radius:0!important;
     box-shadow:0 4px 12px rgba(15,23,42,.10)!important;
   }
 
-  #sidebar nav > button[id^="nav-"]:hover,
-  #sidebar nav > button[id^="nav-"]:focus,
-  #sidebar nav > button[id^="nav-"]:active,
-  #sidebar nav > button[id^="nav-"].bg-blue-600\/80,
-  #sidebar nav > .toggle-kasbon-menu-container,
-  #sidebar nav > .toggle-kasbon-menu-container:hover,
-  #sidebar nav > .toggle-kasbon-menu-container:focus,
-  #sidebar nav > .toggle-kasbon-menu-container:focus-within{
-    border:0!important;
-    outline:0!important;
-    border-radius:0!important;
-    box-shadow:0 5px 14px rgba(15,23,42,.12)!important;
-  }
-
-  /* Ikon langsung di dalam kartu: tidak ada kotak putih di belakangnya. */
-  #sidebar nav > button[id^="nav-"] > i,
-  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
-    width:auto!important;
-    height:auto!important;
-    min-width:0!important;
-    min-height:0!important;
-    flex:0 0 auto!important;
-    padding:0!important;
-    margin:0!important;
-    border:0!important;
-    outline:0!important;
-    border-radius:0!important;
+  /* Hilangkan bidang/kotak putih yang menempel pada ikon */
+  #sidebar nav button i,
+  #sidebar nav button svg,
+  #sidebar nav > div i,
+  #sidebar nav > div svg,
+  #sidebar nav > div > div i,
+  #sidebar nav > div > div svg{
     background:transparent!important;
+    background-color:transparent!important;
+    border:0!important;
     box-shadow:none!important;
     opacity:1!important;
     visibility:visible!important;
     filter:none!important;
     -webkit-filter:none!important;
-    text-shadow:none!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    font-size:23px!important;
-    line-height:1!important;
   }
 
-  /* Warna ikon dibuat solid/jelas, bukan rgba transparan. */
-  #sidebar nav > #nav-pengeluaran > i{color:#0284c7!important}
-  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{color:#f59e0b!important}
-  #sidebar nav > #nav-input > i{color:#059669!important}
-  #sidebar nav > #nav-history > i{color:#9333ea!important}
-  #sidebar nav > #nav-report > i{color:#db2777!important}
-  #sidebar nav > #nav-backup > i{color:#0891b2!important}
+  /* Semua pembungkus ikon */
+  #sidebar nav button [class*="icon"],
+  #sidebar nav button .icon-box,
+  #sidebar nav button .menu-icon,
+  #sidebar nav > div [class*="icon"],
+  #sidebar nav > div .icon-box,
+  #sidebar nav > div .menu-icon{
+    background:transparent!important;
+    background-color:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+    opacity:1!important;
+  }
 
-  /* Watermark besar di sudut kartu tetap sangat samar agar tidak mengganggu ikon utama. */
-  #sidebar nav > button[id^="nav-"]::after,
-  #sidebar nav > .toggle-kasbon-menu-container::after{
-    opacity:.035!important;
+  /* Pastikan pseudo-element ikon juga tidak membuat bidang putih */
+  #sidebar nav button i::before,
+  #sidebar nav button i::after,
+  #sidebar nav > div i::before,
+  #sidebar nav > div i::after,
+  #sidebar nav > div > div i::before,
+  #sidebar nav > div > div i::after{
+    opacity:1!important;
+    background:transparent!important;
   }
 }
 </style>
