@@ -5168,5 +5168,683 @@ onAuthStateChanged(auth,async u=>{
     setInterval(init, 700);
 })();
 </script>
+
+<!-- PATCH FOKUS: Menu Sidebar menjadi kotak-kotak seperti kartu menu mobile.
+     Layout 2 kolom (grid 2x2/berlanjut ke baris berikutnya untuk semua menu).
+     Tidak mengubah fungsi JavaScript maupun bagian lain. -->
+<style id="patch-sidebar-menu-grid-mobile">
+@media (min-width:768px){
+  #sidebar nav{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-content:start!important;
+    align-items:stretch!important;
+    padding:12px!important;
+    overflow-y:auto!important;
+  }
+
+  #sidebar nav > .sidebar-text{
+    grid-column:1 / -1!important;
+    padding:4px 4px 2px!important;
+    margin:0!important;
+  }
+
+  /* Semua menu utama menjadi kartu kotak seperti menu mobile. */
+  #sidebar nav > button[id^="nav-"],
+  #sidebar nav > .toggle-kasbon-menu-container{
+    width:100%!important;
+    min-width:0!important;
+    min-height:82px!important;
+    margin:0!important;
+    border-radius:16px!important;
+    box-sizing:border-box!important;
+  }
+
+  #sidebar nav > button[id^="nav-"]{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:7px!important;
+    padding:10px 6px!important;
+    text-align:center!important;
+    background:rgba(20,50,122,.42)!important;
+    border:1px solid rgba(96,165,250,.13)!important;
+  }
+
+  #sidebar nav > button[id^="nav-"]:hover{
+    background:rgba(37,99,235,.42)!important;
+  }
+
+  /* Kotak ikon di dalam kartu, mengikuti bentuk kartu ikon mobile. */
+  #sidebar nav > button[id^="nav-"] > i{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    border-radius:13px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 42px!important;
+    margin:0!important;
+    background:#ecfdf5!important;
+    color:#059669!important;
+    font-size:18px!important;
+    line-height:1!important;
+  }
+
+  #sidebar nav > button[id^="nav-"] > span{
+    width:100%!important;
+    display:block!important;
+    font-size:11px!important;
+    line-height:1.2!important;
+    text-align:center!important;
+  }
+
+  /* Kartu Kasbon dibuat sama, tetapi tombol kunci tetap berfungsi di pojok. */
+  #sidebar nav > .toggle-kasbon-menu-container{
+    position:relative!important;
+    background:rgba(20,50,122,.42)!important;
+    border:1px solid rgba(96,165,250,.13)!important;
+    overflow:visible!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper{
+    width:100%!important;
+    height:100%!important;
+    min-height:82px!important;
+    margin:0!important;
+    padding:0!important;
+    border-radius:16px!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
+    width:100%!important;
+    height:100%!important;
+    min-height:82px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:7px!important;
+    padding:10px 6px!important;
+    text-align:center!important;
+    box-sizing:border-box!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    border-radius:13px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 42px!important;
+    background:#ecfdf5!important;
+    color:#059669!important;
+    font-size:18px!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon .sidebar-text{
+    width:100%!important;
+    display:block!important;
+    font-size:11px!important;
+    line-height:1.2!important;
+    text-align:center!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper > button:last-child{
+    position:absolute!important;
+    top:6px!important;
+    right:6px!important;
+    width:25px!important;
+    height:25px!important;
+    padding:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    border-radius:8px!important;
+    z-index:5!important;
+  }
+
+  /* Menu aktif tetap memakai kartu, hanya dibuat lebih tegas. */
+  #sidebar nav > button[id^="nav-"].bg-blue-600\/80,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper.bg-blue-600\/85{
+    background:rgba(37,99,235,.72)!important;
+    border-color:rgba(147,197,253,.35)!important;
+    box-shadow:0 7px 16px rgba(0,0,0,.12)!important;
+  }
+
+  /* Garis aktif lama tetap tidak mengubah bentuk kartu. */
+  #sidebar nav > button[id^="nav-"] > .absolute{
+    left:5px!important;
+    top:8px!important;
+    bottom:8px!important;
+    width:3px!important;
+  }
+
+  /* Popup Kasbon tetap berada di atas kartu dan tidak mengubah fungsi. */
+  #sidebar #kasbon-submenu-popup{
+    z-index:50!important;
+  }
+}
+</style>
+
+
+<!-- PATCH FOKUS: ikon sidebar tanpa kotak ikon; ikon warna berbeda dengan opacity 5%. -->
+<style id="patch-sidebar-icons-colored">
+@media (min-width:768px){
+  /* Hilangkan kotak/background khusus ikon, sisakan ikon saja. */
+  #sidebar nav > button[id^="nav-"] > i,
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    flex:0 0 auto!important;
+    border-radius:0!important;
+    background:transparent!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    font-size:22px!important;
+    line-height:1!important;
+    box-shadow:none!important;
+  }
+
+  /* Warna berbeda tiap ikon, dibuat sangat lembut/opacity 5%. */
+  #sidebar nav > #nav-pengeluaran > i{
+    color:rgba(59,130,246,.05)!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    color:rgba(245,158,11,.05)!important;
+  }
+  #sidebar nav > #nav-input > i{
+    color:rgba(16,185,129,.05)!important;
+  }
+  #sidebar nav > #nav-history > i{
+    color:rgba(168,85,247,.05)!important;
+  }
+  #sidebar nav > #nav-report > i{
+    color:rgba(236,72,153,.05)!important;
+  }
+  #sidebar nav > #nav-backup > i{
+    color:rgba(6,182,212,.05)!important;
+  }
+
+  /* Hover: tetap tanpa kotak; warna sedikit lebih terlihat agar interaktif. */
+  #sidebar nav > button[id^="nav-"]:hover > i,
+  #sidebar nav > .toggle-kasbon-menu-container:hover #icon-kasbon{
+    background:transparent!important;
+  }
+
+  /* Status aktif tetap tidak menambahkan kotak pada ikon. */
+  #sidebar nav > button[id^="nav-"].bg-blue-600\/80 > i,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper.bg-blue-600\/85 #icon-kasbon{
+    background:transparent!important;
+  }
+}
+</style>
+
+
+<!-- PATCH FINAL FOKUS: ikon terlihat jelas di dalam kartu grid sidebar. -->
+<style id="patch-sidebar-icons-visible-final">
+@media (min-width:768px){
+  #sidebar nav > button[id^="nav-"] > i,
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    flex:0 0 auto!important;
+    padding:0!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    font-size:23px!important;
+    line-height:1!important;
+    opacity:1!important;
+  }
+
+  /* Warna ikon berbeda-beda dan terlihat. */
+  #sidebar nav > #nav-pengeluaran > i{
+    color:#38bdf8!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    color:#fbbf24!important;
+  }
+  #sidebar nav > #nav-input > i{
+    color:#34d399!important;
+  }
+  #sidebar nav > #nav-history > i{
+    color:#c084fc!important;
+  }
+  #sidebar nav > #nav-report > i{
+    color:#f472b6!important;
+  }
+  #sidebar nav > #nav-backup > i{
+    color:#22d3ee!important;
+  }
+
+  /* Efek transparan hanya pada area ikon: opacity 5% tidak diterapkan
+     ke seluruh kartu sehingga ikon tetap muncul. */
+  #sidebar nav > button[id^="nav-"] > i,
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    text-shadow:0 0 0 currentColor!important;
+  }
+}
+</style>
+
+
+<!-- PATCH FOKUS: kartu menu desktop disamakan dengan kartu menu mobile. -->
+<style id="patch-sidebar-match-mobile-cards">
+@media (min-width:768px){
+  #sidebar nav{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    padding:12px!important;
+    background:#fff!important;
+  }
+
+  #sidebar nav > button[id^="nav-"],
+  #sidebar nav > .toggle-kasbon-menu-container{
+    position:relative!important;
+    min-height:116px!important;
+    height:116px!important;
+    overflow:hidden!important;
+    border:1px solid #e2e8f0!important;
+    border-radius:18px!important;
+    background:#fff!important;
+    box-shadow:0 6px 18px rgba(15,23,42,.06)!important;
+    color:#334155!important;
+    transition:transform .18s ease!important;
+  }
+
+  #sidebar nav > button[id^="nav-"]{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:9px!important;
+    padding:14px 8px!important;
+    text-align:center!important;
+  }
+
+  #sidebar nav > button[id^="nav-"]:hover{
+    background:#fff!important;
+    color:#334155!important;
+    transform:scale(.99)!important;
+  }
+
+  /* Ikon utama persis pola mobile: kotak 42x42 + ikon hijau. */
+  #sidebar nav > button[id^="nav-"] > i,
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    position:relative!important;
+    z-index:2!important;
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    min-height:42px!important;
+    flex:0 0 42px!important;
+    padding:0!important;
+    margin:0!important;
+    border-radius:13px!important;
+    background:#ecfdf5!important;
+    color:#059669!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    font-size:18px!important;
+    line-height:1!important;
+    opacity:1!important;
+    box-shadow:none!important;
+  }
+
+  #sidebar nav > button[id^="nav-"] > span,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon .sidebar-text{
+    position:relative!important;
+    z-index:2!important;
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    font-size:12px!important;
+    line-height:1.25!important;
+    font-weight:700!important;
+    text-align:center!important;
+    color:#334155!important;
+  }
+
+  /* Watermark transparan 5% seperti ikon watermark mobile. */
+  #sidebar nav > button[id^="nav-"]::after,
+  #sidebar nav > .toggle-kasbon-menu-container::after{
+    position:absolute!important;
+    right:-8px!important;
+    bottom:-12px!important;
+    z-index:1!important;
+    font-family:"Font Awesome 6 Free"!important;
+    font-weight:900!important;
+    font-size:62px!important;
+    line-height:1!important;
+    opacity:.05!important;
+    pointer-events:none!important;
+  }
+
+  #sidebar nav > #nav-input::after{content:"\f303";color:#10b981!important}
+  #sidebar nav > #nav-pengeluaran::after{content:"\f543";color:#f59e0b!important}
+  #sidebar nav > .toggle-kasbon-menu-container::after{content:"\f02d";color:#3b82f6!important}
+  #sidebar nav > #nav-history::after{content:"\f017";color:#8b5cf6!important}
+  #sidebar nav > #nav-report::after{content:"\f200";color:#ef4444!important}
+  #sidebar nav > #nav-backup::after{content:"\f0ee";color:#06b6d4!important}
+
+  /* Kotak Kasbon tetap identik, tombol setting tetap tersedia. */
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper{
+    width:100%!important;
+    height:100%!important;
+    min-height:116px!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    border-radius:inherit!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
+    width:100%!important;
+    height:100%!important;
+    min-height:116px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:9px!important;
+    padding:14px 8px!important;
+    box-sizing:border-box!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper > button:last-child{
+    top:8px!important;
+    right:8px!important;
+    width:30px!important;
+    height:30px!important;
+    padding:0!important;
+    border-radius:10px!important;
+    background:rgba(248,250,252,.95)!important;
+    border:1px solid #e2e8f0!important;
+    color:#64748b!important;
+    z-index:5!important;
+  }
+
+  /* Hilangkan styling aktif lama yang membuat kartu biru; kartu tetap seperti mobile. */
+  #sidebar nav > button[id^="nav-"].bg-blue-600\/80,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper.bg-blue-600\/85{
+    background:#fff!important;
+    color:#334155!important;
+    border:1px solid #e2e8f0!important;
+    box-shadow:0 6px 18px rgba(15,23,42,.06)!important;
+  }
+  #sidebar nav > button[id^="nav-"].bg-blue-600\/80 > i,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper.bg-blue-600\/85 #icon-kasbon{
+    background:#ecfdf5!important;
+    color:#059669!important;
+  }
+
+  #sidebar nav > button[id^="nav-"] > .absolute{
+    display:none!important;
+  }
+}
+</style>
+
+
+<!-- PATCH FOKUS TERAKHIR: shadow kartu + warna ikon submenu Kasbon + teks/icon tetap terlihat saat dibuka. -->
+<style id="patch-sidebar-final-kasbon">
+@media (min-width:768px){
+  /* Hanya menambah sedikit shadow pada kotak menu yang sudah benar. */
+  #sidebar nav > button[id^="nav-"],
+  #sidebar nav > .toggle-kasbon-menu-container{
+    box-shadow:0 3px 10px rgba(15,23,42,.10)!important;
+  }
+
+  /* Saat fitur kunci Kasbon dibuka, popup tetap terlihat di atas kartu. */
+  #sidebar #kasbon-submenu-popup{
+    z-index:100!important;
+  }
+
+  /* Icon + text pada pilihan fitur kunci Kasbon dibuat selalu terlihat. */
+  #sidebar #kasbon-submenu-popup button,
+  #sidebar #kasbon-submenu-popup a{
+    display:flex!important;
+    align-items:center!important;
+    gap:10px!important;
+    visibility:visible!important;
+    opacity:1!important;
+    color:#334155!important;
+  }
+
+  #sidebar #kasbon-submenu-popup button i,
+  #sidebar #kasbon-submenu-popup a i{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    visibility:visible!important;
+    opacity:1!important;
+    width:30px!important;
+    min-width:30px!important;
+    height:30px!important;
+    border-radius:9px!important;
+    font-size:14px!important;
+  }
+
+  /* Warna berbeda untuk icon-icon fitur kunci Kasbon. */
+  #sidebar #kasbon-submenu-popup button:nth-child(1) i,
+  #sidebar #kasbon-submenu-popup a:nth-child(1) i{
+    color:#2563eb!important;
+    background:#eff6ff!important;
+  }
+  #sidebar #kasbon-submenu-popup button:nth-child(2) i,
+  #sidebar #kasbon-submenu-popup a:nth-child(2) i{
+    color:#f59e0b!important;
+    background:#fffbeb!important;
+  }
+  #sidebar #kasbon-submenu-popup button:nth-child(3) i,
+  #sidebar #kasbon-submenu-popup a:nth-child(3) i{
+    color:#ef4444!important;
+    background:#fef2f2!important;
+  }
+  #sidebar #kasbon-submenu-popup button:nth-child(4) i,
+  #sidebar #kasbon-submenu-popup a:nth-child(4) i{
+    color:#10b981!important;
+    background:#ecfdf5!important;
+  }
+
+  /* Jangan sembunyikan teks submenu saat sidebar menggunakan mode grid. */
+  #sidebar #kasbon-submenu-popup .sidebar-text,
+  #sidebar #kasbon-submenu-popup span{
+    display:inline!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+}
+</style>
+
+
+<!-- PATCH FOKUS: Kasbon lock icon + click unlock + no card hover, icon animation only. -->
+<style id="patch-kasbon-lock-final">
+@media (min-width:768px){
+  /* Hapus kotak khusus ikon; ikon langsung berada di kartu menu. */
+  #sidebar nav > button[id^="nav-"] > i,
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  /* Tidak ada hover pada kotak/menu. */
+  #sidebar nav > button[id^="nav-"]:hover,
+  #sidebar nav > .toggle-kasbon-menu-container:hover{
+    background:#fff!important;
+    transform:none!important;
+    color:#334155!important;
+  }
+
+  /* Hanya icon yang dianimasikan ketika cursor berada di kartu. */
+  @keyframes sidebarIconBounce{
+    0%,100%{transform:translateY(0) rotate(0deg) scale(1)}
+    35%{transform:translateY(-4px) rotate(-7deg) scale(1.08)}
+    70%{transform:translateY(0) rotate(7deg) scale(1.04)}
+  }
+
+  #sidebar nav > button[id^="nav-"]:hover > i,
+  #sidebar nav > .toggle-kasbon-menu-container:hover #icon-kasbon{
+    animation:sidebarIconBounce .55s ease-in-out;
+  }
+
+  /* Icon Kasbon menjadi gembok berwarna. */
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    color:#f59e0b!important;
+    font-size:23px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+}
+</style>
+
+<script id="patch-kasbon-lock-behavior">
+(function(){
+  function setKasbonLockIcon(){
+    var icon=document.getElementById('icon-kasbon');
+    if(!icon) return;
+    var unlocked=(typeof isKasbonUnlocked!=='undefined' && isKasbonUnlocked===true);
+    icon.className='fa-solid '+(unlocked?'fa-lock-open':'fa-lock');
+    icon.style.color=unlocked?'#10b981':'#f59e0b';
+    icon.setAttribute('aria-label',unlocked?'Kasbon terbuka':'Kasbon terkunci');
+  }
+
+  function bindKasbonLock(){
+    var nav=document.getElementById('nav-kasbon');
+    if(!nav || nav.dataset.lockPatch==='1') return;
+    nav.dataset.lockPatch='1';
+
+    nav.addEventListener('click',function(e){
+      /* Tetap gunakan fungsi kunci/password yang sudah ada. */
+      if(typeof handleKasbonMenuClick==='function'){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        handleKasbonMenuClick();
+        setTimeout(setKasbonLockIcon,50);
+      }
+    },true);
+
+    setKasbonLockIcon();
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    bindKasbonLock();
+    setTimeout(setKasbonLockIcon,100);
+  });
+
+  /* Saat status terbuka/tertutup berubah dari fungsi original, icon ikut sinkron. */
+  var originalUpdate=window.updateKasbonLockUI;
+  if(typeof originalUpdate==='function'){
+    window.updateKasbonLockUI=function(){
+      var result=originalUpdate.apply(this,arguments);
+      setTimeout(setKasbonLockIcon,0);
+      return result;
+    };
+  }
+
+  /* Jangan menyimpan status terbuka setelah halaman/aplikasi ditutup/reload. */
+  window.addEventListener('beforeunload',function(){
+    try{ isKasbonUnlocked=false; }catch(e){}
+  });
+  window.addEventListener('pagehide',function(){
+    try{ isKasbonUnlocked=false; }catch(e){}
+  });
+
+  setInterval(function(){
+    bindKasbonLock();
+    setKasbonLockIcon();
+  },500);
+})();
+</script>
+
+
+<!-- PATCH FOKUS: hanya hilangkan hover pada kartu Kasbon. Bagian lain dipertahankan. -->
+<style id="patch-remove-kasbon-card-hover">
+@media (min-width:768px){
+  #sidebar nav > .toggle-kasbon-menu-container:hover{
+    background:#fff!important;
+    transform:none!important;
+    color:inherit!important;
+    box-shadow:0 3px 10px rgba(15,23,42,.10)!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container:hover #nav-kasbon-wrapper{
+    background:transparent!important;
+    color:inherit!important;
+    box-shadow:none!important;
+  }
+}
+</style>
+
+
+<!-- PATCH FOKUS: hapus hanya toggle pengaturan gembok Kasbon. -->
+<style id="patch-hide-kasbon-settings-toggle">
+@media (min-width:768px){
+  #sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper > button:last-child{
+    display:none!important;
+  }
+}
+</style>
+<script id="patch-hide-kasbon-settings-toggle-script">
+(function(){
+  function hideKasbonToggle(){
+    var wrap=document.getElementById('nav-kasbon-wrapper');
+    if(!wrap)return;
+    var buttons=wrap.querySelectorAll(':scope > button');
+    if(buttons.length>1) buttons[buttons.length-1].style.display='none';
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hideKasbonToggle);
+  else hideKasbonToggle();
+  setInterval(hideKasbonToggle,500);
+})();
+</script>
+
+
+<!-- PATCH FOKUS: hilangkan warna hitam saat cursor berada di kartu Kasbon saja. -->
+<style id="patch-kasbon-no-black-hover">
+@media (min-width:768px){
+  #sidebar nav > .toggle-kasbon-menu-container,
+  #sidebar nav > .toggle-kasbon-menu-container:hover,
+  #sidebar nav > .toggle-kasbon-menu-container:focus,
+  #sidebar nav > .toggle-kasbon-menu-container:focus-within,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:hover,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:focus,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:focus-within,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
+    background:#fff!important;
+    color:#334155!important;
+    box-shadow:0 3px 10px rgba(15,23,42,.10)!important;
+  }
+
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon:hover{
+    background:#fff!important;
+    color:#334155!important;
+  }
+}
+</style>
+
 </body>
 </html>
