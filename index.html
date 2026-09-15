@@ -1243,6 +1243,24 @@
         #view-input > div > div:first-child{width:100%!important;max-width:none!important;}
       }
     </style>
+
+<!-- PATCH FOKUS BOOT: cegah flash tampilan sidebar lama/login saat reload. -->
+<style id="rekapinyu-boot-guard">
+  html:not(.rk-boot-ready) #sidebar{visibility:hidden!important}
+  html.rk-session-boot #auth-container{visibility:hidden!important}
+</style>
+<script id="rekapinyu-boot-guard-script">
+(function(){
+  try{
+    var raw=localStorage.getItem('finance_active_session');
+    if(raw){
+      var u=JSON.parse(raw);
+      if(u && (u.uid || u.phone)) document.documentElement.classList.add('rk-session-boot');
+    }
+  }catch(e){}
+})();
+</script>
+
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -4621,8 +4639,16 @@ onAuthStateChanged(auth,async u=>{
   if(!u){
     if(dataUnsub)dataUnsub();
     if(userUnsub)userUnsub();
-    currentSessionUser=null;
-    nativeRemove.call(localStorage,"finance_active_session");
+    /*
+     * PATCH FOKUS RELOAD:
+     * Jangan langsung menghapus sesi lokal pada callback Firebase "null".
+     * Firebase dapat mengirim state awal sebelum sesi persisten selesai dipulihkan.
+     * Jika cache sesi masih ada, pertahankan dashboard agar login tidak muncul
+     * sesaat setelah reload. Logout tetap menghapus cache secara eksplisit.
+     */
+    if(!currentSessionUser){
+      nativeRemove.call(localStorage,"finance_active_session");
+    }
     window.__rekapinyuLandingHandoffActive=false;
     checkAuth();
     return
@@ -5843,6 +5869,117 @@ onAuthStateChanged(auth,async u=>{
   }
 }
 </style>
+
+
+<!-- PATCH FOKUS TERAKHIR: reload tanpa flash + ikon Kasbon hanya gembok baru. -->
+<style id="patch-final-reload-kasbon">
+  /* Selama boot, sidebar tidak boleh menampilkan model lama walau CSS/JS sedang selesai dimuat. */
+  html:not(.rk-boot-ready) #sidebar{visibility:hidden!important}
+
+  /* Ikon lama Kasbon (settings/sliders) benar-benar disembunyikan. */
+  #sidebar-kasbon-lock-icon,
+  #nav-kasbon-wrapper > button[title="Pengaturan Gembok Kasbon"]{
+    display:none!important;
+  }
+
+  /* Hanya ikon gembok baru yang boleh terlihat. */
+  #nav-kasbon #icon-kasbon{
+    width:auto!important;
+    min-width:0!important;
+    padding:0!important;
+    margin:0!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    font-size:22px!important;
+    line-height:1!important;
+  }
+
+  /* Terkunci = gembok hijau. Terbuka = gembok kuning. */
+  #nav-kasbon #icon-kasbon.rk-kasbon-locked{
+    color:#10b981!important;
+  }
+  #nav-kasbon #icon-kasbon.rk-kasbon-unlocked{
+    color:#f59e0b!important;
+  }
+
+  /* Mobile juga hanya menampilkan ikon gembok yang sama. */
+  #mobile-kasbon-lock-icon.rk-kasbon-locked{
+    color:#10b981!important;
+  }
+  #mobile-kasbon-lock-icon.rk-kasbon-unlocked{
+    color:#f59e0b!important;
+  }
+</style>
+
+<script id="patch-final-reload-kasbon-script">
+(function(){
+  'use strict';
+
+  function setFinalKasbonIcon(){
+    var icon=document.getElementById('icon-kasbon');
+    var mobile=document.getElementById('mobile-kasbon-lock-icon');
+    var unlocked=(typeof isKasbonUnlocked!=='undefined' && isKasbonUnlocked===true);
+
+    if(icon){
+      icon.className='fa-solid '+(unlocked?'fa-lock-open':'fa-lock')+' '+(unlocked?'rk-kasbon-unlocked':'rk-kasbon-locked');
+      icon.setAttribute('aria-label',unlocked?'Kasbon terbuka':'Kasbon terkunci');
+      icon.title=unlocked?'Kasbon terbuka':'Kasbon terkunci';
+    }
+    if(mobile){
+      mobile.className='fa-solid '+(unlocked?'fa-lock-open':'fa-lock')+' text-[9px] absolute -top-1 -right-2 '+(unlocked?'rk-kasbon-unlocked':'rk-kasbon-locked');
+      mobile.setAttribute('aria-label',unlocked?'Kasbon terbuka':'Kasbon terkunci');
+    }
+
+    var old=document.getElementById('sidebar-kasbon-lock-icon');
+    if(old)old.style.display='none';
+  }
+
+  /* Bungkus switchTab FINAL: setelah menu lain diklik, ikon Kasbon langsung
+     dikembalikan ke gembok baru sebelum browser sempat melakukan paint. */
+  var originalSwitch=window.switchTab;
+  if(typeof originalSwitch==='function' && !originalSwitch.__rkFinalReloadPatch){
+    function patchedSwitch(){
+      var result=originalSwitch.apply(this,arguments);
+      setFinalKasbonIcon();
+      return result;
+    }
+    patchedSwitch.__rkFinalReloadPatch=true;
+    window.switchTab=patchedSwitch;
+  }
+
+  /* Bungkus update status agar ikon tidak sempat kembali ke ikon lama. */
+  var originalUpdate=window.updateKasbonLockUI;
+  if(typeof originalUpdate==='function' && !originalUpdate.__rkFinalReloadPatch){
+    function patchedUpdate(){
+      var result=originalUpdate.apply(this,arguments);
+      setFinalKasbonIcon();
+      return result;
+    }
+    patchedUpdate.__rkFinalReloadPatch=true;
+    window.updateKasbonLockUI=patchedUpdate;
+  }
+
+  function finishBoot(){
+    /* Semua CSS dan script patch sudah selesai: sekarang sidebar boleh terlihat. */
+    document.documentElement.classList.add('rk-boot-ready');
+
+    /* checkAuth memakai sesi lokal yang sudah ada; login tidak ditampilkan saat reload. */
+    try{
+      if(typeof checkAuth==='function')checkAuth();
+    }catch(e){}
+
+    setFinalKasbonIcon();
+    setTimeout(setFinalKasbonIcon,0);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',finishBoot,{once:true});
+  }else{
+    finishBoot();
+  }
+})();
+</script>
 
 </body>
 </html>
