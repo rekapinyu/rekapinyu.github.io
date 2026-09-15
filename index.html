@@ -1031,6 +1031,98 @@
             }
         }
     </style>
+
+        <!-- PATCH FOKUS TERAKHIR: hover/aktif jelas + logo header + footer ikon/logout. -->
+        <style>
+            /* Hover dan menu yang sedang diklik: hindari hijau palet agar teks selalu terbaca. */
+            #sidebar nav button:hover,
+            #sidebar nav > div > div:hover,
+            #sidebar nav button[class*="hover:bg-blue-800"]:hover,
+            #sidebar [class*="hover:bg-blue-800"]:hover,
+            #sidebar [class*="hover:bg-blue-800/60"]:hover{
+                background:#475569!important;
+                color:#ffffff!important;
+            }
+            #sidebar nav button:hover span,
+            #sidebar nav button:hover i,
+            #sidebar nav > div > div:hover span,
+            #sidebar nav > div > div:hover i{
+                color:#ffffff!important;
+            }
+            #sidebar nav button[class*="bg-blue-600"],
+            #sidebar nav > div > div[class*="bg-blue-600"]{
+                background:#2563eb!important;
+                color:#ffffff!important;
+            }
+            #sidebar nav button[class*="bg-blue-600"] span,
+            #sidebar nav button[class*="bg-blue-600"] i,
+            #sidebar nav > div > div[class*="bg-blue-600"] span,
+            #sidebar nav > div > div[class*="bg-blue-600"] i{
+                color:#ffffff!important;
+            }
+
+            /* Desktop: tanggal di header diganti logo, di posisi yang sama. */
+            @media (min-width:768px){
+                #mobile-date-header{
+                    width:180px!important;
+                    height:42px!important;
+                    padding:0!important;
+                    border:0!important;
+                    background:transparent!important;
+                    border-radius:0!important;
+                    display:flex!important;
+                    align-items:center!important;
+                    justify-content:flex-end!important;
+                    overflow:hidden!important;
+                }
+                #mobile-date-header > *{display:none!important;}
+                #mobile-date-header::before{
+                    content:url('https://github.com/rekapinyu/rekapinyu.github.io/blob/main/LogoRekpinyuBiru.jpg?raw=true');
+                    display:block!important;
+                    width:180px!important;
+                    height:42px!important;
+                    object-fit:contain!important;
+                    object-position:right center!important;
+                    transform:scale(1)!important;
+                }
+            }
+
+            /* Footer: kotak atas khusus ikon sosial, logout kotak terpisah di bawah. */
+            #sidebar .sidebar-social-box{
+                padding:12px!important;
+                min-height:52px!important;
+            }
+            #sidebar .sidebar-social-box .sidebar-social-row{
+                display:flex!important;
+                align-items:center!important;
+                justify-content:center!important;
+                gap:8px!important;
+                padding:0!important;
+                width:auto!important;
+            }
+            #sidebar .sidebar-social-box .sidebar-social-btn{
+                width:27px!important;
+                height:27px!important;
+                min-width:27px!important;
+                flex:0 0 27px!important;
+            }
+            #sidebar .sidebar-logout-box{
+                display:flex!important;
+                align-items:center!important;
+                justify-content:center!important;
+                padding:7px 0 8px!important;
+                border-bottom:1px solid #15327a!important;
+            }
+            #sidebar .sidebar-logout-box .sidebar-social-btn{
+                width:27px!important;
+                height:27px!important;
+                min-width:27px!important;
+                flex:0 0 27px!important;
+                padding:0!important;
+            }
+            /* Sembunyikan tombol logout lama bila selector lama masih terbawa CSS. */
+            #sidebar > div:last-child > button[onclick="handleLogout()"]{display:none!important;}
+        </style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -1225,19 +1317,18 @@
 
         <!-- Sidebar Footer Info -->
         <div class="p-4 border-t border-[#15327a] space-y-1 bg-[#0a1c47]">
-            <!-- Logo / Brand Area: foto logo di sisi kiri, tanpa teks REKAPINYU. -->
-            <div class="p-4 border-b border-[#15327a] flex items-center justify-between gap-3 bg-[#0a1c47]/50 relative">
-                <div class="flex items-center gap-3 truncate">
-                    <img src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/LogoRekpinyuBiru.jpg?raw=true" alt="REKAPINYU" class="sidebar-footer-logo" />
+            <!-- Kotak ikon sosial -->
+            <div class="p-4 border-b border-[#15327a] flex items-center justify-center gap-3 bg-[#0a1c47]/50 relative sidebar-social-box">
+                <div class="sidebar-social-row" aria-label="Sosial">
+                    <button type="button" class="sidebar-social-btn sidebar-social-tiktok" title="TikTok" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></button>
+                    <button type="button" class="sidebar-social-btn sidebar-social-whatsapp" title="WhatsApp" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
+                    <button type="button" class="sidebar-social-btn sidebar-social-facebook" title="Facebook" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
+                    <button type="button" class="sidebar-social-btn sidebar-social-instagram" title="Instagram" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></button>
                 </div>
             </div>
 
-            <!-- Ikon sosial + logout: kecil, bulat, semuanya sejajar dalam satu baris. -->
-            <div class="sidebar-social-row" aria-label="Sosial dan Logout">
-                <button type="button" class="sidebar-social-btn sidebar-social-tiktok" title="TikTok" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></button>
-                <button type="button" class="sidebar-social-btn sidebar-social-whatsapp" title="WhatsApp" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
-                <button type="button" class="sidebar-social-btn sidebar-social-facebook" title="Facebook" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
-                <button type="button" class="sidebar-social-btn sidebar-social-instagram" title="Instagram" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></button>
+            <!-- Logout tetap di footer, tetapi dibuat kotak sendiri di bawah ikon sosial. -->
+            <div class="sidebar-logout-box">
                 <button type="button" onclick="handleLogout()" class="sidebar-social-btn sidebar-social-logout" title="Keluar Akun" aria-label="Keluar Akun"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
             <div class="sidebar-text flex items-center justify-between gap-2 pt-0">
