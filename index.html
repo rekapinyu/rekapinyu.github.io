@@ -1547,7 +1547,7 @@
             <div class="relative toggle-kasbon-menu-container">
                 <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" id="nav-kasbon-wrapper">
                     <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
-                        <i id="icon-kasbon" class="fa-solid fa-hand-holding-dollar w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                        <i id="icon-kasbon" class="fa-solid fa-hand-holding-dollar"></i>
                         <span class="sidebar-text truncate">Kasbon</span>
                     </button>
                     <button onclick="toggleKasbonSubMenu(event)" class="px-3 py-2.5 text-blue-300 hover:text-white transition sidebar-text" title="Pengaturan Gembok Kasbon">
@@ -1580,7 +1580,7 @@
 
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
-                <i id="icon-input" class="fa-solid fa-pen-to-square w-5 text-center shrink-0"></i>
+                <i id="icon-input" class="fa-solid fa-clipboard-list"></i>
                 <span class="sidebar-text truncate">Input Data</span>
             </button>
             <button onclick="switchTab('history')" id="nav-history" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="History">
@@ -2959,7 +2959,7 @@
             };
 
             const icons = {
-                input: 'fa-pen-to-square',
+                input: 'fa-clipboard-list',
                 pengeluaran: 'fa-money-bill-transfer',
                 kasbon: 'fa-hand-holding-dollar',
                 history: 'fa-clock-rotate-left',
@@ -5848,7 +5848,6 @@ onAuthStateChanged(auth,async u=>{
     pointer-events:none!important;
   }
 
-  #sidebar nav > #nav-input::after{content:"\f303";color:#10b981!important}
   #sidebar nav > #nav-pengeluaran::after{content:"\f543";color:#f59e0b!important}
   #sidebar nav > .toggle-kasbon-menu-container::after{content:"\f02d";color:#3b82f6!important}
   #sidebar nav > #nav-history::after{content:"\f017";color:#8b5cf6!important}
@@ -6033,59 +6032,10 @@ onAuthStateChanged(auth,async u=>{
 <script id="patch-kasbon-lock-behavior">
 (function(){
   function setKasbonLockIcon(){
-    var icon=document.getElementById('icon-kasbon');
-    if(!icon) return;
-    var unlocked=(typeof isKasbonUnlocked!=='undefined' && isKasbonUnlocked===true);
-    icon.className='fa-solid '+(unlocked?'fa-lock-open':'fa-lock')+' '+(unlocked?'rk-kasbon-unlocked':'rk-kasbon-locked');
-    icon.style.setProperty('color', unlocked ? '#f59e0b' : '#10b981', 'important');
-    icon.setAttribute('aria-label',unlocked?'Kasbon terbuka':'Kasbon terkunci');
-  }
-
-  function bindKasbonLock(){
-    var nav=document.getElementById('nav-kasbon');
-    if(!nav || nav.dataset.lockPatch==='1') return;
-    nav.dataset.lockPatch='1';
-
-    nav.addEventListener('click',function(e){
-      /* Tetap gunakan fungsi kunci/password yang sudah ada. */
-      if(typeof handleKasbonMenuClick==='function'){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        handleKasbonMenuClick();
-        setTimeout(setKasbonLockIcon,50);
-      }
-    },true);
-
-    setKasbonLockIcon();
-  }
-
-  document.addEventListener('DOMContentLoaded',function(){
-    bindKasbonLock();
-    setTimeout(setKasbonLockIcon,100);
-  });
-
-  /* Saat status terbuka/tertutup berubah dari fungsi original, icon ikut sinkron. */
-  var originalUpdate=window.updateKasbonLockUI;
-  if(typeof originalUpdate==='function'){
-    window.updateKasbonLockUI=function(){
-      var result=originalUpdate.apply(this,arguments);
-      setTimeout(setKasbonLockIcon,0);
-      return result;
-    };
-  }
-
-  /* Jangan menyimpan status terbuka setelah halaman/aplikasi ditutup/reload. */
-  window.addEventListener('beforeunload',function(){
-    try{ isKasbonUnlocked=false; }catch(e){}
-  });
-  window.addEventListener('pagehide',function(){
-    try{ isKasbonUnlocked=false; }catch(e){}
-  });
-
-  setInterval(function(){
-    bindKasbonLock();
-    setKasbonLockIcon();
-  },500);
+  // Ikon menu Kasbon dibuat tetap dan tidak diubah-ubah oleh status gembok.
+  var icon=document.getElementById('icon-kasbon');
+  if(!icon) return;
+  icon.className='fa-solid fa-hand-holding-dollar w-5 text-center text-blue-300 group-hover:text-white shrink-0';
 })();
 </script>
 
@@ -7274,12 +7224,11 @@ onAuthStateChanged(auth,async u=>{
 const ICONS={
  'nav-kasir':'fa-cash-register',
  'nav-management-kasir':'fa-chart-pie',
- 'nav-input':'fa-pen-to-square',
+ 'nav-input':'fa-clipboard-list',
  'nav-history':'fa-clock-rotate-left',
  'nav-report':'fa-chart-column',
  'nav-backup':'fa-cloud-arrow-up',
- 'nav-pengeluaran':'fa-receipt',
- 'nav-kasbon':'fa-wallet'
+ 'nav-pengeluaran':'fa-receipt'
 };
 function modernIcons(){
  Object.entries(ICONS).forEach(([id,cls])=>{
@@ -7534,7 +7483,7 @@ setInterval(run,1200);
     Object.entries(ICONS).forEach(([id,cls])=>{
       const el=document.getElementById('icon-'+id.replace('nav-','')) || document.querySelector('#'+id+' i');
       if(!el)return;
-      el.classList.remove('fa-cash-register','fa-boxes-stacked','fa-money-bill-transfer','fa-hand-holding-dollar','fa-pen-to-square','fa-clock-rotate-left','fa-chart-line','fa-cloud-arrow-up','fa-receipt','fa-wallet','fa-square-pen','fa-chart-column','fa-chart-pie');
+      el.classList.remove('fa-cash-register','fa-boxes-stacked','fa-money-bill-transfer','fa-hand-holding-dollar','fa-clock-rotate-left','fa-chart-line','fa-cloud-arrow-up','fa-receipt','fa-wallet','fa-square-pen','fa-chart-column','fa-chart-pie');
       el.classList.add('fa-solid',cls);
     });
   }
