@@ -4472,7 +4472,7 @@ async function saveCloudData(){
    pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
    kasbonData:Array.isArray(kasbonData)?kasbonData:[],
    backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
-   kasirProductsData:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
+   kasirProductsData:kasirProductsForCloud(safe(localStorage.getItem(`finance_kasir_products_${phone}`),[])),
    updatedAt:serverTimestamp()
  };
  const kasbonPass=localStorage.getItem(`finance_kasbon_pass_${phone}`)||"";
@@ -4498,16 +4498,41 @@ function localSession(u){
 function syncCloudArrayToCache(phone,key,cloudValue){
  const localKey=`finance_${key}_desktop_${phone}`;
  /*
-  * Jika Firestore memiliki array, array tersebut selalu menjadi sumber
-  * kebenaran. Termasuk array kosong: ini penting agar data yang sudah
-  * dihapus tidak hidup kembali dari cache browser/perangkat lama.
+  * Untuk kasirProducts, foto lokal (data:) tetap dipertahankan saat
+  * metadata produk dari Firestore masuk. Foto tidak lagi bergantung
+  * pada Firebase Storage.
   */
  if(Array.isArray(cloudValue)){
+  if(key==='kasirProducts'){
+   const localValue=safe(localStorage.getItem(localKey),[]);
+   const localArr=Array.isArray(localValue)?localValue:[];
+   const merged=cloudValue.map(cp=>{
+    const lp=localArr.find(x=>x && ((cp.id!=null && x.id===cp.id) || String(x.name||'').toLowerCase()===String(cp.name||'').toLowerCase()));
+    if(lp && /^data:image\//i.test(String(lp.imageUrl||'')) && !/^data:image\//i.test(String(cp.imageUrl||''))){
+     return {...cp,imageUrl:lp.imageUrl,imagePath:''};
+    }
+    return cp;
+   });
+   nativeSet.call(localStorage,localKey,JSON.stringify(merged));
+   return merged;
+  }
   nativeSet.call(localStorage,localKey,JSON.stringify(cloudValue));
   return cloudValue;
  }
  const localValue=safe(localStorage.getItem(localKey),[]);
  return Array.isArray(localValue)?localValue:[];
+}
+
+function kasirProductsForCloud(arr){
+ const list=Array.isArray(arr)?arr:[];
+ return list.map(p=>{
+  const copy={...p};
+  if(/^data:image\//i.test(String(copy.imageUrl||''))){
+   copy.imageUrl='';
+   copy.imagePath='';
+  }
+  return copy;
+ });
 }
 async function hydrate(uid){
  const us=await getDoc(uref(uid)), ds=await getDoc(dref(uid)); const u=us.exists()?us.data():{}, d=ds.exists()?ds.data():{}, phone=phoneOf(u.phone||currentSessionUser?.phone);
@@ -6973,7 +6998,7 @@ onAuthStateChanged(auth,async u=>{
     const grid=btn.parentElement;
     const wrap=document.createElement('div');
     wrap.id='management-hpp-wrap';
-    wrap.innerHTML='<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Harga Kulak</label><input type="text" id="management-product-hpp" inputmode="numeric" placeholder="0" class="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600">';
+    wrap.innerHTML='<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Harga Grosir / HPP</label><input type="text" id="management-product-hpp" inputmode="numeric" placeholder="0" class="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600">';
     grid.insertBefore(wrap,btn);
     const photoWrap=document.createElement('div');
     photoWrap.id='management-photo-wrap';
@@ -7004,6 +7029,35 @@ onAuthStateChanged(auth,async u=>{
     return {key,arr};
   }
 
+  function compressKasirProductImage(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error('Foto tidak dapat dibaca.'));
+      reader.onload=()=>{
+        const img=new Image();
+        img.onerror=()=>reject(new Error('Foto tidak dapat diproses.'));
+        img.onload=()=>{
+          const maxSide=1000;
+          const scale=Math.min(1,maxSide/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+          const w=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
+          const h=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+          const canvas=document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          const ctx=canvas.getContext('2d');
+          if(!ctx)return reject(new Error('Browser tidak mendukung pemrosesan foto.'));
+          ctx.drawImage(img,0,0,w,h);
+          const data=canvas.toDataURL('image/jpeg',0.78);
+          if(data.length>450000){
+            const smaller=canvas.toDataURL('image/jpeg',0.62);
+            resolve(smaller);
+          }else resolve(data);
+        };
+        img.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function saveWithHpp(){
     const name=(document.getElementById('management-product-name')?.value||'').trim();
     const price=numHpp(document.getElementById('management-product-price')?.value);
@@ -7026,30 +7080,29 @@ onAuthStateChanged(auth,async u=>{
       const idx=arr.findIndex(p=>String(p.name||'').toLowerCase()===name.toLowerCase());
       const productId=idx>=0 ? (arr[idx].id||Date.now()) : Date.now();
       let imageUrl=idx>=0 ? (arr[idx].imageUrl||'') : '';
-      let imagePath=idx>=0 ? (arr[idx].imagePath||'') : '';
+      let imagePath='';
 
-      // Foto produk disimpan permanen di Firebase Storage.
+      // Foto produk disimpan di LocalStorage setelah dikompres, bukan Firebase Storage.
       if(photoFile){
-        const uid=window.RekapinyuFirebase?.auth?.currentUser?.uid;
-        if(!uid) throw new Error('Akun Firebase belum login.');
-        const safeName=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'produk';
-        imagePath=`users/${uid}/kasir-products/${productId}-${safeName}`;
-        const storageRef=window.RekapinyuFirebase.storage && ref(window.RekapinyuFirebase.storage,imagePath);
-        if(!storageRef) throw new Error('Firebase Storage belum siap.');
-        const snap=await uploadBytes(storageRef,photoFile,{contentType:photoFile.type});
-        imageUrl=await getDownloadURL(snap.ref);
+        imageUrl=await compressKasirProductImage(photoFile);
       }
 
       const product={id:productId,name,price,hpp,imageUrl,imagePath,updatedAt:Date.now()};
       if(idx>=0) arr[idx]={...arr[idx],...product};
       else arr.push(product);
       arr.sort((a,b)=>String(a.name).localeCompare(String(b.name),'id'));
-      localStorage.setItem(key,JSON.stringify(arr));
+      try{
+        localStorage.setItem(key,JSON.stringify(arr));
+      }catch(storageErr){
+        if(storageErr?.name==='QuotaExceededError') throw new Error('Penyimpanan foto browser penuh. Hapus beberapa foto produk lama lalu coba lagi.');
+        throw storageErr;
+      }
 
-      // Simpan seluruh data produk (termasuk URL foto) langsung ke Firestore.
+      // Firestore hanya menyimpan data produk/metadata. Foto data lokal tidak dikirim ke Firestore.
       const uid=window.RekapinyuFirebase?.auth?.currentUser?.uid;
-      if(!uid) throw new Error('Akun Firebase belum login.');
-      await setDoc(dref(uid),{kasirProductsData:arr,updatedAt:serverTimestamp()},{merge:true});
+      if(uid){
+        await setDoc(dref(uid),{kasirProductsData:kasirProductsForCloud(arr),updatedAt:serverTimestamp()},{merge:true});
+      }
 
       document.getElementById('management-product-name').value='';
       document.getElementById('management-product-price').value='';
@@ -7059,10 +7112,10 @@ onAuthStateChanged(auth,async u=>{
       const preview=document.getElementById('management-photo-preview'); if(preview)preview.innerHTML='<i class="fa-solid fa-image"></i>';
       if(typeof window.__kasirRefreshManagement==='function') window.__kasirRefreshManagement();
       if(typeof window.__kasirRefreshReference==='function') window.__kasirRefreshReference();
-      if(typeof showModal==='function') showModal('Berhasil','Data produk dan foto berhasil disimpan ke Firebase.','fa-solid fa-circle-check text-emerald-600');
+      if(typeof showModal==='function') showModal('Berhasil','Data produk dan foto berhasil disimpan di perangkat.','fa-solid fa-circle-check text-emerald-600');
     }catch(err){
-      console.error('Firebase produk kasir:',err);
-      if(typeof showModal==='function') showModal('Gagal Menyimpan Produk',err?.message||'Data produk atau foto gagal disimpan ke Firebase.','fa-solid fa-circle-exclamation text-rose-600');
+      console.error('LocalStorage foto produk kasir:',err);
+      if(typeof showModal==='function') showModal('Gagal Menyimpan Produk',err?.message||'Data produk atau foto gagal disimpan.','fa-solid fa-circle-exclamation text-rose-600');
     }finally{
       if(btn){btn.disabled=false;btn.innerHTML=oldText||'<i class="fa-solid fa-plus mr-1"></i> Tambah Produk';}
     }
