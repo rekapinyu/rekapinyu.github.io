@@ -6124,5 +6124,107 @@ onAuthStateChanged(auth,async u=>{
 })();
 </script>
 
+
+<!-- PATCH KASIR ONLY — menjaga posisi tampilan tetap di tempat saat produk diklik.
+     Management Kasir sengaja tidak disentuh. -->
+<style id="patch-kasir-position-final">
+  @media (min-width: 901px){
+    main:has(#view-kasir:not(.hidden)){
+      overflow-y:hidden!important;
+      overflow-x:hidden!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir{
+      overflow:hidden!important;
+      scroll-margin:0!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{
+      height:100%!important;
+      min-height:0!important;
+      overflow:hidden!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-products-panel{
+      height:100%!important;
+      min-height:0!important;
+      overflow:hidden!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-toolbar,
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-category-row{
+      flex-shrink:0!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-grid{
+      flex:1 1 0!important;
+      min-height:0!important;
+      overflow-y:auto!important;
+      overflow-x:hidden!important;
+    }
+
+    /* Produk tidak melakukan auto-scroll/focus yang dapat menggeser tampilan. */
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card{
+      transform:none!important;
+      scroll-margin:0!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:hover,
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:active{
+      transform:none!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:focus{
+      outline:none!important;
+      box-shadow:none!important;
+    }
+  }
+</style>
+
+<script id="patch-kasir-position-final-js">
+(function(){
+  function keepKasirPosition(){
+    const main = document.querySelector('main');
+    const view = document.getElementById('view-kasir');
+    const grid = document.getElementById('kasir-product-grid');
+    if(!main || !view || !grid || view.classList.contains('hidden')) return;
+
+    const mainTop = main.scrollTop;
+    const gridTop = grid.scrollTop;
+
+    requestAnimationFrame(function(){
+      main.scrollTop = mainTop;
+      grid.scrollTop = gridTop;
+      requestAnimationFrame(function(){
+        main.scrollTop = mainTop;
+        grid.scrollTop = gridTop;
+      });
+    });
+  }
+
+  /* mousedown dicegah default agar tombol produk tidak memicu browser
+     melakukan scroll otomatis ketika mendapatkan focus. Click tetap berjalan. */
+  document.addEventListener('mousedown', function(e){
+    if(e.target.closest('#view-kasir .kasir-product-card')){
+      keepKasirPosition();
+      e.preventDefault();
+      keepKasirPosition();
+    }
+  }, true);
+
+  document.addEventListener('pointerdown', function(e){
+    if(e.target.closest('#view-kasir .kasir-product-card')){
+      keepKasirPosition();
+    }
+  }, true);
+
+  document.addEventListener('click', function(e){
+    if(e.target.closest('#view-kasir .kasir-product-card')){
+      keepKasirPosition();
+    }
+  }, true);
+})();
+</script>
+
 </body>
 </html>
