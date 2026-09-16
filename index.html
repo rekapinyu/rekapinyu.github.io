@@ -1384,7 +1384,19 @@
   }
 }
 
-
+/* Input produk Management Kasir tetap terlihat saat daftar produk di bawahnya discroll. */
+#view-management-kasir > div:first-child{
+  position:sticky!important;
+  top:4rem!important;
+  z-index:30!important;
+}
+@media (max-width:767px){
+  #view-management-kasir > div:first-child{
+    top:60px!important;
+    z-index:30!important;
+  }
+}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -2936,16 +2948,14 @@
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup', 'kasir', 'management-kasir'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
                 report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
-                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' },
-                kasir: { title: 'Kasir', subtitle: 'Kelola transaksi penjualan dengan cepat dan mudah.' },
-                'management-kasir': { title: 'Management Kasir', subtitle: 'Kelola nama produk dan harga yang digunakan di Kasir.' }
+                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
             };
 
             const icons = {
@@ -2954,9 +2964,7 @@
                 kasbon: 'fa-hand-holding-dollar',
                 history: 'fa-clock-rotate-left',
                 report: 'fa-chart-line',
-                backup: 'fa-cloud-arrow-up',
-                kasir: 'fa-cash-register',
-                'management-kasir': 'fa-boxes-stacked'
+                backup: 'fa-cloud-arrow-up'
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
@@ -6020,6 +6028,18 @@ onAuthStateChanged(auth,async u=>{
   }
 }
 </style>
+
+<script id="patch-kasbon-lock-behavior">
+(function(){
+  function setKasbonLockIcon(){
+  // Ikon menu Kasbon dibuat tetap dan tidak diubah-ubah oleh status gembok.
+  var icon=document.getElementById('icon-kasbon');
+  if(!icon) return;
+  icon.className='fa-solid fa-hand-holding-dollar w-5 text-center text-blue-300 group-hover:text-white shrink-0';
+})();
+</script>
+
+
 <!-- PATCH FOKUS: hanya hilangkan hover pada kartu Kasbon. Bagian lain dipertahankan. -->
 <style id="patch-remove-kasbon-card-hover">
 @media (min-width:768px){
@@ -7176,8 +7196,85 @@ onAuthStateChanged(auth,async u=>{
 
 
 <!-- PATCH URUTAN KASIR + MANAGEMENT KASIR + ICON MODERN + ANIMASI SERAGAM, GRID 2x2 TETAP -->
-
-
+<style id="patch-kasir-final-focus">
+@media (min-width:768px){
+  #sidebar nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  #sidebar nav > *:not(#nav-kasir):not(#nav-management-kasir){order:0!important;}
+}
+/* Jangan mengubah desain kotak/grid isi menu; hanya samakan gerakan hover */
+#sidebar nav > button,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper{
+  transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease,color .2s ease!important;
+  will-change:transform;
+}
+#sidebar nav > button:hover,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 7px 16px rgba(15,23,42,.16)!important;
+}
+#sidebar nav > button:hover i,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover i{
+  transform:translateY(-1px) scale(1.08)!important;
+}
+#sidebar nav i{transition:transform .2s ease,color .2s ease!important;}
+</style>
+<script id="patch-kasir-final-focus-js">
+(function(){
+'use strict';
+const ICONS={
+ 'nav-kasir':'fa-cash-register',
+ 'nav-management-kasir':'fa-chart-pie',
+ 'nav-input':'fa-clipboard-list',
+ 'nav-history':'fa-clock-rotate-left',
+ 'nav-report':'fa-chart-column',
+ 'nav-backup':'fa-cloud-arrow-up',
+ 'nav-pengeluaran':'fa-receipt'
+};
+function modernIcons(){
+ Object.entries(ICONS).forEach(([id,cls])=>{
+  const el=document.querySelector('#'+id+' i') || document.getElementById('icon-'+id.replace('nav-',''));
+  if(!el)return;
+  el.className='fa-solid '+cls;
+ });
+}
+function keepKasirTransactionsOutOfHistory(){
+ const history=document.getElementById('view-history');
+ if(!history)return;
+ history.querySelectorAll('#management-kasir-transactions,.management-kasir-transactions,.kasir-transaction-result').forEach(el=>el.remove());
+}
+function ensureManagementTransactions(){
+ const root=document.getElementById('view-management-kasir');
+ if(!root || document.getElementById('management-kasir-transactions'))return;
+ const panel=document.createElement('div');
+ panel.id='management-kasir-transactions';
+ panel.className='bg-white border border-slate-200 rounded-2xl shadow-sm p-5';
+ panel.innerHTML='<div class="flex items-center justify-between gap-3 mb-4"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600"><i class="fa-solid fa-chart-pie"></i></div><div><h3 class="text-sm font-bold text-slate-800">Hasil Transaksi Kasir</h3><p class="text-xs text-slate-400">Hasil transaksi dari menu Kasir tersimpan di sini.</p></div></div><span id="management-kasir-transaction-count" class="text-xs font-bold text-slate-500">0 transaksi</span></div><div id="management-kasir-transaction-summary" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div><div id="management-kasir-transaction-list" class="space-y-3"></div>';
+ root.appendChild(panel);
+}
+function refreshManagementTransactions(){
+ ensureManagementTransactions();
+ const root=document.getElementById('view-management-kasir');
+ if(!root)return;
+ const phone=(typeof currentUser!=='undefined' && currentUser && (currentUser.phoneNumber||currentUser.email)) || localStorage.getItem('phone') || 'default';
+ let data=[];
+ try{data=JSON.parse(localStorage.getItem('finance_kasir_transactions_'+phone)||'[]')||[]}catch(e){}
+ const count=document.getElementById('management-kasir-transaction-count');
+ const sum=document.getElementById('management-kasir-transaction-summary');
+ const list=document.getElementById('management-kasir-transaction-list');
+ if(!count||!sum||!list)return;
+ count.textContent=data.length+' transaksi';
+ const omzet=data.reduce((a,t)=>a+(Number(t.total)||0),0);
+ const bayar=data.reduce((a,t)=>a+(Number(t.payment)||0),0);
+ sum.innerHTML='<div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><span class="block text-[10px] uppercase font-bold text-slate-400">Total Omzet</span><strong class="text-sm text-slate-800">Rp '+omzet.toLocaleString('id-ID')+'</strong></div><div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><span class="block text-[10px] uppercase font-bold text-slate-400">Total Dibayar</span><strong class="text-sm text-slate-800">Rp '+bayar.toLocaleString('id-ID')+'</strong></div><div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><span class="block text-[10px] uppercase font-bold text-slate-400">Jumlah Transaksi</span><strong class="text-sm text-slate-800">'+data.length+'</strong></div>';
+ if(!data.length){list.innerHTML='<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-receipt text-2xl mb-2"></i><p class="text-xs">Belum ada hasil transaksi dari menu Kasir.</p></div>';return;}
+ list.innerHTML=data.slice().reverse().map(t=>{const items=(t.items||[]).map(i=>(i.name||i.nama||'Produk')+' × '+(i.qty||i.jumlah||1)).join(', ');return '<div class="border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3"><div><div class="text-[10px] text-slate-400">'+(t.date||'')+' '+(t.time||'')+'</div><div class="text-sm font-bold text-slate-800">'+items+'</div></div><div class="text-right"><div class="text-sm font-extrabold text-slate-800">Rp '+(Number(t.total)||0).toLocaleString('id-ID')+'</div><div class="text-[10px] text-slate-400">Kembalian Rp '+(Number(t.change)||0).toLocaleString('id-ID')+'</div></div></div>';}).join('');
+}
+function run(){modernIcons();ensureManagementTransactions();refreshManagementTransactions();keepKasirTransactionsOutOfHistory();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
+document.addEventListener('click',function(){setTimeout(run,80);});
+setInterval(run,1200);
+})();
+</script>
 
 <!-- PATCH FOKUS: posisi input Management Kasir sticky tepat di bawah header. -->
 <style id="patch-management-input-sticky-top-only">
@@ -7344,11 +7441,52 @@ onAuthStateChanged(auth,async u=>{
 </script>
 
 
-
+<!-- PATCH KASIR TERBARU: urutan menu + Management Kasir transaksi + ikon modern + animasi seragam -->
+<style id="patch-kasir-management-modern-final">
+/* Kasir dan Management Kasir selalu berada paling atas, terpisah dari Input/History. */
+@media (min-width:768px){
+  #sidebar nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  #sidebar nav > #nav-input,#sidebar nav > #nav-history,#sidebar nav > #nav-report,#sidebar nav > #nav-backup,#sidebar nav > #nav-pengeluaran,
+}
+/* Animasi kotak dan ikon dibuat sama untuk seluruh menu sidebar. */
+#sidebar nav > button,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper{
+  transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,color .18s ease!important;
+}
+#sidebar nav > button:hover,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 7px 16px rgba(15,23,42,.18)!important;
+}
+#sidebar nav > button:hover i,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover i{
+  transform:scale(1.08)!important;
+}
+#sidebar nav i{transition:transform .18s ease,color .18s ease!important;}
+/* Ikon modern: kelas lama tetap dipertahankan sebagai fallback, JS di bawah mengganti visualnya. */
+</style>
 
 <script id="patch-kasir-management-modern-final">
 (function(){
   'use strict';
+  const ICONS={
+    'nav-kasir':'fa-cash-register',
+    'nav-management-kasir':'fa-chart-pie',
+    'nav-pengeluaran':'fa-receipt',
+    'nav-kasbon':'fa-wallet',
+    'nav-input':'fa-file-pen',
+    'nav-history':'fa-clock-rotate-left',
+    'nav-report':'fa-chart-column',
+    'nav-backup':'fa-cloud-arrow-up'
+  };
+  function modernizeIcons(){
+    Object.entries(ICONS).forEach(([id,cls])=>{
+      const el=document.getElementById('icon-'+id.replace('nav-','')) || document.querySelector('#'+id+' i');
+      if(!el)return;
+      el.classList.remove('fa-cash-register','fa-boxes-stacked','fa-money-bill-transfer','fa-hand-holding-dollar','fa-clock-rotate-left','fa-chart-line','fa-cloud-arrow-up','fa-receipt','fa-wallet','fa-square-pen','fa-chart-column','fa-chart-pie');
+      el.classList.add('fa-solid',cls);
+    });
+  }
   function ensureTransactionPanel(){
     const root=document.getElementById('view-management-kasir');
     if(!root || document.getElementById('management-kasir-transactions'))return;
@@ -7387,14 +7525,28 @@ onAuthStateChanged(auth,async u=>{
       return `<div class="border border-slate-200 rounded-xl p-3 hover:-translate-y-0.5 transition-transform"><div class="flex items-start justify-between gap-3"><div><div class="text-sm font-bold text-slate-800">Transaksi #${tx.length-i}</div><div class="text-xs text-slate-400">${t.date||''} ${t.time||''}</div><div class="text-xs text-slate-500 mt-1">${items||'Tidak ada detail produk'}</div></div><div class="text-right"><div class="text-sm font-bold text-slate-800">${money(t.total)}</div><div class="text-xs text-slate-400">Kembalian ${money(t.change)}</div></div></div></div>`;
     }).join('');
   }
-  function run(){ensureTransactionPanel();renderTransactions();}
+  function run(){modernizeIcons();ensureTransactionPanel();renderTransactions();}
   document.addEventListener('click',function(e){
     const b=e.target.closest('#sidebar nav button');
-    if(b)setTimeout(()=>{if(b.id==='nav-management-kasir')renderTransactions();},30);
+    if(b)setTimeout(()=>{modernizeIcons();if(b.id==='nav-management-kasir')renderTransactions();},30);
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
   setTimeout(run,500);
+  setInterval(()=>{if(!document.getElementById('management-kasir-transactions'))ensureTransactionPanel(); if(document.getElementById('view-management-kasir')&&!document.getElementById('view-management-kasir').classList.contains('hidden'))renderTransactions();},1200);
 })();
 </script>
 
-
+<!-- PATCH: kunci ikon Input Data agar tidak berubah otomatis -->
+<script>
+(function(){
+  function lockInputIcon(){
+    const icon=document.getElementById('icon-input');
+    if(icon){
+      icon.className='fa-solid fa-file-pen w-5 text-center text-blue-300 group-hover:text-white shrink-0';
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',lockInputIcon);
+  else lockInputIcon();
+  document.addEventListener('click',function(){setTimeout(lockInputIcon,50);});
+})();
+</script>
