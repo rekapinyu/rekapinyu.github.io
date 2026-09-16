@@ -1532,6 +1532,133 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
+
+<!-- PATCH TERAKHIR — hanya KASIR + posisi "Pilih foto". Tidak mengubah menu lain. -->
+<style id="patch-kasir-stable-final">
+@media (min-width:901px){
+  /* Kunci tinggi shell pada tinggi awalnya. Dengan begitu perubahan isi
+     keranjang tidak mengubah tinggi wrapper dan tidak menggeser UI. */
+  #view-kasir.kasir-layout-locked > .kasir-shell{
+    height:var(--kasir-locked-height)!important;
+    min-height:var(--kasir-locked-height)!important;
+    max-height:var(--kasir-locked-height)!important;
+    flex:none!important;
+  }
+
+  /* Kartu produk tidak naik/turun saat pointer/klik. */
+  #view-kasir .kasir-product-card,
+  #view-kasir .kasir-product-card:hover,
+  #view-kasir .kasir-product-card:active,
+  #view-kasir .kasir-product-card:focus{
+    transform:none!important;
+  }
+
+  /* Management Kasir: ikon + teks selalu tepat di tengah kotak. */
+  #view-management-kasir .management-photo-input{
+    box-sizing:border-box!important;
+    width:100%!important;
+    height:46px!important;
+    min-height:46px!important;
+    padding:0!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:7px!important;
+    text-align:center!important;
+    line-height:1!important;
+  }
+  #view-management-kasir .management-photo-input i{
+    position:static!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:auto!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    line-height:1!important;
+    transform:none!important;
+  }
+  #view-management-kasir .management-photo-input span{
+    position:static!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    width:auto!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    line-height:1!important;
+    transform:none!important;
+    text-align:center!important;
+  }
+}
+</style>
+<script id="patch-kasir-stable-final-js">
+(function(){
+  function lockKasir(){
+    const view=document.getElementById('view-kasir');
+    const shell=view?.querySelector('.kasir-shell');
+    if(!view || !shell || view.classList.contains('hidden')) return;
+
+    /* Ambil ukuran/posisi yang sedang tampil sekarang.
+       Tidak memindahkan tampilan awal sedikit pun. */
+    if(!view.classList.contains('kasir-layout-locked')){
+      const r=shell.getBoundingClientRect();
+      if(r.height>0){
+        view.style.setProperty('--kasir-locked-height', r.height+'px');
+        view.classList.add('kasir-layout-locked');
+      }
+    }
+  }
+
+  function unlockAndRelock(){
+    const view=document.getElementById('view-kasir');
+    if(!view) return;
+    view.classList.remove('kasir-layout-locked');
+    view.style.removeProperty('--kasir-locked-height');
+    requestAnimationFrame(function(){
+      requestAnimationFrame(lockKasir);
+    });
+  }
+
+  /* Saat menu Kasir dibuka, kunci tinggi tepat setelah layout aslinya selesai.
+     Klik produk setelah itu tidak boleh mengubah tinggi shell. */
+  document.addEventListener('click',function(e){
+    const nav=e.target.closest('#nav-kasir');
+    if(nav){
+      setTimeout(lockKasir,0);
+      setTimeout(lockKasir,80);
+    }
+  },true);
+
+  /* Produk tetap bisa diklik normal; kita hanya pastikan shell sudah terkunci
+     sebelum renderCart() mengubah isi daftar transaksi. */
+  document.addEventListener('pointerdown',function(e){
+    if(e.target.closest('#view-kasir [data-add-product]')) lockKasir();
+  },true);
+
+  document.addEventListener('click',function(e){
+    if(e.target.closest('#view-kasir [data-add-product]')) lockKasir();
+  },true);
+
+  window.addEventListener('resize',function(){
+    /* Pada resize, lepaskan lock lalu ambil ukuran baru agar responsif. */
+    const view=document.getElementById('view-kasir');
+    if(view && !view.classList.contains('hidden')) unlockAndRelock();
+  });
+
+  /* Jika aplikasi membuka Kasir melalui fungsi JS tanpa klik nav. */
+  const observer=new MutationObserver(function(){
+    const view=document.getElementById('view-kasir');
+    if(view && !view.classList.contains('hidden')) setTimeout(lockKasir,0);
+  });
+  const main=document.querySelector('main');
+  if(main) observer.observe(main,{subtree:true,attributes:true,attributeFilter:['class']});
+})();
+</script>
+
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
