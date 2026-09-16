@@ -1368,9 +1368,10 @@
 </style>
 
 
-<!-- PATCH KASIR: hanya mengatur posisi menu; tidak ada sticky pada Management Kasir. -->
-<style id="patch-kasir-management-position-final">
+<!-- PATCH FOKUS TERAKHIR: posisi Kasir + Management Kasir di dua kotak teratas, grid 2x2 asli tetap; input Management Kasir sticky. -->
+<style id="patch-kasir-management-position-sticky-final">
 @media (min-width:768px){
+  /* Hanya menentukan posisi dua menu baru. Desain, ukuran, gap, padding dan grid 2x2 asli tetap mengikuti CSS sebelumnya. */
   #sidebar nav > #nav-kasir{
     grid-column:1!important;
     grid-row:1!important;
@@ -1380,6 +1381,19 @@
     grid-column:2!important;
     grid-row:1!important;
     order:initial!important;
+  }
+}
+
+/* Input produk Management Kasir tetap terlihat saat daftar produk di bawahnya discroll. */
+#view-management-kasir > div:first-child{
+  position:sticky!important;
+  top:4rem!important;
+  z-index:30!important;
+}
+@media (max-width:767px){
+  #view-management-kasir > div:first-child{
+    top:60px!important;
+    z-index:30!important;
   }
 }
 </style>
@@ -2934,16 +2948,14 @@
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup', 'kasir', 'management-kasir'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
                 report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
-                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' },
-                kasir: { title: 'Kasir', subtitle: 'Kelola transaksi penjualan dengan cepat dan mudah.' },
-                'management-kasir': { title: 'Management Kasir', subtitle: 'Kelola nama produk dan harga yang digunakan di Kasir.' }
+                backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
             };
 
             const icons = {
@@ -2952,9 +2964,7 @@
                 kasbon: 'fa-hand-holding-dollar',
                 history: 'fa-clock-rotate-left',
                 report: 'fa-chart-line',
-                backup: 'fa-cloud-arrow-up',
-                kasir: 'fa-cash-register',
-                'management-kasir': 'fa-boxes-stacked'
+                backup: 'fa-cloud-arrow-up'
             };
 
             const stickyFilterContainer = document.getElementById('sticky-filter-container');
@@ -7184,5 +7194,359 @@ onAuthStateChanged(auth,async u=>{
 }
 </style>
 
+
+<!-- PATCH URUTAN KASIR + MANAGEMENT KASIR + ICON MODERN + ANIMASI SERAGAM, GRID 2x2 TETAP -->
+<style id="patch-kasir-final-focus">
+@media (min-width:768px){
+  #sidebar nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  #sidebar nav > *:not(#nav-kasir):not(#nav-management-kasir){order:0!important;}
+}
+/* Jangan mengubah desain kotak/grid isi menu; hanya samakan gerakan hover */
+#sidebar nav > button,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper{
+  transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease,color .2s ease!important;
+  will-change:transform;
+}
+#sidebar nav > button:hover,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 7px 16px rgba(15,23,42,.16)!important;
+}
+#sidebar nav > button:hover i,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover i{
+  transform:translateY(-1px) scale(1.08)!important;
+}
+#sidebar nav i{transition:transform .2s ease,color .2s ease!important;}
+</style>
+<script id="patch-kasir-final-focus-js">
+(function(){
+'use strict';
+const ICONS={
+ 'nav-kasir':'fa-cash-register',
+ 'nav-management-kasir':'fa-chart-pie',
+ 'nav-input':'fa-clipboard-list',
+ 'nav-history':'fa-clock-rotate-left',
+ 'nav-report':'fa-chart-column',
+ 'nav-backup':'fa-cloud-arrow-up',
+ 'nav-pengeluaran':'fa-receipt'
+};
+function modernIcons(){
+ Object.entries(ICONS).forEach(([id,cls])=>{
+  const el=document.querySelector('#'+id+' i') || document.getElementById('icon-'+id.replace('nav-',''));
+  if(!el)return;
+  el.className='fa-solid '+cls;
+ });
+}
+function keepKasirTransactionsOutOfHistory(){
+ const history=document.getElementById('view-history');
+ if(!history)return;
+ history.querySelectorAll('#management-kasir-transactions,.management-kasir-transactions,.kasir-transaction-result').forEach(el=>el.remove());
+}
+function ensureManagementTransactions(){
+ const root=document.getElementById('view-management-kasir');
+ if(!root || document.getElementById('management-kasir-transactions'))return;
+ const panel=document.createElement('div');
+ panel.id='management-kasir-transactions';
+ panel.className='bg-white border border-slate-200 rounded-2xl shadow-sm p-5';
+ panel.innerHTML='<div class="flex items-center justify-between gap-3 mb-4"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600"><i class="fa-solid fa-chart-pie"></i></div><div><h3 class="text-sm font-bold text-slate-800">Hasil Transaksi Kasir</h3><p class="text-xs text-slate-400">Hasil transaksi dari menu Kasir tersimpan di sini.</p></div></div><span id="management-kasir-transaction-count" class="text-xs font-bold text-slate-500">0 transaksi</span></div><div id="management-kasir-transaction-summary" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div><div id="management-kasir-transaction-list" class="space-y-3"></div>';
+ root.appendChild(panel);
+}
+function refreshManagementTransactions(){
+ ensureManagementTransactions();
+ const root=document.getElementById('view-management-kasir');
+ if(!root)return;
+ const phone=(typeof currentUser!=='undefined' && currentUser && (currentUser.phoneNumber||currentUser.email)) || localStorage.getItem('phone') || 'default';
+ let data=[];
+ try{data=JSON.parse(localStorage.getItem('finance_kasir_transactions_'+phone)||'[]')||[]}catch(e){}
+ const count=document.getElementById('management-kasir-transaction-count');
+ const sum=document.getElementById('management-kasir-transaction-summary');
+ const list=document.getElementById('management-kasir-transaction-list');
+ if(!count||!sum||!list)return;
+ count.textContent=data.length+' transaksi';
+ const omzet=data.reduce((a,t)=>a+(Number(t.total)||0),0);
+ const bayar=data.reduce((a,t)=>a+(Number(t.payment)||0),0);
+ sum.innerHTML='<div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><span class="block text-[10px] uppercase font-bold text-slate-400">Total Omzet</span><strong class="text-sm text-slate-800">Rp '+omzet.toLocaleString('id-ID')+'</strong></div><div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><span class="block text-[10px] uppercase font-bold text-slate-400">Total Dibayar</span><strong class="text-sm text-slate-800">Rp '+bayar.toLocaleString('id-ID')+'</strong></div><div class="bg-slate-50 border border-slate-200 rounded-xl p-3"><span class="block text-[10px] uppercase font-bold text-slate-400">Jumlah Transaksi</span><strong class="text-sm text-slate-800">'+data.length+'</strong></div>';
+ if(!data.length){list.innerHTML='<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-receipt text-2xl mb-2"></i><p class="text-xs">Belum ada hasil transaksi dari menu Kasir.</p></div>';return;}
+ list.innerHTML=data.slice().reverse().map(t=>{const items=(t.items||[]).map(i=>(i.name||i.nama||'Produk')+' × '+(i.qty||i.jumlah||1)).join(', ');return '<div class="border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3"><div><div class="text-[10px] text-slate-400">'+(t.date||'')+' '+(t.time||'')+'</div><div class="text-sm font-bold text-slate-800">'+items+'</div></div><div class="text-right"><div class="text-sm font-extrabold text-slate-800">Rp '+(Number(t.total)||0).toLocaleString('id-ID')+'</div><div class="text-[10px] text-slate-400">Kembalian Rp '+(Number(t.change)||0).toLocaleString('id-ID')+'</div></div></div>';}).join('');
+}
+function run(){modernIcons();ensureManagementTransactions();refreshManagementTransactions();keepKasirTransactionsOutOfHistory();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
+document.addEventListener('click',function(){setTimeout(run,80);});
+setInterval(run,1200);
+})();
+</script>
+
+<!-- PATCH FOKUS: posisi input Management Kasir sticky tepat di bawah header. -->
+<style id="patch-management-input-sticky-top-only">
+@media (min-width:768px){
+  #view-management-kasir > div:first-child{
+    position:sticky!important;
+    top:0!important;
+    z-index:25!important;
+    background:#fff!important;
+  }
+}
+</style>
+
 </body>
 </html>
+
+<!-- PATCH KASIR REFERENCE UI: hanya tampilan menu Kasir, mengikuti struktur POS pada gambar referensi. -->
+<style id="patch-kasir-reference-ui">
+  #view-kasir{background:#f4f6f8!important;}
+  #kasir-reference-ui{
+    width:100%;height:100%;min-height:0;display:grid;grid-template-columns:minmax(0,58%) minmax(360px,42%);
+    background:#fff;overflow:hidden;
+  }
+  #kasir-reference-left{min-width:0;display:flex;flex-direction:column;background:#fff;border-right:1px solid #edf0f2;overflow:hidden;padding:14px 16px 16px;}
+  #kasir-reference-right{min-width:0;display:flex;flex-direction:column;background:#fff;overflow:hidden;}
+  #kasir-reference-toolbar{display:flex;align-items:center;gap:8px;min-height:48px;flex:0 0 auto;}
+  #kasir-search-wrap{height:38px;display:flex;align-items:center;gap:9px;flex:1;min-width:0;border:1px solid #dfe7e8;border-radius:8px;background:#fff;padding:0 11px;box-shadow:0 1px 3px rgba(15,23,42,.035);}
+  #kasir-search-wrap i{color:#18a98e;font-size:13px;}
+  #kasir-reference-search{border:0!important;outline:0!important;background:transparent!important;width:100%;min-width:0;height:100%;font-size:12px;color:#334155;box-shadow:none!important;}
+  #kasir-reference-search::placeholder{color:#9aa6b2;}
+  .kasir-ref-mini-btn{width:38px;height:38px;border:1px solid #dfe7e8;background:#fff;color:#16a085;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .kasir-ref-shortcuts{display:flex;gap:6px;flex:0 0 auto;}
+  .kasir-ref-shortcuts button{height:34px;padding:0 10px;border:1px solid #dfe7e8;background:#fff;color:#596575;border-radius:7px;font-size:10px;font-weight:700;}
+  .kasir-ref-categories{display:flex;gap:6px;overflow-x:auto;padding:10px 0 12px;scrollbar-width:none;flex:0 0 auto;}
+  .kasir-ref-categories::-webkit-scrollbar{display:none;}
+  .kasir-ref-categories button{white-space:nowrap;border:0;background:#f4f6f8;color:#7a8593;border-radius:7px;padding:7px 14px;font-size:10px;font-weight:700;cursor:pointer;}
+  .kasir-ref-categories button.active{background:#dff7ef;color:#118b73;box-shadow:inset 0 0 0 1px #b9eadb;}
+  #kasir-product-catalog{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-content:start;padding:2px 2px 14px;}
+  .kasir-ref-product-card{min-width:0;background:#fff;border:1px solid #e7ecee;border-radius:8px;padding:0 0 9px;overflow:hidden;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;}
+  .kasir-ref-product-card:hover{transform:translateY(-1px);border-color:#bfe6dc;box-shadow:0 7px 18px rgba(15,23,42,.08);}
+  .kasir-ref-product-thumb{height:82px;margin-bottom:8px;background:linear-gradient(135deg,#e7f3ef,#f4f7f8);display:flex;align-items:center;justify-content:center;color:#8ba39d;font-size:27px;}
+  .kasir-ref-product-card:nth-child(3n+2) .kasir-ref-product-thumb{background:linear-gradient(135deg,#f5eadf,#f8f5f1);color:#bd9270;}
+  .kasir-ref-product-card:nth-child(3n+3) .kasir-ref-product-thumb{background:linear-gradient(135deg,#e7edf8,#f6f8fb);color:#7d91bc;}
+  .kasir-ref-product-name{font-size:11px;font-weight:800;color:#374151;padding:0 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kasir-ref-product-price{font-size:10px;font-weight:700;color:#8a95a3;padding:3px 9px 0;}
+  .kasir-ref-no-product{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;color:#a2acb7;text-align:center;}
+  .kasir-ref-no-product i{font-size:30px;margin-bottom:10px;opacity:.45;}
+  .kasir-ref-no-product p{font-size:12px;font-weight:800;margin:0;}
+  .kasir-ref-no-product span{font-size:10px;margin-top:4px;}
+  #kasir-reference-input{flex:0 0 auto;display:grid;grid-template-columns:minmax(0,1fr) 105px 145px auto;gap:8px;align-items:end;border-top:1px solid #edf0f2;padding-top:12px;background:#fff;}
+  .kasir-ref-field{min-width:0;}
+  .kasir-ref-field label,#kasir-reference-right label{display:block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:#788392;margin-bottom:5px;}
+  .kasir-ref-field input{width:100%;height:38px;box-sizing:border-box;border:1px solid #dfe7e8!important;border-radius:7px!important;background:#f8fafb!important;color:#334155!important;padding:0 10px!important;font-size:11px!important;font-weight:700!important;outline:none!important;box-shadow:none!important;}
+  .kasir-ref-field input:focus{border-color:#8bd4c5!important;box-shadow:0 0 0 3px rgba(22,160,133,.08)!important;}
+  .kasir-ref-product-field{position:relative;}
+  .kasir-ref-product-field span{display:none;}
+  .kasir-ref-price-box{height:38px;display:flex;align-items:center;border:1px solid #e4e9eb;border-radius:7px;background:#f2f5f6;overflow:hidden;}
+  .kasir-ref-price-box span{padding-left:9px;color:#a0a9b2;font-size:10px;font-weight:800;}
+  .kasir-ref-price-box input{border:0!important;background:transparent!important;height:100%!important;padding-left:5px!important;}
+  .kasir-ref-add-btn{height:38px;padding:0 13px;border:0;border-radius:7px;background:#16a085;color:#fff;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 6px 14px rgba(22,160,133,.17);cursor:pointer;}
+  .kasir-ref-add-btn:hover{background:#11806b;}
+
+  .kasir-ref-cart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px 18px 12px;border-bottom:1px solid #eef1f2;flex:0 0 auto;}
+  .kasir-ref-cart-head h3{margin:0;font-size:14px;color:#253044;font-weight:800;}
+  .kasir-ref-cart-head p{margin:3px 0 0;font-size:10px;color:#9aa4b0;}
+  .kasir-ref-count{padding:6px 9px;border-radius:7px;background:#f1f6f5;color:#17a085;font-size:10px;font-weight:800;white-space:nowrap;}
+  .kasir-ref-summary-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 18px;border-bottom:1px solid #f0f2f3;font-size:9px;color:#8c97a4;flex:0 0 auto;}
+  .kasir-ref-summary-row button{border:0;background:transparent;color:#16a085;font-size:10px;font-weight:800;padding:0;}
+  .kasir-ref-cart-list{flex:1;min-height:0;overflow-y:auto;padding:8px 18px;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty){display:flex!important;align-items:center;justify-content:space-between;gap:10px;padding:11px 4px!important;background:#fff!important;border:0!important;border-bottom:1px solid #edf0f2!important;border-radius:0!important;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty)>div:first-child:before{content:'In';display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;margin-right:9px;border-radius:5px;background:#f3f6f7;color:#9ba5ae;font-size:10px;font-weight:800;vertical-align:middle;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty)>div:first-child{font-size:11px;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty)>div:first-child .text-sm{display:inline-block;max-width:170px;vertical-align:middle;color:#394150!important;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty)>div:first-child .text-\[11px\]{margin-left:38px;color:#9aa4af!important;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty)>div:last-child{gap:8px!important;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty)>div:last-child span{font-size:10px!important;color:#4b5563!important;}
+  .kasir-ref-cart-list>div:not(.kasir-ref-empty) button{width:26px!important;height:26px!important;border-radius:6px!important;background:#fff!important;color:#d08b8b!important;border:1px solid #f0dede;}
+  .kasir-ref-empty{height:100%;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#a7b0ba;}
+  .kasir-ref-empty i{font-size:30px;opacity:.3;margin-bottom:10px;}
+  .kasir-ref-empty p{margin:0;font-size:11px;font-weight:800;}
+  .kasir-ref-empty span{font-size:9px;margin-top:4px;}
+  .kasir-ref-bottom{flex:0 0 auto;border-top:1px solid #e9edef;padding:12px 18px 15px;background:#fff;}
+  .kasir-ref-total-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
+  .kasir-ref-total-line span{font-size:9px;text-transform:uppercase;font-weight:800;color:#7e8997;}
+  .kasir-ref-total-line strong{font-size:18px;color:#263142;font-weight:900;}
+  .kasir-ref-payment>div{height:38px;display:flex;align-items:center;border:1px solid #dfe7e8;border-radius:7px;background:#f8fafb;overflow:hidden;}
+  .kasir-ref-payment>div span{padding-left:10px;color:#9aa4af;font-size:10px;font-weight:800;}
+  #kasir-payment{width:100%;height:100%;border:0!important;outline:0!important;background:transparent!important;padding:0 9px!important;font-size:11px!important;font-weight:800!important;box-shadow:none!important;}
+  .kasir-ref-change{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:9px 10px;border-radius:7px;background:#eff9f6;}
+  .kasir-ref-change span{font-size:9px;text-transform:uppercase;font-weight:800;color:#7d8a96;}
+  #kasir-change{font-size:12px;color:#16a085!important;font-weight:900;}
+  .kasir-ref-actions{display:grid;grid-template-columns:1.25fr .75fr;gap:8px;margin-top:10px;}
+  .kasir-ref-actions button{height:40px;border-radius:8px;font-size:10px;font-weight:800;cursor:pointer;}
+  #kasir-save-btn{border:0;background:#16a085;color:#fff;box-shadow:0 7px 16px rgba(22,160,133,.17);}
+  #kasir-save-btn:hover{background:#11806b;}
+  #kasir-cancel-btn{border:1px solid #dfe5e8;background:#fff;color:#687585;}
+
+  @media (max-width:1100px) and (min-width:768px){
+    #kasir-reference-ui{grid-template-columns:minmax(0,54%) minmax(330px,46%);}
+    #kasir-product-catalog{grid-template-columns:repeat(3,minmax(0,1fr));}
+    #kasir-reference-input{grid-template-columns:minmax(0,1fr) 90px 125px auto;}
+    .kasir-ref-shortcuts{display:none;}
+  }
+  @media (max-width:767px){
+    #view-kasir{position:relative!important;inset:auto!important;height:auto!important;min-height:calc(100dvh - 60px)!important;overflow:visible!important;}
+    #kasir-reference-ui{height:auto;min-height:calc(100dvh - 60px);display:flex;flex-direction:column;overflow:visible;}
+    #kasir-reference-left{border-right:0;border-bottom:1px solid #edf0f2;padding:10px;overflow:visible;}
+    #kasir-reference-right{min-height:540px;overflow:visible;}
+    .kasir-ref-shortcuts,.kasir-ref-mini-btn{display:none;}
+    #kasir-product-catalog{grid-template-columns:repeat(2,minmax(0,1fr));max-height:300px;flex:none;}
+    #kasir-reference-input{grid-template-columns:minmax(0,1fr) 82px;}
+    .kasir-ref-product-field{grid-column:1/-1;}
+    .kasir-ref-price-field{grid-column:1/2;}
+    .kasir-ref-add-btn{grid-column:2/3;}
+    .kasir-ref-cart-list{min-height:260px;}
+  }
+</style>
+<script id="patch-kasir-reference-ui-script">
+(function(){
+  function escHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+  function renderReferenceCatalog(){
+    const catalog=document.getElementById('kasir-product-catalog');
+    const dl=document.getElementById('kasir-product-suggestions');
+    if(!catalog||!dl)return;
+    const q=(document.getElementById('kasir-reference-search')?.value||'').trim().toLowerCase();
+    let products=[];
+    try{
+      const phone=(window.currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';
+      products=JSON.parse(localStorage.getItem('finance_kasir_products_'+phone)||'[]');
+    }catch{}
+    products=Array.isArray(products)?products.filter(p=>p&&p.name):[];
+    products=products.filter(p=>!q||String(p.name).toLowerCase().includes(q));
+    if(!products.length){
+      catalog.innerHTML='<div class="kasir-ref-no-product"><i class="fa-solid fa-box-open"></i><p>Belum ada produk</p><span>Tambahkan produk di Management Kasir, lalu pilih produk di sini.</span></div>';
+      return;
+    }
+    const icons=['fa-burger','fa-mug-hot','fa-bowl-food','fa-cookie-bite','fa-ice-cream','fa-pizza-slice','fa-bottle-water','fa-cake-candles'];
+    catalog.innerHTML=products.map((p,i)=>{
+      const img=p.imageUrl?`<img src="${escHtml(p.imageUrl)}" alt="${escHtml(p.name)}" style="width:100%;height:100%;object-fit:cover;display:block;">`:`<i class="fa-solid ${icons[i%icons.length]}"></i>`;
+      return `<button type="button" class="kasir-ref-product-card" data-product-name="${escHtml(p.name)}"><div class="kasir-ref-product-thumb">${img}</div><div class="kasir-ref-product-name">${escHtml(p.name)}</div><div class="kasir-ref-product-price">Rp ${Number(p.price||0).toLocaleString('id-ID')}</div></button>`;
+    }).join('');
+  }
+  window.__kasirRefreshReference=renderReferenceCatalog;
+  window.__kasirPickCard=function(name){
+    const input=document.getElementById('kasir-product-name');
+    if(!input)return;
+    input.value=name;
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+    document.getElementById('kasir-product-qty')?.focus();
+  };
+  function bindReference(){
+    const search=document.getElementById('kasir-reference-search');
+    const catalog=document.getElementById('kasir-product-catalog');
+    const dl=document.getElementById('kasir-product-suggestions');
+    if(search&&!search.__rkBound){search.__rkBound=true;search.addEventListener('input',renderReferenceCatalog);}
+    if(catalog&&!catalog.__rkBound){catalog.__rkBound=true;catalog.addEventListener('click',e=>{const card=e.target.closest('.kasir-ref-product-card');if(card)window.__kasirPickCard(card.dataset.productName);});}
+    if(dl&&!dl.__rkObserved){dl.__rkObserved=true;new MutationObserver(renderReferenceCatalog).observe(dl,{childList:true});}
+    renderReferenceCatalog();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindReference);else bindReference();
+  setInterval(()=>{if(document.getElementById('view-kasir')&&!document.getElementById('view-kasir').classList.contains('hidden'))bindReference();},1200);
+})();
+</script>
+
+
+<!-- PATCH KASIR TERBARU: urutan menu + Management Kasir transaksi + ikon modern + animasi seragam -->
+<style id="patch-kasir-management-modern-final">
+/* Kasir dan Management Kasir selalu berada paling atas, terpisah dari Input/History. */
+@media (min-width:768px){
+  #sidebar nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  #sidebar nav > #nav-input,#sidebar nav > #nav-history,#sidebar nav > #nav-report,#sidebar nav > #nav-backup,#sidebar nav > #nav-pengeluaran,
+}
+/* Animasi kotak dan ikon dibuat sama untuk seluruh menu sidebar. */
+#sidebar nav > button,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper{
+  transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,color .18s ease!important;
+}
+#sidebar nav > button:hover,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 7px 16px rgba(15,23,42,.18)!important;
+}
+#sidebar nav > button:hover i,
+#sidebar nav > .toggle-kasbon-menu-container > #nav-kasbon-wrapper:hover i{
+  transform:scale(1.08)!important;
+}
+#sidebar nav i{transition:transform .18s ease,color .18s ease!important;}
+/* Ikon modern: kelas lama tetap dipertahankan sebagai fallback, JS di bawah mengganti visualnya. */
+</style>
+
+<script id="patch-kasir-management-modern-final">
+(function(){
+  'use strict';
+  const ICONS={
+    'nav-kasir':'fa-cash-register',
+    'nav-management-kasir':'fa-chart-pie',
+    'nav-pengeluaran':'fa-receipt',
+    'nav-kasbon':'fa-wallet',
+    'nav-input':'fa-file-pen',
+    'nav-history':'fa-clock-rotate-left',
+    'nav-report':'fa-chart-column',
+    'nav-backup':'fa-cloud-arrow-up'
+  };
+  function modernizeIcons(){
+    Object.entries(ICONS).forEach(([id,cls])=>{
+      const el=document.getElementById('icon-'+id.replace('nav-','')) || document.querySelector('#'+id+' i');
+      if(!el)return;
+      el.classList.remove('fa-cash-register','fa-boxes-stacked','fa-money-bill-transfer','fa-hand-holding-dollar','fa-clock-rotate-left','fa-chart-line','fa-cloud-arrow-up','fa-receipt','fa-wallet','fa-square-pen','fa-chart-column','fa-chart-pie');
+      el.classList.add('fa-solid',cls);
+    });
+  }
+  function ensureTransactionPanel(){
+    const root=document.getElementById('view-management-kasir');
+    if(!root || document.getElementById('management-kasir-transactions'))return;
+    const panel=document.createElement('div');
+    panel.id='management-kasir-transactions';
+    panel.className='bg-white border border-slate-200 rounded-2xl shadow-sm p-5';
+    panel.innerHTML=`
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600"><i class="fa-solid fa-chart-pie"></i></div>
+          <div><h3 class="text-sm font-bold text-slate-800">Hasil Transaksi Kasir</h3><p class="text-xs text-slate-400">Semua transaksi dari menu Kasir tersimpan di sini.</p></div>
+        </div>
+        <span id="management-transaction-count" class="text-xs font-bold text-slate-500">0 transaksi</span>
+      </div>
+      <div id="management-transaction-summary" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4"></div>
+      <div id="management-transaction-list" class="space-y-2"></div>`;
+    root.appendChild(panel);
+  }
+  function txKey(){const u=window.currentSessionUser;return 'finance_kasir_transactions_'+((u&&u.phone)||'guest');}
+  function loadTx(){try{return JSON.parse(localStorage.getItem(txKey())||'[]')}catch(e){return[]}}
+  function money(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
+  function renderTransactions(){
+    ensureTransactionPanel();
+    const list=document.getElementById('management-transaction-list');
+    const count=document.getElementById('management-transaction-count');
+    const sum=document.getElementById('management-transaction-summary');
+    if(!list)return;
+    const tx=loadTx();
+    if(count)count.textContent=tx.length+' transaksi';
+    const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);
+    const bayar=tx.reduce((a,t)=>a+(Number(t.payment)||0),0);
+    if(sum)sum.innerHTML=`<div class="border border-slate-200 rounded-xl p-3"><div class="text-xs text-slate-400">Total Omzet</div><strong class="text-sm text-slate-800">${money(omzet)}</strong></div><div class="border border-slate-200 rounded-xl p-3"><div class="text-xs text-slate-400">Total Dibayar</div><strong class="text-sm text-slate-800">${money(bayar)}</strong></div><div class="border border-slate-200 rounded-xl p-3"><div class="text-xs text-slate-400">Jumlah Transaksi</div><strong class="text-sm text-slate-800">${tx.length}</strong></div>`;
+    if(!tx.length){list.innerHTML='<div class="border border-dashed border-slate-300 rounded-xl p-6 text-center text-sm text-slate-400"><i class="fa-solid fa-receipt text-lg mb-2"></i><div>Belum ada transaksi kasir.</div></div>';return;}
+    list.innerHTML=tx.map((t,i)=>{
+      const items=(t.items||[]).map(x=>`${x.name} × ${x.qty}`).join(', ');
+      return `<div class="border border-slate-200 rounded-xl p-3 hover:-translate-y-0.5 transition-transform"><div class="flex items-start justify-between gap-3"><div><div class="text-sm font-bold text-slate-800">Transaksi #${tx.length-i}</div><div class="text-xs text-slate-400">${t.date||''} ${t.time||''}</div><div class="text-xs text-slate-500 mt-1">${items||'Tidak ada detail produk'}</div></div><div class="text-right"><div class="text-sm font-bold text-slate-800">${money(t.total)}</div><div class="text-xs text-slate-400">Kembalian ${money(t.change)}</div></div></div></div>`;
+    }).join('');
+  }
+  function run(){modernizeIcons();ensureTransactionPanel();renderTransactions();}
+  document.addEventListener('click',function(e){
+    const b=e.target.closest('#sidebar nav button');
+    if(b)setTimeout(()=>{modernizeIcons();if(b.id==='nav-management-kasir')renderTransactions();},30);
+  });
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
+  setTimeout(run,500);
+  setInterval(()=>{if(!document.getElementById('management-kasir-transactions'))ensureTransactionPanel(); if(document.getElementById('view-management-kasir')&&!document.getElementById('view-management-kasir').classList.contains('hidden'))renderTransactions();},1200);
+})();
+</script>
+
+<!-- PATCH: kunci ikon Input Data agar tidak berubah otomatis -->
+<script>
+(function(){
+  function lockInputIcon(){
+    const icon=document.getElementById('icon-input');
+    if(icon){
+      icon.className='fa-solid fa-file-pen w-5 text-center text-blue-300 group-hover:text-white shrink-0';
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',lockInputIcon);
+  else lockInputIcon();
+  document.addEventListener('click',function(){setTimeout(lockInputIcon,50);});
+})();
+</script>
