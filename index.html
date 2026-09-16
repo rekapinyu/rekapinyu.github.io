@@ -1513,50 +1513,30 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 @media(max-width:560px){.kasir-toolbar{flex-wrap:wrap}.kasir-search-wrap{flex-basis:100%}.kasir-tool-btn{flex:1}.kasir-shell{border-radius:0}.kasir-products-panel,.kasir-cart-panel{padding:0}.kasir-products-panel{padding:10px}.kasir-cart-head,.kasir-cart-meta,.kasir-cart-list,.kasir-summary{padding-left:12px;padding-right:12px}.management-form-card,.management-list-card,.management-transactions-card{padding:14px}.management-product-form{grid-template-columns:1fr}.management-name-field,.management-photo-field{grid-column:auto}.management-sticky-kasir{padding-bottom:6px}.management-stats-grid{grid-template-columns:1fr}.management-product-grid{grid-template-columns:1fr}.management-list-head{align-items:flex-start}.management-add-btn{margin-top:24px;width:100%}}
 </style>
 
-<style id="fix-kasir-cart-fixed-box-only">
-@media (min-width:901px){
-  /* Tinggi tetap = tinggi kotak kosong yang terlihat sebelumnya.
-     Tidak mengubah posisi main/header/sidebar. */
-  #view-kasir .kasir-cart-list{
-    flex:0 0 280px!important;
-    height:280px!important;
-    min-height:280px!important;
-    max-height:280px!important;
-    box-sizing:border-box!important;
-    overflow-y:auto!important;
-    overflow-x:hidden!important;
-  }
-
-  /* Banyak produk -> scroll hanya di dalam kotak transaksi. */
-  #view-kasir .kasir-cart-list .kasir-cart-item{
-    box-sizing:border-box!important;
-  }
-
-  /* Tidak ada pergeseran visual pada kartu produk kiri saat diklik. */
-  #view-kasir .kasir-product-card{
-    transform:none!important;
-  }
-  #view-kasir .kasir-product-card:hover,
-  #view-kasir .kasir-product-card:active{
-    transform:none!important;
-  }
-
-  /* Foto kecil proporsional sebelum nama produk. */
-  #view-kasir .kasir-cart-item{
-    display:grid!important;
-    grid-template-columns:42px minmax(0,1fr) auto!important;
-    align-items:center!important;
-    column-gap:10px!important;
-  }
-  #view-kasir .kasir-cart-thumb{
-    width:42px!important;
-    height:42px!important;
-    min-width:42px!important;
-    border-radius:7px!important;
-    object-fit:cover!important;
-    display:block!important;
-    background:#f1f5f9!important;
-  }
+<style id="fix-management-pilih-foto-center-only">
+/* FOKUS KHUSUS: Management Kasir -> kotak Pilih foto */
+#view-management-kasir .management-photo-input{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  text-align:center !important;
+  box-sizing:border-box !important;
+  height:100% !important;
+  min-height:44px !important;
+  padding:0 !important;
+  margin:0 !important;
+  gap:7px !important;
+  line-height:1 !important;
+}
+#view-management-kasir .management-photo-input i,
+#view-management-kasir .management-photo-input span{
+  position:static !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;
+  line-height:1 !important;
 }
 </style>
 
@@ -6022,7 +6002,7 @@ onAuthStateChanged(auth,async u=>{
     document.getElementById('kasir-cart-count').textContent=count+' Item';
     document.getElementById('kasir-total-products').textContent=rupiah(total);
     if(!kasirCart.length){list.innerHTML='<div class="kasir-cart-empty"><i class="fa-solid fa-cart-shopping"></i><strong>Keranjang masih kosong</strong><span>Tambahkan produk dari kotak sebelah kiri.</span></div>'}
-    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item">${x.photo?`<img class="kasir-cart-thumb" src="${x.photo}" alt="">`:`<div class="kasir-cart-thumb"></div>`}<div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
+    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item"><div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
     updateChange();
   }
   function updateChange(){
