@@ -7479,7 +7479,14 @@ setInterval(run,1200);
     'nav-report':'fa-chart-column',
     'nav-backup':'fa-cloud-arrow-up'
   };
-  
+  function modernizeIcons(){
+    Object.entries(ICONS).forEach(([id,cls])=>{
+      const el=document.getElementById('icon-'+id.replace('nav-','')) || document.querySelector('#'+id+' i');
+      if(!el)return;
+      el.classList.remove('fa-cash-register','fa-boxes-stacked','fa-money-bill-transfer','fa-hand-holding-dollar','fa-clock-rotate-left','fa-chart-line','fa-cloud-arrow-up','fa-receipt','fa-wallet','fa-square-pen','fa-chart-column','fa-chart-pie');
+      el.classList.add('fa-solid',cls);
+    });
+  }
   function ensureTransactionPanel(){
     const root=document.getElementById('view-management-kasir');
     if(!root || document.getElementById('management-kasir-transactions'))return;
@@ -7543,3 +7550,25 @@ setInterval(run,1200);
   document.addEventListener('click',function(){setTimeout(lockInputIcon,50);});
 })();
 </script>
+
+<!-- PATCH FOKUS TERAKHIR: hilangkan kotak/latarnya hanya pada ikon Input Data -->
+<style id="patch-remove-input-icon-box">
+#sidebar nav > #nav-input > #icon-input,
+#sidebar nav > #nav-input > #icon-input:hover,
+#sidebar nav > #nav-input > #icon-input:focus,
+#sidebar nav > #nav-input > #icon-input:focus-visible,
+#sidebar nav > #nav-input > #icon-input:active{
+  background:transparent!important;
+  background-color:transparent!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  padding:0!important;
+  margin:0!important;
+  border-radius:0!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+}
+</style>
