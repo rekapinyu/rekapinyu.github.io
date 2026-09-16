@@ -3024,6 +3024,14 @@
             updateKasbonLockUI();
 
             document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+            // PATCH FOKUS: sticky input Management Kasir hanya tampil saat menu Management Kasir aktif.
+            // Tidak mengubah menu, fungsi, data, atau tampilan menu lainnya.
+            const managementKasirView = document.getElementById('view-management-kasir');
+            if (managementKasirView && managementKasirView.firstElementChild) {
+                managementKasirView.firstElementChild.style.display = (tab === 'management-kasir') ? '' : 'none';
+            }
+
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
@@ -6518,6 +6526,11 @@ onAuthStateChanged(auth,async u=>{
 }
 </style>
 
+<!-- PATCH FOKUS: Management Kasir sticky hanya aktif di menu Management Kasir. -->
+<style id="patch-management-kasir-sticky-scope-safe">
+  #view-management-kasir.hidden > div:first-child{display:none!important;}
+</style>
+
 <!-- PATCH KASIR FINAL: hanya menambahkan fungsi/menu Kasir dan Management Kasir.
      Kode original lainnya dibiarkan apa adanya. -->
 <style id="patch-kasir-management-final">
@@ -7398,50 +7411,3 @@ onAuthStateChanged(auth,async u=>{
 </script>
 
 
-
-<!-- PATCH FOKUS: Management Kasir - sticky input hanya tampil saat menu Management Kasir aktif. -->
-<style id="patch-management-kasir-sticky-scope">
-  #view-management-kasir.hidden{display:none!important;}
-</style>
-<script id="patch-management-kasir-sticky-scope">
-(function(){
-  function fixManagementKasirSticky(){
-    const view=document.getElementById('view-management-kasir');
-    if(!view)return;
-    const active=!view.classList.contains('hidden');
-    const sticky=view.firstElementChild;
-    if(!active){
-      view.style.display='none';
-      if(sticky)sticky.style.display='none';
-    }else{
-      view.style.display='';
-      if(sticky)sticky.style.display='';
-    }
-  }
-  function install(){
-    const original=window.switchTab;
-    if(!original||original.__managementKasirStickyScoped)return;
-    function scopedSwitchTab(tab){
-      const result=original.apply(this,arguments);
-      const view=document.getElementById('view-management-kasir');
-      if(view){
-        if(tab==='management-kasir'){
-          view.classList.remove('hidden');
-          view.style.display='';
-          if(view.firstElementChild)view.firstElementChild.style.display='';
-        }else{
-          view.classList.add('hidden');
-          view.style.display='none';
-          if(view.firstElementChild)view.firstElementChild.style.display='none';
-        }
-      }
-      return result;
-    }
-    scopedSwitchTab.__managementKasirStickyScoped=true;
-    window.switchTab=scopedSwitchTab;
-    fixManagementKasirSticky();
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,0));
-  else setTimeout(install,0);
-})();
-</script>
