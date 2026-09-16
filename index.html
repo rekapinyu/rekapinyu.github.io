@@ -1513,151 +1513,52 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 @media(max-width:560px){.kasir-toolbar{flex-wrap:wrap}.kasir-search-wrap{flex-basis:100%}.kasir-tool-btn{flex:1}.kasir-shell{border-radius:0}.kasir-products-panel,.kasir-cart-panel{padding:0}.kasir-products-panel{padding:10px}.kasir-cart-head,.kasir-cart-meta,.kasir-cart-list,.kasir-summary{padding-left:12px;padding-right:12px}.management-form-card,.management-list-card,.management-transactions-card{padding:14px}.management-product-form{grid-template-columns:1fr}.management-name-field,.management-photo-field{grid-column:auto}.management-sticky-kasir{padding-bottom:6px}.management-stats-grid{grid-template-columns:1fr}.management-product-grid{grid-template-columns:1fr}.management-list-head{align-items:flex-start}.management-add-btn{margin-top:24px;width:100%}}
 </style>
 
-<!-- FIX KASIR SAJA — menjaga tinggi panel transaksi tetap sama ketika produk diklik.
-     Penyebab pergeseran: .kasir-cart-empty memiliki min-height:260px, tetapi setelah
-     produk dipilih elemen kosong diganti item yang lebih pendek. Karena shell Kasir
-     memakai tinggi otomatis + wrapper my-auto, tinggi shell mengecil dan seluruh
-     antarmuka bergeser. Min-height yang sama dipertahankan pada cart-list. -->
-<style id="fix-kasir-no-layout-shift">
+<style id="fix-kasir-cart-fixed-box-only">
 @media (min-width:901px){
+  /* Tinggi tetap = tinggi kotak kosong yang terlihat sebelumnya.
+     Tidak mengubah posisi main/header/sidebar. */
   #view-kasir .kasir-cart-list{
-    min-height:260px!important;
+    flex:0 0 280px!important;
+    height:280px!important;
+    min-height:280px!important;
+    max-height:280px!important;
+    box-sizing:border-box!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
   }
 
-  /* Jangan biarkan efek hover/active menggeser kartu produk secara fisik. */
+  /* Banyak produk -> scroll hanya di dalam kotak transaksi. */
+  #view-kasir .kasir-cart-list .kasir-cart-item{
+    box-sizing:border-box!important;
+  }
+
+  /* Tidak ada pergeseran visual pada kartu produk kiri saat diklik. */
+  #view-kasir .kasir-product-card{
+    transform:none!important;
+  }
   #view-kasir .kasir-product-card:hover,
   #view-kasir .kasir-product-card:active{
     transform:none!important;
   }
-}
-</style>
 
-
-<!-- PATCH TERAKHIR — hanya KASIR + posisi "Pilih foto". Tidak mengubah menu lain. -->
-<style id="patch-kasir-stable-final">
-@media (min-width:901px){
-  /* Kunci tinggi shell pada tinggi awalnya. Dengan begitu perubahan isi
-     keranjang tidak mengubah tinggi wrapper dan tidak menggeser UI. */
-  #view-kasir.kasir-layout-locked > .kasir-shell{
-    height:var(--kasir-locked-height)!important;
-    min-height:var(--kasir-locked-height)!important;
-    max-height:var(--kasir-locked-height)!important;
-    flex:none!important;
-  }
-
-  /* Kartu produk tidak naik/turun saat pointer/klik. */
-  #view-kasir .kasir-product-card,
-  #view-kasir .kasir-product-card:hover,
-  #view-kasir .kasir-product-card:active,
-  #view-kasir .kasir-product-card:focus{
-    transform:none!important;
-  }
-
-  /* Management Kasir: ikon + teks selalu tepat di tengah kotak. */
-  #view-management-kasir .management-photo-input{
-    box-sizing:border-box!important;
-    width:100%!important;
-    height:46px!important;
-    min-height:46px!important;
-    padding:0!important;
-    margin:0!important;
-    display:flex!important;
-    flex-direction:row!important;
+  /* Foto kecil proporsional sebelum nama produk. */
+  #view-kasir .kasir-cart-item{
+    display:grid!important;
+    grid-template-columns:42px minmax(0,1fr) auto!important;
     align-items:center!important;
-    justify-content:center!important;
-    gap:7px!important;
-    text-align:center!important;
-    line-height:1!important;
+    column-gap:10px!important;
   }
-  #view-management-kasir .management-photo-input i{
-    position:static!important;
-    display:inline-flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    width:auto!important;
-    height:auto!important;
-    margin:0!important;
-    padding:0!important;
-    line-height:1!important;
-    transform:none!important;
-  }
-  #view-management-kasir .management-photo-input span{
-    position:static!important;
-    display:inline-flex!important;
-    align-items:center!important;
-    width:auto!important;
-    height:auto!important;
-    margin:0!important;
-    padding:0!important;
-    line-height:1!important;
-    transform:none!important;
-    text-align:center!important;
+  #view-kasir .kasir-cart-thumb{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    border-radius:7px!important;
+    object-fit:cover!important;
+    display:block!important;
+    background:#f1f5f9!important;
   }
 }
 </style>
-<script id="patch-kasir-stable-final-js">
-(function(){
-  function lockKasir(){
-    const view=document.getElementById('view-kasir');
-    const shell=view?.querySelector('.kasir-shell');
-    if(!view || !shell || view.classList.contains('hidden')) return;
-
-    /* Ambil ukuran/posisi yang sedang tampil sekarang.
-       Tidak memindahkan tampilan awal sedikit pun. */
-    if(!view.classList.contains('kasir-layout-locked')){
-      const r=shell.getBoundingClientRect();
-      if(r.height>0){
-        view.style.setProperty('--kasir-locked-height', r.height+'px');
-        view.classList.add('kasir-layout-locked');
-      }
-    }
-  }
-
-  function unlockAndRelock(){
-    const view=document.getElementById('view-kasir');
-    if(!view) return;
-    view.classList.remove('kasir-layout-locked');
-    view.style.removeProperty('--kasir-locked-height');
-    requestAnimationFrame(function(){
-      requestAnimationFrame(lockKasir);
-    });
-  }
-
-  /* Saat menu Kasir dibuka, kunci tinggi tepat setelah layout aslinya selesai.
-     Klik produk setelah itu tidak boleh mengubah tinggi shell. */
-  document.addEventListener('click',function(e){
-    const nav=e.target.closest('#nav-kasir');
-    if(nav){
-      setTimeout(lockKasir,0);
-      setTimeout(lockKasir,80);
-    }
-  },true);
-
-  /* Produk tetap bisa diklik normal; kita hanya pastikan shell sudah terkunci
-     sebelum renderCart() mengubah isi daftar transaksi. */
-  document.addEventListener('pointerdown',function(e){
-    if(e.target.closest('#view-kasir [data-add-product]')) lockKasir();
-  },true);
-
-  document.addEventListener('click',function(e){
-    if(e.target.closest('#view-kasir [data-add-product]')) lockKasir();
-  },true);
-
-  window.addEventListener('resize',function(){
-    /* Pada resize, lepaskan lock lalu ambil ukuran baru agar responsif. */
-    const view=document.getElementById('view-kasir');
-    if(view && !view.classList.contains('hidden')) unlockAndRelock();
-  });
-
-  /* Jika aplikasi membuka Kasir melalui fungsi JS tanpa klik nav. */
-  const observer=new MutationObserver(function(){
-    const view=document.getElementById('view-kasir');
-    if(view && !view.classList.contains('hidden')) setTimeout(lockKasir,0);
-  });
-  const main=document.querySelector('main');
-  if(main) observer.observe(main,{subtree:true,attributes:true,attributeFilter:['class']});
-})();
-</script>
 
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
@@ -6121,7 +6022,7 @@ onAuthStateChanged(auth,async u=>{
     document.getElementById('kasir-cart-count').textContent=count+' Item';
     document.getElementById('kasir-total-products').textContent=rupiah(total);
     if(!kasirCart.length){list.innerHTML='<div class="kasir-cart-empty"><i class="fa-solid fa-cart-shopping"></i><strong>Keranjang masih kosong</strong><span>Tambahkan produk dari kotak sebelah kiri.</span></div>'}
-    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item"><div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
+    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item">${x.photo?`<img class="kasir-cart-thumb" src="${x.photo}" alt="">`:`<div class="kasir-cart-thumb"></div>`}<div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
     updateChange();
   }
   function updateChange(){
