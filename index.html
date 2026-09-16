@@ -1634,7 +1634,7 @@
             
             <!-- MENU KASBON -->
             <div class="relative toggle-kasbon-menu-container">
-                <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" id="nav-kasbon-wrapper">
+                <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 transition duration-200 group relative" id="nav-kasbon-wrapper">
                     <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
                         <i id="icon-kasbon" class="fa-solid fa-hand-holding-dollar w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                         <span class="sidebar-text truncate">Kasbon</span>
@@ -1667,7 +1667,6 @@
             </button>
 
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
-                <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                 <i id="icon-input" class="fa-solid fa-pen-to-square w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">Input Data</span>
             </button>
@@ -2991,7 +2990,6 @@
                         } else {
                             deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
                             deskNav.innerHTML = `
-                                <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                                 <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
                                 <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
                             `;
@@ -2999,7 +2997,7 @@
                     } else {
                         if (v === 'kasbon') {
                             const wrapper = document.getElementById('nav-kasbon-wrapper');
-                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium text-blue-200 transition duration-200 group relative";
                             deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
                             deskNav.innerHTML = `
                                 <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
@@ -5603,9 +5601,38 @@ onAuthStateChanged(auth,async u=>{
 </script>
 
 
-<!-- PATCH FOKUS: hanya hilangkan hover pada kartu Kasbon. Bagian lain dipertahankan. -->
+<!-- PATCH FOKUS TERBARU: Kasbon tanpa efek hover/focus/active gelap.
+     Indikator garis aktif pada kartu menu juga dihapus dari struktur menu. -->
+<style id="patch-kasbon-no-hover-final">
+@media (min-width:768px){
+  #sidebar nav > .toggle-kasbon-menu-container,
+  #sidebar nav > .toggle-kasbon-menu-container:hover,
+  #sidebar nav > .toggle-kasbon-menu-container:focus,
+  #sidebar nav > .toggle-kasbon-menu-container:focus-within,
+  #sidebar nav > .toggle-kasbon-menu-container:active,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon:hover,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon:focus,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon:active,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:hover,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:focus,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:focus-within,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper:active{
+    background:#fff!important;
+    color:#334155!important;
+    border:0!important;
+    outline:0!important;
+    transform:none!important;
+  }
 
-
+  /* Tidak ada garis indikator aktif di sisi kiri kartu menu. */
+  #sidebar nav > button[id^="nav-"] > div.absolute.left-0,
+  #sidebar nav > .toggle-kasbon-menu-container .absolute.left-0{
+    display:none!important;
+  }
+}
+</style>
 
 <!-- PATCH FOKUS: hapus hanya toggle pengaturan gembok Kasbon. -->
 
