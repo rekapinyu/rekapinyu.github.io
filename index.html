@@ -1580,7 +1580,7 @@
 
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
-                <i id="icon-input" class="fa-solid fa-clipboard-list"></i>
+                <i id="icon-input" class="fa-solid fa-file-pen w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
                 <span class="sidebar-text truncate">Input Data</span>
             </button>
             <button onclick="switchTab('history')" id="nav-history" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="History">
@@ -1915,12 +1915,12 @@
       <div id="kasir-reference-toolbar">
         <div id="kasir-search-wrap">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" id="kasir-reference-search" placeholder="Cari berdasarkan Nama / Kode" autocomplete="off">
+          <input type="text" id="kasir-reference-search" placeholder="Scan / ketik barcode" autocomplete="off" inputmode="numeric" aria-label="Scan atau ketik barcode produk">
         </div>
         <button type="button" class="kasir-ref-mini-btn" title="Refresh produk" onclick="window.__kasirRefreshReference?.()"><i class="fa-solid fa-arrows-rotate"></i></button>
-        <div class="kasir-ref-shortcuts">
-          <button type="button" onclick="document.getElementById('kasir-product-name')?.focus()"><i class="fa-solid fa-plus"></i> Ctrl + L</button>
-          <button type="button" onclick="document.getElementById('kasir-product-qty')?.focus()"><i class="fa-solid fa-cube"></i> Ctrl + L</button>
+        <div class="kasir-ref-shortcuts" aria-label="Metode input kasir">
+          <button type="button" class="kasir-input-mode-btn" title="Input manual" onclick="document.getElementById('kasir-product-name')?.focus()"><i class="fa-solid fa-keyboard"></i> Manual</button>
+          <button type="button" class="kasir-input-mode-btn" title="Scan barcode menggunakan scanner" onclick="document.getElementById('kasir-reference-search')?.focus()"><i class="fa-solid fa-barcode"></i> Barcode</button>
         </div>
       </div>
 
@@ -7474,7 +7474,7 @@ setInterval(run,1200);
     'nav-management-kasir':'fa-chart-pie',
     'nav-pengeluaran':'fa-receipt',
     'nav-kasbon':'fa-wallet',
-    'nav-input':'fa-square-pen',
+    'nav-input':'fa-file-pen',
     'nav-history':'fa-clock-rotate-left',
     'nav-report':'fa-chart-column',
     'nav-backup':'fa-cloud-arrow-up'
@@ -7532,6 +7532,21 @@ setInterval(run,1200);
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
   setTimeout(run,500);
-  setInterval(()=>{if(!document.getElementById('management-kasir-transactions'))ensureTransactionPanel(); if(document.getElementById('view-management-kasir')&&!document.getElementById('view-management-kasir').classList.contains('hidden'))renderTransactions(); modernizeIcons();},1200);
+  setInterval(()=>{if(!document.getElementById('management-kasir-transactions'))ensureTransactionPanel(); if(document.getElementById('view-management-kasir')&&!document.getElementById('view-management-kasir').classList.contains('hidden'))renderTransactions();},1200);
+})();
+</script>
+
+<!-- PATCH: kunci ikon Input Data agar tidak berubah otomatis -->
+<script>
+(function(){
+  function lockInputIcon(){
+    const icon=document.getElementById('icon-input');
+    if(icon){
+      icon.className='fa-solid fa-file-pen w-5 text-center text-blue-300 group-hover:text-white shrink-0';
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',lockInputIcon);
+  else lockInputIcon();
+  document.addEventListener('click',function(){setTimeout(lockInputIcon,50);});
 })();
 </script>
