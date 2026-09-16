@@ -1512,6 +1512,112 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 @media(max-width:900px){.kasir-shell{grid-template-columns:1fr;height:auto;min-height:100%}.kasir-products-panel{border-right:0;border-bottom:1px solid #e2e8f0;min-height:480px}.kasir-cart-panel{min-height:520px}.management-product-form{grid-template-columns:1fr 1fr}.management-name-field,.management-photo-field{grid-column:1/-1}.management-add-btn{width:100%;margin-top:24px}}
 @media(max-width:560px){.kasir-toolbar{flex-wrap:wrap}.kasir-search-wrap{flex-basis:100%}.kasir-tool-btn{flex:1}.kasir-shell{border-radius:0}.kasir-products-panel,.kasir-cart-panel{padding:0}.kasir-products-panel{padding:10px}.kasir-cart-head,.kasir-cart-meta,.kasir-cart-list,.kasir-summary{padding-left:12px;padding-right:12px}.management-form-card,.management-list-card,.management-transactions-card{padding:14px}.management-product-form{grid-template-columns:1fr}.management-name-field,.management-photo-field{grid-column:auto}.management-sticky-kasir{padding-bottom:6px}.management-stats-grid{grid-template-columns:1fr}.management-product-grid{grid-template-columns:1fr}.management-list-head{align-items:flex-start}.management-add-btn{margin-top:24px;width:100%}}
 </style>
+
+<!-- PATCH FOKUS USER: KASIR tetap di posisi atas saat produk diklik + tombol Pilih foto benar-benar center.
+     Tidak mengubah menu, data, fungsi transaksi, atau bagian aplikasi lainnya. -->
+<style id="patch-fokus-kasir-user">
+  /* KASIR DESKTOP: toolbar dan kategori tetap di atas; hanya daftar produk yang boleh scroll. */
+  @media (min-width: 901px){
+    main:has(#view-kasir:not(.hidden)){
+      overflow:hidden!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{
+      position:relative!important;
+      overflow:hidden!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-products-panel{
+      position:relative!important;
+      overflow:hidden!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-toolbar{
+      position:relative!important;
+      z-index:5!important;
+      flex:0 0 auto!important;
+      background:#fff!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-category-row{
+      position:relative!important;
+      z-index:4!important;
+      flex:0 0 auto!important;
+      background:#fff!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-grid{
+      position:relative!important;
+      z-index:1!important;
+      min-height:0!important;
+      overflow-y:auto!important;
+      overflow-x:hidden!important;
+      align-content:start!important;
+    }
+
+    /* Saat produk diklik, posisi kartu tidak bergeser/naik karena efek focus/active. */
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card,
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:hover,
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:focus,
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:active{
+      transform:none!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:focus{
+      outline:none!important;
+      outline-offset:0!important;
+    }
+
+    main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-product-card:focus-visible{
+      outline:1px solid #dbe3eb!important;
+      outline-offset:-1px!important;
+    }
+  }
+
+  /* MANAGEMENT KASIR: ikon kamera + teks "Pilih foto" benar-benar di tengah kotak. */
+  #view-management-kasir .management-photo-input{
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:center!important;
+    align-content:center!important;
+    text-align:center!important;
+    vertical-align:middle!important;
+    gap:7px!important;
+    padding:0!important;
+    margin:0!important;
+    line-height:1!important;
+  }
+
+  #view-management-kasir .management-photo-input i,
+  #view-management-kasir .management-photo-input span{
+    position:static!important;
+    top:auto!important;
+    right:auto!important;
+    bottom:auto!important;
+    left:auto!important;
+    margin:0!important;
+    padding:0!important;
+    transform:none!important;
+  }
+
+  #view-management-kasir .management-photo-input i{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 auto!important;
+    line-height:1!important;
+  }
+
+  #view-management-kasir .management-photo-input span{
+    display:inline-flex!important;
+    align-items:center!important;
+    flex:0 0 auto!important;
+    line-height:1!important;
+    text-align:center!important;
+  }
+</style>
+
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
