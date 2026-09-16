@@ -1657,6 +1657,15 @@
                 </div>
             </div>
 
+            <button onclick="switchTab('kasir')" id="nav-kasir" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Kasir">
+                <i id="icon-kasir" class="fa-solid fa-cash-register w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                <span class="sidebar-text truncate">Kasir</span>
+            </button>
+            <button onclick="switchTab('management-kasir')" id="nav-management-kasir" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Management Kasir">
+                <i id="icon-management-kasir" class="fa-solid fa-users-gear w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                <span class="sidebar-text truncate">Management Kasir</span>
+            </button>
+
             <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
                 <div class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-white rounded-r"></div>
                 <i id="icon-input" class="fa-solid fa-pen-to-square w-5 text-center shrink-0"></i>
@@ -1969,6 +1978,20 @@
                 </section>
 
                 <!-- VIEW 2: HISTORY -->
+                <section id="view-kasir" class="hidden space-y-6">
+                    <div class="w-full bg-white p-6 lg:p-8 rounded-2xl shadow-lg border border-slate-200/80">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide"><i class="fa-solid fa-cash-register text-emerald-600"></i> Kasir</h3>
+                        <p class="text-sm text-slate-500 mt-2">Menu Kasir siap digunakan untuk pengembangan fitur transaksi kasir.</p>
+                    </div>
+                </section>
+
+                <section id="view-management-kasir" class="hidden space-y-6">
+                    <div class="w-full bg-white p-6 lg:p-8 rounded-2xl shadow-lg border border-slate-200/80">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide"><i class="fa-solid fa-users-gear text-emerald-600"></i> Management Kasir</h3>
+                        <p class="text-sm text-slate-500 mt-2">Menu Management Kasir siap digunakan untuk pengembangan fitur pengelolaan kasir.</p>
+                    </div>
+                </section>
+
                 <section id="view-history" class="hidden space-y-4">
                     <div id="history-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
@@ -2919,11 +2942,13 @@
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'history', 'report', 'backup'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'management-kasir', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
+                kasir: { title: 'Kasir', subtitle: 'Menu kasir untuk transaksi penjualan.' },
+                'management-kasir': { title: 'Management Kasir', subtitle: 'Kelola kasir dan pengaturan kasir.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
                 report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
                 backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
@@ -2933,6 +2958,8 @@
                 input: 'fa-pen-to-square',
                 pengeluaran: 'fa-money-bill-transfer',
                 kasbon: 'fa-hand-holding-dollar',
+                kasir: 'fa-cash-register',
+                'management-kasir': 'fa-users-gear',
                 history: 'fa-clock-rotate-left',
                 report: 'fa-chart-line',
                 backup: 'fa-cloud-arrow-up'
@@ -5695,5 +5722,91 @@ onAuthStateChanged(auth,async u=>{
 
 
 
+
+<!-- PATCH FINAL: grid menu sidebar 2 kolom. Kasbon, Input Data, Kasir, dan Management Kasir adalah kartu terpisah. -->
+<style id="rekapinyu-sidebar-menu-grid-final-v2">
+@media (min-width:768px){
+  #sidebar nav{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-content:start!important;
+    align-items:stretch!important;
+    padding:12px!important;
+    overflow-y:auto!important;
+  }
+  #sidebar nav > button[id^="nav-"],
+  #sidebar nav > .toggle-kasbon-menu-container{
+    width:100%!important;
+    min-width:0!important;
+    min-height:116px!important;
+    height:116px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+    border:0!important;
+    border-radius:0!important;
+    background:#fff!important;
+    color:#334155!important;
+    box-shadow:0 4px 12px rgba(15,23,42,.11)!important;
+  }
+  #sidebar nav > button[id^="nav-"]{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:9px!important;
+    padding:14px 8px!important;
+    text-align:center!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container{
+    position:relative!important;
+    overflow:hidden!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
+    width:100%!important;
+    height:100%!important;
+    min-height:116px!important;
+    box-sizing:border-box!important;
+  }
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:9px!important;
+    padding:14px 8px!important;
+    text-align:center!important;
+  }
+  #sidebar nav > button[id^="nav-"] > i,
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+    width:auto!important; height:auto!important; min-width:0!important; min-height:0!important;
+    margin:0!important; padding:0!important; border:0!important; border-radius:0!important;
+    background:transparent!important; box-shadow:none!important; opacity:1!important;
+    font-size:23px!important; line-height:1!important;
+  }
+  #sidebar nav > button[id^="nav-"] > span,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon .sidebar-text{
+    display:block!important; width:100%!important; font-size:12px!important;
+    line-height:1.25!important; font-weight:700!important; text-align:center!important; color:#334155!important;
+  }
+  #sidebar nav > button[id^="nav-"]:hover,
+  #sidebar nav > button[id^="nav-"]:focus,
+  #sidebar nav > button[id^="nav-"]:active,
+  #sidebar nav > .toggle-kasbon-menu-container:hover,
+  #sidebar nav > .toggle-kasbon-menu-container:focus-within{
+    background:#fff!important; color:#334155!important; transform:none!important; border:0!important; outline:0!important;
+    box-shadow:0 5px 14px rgba(15,23,42,.13)!important;
+  }
+  #sidebar nav > #nav-input > i{color:#059669!important}
+  #sidebar nav > #nav-pengeluaran > i{color:#0284c7!important}
+  #sidebar nav > #nav-kasir > i{color:#0f766e!important}
+  #sidebar nav > #nav-management-kasir > i{color:#7c3aed!important}
+  #sidebar nav > #nav-history > i{color:#9333ea!important}
+  #sidebar nav > #nav-report > i{color:#db2777!important}
+  #sidebar nav > #nav-backup > i{color:#0891b2!important}
+  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{color:#f59e0b!important}
+}
+</style>
 </body>
 </html>
