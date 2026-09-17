@@ -4,13 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Aplikasi Keuangan - Toko</title>
-    <!-- PATCH FOKUS: sidebar desktop tetap tampil sejak awal reload, tanpa mengubah fungsi/menu. -->
-    <style id="rekapinyu-sidebar-early-boot">
-      @media (min-width:768px){
-        #sidebar{display:flex!important;}
-      }
-    </style>
-    <!-- Tailwind CSS -->
+<!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PATCH FOKUS RELOAD: aturan ini sengaja diletakkan SETELAH Tailwind agar kelas hidden tidak sempat memenangkan first paint desktop. -->
     <style id="rekapinyu-sidebar-final-early-boot">
@@ -46,8 +40,6 @@
             z-index: 1;
         }
     </style>
-
-
 
     <!-- PATCH MINIMAL: tombol minimize disembunyikan + perbaikan watermark Beranda mobile -->
     <style>
@@ -1813,8 +1805,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             <div class="sidebar-text flex items-center justify-between gap-2 pt-0">
                 <div class="flex items-center gap-2">
 
-
-                    
                                     </div>
                 <button onclick="toggleSidebar()" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/50 hover:bg-blue-800 transition shrink-0" title="Minimalisir Sidebar">
                     <i id="sidebar-toggle-icon" class="fa-solid fa-arrow-left text-xs"></i>
@@ -2800,39 +2790,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 }
             });
 
-            coverInput.addEventListener('change', function () {
-                const file = this.files && this.files[0];
-                if (!file || !file.type.startsWith('image/')) return;
-                const reader = new FileReader();
-                reader.onload = function (event) {
-                    // Kompres ukuran foto sebelum masuk localStorage agar foto landscape/beresolusi besar
-                    // tidak gagal disimpan karena batas kapasitas localStorage.
-                    const tempImage = new Image();
-                    tempImage.onload = function () {
-                        const maxWidth = 1600;
-                        const maxHeight = 1200;
-                        const scale = Math.min(1, maxWidth / tempImage.naturalWidth, maxHeight / tempImage.naturalHeight);
-                        const canvas = document.createElement('canvas');
-                        canvas.width = Math.max(1, Math.round(tempImage.naturalWidth * scale));
-                        canvas.height = Math.max(1, Math.round(tempImage.naturalHeight * scale));
-                        const ctx = canvas.getContext('2d');
-                        if (!ctx) return;
-                        ctx.drawImage(tempImage, 0, 0, canvas.width, canvas.height);
-                        const compressedSrc = canvas.toDataURL('image/jpeg', 0.82);
-                        coverX = 50; coverY = 50;
-                        renderShopCover({src: compressedSrc, x: coverX, y: coverY}, true);
-                    };
-                    tempImage.onerror = function () {
-                        // Fallback untuk format gambar yang tidak dapat dikonversi browser.
-                        coverX = 50; coverY = 50;
-                        renderShopCover({src: event.target.result, x: coverX, y: coverY}, true);
-                    };
-                    tempImage.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-                this.value = '';
-            });
-
             coverFrame.addEventListener('pointerdown', function (e) {
                 if (e.target.closest('#shop-cover-save') || coverSaved || coverImage.classList.contains('hidden')) return;
                 dragging = true;
@@ -2858,65 +2815,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             coverFrame.addEventListener('pointercancel', stopDrag);
             coverFrame.addEventListener('lostpointercapture', stopDrag);
 
-            // Tombol Simpan dibuat sebagai handler langsung agar tidak tertangkap event frame/drag lain.
-            saveButton.onclick = function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                window.saveShopCoverPhoto();
-                return false;
-            };
-
-            window.saveShopCoverPhoto = async function (options = {}) {
-                try {
-                    const src = coverImage.getAttribute('src') || coverImage.src || '';
-                    if (!src || coverImage.classList.contains('hidden')) return false;
-                    const data = {
-                        src: src,
-                        x: Math.max(0, Math.min(100, Number(coverX) || 50)),
-                        y: Math.max(0, Math.min(100, Number(coverY) || 50))
-                    };
-                    const phone = (typeof currentSessionUser !== 'undefined' && currentSessionUser) ? phoneOf(currentSessionUser.phone) : '';
-                    // Simpan posisi + preview lokal terlebih dahulu agar tombol Simpan selalu berhasil.
-                    localStorage.setItem(storageKey(), JSON.stringify(data));
-                    coverX = data.x; coverY = data.y; setObjectPosition(); setEditorState(false);
-                    const pending = window.__shopCoverPendingFile || null;
-                    window.__shopCoverPendingFile=null;
-
-                    // Upload Firebase dilakukan di belakang layar agar tombol Simpan langsung selesai.
-                    if (!options.localOnly && auth.currentUser && pending) {
-                        try {
-                            const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
-                            await uploadBytes(r,pending,{contentType:pending.type,cacheControl:'public,max-age=31536000'});
-                            const url=await getDownloadURL(r);
-                            const cloudData={src:url,x:data.x,y:data.y};
-                            if(phone)localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));
-                            try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
-                            renderShopCover(cloudData,false);
-                        } catch(storageErr) {
-                            console.warn('Sampul tersimpan lokal; Firebase Storage belum mengizinkan upload.',storageErr);
-                        }
-                    } else if (auth.currentUser && pending) {
-                        // Tetap sinkronkan cloud tanpa menahan hasil klik.
-                        Promise.resolve().then(async()=>{
-                            try {
-                                const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
-                                await uploadBytes(r,pending,{contentType:pending.type,cacheControl:'public,max-age=31536000'});
-                                const url=await getDownloadURL(r);
-                                const cloudData={src:url,x:data.x,y:data.y};
-                                if(phone)localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));
-                                try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
-                                renderShopCover(cloudData,false);
-                            } catch(storageErr) { console.warn('Sinkronisasi sampul Firebase gagal; versi lokal tetap tersimpan.',storageErr); }
-                        });
-                    }
-                    if(!options.localOnly) notify('Berhasil','Foto sampul berhasil disimpan.');
-                    return true;
-                } catch (e) {
-                    console.warn('Foto sampul toko tidak dapat disimpan:', e);
-                    notify('Gagal','Foto sampul tidak dapat disimpan.','fa-solid fa-circle-xmark text-rose-600');
-                    return false;
-                }
-            };
             window.__shopCoverEditingUnsaved = false;
             window.__setShopCoverPreview = function(src,file){
                 if(!src)return false;
@@ -4773,7 +4671,13 @@ async function hydrate(uid){
  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
  if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || !Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);
  if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${phone}`,d.kasbonPass);
- if(typeof d.shopCover==="string"&&d.shopCover)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,d.shopCover);
+ if(typeof d.shopCover==="string"&&d.shopCover){
+    nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({
+      src:d.shopCover,
+      x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,
+      y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50
+    }));
+  }
  loadUserData();
  if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length)){
   saveCloudData().catch(console.warn);
@@ -4934,55 +4838,6 @@ function imageToDataURL(file,maxSide=1600,quality=0.88){return new Promise((reso
     ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL("image/jpeg",quality));
   };img.onerror=()=>reject(new Error("Format gambar tidak dapat diproses."));img.src=reader.result};reader.readAsDataURL(file);
 })}
-
-// Profile photo: JPG/PNG portrait maupun landscape. Storage adalah sinkronisasi cloud,
-// sedangkan cache lokal dipakai agar pergantian foto tetap langsung berfungsi bila Rules belum siap.
-const profileSave=document.getElementById("save-profile-btn");
-if(profileSave)profileSave.addEventListener("click",async e=>{
-  const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
-  if(!file||!auth.currentUser){e.preventDefault();e.stopImmediatePropagation();notify("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return;}
-  e.preventDefault();e.stopImmediatePropagation();
-  if(!/^image\/(jpeg|png)$/i.test(file.type)){notify("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return;}
-  try{
-    const localUrl=await imageToDataURL(file,900,0.88);
-    const phone=phoneOf(currentSessionUser.phone);
-    currentSessionUser.photo=localUrl;
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
-    const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
-    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
-    updateUserAvatarUI();
-    // Simpan profil lokal/Firestore tanpa menjadikan kegagalan Rules sebagai kegagalan UI.
-    try{await saveCloudUser({photo:localUrl})}catch(err){console.warn("Foto profil lokal tersimpan; Firestore belum menerima foto.",err)}
-    // Sinkronkan ke Storage bila Rules mengizinkan.
-    try{
-      const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
-      await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
-      const url=await getDownloadURL(r);
-      currentSessionUser.photo=url;
-      nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-      nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-      await saveCloudUser({photo:url});
-      updateUserAvatarUI();
-    }catch(storageErr){console.warn("Storage profil belum mengizinkan upload; cache lokal tetap digunakan.",storageErr)}
-    closeProfileModal();
-    notify("Berhasil","Foto profil berhasil diganti.");
-  }catch(x){console.error(x);notify("Gagal","Foto profil tidak dapat diproses. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600")}
-},true);
-
-// Shop cover: file baru hanya menjadi preview/editor. Upload cloud dilakukan setelah tombol Simpan ditekan,
-// sehingga foto dapat digeser bebas ke atas/bawah/kiri/kanan sebelum disimpan.
-const ci=document.getElementById("shop-cover-input");
-if(ci)ci.addEventListener("change",async e=>{
-  e.preventDefault();e.stopImmediatePropagation();
-  const file=ci.files?.[0];ci.value="";
-  if(!file||!auth.currentUser)return;
-  if(!/^image\/(jpeg|png)$/i.test(file.type)){notify("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return;}
-  try{
-    const preview=await imageToDataURL(file,1800,0.88);
-    if(typeof window.__setShopCoverPreview==="function")window.__setShopCoverPreview(preview,file);
-  }catch(x){console.error(x);notify("Gagal","Foto sampul tidak dapat diproses. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600")}
-},true);
 
 // Password update uses Firebase Auth. Recent login may be required by Firebase.
 window.__rekapinyuFirebaseChangePassword=async p=>{if(!auth.currentUser)throw new Error("Belum login Firebase.");await updatePassword(auth.currentUser,p)};
@@ -5775,21 +5630,6 @@ onAuthStateChanged(auth,async u=>{
      Layout 2 kolom (grid 2x2/berlanjut ke baris berikutnya untuk semua menu).
      Tidak mengubah fungsi JavaScript maupun bagian lain. -->
 
-
-
-<!-- PATCH FOKUS: ikon sidebar tanpa kotak ikon; ikon warna berbeda dengan opacity 5%. -->
-
-
-
-<!-- PATCH FINAL FOKUS: ikon terlihat jelas di dalam kartu grid sidebar. -->
-
-
-
-<!-- PATCH FOKUS: kartu menu desktop disamakan dengan kartu menu mobile. -->
-
-
-
-<!-- PATCH FOKUS TERAKHIR: shadow kartu + warna ikon submenu Kasbon + teks/icon tetap terlihat saat dibuka. -->
 <style id="patch-sidebar-final-kasbon">
 @media (min-width:768px){
   /* Hanya menambah sedikit shadow pada kotak menu yang sudah benar. */
@@ -5976,8 +5816,6 @@ onAuthStateChanged(auth,async u=>{
 
 <!-- PATCH FOKUS: hilangkan warna hitam saat cursor berada di kartu Kasbon saja. -->
 
-
-
 <!-- PATCH FOKUS TERAKHIR: reload tanpa flash + ikon Kasbon hanya gembok baru. -->
 
 
@@ -6053,25 +5891,6 @@ onAuthStateChanged(auth,async u=>{
 
 <!-- PATCH FINAL USER: semua kotak menu sidebar siku + shadow tegas + ikon lebih jelas.
      Hanya fokus pada tampilan menu sidebar, tanpa mengubah fungsi/JavaScript/menu. -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 <!-- PATCH FINAL: grid menu sidebar 2 kolom. Kasbon, Input Data, Kasir, dan Management Kasir adalah kartu terpisah. -->
 <style id="rekapinyu-sidebar-menu-grid-final-v2">
@@ -6158,9 +5977,6 @@ onAuthStateChanged(auth,async u=>{
   #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{color:#f59e0b!important}
 }
 </style>
-
-
-
 
 <script id="kasir-management-final-js">
 (function(){
@@ -6784,8 +6600,6 @@ onAuthStateChanged(auth,async u=>{
   #view-management-kasir .mk-transaction-delete-toggle{width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important}
 }
 </style>
-
-
 
 <style id="patch-kasir-product-edit-modal">
 .kasir-product-edit-modal{position:fixed!important;inset:0!important;z-index:99999!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;background:rgba(15,23,42,.48)!important}
