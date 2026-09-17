@@ -4628,7 +4628,7 @@ async function saveCloudData(){
    pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
    kasbonData:Array.isArray(kasbonData)?kasbonData:[],
    backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
-   kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
+   kasirProducts:[],
    kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
  };
@@ -4679,7 +4679,7 @@ async function hydrate(uid){
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
  const pendingKasbon=mergePendingData(phone,"kasbon",d.kasbonData).pending;
  const pendingBackup=mergePendingData(phone,"backup",d.backupOtomatisData).pending;
- const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
+ const preservedKasirProducts=[];
  const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
  nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
@@ -5023,9 +5023,7 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
-const cloudKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:null;
-const preservedKasirProducts=cloudKasirProducts||localKasirProducts;
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const preservedKasirProducts=[];
 const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);
 nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
@@ -5035,7 +5033,7 @@ nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preserv
     }
   }catch{}
 }
-if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || ((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length)))saveCloudData().catch(console.warn);if(!Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
+if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || ((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length)))saveCloudData().catch(console.warn);if(!Array.isArray(d.kasirProducts)||d.kasirProducts.length||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
 
 // PATCH FOKUS DATA: saat aplikasi kembali aktif, kirim lagi input lokal yang belum terkonfirmasi cloud.
 (function(){
@@ -6031,11 +6029,11 @@ onAuthStateChanged(auth,async u=>{
     return 'finance_kasir_'+name+'_'+phone;
   }
   function loadKasirStore(){
-    try{kasirProducts=JSON.parse(localStorage.getItem(kasirUserKey('products'))||'[]')}catch(e){kasirProducts=[]}
+    kasirProducts=[]; try{localStorage.removeItem(kasirUserKey('products'))}catch(e){}
     try{kasirTransactions=JSON.parse(localStorage.getItem(kasirUserKey('transactions'))||'[]')}catch(e){kasirTransactions=[]}
   }
   function saveKasirStore(){
-    localStorage.setItem(kasirUserKey('products'),JSON.stringify(kasirProducts));
+    localStorage.removeItem(kasirUserKey('products'));
     localStorage.setItem(kasirUserKey('transactions'),JSON.stringify(kasirTransactions));
     try{window.__rekapinyuSaveCloudData?.();}catch(e){}
   }
@@ -6046,7 +6044,7 @@ onAuthStateChanged(auth,async u=>{
     const grid=document.getElementById('kasir-product-grid'); if(!grid)return;
     const search=(document.getElementById('kasir-search')?.value||'').trim().toLowerCase();
     const list=kasirProducts.filter(p=>{const cat=kasirCategory==='Semua'||(p.category||'Lainnya')===kasirCategory; const q=!search||`${p.name} ${p.barcode||''}`.toLowerCase().includes(search);return cat&&q});
-    if(!list.length){grid.innerHTML='<div class="kasir-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Tambahkan produk di daftar produk, lalu pilih produk di sini.</span></div>';return}
+    if(!list.length){grid.innerHTML='<div class="kasir-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Belum ada produk yang tersedia untuk kasir.</span></div>';return}
     grid.innerHTML=list.map(p=>`<button type="button" class="kasir-product-card" data-add-product="${p.id}"><div class="kasir-product-photo">${p.photo?`<img src="${p.photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div><div class="kasir-product-info"><strong>${esc(p.name)}</strong><span>${rupiah(p.price)}</span></div></button>`).join('');
   }
 
