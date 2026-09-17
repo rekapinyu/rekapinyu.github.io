@@ -4752,19 +4752,41 @@ async function saveCloudData(snapshot=null){
  await setDoc(dref(uid),payload,{merge:true});
 }
 window.__saveAllFinanceDataDirectToFirestore=async function(){
- const phone=phoneOf(currentSessionUser?.phone);
- const uid=cloudUid();
- if(!phone||!uid)return;
- const snapshot={
-   historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),
-   pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),
-   kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),
-   backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[])
- };
- try{
-   cloudSaveChain=cloudSaveChain.then(()=>saveCloudData(snapshot)).catch(e=>{ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); });
-   await cloudSaveChain;
- }catch(e){ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); }
+    const phone=phoneOf(currentSessionUser?.phone);
+    const uid=cloudUid();
+
+    if(!phone || !uid) return;
+
+    const snapshot={
+        historyData:safe(
+            localStorage.getItem(`finance_history_desktop_${phone}`),
+            []
+        ),
+
+        pengeluaranData:safe(
+            localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),
+            []
+        ),
+
+        kasbonData:safe(
+            localStorage.getItem(`finance_kasbon_desktop_${phone}`),
+            []
+        ),
+
+        backupOtomatisData:safe(
+            localStorage.getItem(`finance_backup_desktop_${phone}`),
+            []
+        )
+    };
+
+    try{
+        await saveCloudData(snapshot);
+    }catch(e){
+        console.warn(
+            "Rekapinyu: gagal menyimpan seluruh data ke Firestore.",
+            e
+        );
+    }
 };
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
