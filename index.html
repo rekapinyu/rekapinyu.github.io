@@ -1597,6 +1597,43 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
 <style id="patch-mobile-admin-income-chooser">@media(max-width:767px){#mobile-admin-settings-button{appearance:none!important;border:0!important;background:transparent!important;padding:4px!important;margin:0!important;width:34px!important;height:34px!important;display:flex!important;align-items:center!important;justify-content:center!important;color:#aab4c1!important;opacity:.75!important;border-radius:10px!important}#mobile-admin-settings-button i{font-size:20px!important}.mobile-admin-income-chooser{position:fixed!important;z-index:99999!important;width:205px!important;background:#fff!important;border:1px solid #e5eaf0!important;border-radius:14px!important;padding:6px!important;box-shadow:0 14px 35px rgba(15,23,42,.16)!important}.mobile-admin-income-chooser button{width:100%!important;min-height:42px!important;border:0!important;background:#fff!important;color:#334155!important;border-radius:10px!important;display:flex!important;align-items:center!important;gap:10px!important;padding:9px 10px!important;font-size:12px!important;font-weight:700!important;text-align:left!important}.mobile-admin-income-chooser button:active{background:#f1f5f9!important}.mobile-admin-income-chooser button i{width:20px!important;text-align:center!important;color:#64748b!important}}@media(min-width:768px){#mobile-admin-settings-button{display:none!important}}</style>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+
+<script>
+/* Kompres foto produk tanpa membatasi ekstensi file. */
+async function compressKasirProductPhoto(file){
+  if(!file) return '';
+  try{
+    const reader=new FileReader();
+    const dataUrl=await new Promise((resolve,reject)=>{
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=reject;
+      reader.readAsDataURL(file);
+    });
+    const img=new Image();
+    const loaded=await new Promise((resolve,reject)=>{
+      img.onload=resolve;
+      img.onerror=reject;
+      img.src=dataUrl;
+    });
+    const maxSide=1200;
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
+    canvas.height=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    return canvas.toDataURL('image/jpeg',0.82);
+  }catch(e){
+    return await new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result||'');
+      reader.onerror=()=>resolve('');
+      reader.readAsDataURL(file);
+    });
+  }
+}
+</script>
+
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -1702,7 +1739,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 <div id="shop-cover-edit-hint" class="absolute inset-x-0 bottom-0 bg-black/45 text-white text-[9px] text-center py-1 hidden pointer-events-none">Geser foto dengan mouse</div>
                 <button type="button" id="shop-cover-save" class="absolute bottom-1 right-1 hidden px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-bold shadow-lg transition z-10" title="Simpan posisi foto">Simpan</button>
             </div>
-            <input id="shop-cover-input" type="file" accept="image/*" class="hidden">
+            <input id="shop-cover-input" type="file" class="hidden">
         </div>
 
         <!-- User Profile Card Section -->
@@ -2139,7 +2176,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                                 <div class="management-field management-name-field"><label>NAMA PRODUK</label><input id="kasir-product-name" type="text" placeholder="Contoh: Kopi Susu" required></div>
                                 <div class="management-field"><label>HARGA</label><input id="kasir-product-price" type="text" inputmode="numeric" placeholder="0" required></div>
                                 <div class="management-field"><label>HARGA HPP</label><input id="kasir-product-cost" type="text" inputmode="numeric" placeholder="0"></div>
-                                <div class="management-field management-photo-field"><label>FOTO PRODUK</label><div class="management-photo-row"><label for="kasir-product-photo" class="management-photo-input"><i class="fa-solid fa-camera"></i><span id="kasir-photo-label">Pilih foto</span></label><input id="kasir-product-photo" type="file" accept="image/jpeg,image/png" hidden><div id="kasir-photo-preview" class="management-photo-preview"><i class="fa-solid fa-image"></i></div></div></div>
+                                <div class="management-field management-photo-field"><label>FOTO PRODUK</label><div class="management-photo-row"><label for="kasir-product-photo" class="management-photo-input"><i class="fa-solid fa-camera"></i><span id="kasir-photo-label">Pilih foto</span></label><input id="kasir-product-photo" type="file" hidden><div id="kasir-photo-preview" class="management-photo-preview"><i class="fa-solid fa-image"></i></div></div></div>
                                 <button type="submit" class="management-add-btn"><i class="fa-solid fa-plus"></i> Tambah Produk</button>
                             </form>
                         </div>
@@ -2617,7 +2654,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 bodyEl.innerHTML = `
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pilih File Gambar</label>
-                        <input type="file" id="input-new-photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        <input type="file" id="input-new-photo" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                     </div>
                 `;
                 saveBtn.onclick = function() {
@@ -4540,7 +4577,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     <button type="button" id="history-io-import" title="Import Backup Excel" aria-label="Import Backup Excel"><i class="fa-solid fa-file-import"></i></button>
     <button type="button" id="history-io-export" title="Backup Semua History ke Excel" aria-label="Backup Semua History ke Excel"><i class="fa-solid fa-database"></i></button>
 </div>
-<input id="history-io-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+<input id="history-io-file" type="file" hidden>
 
 <script>
 (function(){
