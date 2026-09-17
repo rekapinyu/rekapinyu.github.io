@@ -4643,6 +4643,8 @@ async function saveCloudData(){
    pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
    kasbonData:Array.isArray(kasbonData)?kasbonData:[],
    backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
+   kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
+   kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
  };
  const kasbonPass=localStorage.getItem(`finance_kasbon_pass_${phone}`)||"";
@@ -4687,6 +4689,11 @@ async function hydrate(uid){
  const preservedPengeluaran=syncCloudArrayToCache(phone,"pengeluaran",d.pengeluaranData);
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
+ const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
+ const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
+ nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
+ nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
+ if(!Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);
  if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${phone}`,d.kasbonPass);
  if(typeof d.shopCover==="string"&&d.shopCover)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,d.shopCover);
  loadUserData();
@@ -4695,7 +4702,7 @@ async function hydrate(uid){
  }
  if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto(); if(typeof updateUserAvatarUI==="function")updateUserAvatarUI();
 }
-function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
+function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{window.__initKasirViews?.()}catch{} try{renderMobileAdminSummary?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
 /*
  * Sinkronisasi eksplisit untuk perubahan data.
  * Handler lama tetap bekerja seperti semula melalui localStorage; helper ini
@@ -4713,7 +4720,7 @@ window.__rekapinyuSaveCloudData=()=>{
 // Every original localStorage write is mirrored to Firebase. localStorage remains only a cache/offline layer.
 if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.setItem=function(k,v){const r=nativeSet.call(this,k,v);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){
-   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_kasbon_pass_${p}`,`finance_shop_cover_${p}`];
+   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_kasbon_pass_${p}`,`finance_shop_cover_${p}`,`finance_kasir_products_${p}`,`finance_kasir_transactions_${p}`];
    if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),200)}
  }return r};
  Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),100)}return r};
@@ -5017,7 +5024,7 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${p}`),[]),preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
     if(!existing||!existing.src||String(existing.src).startsWith("http")){
@@ -5025,7 +5032,7 @@ function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub
     }
   }catch{}
 }
-if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
+if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length))saveCloudData().catch(console.warn);if(!Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
 
 // LOGIN HANDOFF DARI LANDING PAGE
 // Landing Page dan aplikasi memakai origin berbeda, jadi localStorage tidak dapat dibagi.
@@ -6042,7 +6049,7 @@ onAuthStateChanged(auth,async u=>{
     if(!grid)return;
     if(count)count.textContent=kasirProducts.length+' produk';
     if(!kasirProducts.length){grid.innerHTML='<div class="management-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Tambahkan produk dan harga di atas.</span></div>';return}
-    grid.innerHTML=kasirProducts.map(p=>`<div class="management-product-card">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="management-product-thumb"><i class="fa-solid fa-image"></i></div>'}<div class="management-product-data"><strong>${esc(p.name)}</strong><span>${rupiah(p.price)}</span></div><div class="management-product-actions"><button type="button" class="mk-product-edit-toggle" data-edit-product="${p.id}" title="Edit" aria-label="Edit produk"><span><i class="fa-solid fa-pen"></i></span></button><button type="button" class="mk-product-delete-toggle" data-delete-product="${p.id}" title="Hapus" aria-label="Hapus produk"><span></span></button></div></div>`).join('');
+    grid.innerHTML=kasirProducts.map(p=>`<div class="management-product-card">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="management-product-thumb"><i class="fa-solid fa-image"></i></div>'}<div class="management-product-data"><strong>${esc(p.name)}</strong><span class="mk-product-cost">Harga Grosir/HPP: ${rupiah(p.cost)}</span><span class="mk-product-sale">Harga Jual: ${rupiah(p.price)}</span></div><div class="management-product-actions"><button type="button" class="mk-product-edit-toggle" data-edit-product="${p.id}" title="Edit" aria-label="Edit produk"><i class="fa-solid fa-pen"></i></button><button type="button" class="mk-product-delete-toggle" data-delete-product="${p.id}" title="Hapus" aria-label="Hapus produk"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('');
   }
 
   function renderKasirProducts(){
@@ -6124,7 +6131,7 @@ onAuthStateChanged(auth,async u=>{
             const text=String(t.date||'');
             const tm=text.match(/(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?)/);
             const time=tm?tm[1]:'';
-            return `<div class="mk-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong><button type="button" class="mk-transaction-delete-toggle" data-delete-transaction="${t.id}" title="Hapus transaksi" aria-label="Hapus transaksi"><span></span></button></div>`;
+            return `<div class="mk-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong><button type="button" class="mk-transaction-delete-toggle" data-delete-transaction="${t.id}" title="Hapus transaksi" aria-label="Hapus transaksi"><i class="fa-solid fa-trash-can"></i></button></div>`;
           }).join('')}
         </div>
       </div>`;
@@ -6143,7 +6150,7 @@ onAuthStateChanged(auth,async u=>{
     const add=e.target.closest('[data-add-product]');if(add){const id=Number(add.dataset.addProduct),p=kasirProducts.find(x=>x.id===id);if(p){const x=kasirCart.find(x=>x.id===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
     const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
     const dec=e.target.closest('[data-cart-dec]');if(dec){const i=kasirCart.findIndex(x=>x.id===Number(dec.dataset.cartDec));if(i>-1){kasirCart[i].qty--;if(kasirCart[i].qty<=0)kasirCart.splice(i,1)}renderCart();return}
-    const edit=e.target.closest('[data-edit-product]');if(edit){const id=Number(edit.dataset.editProduct);const p=kasirProducts.find(x=>Number(x.id)===id);if(p){const name=prompt('Nama produk:',p.name);if(name===null)return;const priceText=prompt('Harga produk:',String(p.price));if(priceText===null)return;const price=Number(String(priceText).replace(/[^0-9]/g,''))||0;if(!name.trim()||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}p.name=name.trim();p.price=price;saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();}return}
+    const edit=e.target.closest('[data-edit-product]');if(edit){const id=Number(edit.dataset.editProduct);const p=kasirProducts.find(x=>Number(x.id)===id);if(p){const name=prompt('Nama produk:',p.name);if(name===null)return;const costText=prompt('Harga Grosir/HPP:',String(p.cost||0));if(costText===null)return;const priceText=prompt('Harga Jual:',String(p.price));if(priceText===null)return;const cost=Number(String(costText).replace(/[^0-9]/g,''))||0;const price=Number(String(priceText).replace(/[^0-9]/g,''))||0;if(!name.trim()||!price){showModal('Gagal','Nama produk dan harga jual wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}p.name=name.trim();p.cost=cost;p.price=price;saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();}return}
     const del=e.target.closest('[data-delete-product]');if(del){const id=Number(del.dataset.deleteProduct);kasirProducts=kasirProducts.filter(x=>Number(x.id)!==id);kasirCart=kasirCart.filter(x=>Number(x.id)!==id);saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();return}
     const delTransaction=e.target.closest('[data-delete-transaction]');if(delTransaction){const id=Number(delTransaction.dataset.deleteTransaction);kasirTransactions=kasirTransactions.filter(x=>Number(x.id)!==id);saveKasirStore();renderTransactions();return}
     const cat=e.target.closest('.kasir-category');if(cat){kasirCategory=cat.dataset.category;document.querySelectorAll('.kasir-category').forEach(x=>x.classList.toggle('active',x===cat));renderKasirProducts()}
@@ -6539,6 +6546,69 @@ onAuthStateChanged(auth,async u=>{
     }
   }
 </style>
+
+
+<!-- PATCH FINAL FOKUS: Management Kasir - icon hapus/edit, grid 2 kolom, sinkron realtime desktop/mobile. -->
+<style id="patch-management-kasir-final-realtime">
+#view-management-kasir .management-product-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:12px!important;
+  align-items:stretch!important;
+}
+#view-management-kasir .management-product-grid .management-empty{grid-column:1 / -1!important}
+#view-management-kasir .management-product-card{
+  width:100%!important;height:124px!important;min-height:124px!important;
+  min-width:0!important;box-sizing:border-box!important;
+  grid-template-columns:64px minmax(0,1fr) auto!important;
+}
+#view-management-kasir .management-product-data{min-width:0!important;overflow:hidden!important;gap:4px!important}
+#view-management-kasir .management-product-data strong{font-size:13px!important;color:#334155!important}
+#view-management-kasir .management-product-data .mk-product-cost{
+  display:block!important;color:#64748b!important;font-size:10px!important;line-height:1.3!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important
+}
+#view-management-kasir .management-product-data .mk-product-sale{
+  display:block!important;color:#16a34a!important;font-size:11px!important;line-height:1.3!important;
+  font-weight:800!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important
+}
+#view-management-kasir .mk-product-edit-toggle,
+#view-management-kasir .mk-product-delete-toggle,
+#view-management-kasir .mk-transaction-delete-toggle{
+  appearance:none!important;-webkit-appearance:none!important;border:0!important;outline:0!important;
+  border-radius:10px!important;width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;
+  padding:0!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  cursor:pointer!important;box-shadow:none!important
+}
+#view-management-kasir .mk-product-edit-toggle{background:#eff6ff!important;color:#2563eb!important}
+#view-management-kasir .mk-product-delete-toggle,
+#view-management-kasir .mk-transaction-delete-toggle{background:#fef2f2!important;color:#ef4444!important}
+#view-management-kasir .mk-product-edit-toggle i,
+#view-management-kasir .mk-product-delete-toggle i,
+#view-management-kasir .mk-transaction-delete-toggle i{display:block!important;font-size:13px!important;line-height:1!important}
+#view-management-kasir .mk-daily-row{padding-right:0!important}
+#view-management-kasir .mk-daily-row .mk-transaction-delete-toggle{margin-left:auto!important}
+@media(max-width:767px){
+  #view-management-kasir .management-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+  #view-management-kasir .management-product-card{
+    height:112px!important;min-height:112px!important;
+    grid-template-columns:48px minmax(0,1fr) auto!important;gap:7px!important;padding:9px!important
+  }
+  #view-management-kasir .management-product-card>img,
+  #view-management-kasir .management-product-thumb{width:48px!important;height:48px!important;min-width:48px!important;border-radius:9px!important}
+  #view-management-kasir .management-product-data strong{font-size:11px!important}
+  #view-management-kasir .management-product-data .mk-product-cost{font-size:8px!important}
+  #view-management-kasir .management-product-data .mk-product-sale{font-size:9px!important}
+  #view-management-kasir .management-product-actions{flex-direction:column!important;gap:4px!important}
+  #view-management-kasir .mk-product-edit-toggle,
+  #view-management-kasir .mk-product-delete-toggle{width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;border-radius:8px!important}
+  #view-management-kasir .mk-product-edit-toggle i,
+  #view-management-kasir .mk-product-delete-toggle i{font-size:11px!important}
+  #view-management-kasir .mk-transaction-delete-toggle{width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important}
+}
+</style>
+
+
 
 </body>
 </html>
