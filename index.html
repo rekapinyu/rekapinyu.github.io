@@ -3611,7 +3611,10 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             historyData = historyData.filter(d => d.id !== id);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                markDataPending('history',historyData);
                 triggerDailyAutoBackup();
+                markDataPending('backup',backupOtomatisData);
+                requestDataCloudSync();
             }
             populateHistoryFilters();
             renderHistory();
@@ -3621,7 +3624,10 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                markDataPending('history',historyData);
                 triggerDailyAutoBackup();
+                markDataPending('backup',backupOtomatisData);
+                requestDataCloudSync();
             }
             renderHistory();
         }
@@ -3650,11 +3656,14 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             pengeluaranData.unshift(newItem);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
+                markDataPending('pengeluaran',[newItem]);
+                requestDataCloudSync();
             }
 
             document.getElementById('pengeluaran-form').reset();
             populatePengeluaranFilters();
             renderPengeluaranGrid();
+            if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Berhasil", "Data pengeluaran berhasil disimpan.");
         });
 
@@ -3701,10 +3710,13 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                markDataPending('kasbon',kasbonData);
+                requestDataCloudSync();
             }
 
             document.getElementById('kasbon-form').reset();
             renderKasbonGrid();
+            if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Berhasil", "Data kasbon berhasil disimpan.");
         });
 
@@ -3978,13 +3990,23 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                markDataPending('history',[newEntry]);
                 triggerDailyAutoBackup(newEntry.id);
+                markDataPending('backup',backupOtomatisData);
+                requestDataCloudSync();
             }
 
             document.getElementById('finance-form').reset();
             document.getElementById('profit-percentage').value = "10";
             profitDisplay.innerText = "Rp 0";
 
+            // PATCH FOKUS: setelah input tersimpan, semua tampilan turunan langsung diperbarui.
+            populateHistoryFilters();
+            renderHistory();
+            populateReportFilters();
+            renderReport();
+            populateBackupFilters();
+            renderBackupGrid();
             if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
@@ -4624,6 +4646,49 @@ function openDashboardAfterLogin(){
  if(typeof window.switchTab==="function")window.switchTab(tab);
 }
 
+/* PATCH FOKUS DATA PERSISTEN: lindungi input terbaru dari snapshot Firestore yang masih lama/kosong. */
+function dataPendingKey(phone,key){return `finance_pending_${key}_${phone}`;}
+function markDataPending(key,items){
+ try{
+  const phone=phoneOf(currentSessionUser?.phone); if(!phone)return;
+  const arr=Array.isArray(items)?items:[];
+  const ids=arr.map(x=>String(x?.id)).filter(Boolean);
+  if(!ids.length)return;
+  nativeSet.call(localStorage,dataPendingKey(phone,key),JSON.stringify(ids));
+ }catch(e){}
+}
+function clearDataPending(key,items){
+ try{
+  const phone=phoneOf(currentSessionUser?.phone); if(!phone)return;
+  const pending=safe(localStorage.getItem(dataPendingKey(phone,key)),[]);
+  if(!Array.isArray(pending)||!pending.length)return;
+  const ids=new Set((Array.isArray(items)?items:[]).map(x=>String(x?.id)));
+  const left=pending.filter(id=>!ids.has(String(id)));
+  if(left.length)nativeSet.call(localStorage,dataPendingKey(phone,key),JSON.stringify(left));
+  else nativeRemove.call(localStorage,dataPendingKey(phone,key));
+ }catch(e){}
+}
+function mergePendingData(phone,key,cloudValue){
+ const local=safe(localStorage.getItem(`finance_${key}_desktop_${phone}`),[]);
+ const cloud=Array.isArray(cloudValue)?cloudValue:null;
+ if(!cloud)return {data:Array.isArray(local)?local:[],pending:false};
+ const pending=safe(localStorage.getItem(dataPendingKey(phone,key)),[]);
+ const pendingIds=new Set(Array.isArray(pending)?pending.map(String):[]);
+ const missing=[...pendingIds].some(id=>!cloud.some(x=>String(x?.id)===id));
+ if(!missing)return {data:cloud,pending:false};
+ const byId=new Map(cloud.map(x=>[String(x?.id),x]));
+ (Array.isArray(local)?local:[]).forEach(x=>{if(pendingIds.has(String(x?.id)))byId.set(String(x?.id),x);});
+ return {data:Array.from(byId.values()),pending:true};
+}
+function persistAllDataLocally(){
+ const phone=phoneOf(currentSessionUser?.phone); if(!phone)return;
+ nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(Array.isArray(historyData)?historyData:[]));
+ nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(Array.isArray(pengeluaranData)?pengeluaranData:[]));
+ nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(Array.isArray(kasbonData)?kasbonData:[]));
+ nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(Array.isArray(backupOtomatisData)?backupOtomatisData:[]));
+}
+function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e){}}
+
 async function saveCloudData(){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";
@@ -4669,13 +4734,14 @@ function localSession(u){
 }
 function syncCloudArrayToCache(phone,key,cloudValue){
  const localKey=`finance_${key}_desktop_${phone}`;
- /*
-  * Jika Firestore memiliki array, array tersebut selalu menjadi sumber
-  * kebenaran. Termasuk array kosong: ini penting agar data yang sudah
-  * dihapus tidak hidup kembali dari cache browser/perangkat lama.
-  */
+ const result=mergePendingData(phone,key,cloudValue);
+ if(result.pending){
+  nativeSet.call(localStorage,localKey,JSON.stringify(result.data));
+  return result.data;
+ }
  if(Array.isArray(cloudValue)){
   nativeSet.call(localStorage,localKey,JSON.stringify(cloudValue));
+  clearDataPending(key,cloudValue);
   return cloudValue;
  }
  const localValue=safe(localStorage.getItem(localKey),[]);
@@ -4689,25 +4755,15 @@ async function hydrate(uid){
  const preservedPengeluaran=syncCloudArrayToCache(phone,"pengeluaran",d.pengeluaranData);
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
- const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
- const cloudKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:null;
- let preservedKasirProducts=cloudKasirProducts||localKasirProducts;
- let kasirProductPending=false;
- try{
-   const pending=JSON.parse(localStorage.getItem(`finance_kasir_pending_products_${phone}`)||'[]');
-   kasirProductPending=Array.isArray(pending)&&pending.some(id=>!((cloudKasirProducts||[]).some(x=>Number(x.id)===Number(id))));
-   if(kasirProductPending){
-     const byId=new Map((cloudKasirProducts||[]).map(x=>[String(x.id),x]));
-     localKasirProducts.forEach(x=>byId.set(String(x.id),x));
-     preservedKasirProducts=Array.from(byId.values());
-   }
- }catch(e){}
- if(kasirProductPending)saveCloudData().catch(console.warn);
- else if(Array.isArray(cloudKasirProducts))clearKasirProductPending(preservedKasirProducts);
- nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
+ const pendingHistory=mergePendingData(phone,"history",d.historyData).pending;
+ const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
+ const pendingKasbon=mergePendingData(phone,"kasbon",d.kasbonData).pending;
+ const pendingBackup=mergePendingData(phone,"backup",d.backupOtomatisData).pending;
+ const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
  const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
+ nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
- if(!Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);
+ if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || !Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);
  if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${phone}`,d.kasbonPass);
  if(typeof d.shopCover==="string"&&d.shopCover)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,d.shopCover);
  loadUserData();
@@ -5038,24 +5094,23 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
 const cloudKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:null;
 let preservedKasirProducts=cloudKasirProducts||localKasirProducts;
 let kasirProductPending=false;
 try{
-  const pending=JSON.parse(localStorage.getItem(`finance_kasir_pending_products_${p}`)||'[]');
+  const pending=JSON.parse(sessionStorage.getItem(`finance_kasir_pending_products_${p}`)||'[]');
   kasirProductPending=Array.isArray(pending)&&pending.some(id=>!((cloudKasirProducts||[]).some(x=>Number(x.id)===Number(id))));
-  if(kasirProductPending){
-    const byId=new Map((cloudKasirProducts||[]).map(x=>[String(x.id),x]));
-    localKasirProducts.forEach(x=>byId.set(String(x.id),x));
-    preservedKasirProducts=Array.from(byId.values());
-    window.__rekapinyuSaveCloudData?.();
-  }
 }catch(e){}
-if(!kasirProductPending && cloudKasirProducts){
+if(kasirProductPending){
+  const byId=new Map((cloudKasirProducts||[]).map(x=>[String(x.id),x]));
+  localKasirProducts.forEach(x=>byId.set(String(x.id),x));
+  preservedKasirProducts=Array.from(byId.values());
+  window.__rekapinyuSaveCloudData?.();
+}else if(cloudKasirProducts){
   preservedKasirProducts=cloudKasirProducts;
-  clearKasirProductPending(preservedKasirProducts);
 }
+clearKasirProductPending(preservedKasirProducts);
 const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);
 nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
@@ -5065,32 +5120,23 @@ nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preserv
     }
   }catch{}
 }
-if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length))saveCloudData().catch(console.warn);if(!Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
+if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || ((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length)))saveCloudData().catch(console.warn);if(!Array.isArray(d.kasirProducts)||!Array.isArray(d.kasirTransactions))saveCloudData().catch(console.warn);redraw()},console.warn);userUnsub=onSnapshot(uref(u.uid),s=>{if(!s.exists()||!currentSessionUser)return;const d=s.data();currentSessionUser.name=d.name||currentSessionUser.name;currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||"";}catch{return""}})();currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()});}
 
-// PATCH FOKUS PRODUK: cache pending disimpan di localStorage agar tetap hidup setelah reload
-// dan snapshot Firestore yang kosong/lebih lama tidak menghapus produk baru.
+// PATCH FOKUS DATA: saat aplikasi kembali aktif, kirim lagi input lokal yang belum terkonfirmasi cloud.
 (function(){
-  function protectKasirProducts(){
+  function resyncPendingData(){
     try{
-      const user=window.currentSessionUser || (typeof currentSessionUser!=='undefined' ? currentSessionUser : null);
-      const phone=phoneOf(user?.phone);
-      if(!phone)return;
-      const key=`finance_kasir_pending_products_${phone}`;
-      const pending=JSON.parse(localStorage.getItem(key)||'[]');
-      if(!Array.isArray(pending)||!pending.length)return;
-      const local=safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
-      if(!Array.isArray(local)||!local.length)return;
-      const ids=new Set(local.map(x=>Number(x.id)));
-      const valid=pending.filter(id=>ids.has(Number(id)));
-      if(valid.length!==pending.length){
-        if(valid.length)localStorage.setItem(key,JSON.stringify(valid));
-        else localStorage.removeItem(key);
-      }
-      if(valid.length)window.__rekapinyuSaveCloudData?.();
+      const phone=phoneOf(currentSessionUser?.phone); if(!phone)return;
+      ['history','pengeluaran','kasbon','backup'].forEach(key=>{
+        const pending=safe(localStorage.getItem(dataPendingKey(phone,key)),[]);
+        if(Array.isArray(pending)&&pending.length)requestDataCloudSync();
+      });
+      if(typeof redraw==='function')redraw();
     }catch(e){}
   }
-  window.addEventListener('pageshow',protectKasirProducts);
-  window.addEventListener('focus',protectKasirProducts);
+  window.addEventListener('focus',resyncPendingData);
+  window.addEventListener('pageshow',resyncPendingData);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resyncPendingData();});
 })();
 
 // LOGIN HANDOFF DARI LANDING PAGE
@@ -5177,7 +5223,7 @@ onAuthStateChanged(auth,async u=>{
   }
   function persistBackupData() {
     const key = backupStorageKey();
-    if (key) localStorage.setItem(key, JSON.stringify(backupOtomatisData));
+    if (key) { localStorage.setItem(key, JSON.stringify(backupOtomatisData)); markDataPending('backup',backupOtomatisData); requestDataCloudSync(); }
   }
   function closeBackupSettings() {
     document.querySelectorAll('.backup-settings-popup').forEach(m => m.classList.add('hidden'));
@@ -6095,19 +6141,19 @@ onAuthStateChanged(auth,async u=>{
   function markKasirProductPending(id){
     try{
       const key=kasirUserKey('pending_products');
-      const list=JSON.parse(localStorage.getItem(key)||'[]');
+      const list=JSON.parse(sessionStorage.getItem(key)||'[]');
       if(!list.includes(Number(id)))list.push(Number(id));
-      localStorage.setItem(key,JSON.stringify(list));
+      sessionStorage.setItem(key,JSON.stringify(list));
     }catch(e){}
   }
   function clearKasirProductPending(ids){
     try{
       const key=kasirUserKey('pending_products');
-      const pending=JSON.parse(localStorage.getItem(key)||'[]');
+      const pending=JSON.parse(sessionStorage.getItem(key)||'[]');
       const cloudIds=new Set((Array.isArray(ids)?ids:[]).map(x=>Number(x.id)));
       const remaining=pending.filter(id=>!cloudIds.has(Number(id)));
-      if(remaining.length)localStorage.setItem(key,JSON.stringify(remaining));
-      else localStorage.removeItem(key);
+      if(remaining.length)sessionStorage.setItem(key,JSON.stringify(remaining));
+      else sessionStorage.removeItem(key);
     }catch(e){}
   }
   function loadKasirStore(){
