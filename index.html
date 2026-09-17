@@ -5025,20 +5025,7 @@ document.addEventListener("click",function(e){
 let dataUnsub=null,userUnsub=null;
 function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
 const cloudKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:null;
-let preservedKasirProducts=cloudKasirProducts||localKasirProducts;
-let kasirProductPending=false;
-try{
-  const pending=JSON.parse(localStorage.getItem(`finance_kasir_pending_products_${p}`)||'[]');
-  kasirProductPending=Array.isArray(pending)&&pending.some(id=>!((cloudKasirProducts||[]).some(x=>Number(x.id)===Number(id))));
-}catch(e){}
-if(kasirProductPending){
-  const byId=new Map((cloudKasirProducts||[]).map(x=>[String(x.id),x]));
-  localKasirProducts.forEach(x=>byId.set(String(x.id),x));
-  preservedKasirProducts=Array.from(byId.values());
-  window.__rekapinyuSaveCloudData?.();
-}else if(cloudKasirProducts){
-  preservedKasirProducts=cloudKasirProducts;
-}
+const preservedKasirProducts=cloudKasirProducts||localKasirProducts;
 const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);
 nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
@@ -6032,7 +6019,7 @@ onAuthStateChanged(auth,async u=>{
 
 
 
-<script id="kasir-management-final-js">
+<script id="kasir-final-js">
 (function(){
   let kasirProducts=[];
   let kasirCart=[];
@@ -6085,7 +6072,7 @@ onAuthStateChanged(auth,async u=>{
 
     if(!list)return;
     if(!kasirTransactions.length){
-      list.innerHTML='<div class="management-empty" style="min-height:90px"><span>Belum ada transaksi kasir.</span></div>';
+      list.innerHTML='<div class="kasir-empty" style="min-height:90px"><span>Belum ada transaksi kasir.</span></div>';
       return;
     }
 
@@ -6117,31 +6104,31 @@ onAuthStateChanged(auth,async u=>{
     });
 
     const ordered=Object.values(groups).sort((a,b)=>b.date-a.date);
-    list.innerHTML=`<div class="mk-daily-grid">${ordered.map(g=>{
+    list.innerHTML=`<div class="kasir-daily-grid">${ordered.map(g=>{
       g.items.sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));
       const dayTotal=g.items.reduce((sum,t)=>sum+(Number(t.total)||0),0);
       const dayItems=g.items.reduce((sum,t)=>sum+(Number(t.items)||0),0);
-      return `<div class="mk-daily-card">
-        <div class="mk-daily-head">
+      return `<div class="kasir-daily-card">
+        <div class="kasir-daily-head">
           <div>
             <strong>${days[g.date.getDay()]}, ${g.date.getDate()} ${months[g.date.getMonth()]} ${g.date.getFullYear()}</strong>
             <span>${g.items.length} transaksi • ${dayItems} item</span>
           </div>
           <b>${rupiah(dayTotal)}</b>
         </div>
-        <div class="mk-daily-rows">
+        <div class="kasir-daily-rows">
           ${g.items.map(t=>{
             const text=String(t.date||'');
             const tm=text.match(/(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?)/);
             const time=tm?tm[1]:'';
-            return `<div class="mk-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong><button type="button" class="mk-transaction-delete-toggle" data-delete-transaction="${t.id}" title="Hapus transaksi" aria-label="Hapus transaksi"><i class="fa-solid fa-trash-can"></i></button></div>`;
+            return `<div class="kasir-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong><button type="button" class="kasir-transaction-delete-toggle" data-delete-transaction="${t.id}" title="Hapus transaksi" aria-label="Hapus transaksi"><i class="fa-solid fa-trash-can"></i></button></div>`;
           }).join('')}
         </div>
       </div>`;
     }).join('')}</div>`;
   }
 
-  function initKasirManagement(){
+  function initKasirViews(){
     loadKasirStore();  renderKasirProducts(); renderCart(); renderTransactions();
   }
 
@@ -6166,16 +6153,5 @@ onAuthStateChanged(auth,async u=>{
 
 
 
-<style id="patch-kasir-product-edit-modal">
-.kasir-product-edit-modal{position:fixed!important;inset:0!important;z-index:99999!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;background:rgba(15,23,42,.48)!important}
-.kasir-product-edit-dialog{width:min(460px,100%)!important;max-height:90vh!important;overflow:auto!important;background:#fff!important;border-radius:18px!important;box-shadow:0 25px 70px rgba(15,23,42,.24)!important}
-.kasir-product-edit-head{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:18px 20px 14px!important;border-bottom:1px solid #e5e7eb!important}
-.kasir-product-edit-head h3{margin:0!important;font-size:17px!important;font-weight:800!important}.kasir-product-edit-head span{font-size:11px!important;color:#94a3b8!important}
-.kasir-product-edit-close{width:34px!important;height:34px!important;border:0!important;border-radius:9px!important;background:#f1f5f9!important;color:#64748b!important;cursor:pointer!important}
-.kasir-product-edit-body{padding:18px 20px 8px!important;display:grid!important;gap:13px!important}.kasir-edit-field>span{display:block!important;margin-bottom:6px!important;font-size:10px!important;font-weight:800!important;color:#64748b!important}.kasir-edit-field>input{width:100%!important;height:42px!important;box-sizing:border-box!important;border:1px solid #e2e8f0!important;border-radius:10px!important;background:#f8fafc!important;padding:0 12px!important;outline:0!important}
-.kasir-edit-photo-row{display:flex!important;align-items:center!important;gap:10px!important}.kasir-edit-photo-btn{height:42px!important;flex:1!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;border:1px dashed #cbd5e1!important;border-radius:10px!important;background:#f8fafc!important;color:#2563eb!important;font-size:11px!important;font-weight:700!important;cursor:pointer!important}.kasir-edit-photo-preview{width:58px!important;height:58px!important;min-width:58px!important;border-radius:10px!important;overflow:hidden!important;background:#f1f5f9!important;display:flex!important;align-items:center!important;justify-content:center!important;color:#94a3b8!important}.kasir-edit-photo-preview img{width:100%!important;height:100%!important;object-fit:cover!important}
-.kasir-product-edit-footer{display:flex!important;justify-content:flex-end!important;gap:9px!important;padding:14px 20px 20px!important}.kasir-product-edit-footer button{height:40px!important;padding:0 16px!important;border:0!important;border-radius:10px!important;font-size:12px!important;font-weight:800!important;cursor:pointer!important}.kasir-edit-cancel{background:#f1f5f9!important;color:#64748b!important}.kasir-edit-save{background:#2563eb!important;color:#fff!important}
-@media(max-width:767px){.kasir-product-edit-modal{padding:12px!important}.kasir-product-edit-dialog{width:100%!important}.kasir-product-edit-footer button{flex:1!important}}
-</style>
 </body>
 </html>
