@@ -3993,10 +3993,20 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
+                // Simpan seluruh data History sebagai perubahan pending agar
+                // snapshot Firebase yang datang bersamaan tidak dapat menimpa
+                // data lokal yang baru saja ditambahkan.
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-                window.__markDataPending?.('history',[newEntry]);
+                window.__markDataPending?.('history',historyData);
+
+                // Buat backup dari History terbaru, lalu tandai seluruh daftar
+                // backup sebagai pending sebelum sinkronisasi ke Firebase.
                 triggerDailyAutoBackup(newEntry.id);
+                localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
                 window.__markDataPending?.('backup',backupOtomatisData);
+
+                // Kirim History + Laporan (turunan History) + Backup terbaru
+                // ke Firestore melalui satu antrean sinkronisasi.
                 window.__requestDataCloudSync?.();
             }
 
