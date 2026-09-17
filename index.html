@@ -4707,8 +4707,17 @@ function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e
 window.__markDataPending=(key,items)=>markDataPending(key,items);
 window.__requestDataCloudSync=()=>window.__rekapinyuSaveCloudData?.();
 
-async function saveCloudData(){
+async function saveCloudData(snapshot=null){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
+ // Ambil snapshot data tepat saat sinkronisasi diminta. Ini mencegah
+ // callback realtime Firebase yang datang bersamaan mengganti array global
+ // sebelum data terbaru sempat ditulis ke Firestore.
+ const source=snapshot||{
+   historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),
+   pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),
+   kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),
+   backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[])
+ };
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";
  if(shop.length>MAX)shop="";
  /*
@@ -4722,10 +4731,10 @@ async function saveCloudData(){
  const payload={
    namaPengguna:currentSessionUser?.name||"",
    nomorHp:currentSessionUser?.phone||"",
-   historyData:Array.isArray(historyData)?historyData:[],
-   pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
-   kasbonData:Array.isArray(kasbonData)?kasbonData:[],
-   backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
+   historyData:Array.isArray(source.historyData)?source.historyData:[],
+   pengeluaranData:Array.isArray(source.pengeluaranData)?source.pengeluaranData:[],
+   kasbonData:Array.isArray(source.kasbonData)?source.kasbonData:[],
+   backupOtomatisData:Array.isArray(source.backupOtomatisData)?source.backupOtomatisData:[],
    kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
    kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
@@ -4799,14 +4808,26 @@ function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();rend
  */
 let cloudSaveChain=Promise.resolve();
 window.__rekapinyuSaveCloudData=()=>{
+ const phone=phoneOf(currentSessionUser?.phone);
+ // Snapshot dibuat SEKARANG, bukan saat antrean nanti dieksekusi.
+ // Dengan begitu reload/realtime snapshot lama tidak dapat mengubah isi
+ // yang sedang menunggu untuk disimpan ke Firestore.
+ const snapshot=phone?{
+   historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),
+   pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),
+   kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),
+   backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[])
+ }:null;
  cloudSaveChain=cloudSaveChain.then(async()=>{
-   await saveCloudData();
-   const phone=phoneOf(currentSessionUser?.phone);
-   if(phone){
-     clearDataPending('history',safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]));
-     clearDataPending('pengeluaran',safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]));
-     clearDataPending('kasbon',safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]));
-     clearDataPending('backup',safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]));
+   await saveCloudData(snapshot);
+   const currentPhone=phoneOf(currentSessionUser?.phone);
+   if(currentPhone){
+     // Hanya konfirmasi pending yang masih cocok dengan data yang sudah
+     // tersimpan; perubahan baru setelah snapshot tetap dibiarkan pending.
+     clearDataPending('history',safe(localStorage.getItem(`finance_history_desktop_${currentPhone}`),[]));
+     clearDataPending('pengeluaran',safe(localStorage.getItem(`finance_pengeluaran_desktop_${currentPhone}`),[]));
+     clearDataPending('kasbon',safe(localStorage.getItem(`finance_kasbon_desktop_${currentPhone}`),[]));
+     clearDataPending('backup',safe(localStorage.getItem(`finance_backup_desktop_${currentPhone}`),[]));
    }
  }).catch(err=>{
    console.warn("Rekapinyu: sinkronisasi Firestore gagal, cache lokal tetap dipertahankan.",err);
