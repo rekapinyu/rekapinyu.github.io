@@ -4752,41 +4752,19 @@ async function saveCloudData(snapshot=null){
  await setDoc(dref(uid),payload,{merge:true});
 }
 window.__saveAllFinanceDataDirectToFirestore=async function(){
-    const phone=phoneOf(currentSessionUser?.phone);
-    const uid=cloudUid();
-
-    if(!phone || !uid) return;
-
-    const snapshot={
-        historyData:safe(
-            localStorage.getItem(`finance_history_desktop_${phone}`),
-            []
-        ),
-
-        pengeluaranData:safe(
-            localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),
-            []
-        ),
-
-        kasbonData:safe(
-            localStorage.getItem(`finance_kasbon_desktop_${phone}`),
-            []
-        ),
-
-        backupOtomatisData:safe(
-            localStorage.getItem(`finance_backup_desktop_${phone}`),
-            []
-        )
-    };
-
-    try{
-        await saveCloudData(snapshot);
-    }catch(e){
-        console.warn(
-            "Rekapinyu: gagal menyimpan seluruh data ke Firestore.",
-            e
-        );
-    }
+ const phone=phoneOf(currentSessionUser?.phone);
+ const uid=cloudUid();
+ if(!phone||!uid)return;
+ const snapshot={
+   historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),
+   pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),
+   kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),
+   backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[])
+ };
+ try{
+   cloudSaveChain=cloudSaveChain.then(()=>saveCloudData(snapshot)).catch(e=>{ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); });
+   await cloudSaveChain;
+ }catch(e){ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); }
 };
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
@@ -6275,6 +6253,7 @@ onAuthStateChanged(auth,async u=>{
   function saveKasirStore(){
     localStorage.setItem(kasirUserKey('products'),JSON.stringify(kasirProducts));
     localStorage.setItem(kasirUserKey('transactions'),JSON.stringify(kasirTransactions));
+    try{window.__saveAllFinanceDataDirectToFirestore?.();}catch(e){console.warn('Rekapinyu: sinkronisasi data kasir gagal.',e)}
   }
   function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
