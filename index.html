@@ -2443,6 +2443,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             });
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
+            window.__saveAllFinanceDataDirectToFirestore?.();
         }
 
         let isSidebarMinimized = false;
@@ -3365,6 +3366,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                window.__saveAllFinanceDataDirectToFirestore?.();
             }
 
             showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
@@ -3658,6 +3660,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             pengeluaranData.unshift(newItem);
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_pengeluaran_desktop_${currentSessionUser.phone}`, JSON.stringify(pengeluaranData));
+                window.__saveAllFinanceDataDirectToFirestore?.();
                 window.__markDataPending?.('pengeluaran',[newItem]);
                 window.__requestDataCloudSync?.();
             }
@@ -3713,6 +3716,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                window.__saveAllFinanceDataDirectToFirestore?.();
                 window.__markDataPending?.('kasbon',kasbonData);
                 window.__requestDataCloudSync?.();
             }
@@ -3730,6 +3734,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 item.isLunas = !item.isLunas;
                 if (currentSessionUser && currentSessionUser.phone) {
                     localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                    window.__saveAllFinanceDataDirectToFirestore?.();
                 }
                 renderKasbonGrid();
             }
@@ -3759,6 +3764,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 item.namaPelanggan = newName;
                 if (currentSessionUser && currentSessionUser.phone) {
                     localStorage.setItem(`finance_kasbon_desktop_${currentSessionUser.phone}`, JSON.stringify(kasbonData));
+                    window.__saveAllFinanceDataDirectToFirestore?.();
                 }
                 closeEditModal();
                 renderKasbonGrid();
@@ -4008,6 +4014,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 // Kirim History + Laporan (turunan History) + Backup terbaru
                 // ke Firestore melalui satu antrean sinkronisasi.
                 window.__requestDataCloudSync?.();
+                window.__saveAllFinanceDataDirectToFirestore?.();
             }
 
             document.getElementById('finance-form').reset();
@@ -4744,6 +4751,21 @@ async function saveCloudData(snapshot=null){
  if(shop)payload.shopCover=shop;
  await setDoc(dref(uid),payload,{merge:true});
 }
+window.__saveAllFinanceDataDirectToFirestore=async function(){
+ const phone=phoneOf(currentSessionUser?.phone);
+ const uid=cloudUid();
+ if(!phone||!uid)return;
+ const snapshot={
+   historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),
+   pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),
+   kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),
+   backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[])
+ };
+ try{
+   cloudSaveChain=cloudSaveChain.then(()=>saveCloudData(snapshot)).catch(e=>{ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); });
+   await cloudSaveChain;
+ }catch(e){ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); }
+};
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
  const old=(await getDoc(uref(u.uid))).data()||{};
@@ -5714,6 +5736,7 @@ onAuthStateChanged(auth,async u=>{
             historyData = [...imported, ...(Array.isArray(historyData) ? historyData : [])];
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
+                window.__saveAllFinanceDataDirectToFirestore?.();
                 if (typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
             }
             populateHistoryFilters();
