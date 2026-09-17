@@ -4744,76 +4744,69 @@ function getKasirLocalPhoto(productId){
   try{return localStorage.getItem(kasirLocalPhotoKey(productId))||"";}catch(e){return "";}
 }
 async function saveKasirLocalPhoto(productId,dataUrl){
-  if(!dataUrl)return;
-  // Foto hanya untuk localStorage. Data produk/metadata tetap masuk Firestore.
-  // Foto selalu dikompres otomatis agar tidak mudah terkena batas quota localStorage.
+  if(!dataUrl) return;
   const key=kasirLocalPhotoKey(productId);
-  let value=String(dataUrl);
-  try{
-    value=await new Promise((resolve,reject)=>{
-      const img=new Image();
-      const canvas=document.createElement('canvas');
-      const ctx=canvas.getContext('2d');
-      img.onload=()=>{
-        try{
-          const maxSide=1200;
-          const w=img.naturalWidth||img.width||1;
-          const h=img.naturalHeight||img.height||1;
-          const scale=Math.min(1,maxSide/Math.max(w,h));
-          canvas.width=Math.max(1,Math.round(w*scale));
-          canvas.height=Math.max(1,Math.round(h*scale));
-          ctx.drawImage(img,0,0,canvas.width,canvas.height);
-          let q=.78;
-          let out=canvas.toDataURL('image/jpeg',q);
-          // Target kecil supaya aman untuk localStorage dan tetap cukup jelas.
-          while(out.length>650000 && q>.30){
-            q-=.08;
-            out=canvas.toDataURL('image/jpeg',q);
+  // Foto kasir TIDAK dikirim ke Firestore/Storage. Selalu dibuat versi JPEG
+  // ringan agar penyimpanan browser tidak cepat penuh, berapa pun ukuran foto asli.
+  const compressed=await new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const w=img.naturalWidth||img.width||1;
+        const h=img.naturalHeight||img.height||1;
+        let maxSide=1000;
+        let scale=Math.min(1,maxSide/Math.max(w,h));
+        let cw=Math.max(1,Math.round(w*scale));
+        let ch=Math.max(1,Math.round(h*scale));
+        const canvas=document.createElement('canvas');
+        const ctx=canvas.getContext('2d',{alpha:false});
+        if(!ctx) throw new Error('Canvas tidak didukung browser.');
+        let best='';
+        // Turunkan ukuran/quality sampai aman untuk quota localStorage.
+        for(let pass=0;pass<6;pass++){
+          canvas.width=cw; canvas.height=ch;
+          ctx.fillStyle='#ffffff';
+          ctx.fillRect(0,0,cw,ch);
+          ctx.drawImage(img,0,0,cw,ch);
+          for(const q of [.72,.60,.50,.40,.32,.25]){
+            const candidate=canvas.toDataURL('image/jpeg',q);
+            if(!best || candidate.length<best.length) best=candidate;
+            if(candidate.length<=320000){resolve(candidate);return;}
           }
-          if(out.length>650000){
-            canvas.width=Math.max(1,Math.round(canvas.width*.75));
-            canvas.height=Math.max(1,Math.round(canvas.height*.75));
-            ctx.drawImage(img,0,0,canvas.width,canvas.height);
-            out=canvas.toDataURL('image/jpeg',.35);
-          }
-          resolve(out);
-        }catch(err){reject(err)}
-      };
-      img.onerror=()=>reject(new Error('Foto tidak dapat diproses browser.'));
-      img.src=value;
-    });
-  }catch(e){
-    // Jika browser tidak bisa decode format tertentu, tetap coba simpan data aslinya.
-    value=String(dataUrl);
-  }
-
-  // Beberapa browser memiliki quota localStorage yang lebih kecil.
-  // Jika penyimpanan pertama ditolak, kompres lagi sampai jauh lebih kecil.
+          cw=Math.max(320,Math.round(cw*.72));
+          ch=Math.max(320,Math.round(ch*.72));
+        }
+        if(best && best.length<=500000){resolve(best);return;}
+        throw new Error('Foto terlalu besar untuk penyimpanan browser.');
+      }catch(err){reject(err)}
+    };
+    img.onerror=()=>reject(new Error('Foto tidak dapat diproses browser.'));
+    img.src=String(dataUrl);
+  });
   try{
-    localStorage.setItem(key,value);
-  }catch(firstErr){
+    localStorage.setItem(key,compressed);
+  }catch(err){
+    // Satu percobaan terakhir dengan ukuran sangat kecil.
     try{
       const img=new Image();
-      const canvas=document.createElement('canvas');
-      const ctx=canvas.getContext('2d');
-      value=await new Promise((resolve,reject)=>{
+      const tiny=await new Promise((resolve,reject)=>{
         img.onload=()=>{
           try{
             const w=img.naturalWidth||img.width||1,h=img.naturalHeight||img.height||1;
-            const scale=Math.min(1,900/Math.max(w,h));
-            canvas.width=Math.max(1,Math.round(w*scale));
-            canvas.height=Math.max(1,Math.round(h*scale));
-            ctx.drawImage(img,0,0,canvas.width,canvas.height);
-            resolve(canvas.toDataURL('image/jpeg',.25));
-          }catch(err){reject(err)}
+            const scale=Math.min(1,600/Math.max(w,h));
+            const c=document.createElement('canvas');
+            c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+            const x=c.getContext('2d',{alpha:false});
+            if(!x) throw new Error('Canvas tidak didukung browser.');
+            x.fillStyle='#ffffff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
+            resolve(c.toDataURL('image/jpeg',.20));
+          }catch(e){reject(e)}
         };
-        img.onerror=()=>reject(firstErr);
+        img.onerror=()=>reject(err);
         img.src=String(dataUrl);
       });
-      localStorage.setItem(key,value);
-    }catch(secondErr){
-      throw secondErr||firstErr;
-    }
+      localStorage.setItem(key,tiny);
+    }catch(finalErr){throw finalErr||err;}
   }
 }
 function removeKasirLocalPhoto(productId){
