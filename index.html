@@ -6042,7 +6042,7 @@ onAuthStateChanged(auth,async u=>{
     if(!grid)return;
     if(count)count.textContent=kasirProducts.length+' produk';
     if(!kasirProducts.length){grid.innerHTML='<div class="management-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Tambahkan produk dan harga di atas.</span></div>';return}
-    grid.innerHTML=kasirProducts.map(p=>`<div class="management-product-card">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="management-product-thumb"><i class="fa-solid fa-image"></i></div>'}<div><strong>${esc(p.name)}</strong><span>${rupiah(p.price)}</span></div><button type="button" class="management-delete-btn" data-delete-product="${p.id}" title="Hapus"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+    grid.innerHTML=kasirProducts.map(p=>`<div class="management-product-card">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="management-product-thumb"><i class="fa-solid fa-image"></i></div>'}<div class="management-product-data"><strong>${esc(p.name)}</strong><span>${rupiah(p.price)}</span></div><div class="management-product-actions"><button type="button" class="mk-product-edit-toggle" data-edit-product="${p.id}" title="Edit" aria-label="Edit produk"><span><i class="fa-solid fa-pen"></i></span></button><button type="button" class="mk-product-delete-toggle" data-delete-product="${p.id}" title="Hapus" aria-label="Hapus produk"><span></span></button></div></div>`).join('');
   }
 
   function renderKasirProducts(){
@@ -6124,7 +6124,7 @@ onAuthStateChanged(auth,async u=>{
             const text=String(t.date||'');
             const tm=text.match(/(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?)/);
             const time=tm?tm[1]:'';
-            return `<div class="mk-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong></div>`;
+            return `<div class="mk-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong><button type="button" class="mk-transaction-delete-toggle" data-delete-transaction="${t.id}" title="Hapus transaksi" aria-label="Hapus transaksi"><span></span></button></div>`;
           }).join('')}
         </div>
       </div>`;
@@ -6143,7 +6143,9 @@ onAuthStateChanged(auth,async u=>{
     const add=e.target.closest('[data-add-product]');if(add){const id=Number(add.dataset.addProduct),p=kasirProducts.find(x=>x.id===id);if(p){const x=kasirCart.find(x=>x.id===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
     const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
     const dec=e.target.closest('[data-cart-dec]');if(dec){const i=kasirCart.findIndex(x=>x.id===Number(dec.dataset.cartDec));if(i>-1){kasirCart[i].qty--;if(kasirCart[i].qty<=0)kasirCart.splice(i,1)}renderCart();return}
-    const del=e.target.closest('[data-delete-product]');if(del){const id=Number(del.dataset.deleteProduct);kasirProducts=kasirProducts.filter(x=>x.id!==id);kasirCart=kasirCart.filter(x=>x.id!==id);saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();return}
+    const edit=e.target.closest('[data-edit-product]');if(edit){const id=Number(edit.dataset.editProduct);const p=kasirProducts.find(x=>Number(x.id)===id);if(p){const name=prompt('Nama produk:',p.name);if(name===null)return;const priceText=prompt('Harga produk:',String(p.price));if(priceText===null)return;const price=Number(String(priceText).replace(/[^0-9]/g,''))||0;if(!name.trim()||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}p.name=name.trim();p.price=price;saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();}return}
+    const del=e.target.closest('[data-delete-product]');if(del){const id=Number(del.dataset.deleteProduct);kasirProducts=kasirProducts.filter(x=>Number(x.id)!==id);kasirCart=kasirCart.filter(x=>Number(x.id)!==id);saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();return}
+    const delTransaction=e.target.closest('[data-delete-transaction]');if(delTransaction){const id=Number(delTransaction.dataset.deleteTransaction);kasirTransactions=kasirTransactions.filter(x=>Number(x.id)!==id);saveKasirStore();renderTransactions();return}
     const cat=e.target.closest('.kasir-category');if(cat){kasirCategory=cat.dataset.category;document.querySelectorAll('.kasir-category').forEach(x=>x.classList.toggle('active',x===cat));renderKasirProducts()}
   });
 
@@ -6377,233 +6379,166 @@ onAuthStateChanged(auth,async u=>{
 </script>
 
 
-<!-- PATCH FOKUS SAJA: realtime Pendapatan Kasir + hapus/edit Management Kasir.
-     Kode original lainnya tidak diganti. -->
-<style id="patch-kasir-focused">
-@media(max-width:767px){
-  #view-management-kasir .mk-product-actions{
-    display:flex!important;gap:8px!important;margin-top:10px!important;
+<style id="patch-management-kasir-product-transaction-controls">
+  /* FOKUS: hanya Hasil Transaksi Kasir + Daftar Produk. */
+  #view-management-kasir .mk-daily-row{
+    position:relative;
+    padding-right:48px!important;
   }
-  #view-management-kasir .mk-product-actions button{
-    flex:1!important;min-height:38px!important;border-radius:10px!important;
-    border:1px solid #e2e8f0!important;background:#fff!important;
-    color:#334155!important;
+  #view-management-kasir .mk-transaction-delete-toggle,
+  #view-management-kasir .mk-product-delete-toggle{
+    position:relative!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    flex:0 0 auto!important;
+    width:38px!important;
+    height:22px!important;
+    min-width:38px!important;
+    min-height:22px!important;
+    padding:2px!important;
+    margin:0!important;
+    border:1px solid #cbd5e1!important;
+    border-radius:999px!important;
+    background:#e2e8f0!important;
+    box-shadow:none!important;
+    cursor:pointer!important;
+    box-sizing:border-box!important;
   }
-  #view-management-kasir .mk-product-actions .mk-edit-product{
-    background:#f8fafc!important;
+  #view-management-kasir .mk-transaction-delete-toggle span,
+  #view-management-kasir .mk-product-delete-toggle span{
+    display:block!important;
+    width:16px!important;
+    height:16px!important;
+    flex:0 0 16px!important;
+    border-radius:50%!important;
+    background:#fff!important;
+    box-shadow:0 1px 3px rgba(15,23,42,.18)!important;
   }
-  #view-management-kasir .mk-product-actions .mk-delete-product{
-    color:#dc2626!important;border-color:#fecaca!important;
+  #view-management-kasir .mk-transaction-delete-toggle:hover,
+  #view-management-kasir .mk-product-delete-toggle:hover{
+    background:#cbd5e1!important;
   }
-}
-#kasir-edit-modal{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.45)}
-#kasir-edit-modal.show{display:flex}
-#kasir-edit-modal .kem-card{width:min(100%,460px);max-height:90vh;overflow:auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 25px 60px rgba(15,23,42,.22)}
-#kasir-edit-modal .kem-field{margin-top:12px}
-#kasir-edit-modal label{display:block;font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px}
-#kasir-edit-modal input{width:100%;box-sizing:border-box;border:1px solid #dbe2ea;border-radius:10px;padding:11px 12px;background:#f8fafc}
-#kasir-edit-modal .kem-photo{display:flex;align-items:center;gap:12px}
-#kasir-edit-modal .kem-photo img{width:58px;height:58px;border-radius:10px;object-fit:cover;background:#f1f5f9}
-#kasir-edit-modal .kem-actions{display:flex;gap:8px;margin-top:18px}
-#kasir-edit-modal .kem-actions button{flex:1;border:0;border-radius:10px;padding:11px;font-weight:700}
-#kasir-edit-modal .kem-cancel{background:#f1f5f9;color:#475569}
-#kasir-edit-modal .kem-save{background:#16a085;color:#fff}
+
+  #view-management-kasir .mk-daily-row .mk-transaction-delete-toggle{
+    margin-left:auto!important;
+  }
+
+  /* Daftar Produk: kotak sedikit diperbesar dan kontrol tetap proporsional. */
+  #view-management-kasir .management-product-card{
+    position:relative!important;
+    min-height:104px!important;
+    padding:12px!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    grid-template-columns:64px minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:12px!important;
+  }
+  #view-management-kasir .management-product-card > img,
+  #view-management-kasir .management-product-thumb{
+    width:64px!important;
+    height:64px!important;
+    min-width:64px!important;
+    border-radius:12px!important;
+    object-fit:cover!important;
+  }
+  #view-management-kasir .management-product-data{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    gap:5px!important;
+  }
+  #view-management-kasir .management-product-data strong{
+    display:block!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  #view-management-kasir .management-product-actions{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:7px!important;
+    flex:0 0 auto!important;
+  }
+  #view-management-kasir .mk-product-edit-toggle{
+    width:34px!important;
+    height:34px!important;
+    min-width:34px!important;
+    min-height:34px!important;
+    padding:0!important;
+    border:1px solid #cbd5e1!important;
+    border-radius:10px!important;
+    background:#fff!important;
+    color:#64748b!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    cursor:pointer!important;
+    box-sizing:border-box!important;
+  }
+  #view-management-kasir .mk-product-edit-toggle span{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+  #view-management-kasir .mk-product-edit-toggle i{
+    font-size:13px!important;
+  }
+
+  @media(max-width:767px){
+    #view-management-kasir .management-product-card{
+      min-height:96px!important;
+      grid-template-columns:56px minmax(0,1fr) auto!important;
+      gap:9px!important;
+      padding:10px!important;
+    }
+    #view-management-kasir .management-product-card > img,
+    #view-management-kasir .management-product-thumb{
+      width:56px!important;
+      height:56px!important;
+      min-width:56px!important;
+      border-radius:10px!important;
+    }
+    #view-management-kasir .management-product-actions{
+      gap:5px!important;
+    }
+    #view-management-kasir .mk-product-edit-toggle{
+      width:32px!important;
+      height:32px!important;
+      min-width:32px!important;
+      min-height:32px!important;
+      border-radius:9px!important;
+    }
+    #view-management-kasir .mk-product-delete-toggle{
+      width:36px!important;
+      min-width:36px!important;
+    }
+    #view-management-kasir .mk-daily-row{
+      padding-right:44px!important;
+    }
+  }
+  @media(max-width:370px){
+    #view-management-kasir .management-product-card{
+      grid-template-columns:50px minmax(0,1fr) auto!important;
+      gap:7px!important;
+    }
+    #view-management-kasir .management-product-card > img,
+    #view-management-kasir .management-product-thumb{
+      width:50px!important;
+      height:50px!important;
+      min-width:50px!important;
+    }
+    #view-management-kasir .mk-product-edit-toggle{
+      width:30px!important;
+      height:30px!important;
+      min-width:30px!important;
+      min-height:30px!important;
+    }
+  }
 </style>
-<script id="patch-kasir-focused-js">
-(function(){
-  const TX_PREFIX="finance_kasir_transactions_";
-  const PR_PREFIX="finance_kasir_products_";
-  let editProduct=null;
-
-  function phone(){
-    try{return (typeof currentSessionUser!=="undefined"&&currentSessionUser&&currentSessionUser.phone)
-      ? String(currentSessionUser.phone) : "guest"}catch(e){return "guest"}
-  }
-  function key(type){return (type==="tx"?TX_PREFIX:PR_PREFIX)+phone()}
-  function read(type){
-    try{const v=JSON.parse(localStorage.getItem(key(type))||"[]");return Array.isArray(v)?v:[]}
-    catch(e){return []}
-  }
-  function write(type,v){
-    localStorage.setItem(key(type),JSON.stringify(v));
-    document.dispatchEvent(new CustomEvent("rekapinyu-kasir-data-updated",{detail:{type:type}}));
-  }
-
-  /* ---------------- REALTIME GRID ADMIN ---------------- */
-  function adminKasirRealtime(){
-    const t=read("tx"), p=read("pr");
-    const pm={};p.forEach(x=>pm[String(x.id)]=x);
-    let omzet=0,profit=0;
-    t.forEach(x=>{
-      omzet+=Number(x.total)||0;
-      const items=Array.isArray(x.cart)?x.cart:(Array.isArray(x.itemsDetail)?x.itemsDetail:null);
-      if(items) items.forEach(i=>{
-        const q=Number(i.qty)||1, price=Number(i.price)||0;
-        const cost=Number((pm[String(i.id)]||i).cost??i.hpp)||0;
-        profit+=Math.max(price-cost,0)*q;
-      });
-    });
-    return {omzet,profit,count:t.length};
-  }
-  function refreshAdmin(){
-    try{
-      if(typeof window.__mobileAdminGetMode==="function" &&
-         window.__mobileAdminGetMode()==="kasir" &&
-         typeof window.__mobileAdminSetMode==="function"){
-        window.__mobileAdminSetMode("kasir");
-      }
-    }catch(e){}
-  }
-  document.addEventListener("rekapinyu-kasir-data-updated",refreshAdmin);
-  window.__rekapinyuKasirRealtime=adminKasirRealtime;
-
-  /* Pantau localStorage agar perubahan Kasir pada tab/perangkat yang sama
-     langsung memicu refresh grid tanpa mengubah fungsi lama. */
-  window.addEventListener("storage",function(e){
-    if(e.key===key("tx")||e.key===key("pr")) refreshAdmin();
-  });
-  setInterval(function(){
-    if(typeof window.__mobileAdminGetMode==="function" &&
-       window.__mobileAdminGetMode()==="kasir") refreshAdmin();
-  },1000);
-
-  /* ---------------- MODAL EDIT PRODUK ---------------- */
-  function ensureModal(){
-    if(document.getElementById("kasir-edit-modal")) return;
-    const m=document.createElement("div");
-    m.id="kasir-edit-modal";
-    m.innerHTML=`
-      <div class="kem-card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><h3 style="margin:0;color:#1e293b;font-size:18px">Edit Produk</h3>
-          <p style="margin:4px 0 0;color:#94a3b8;font-size:12px">Ubah data produk lalu simpan.</p></div>
-          <button type="button" id="kem-x" style="border:0;background:none;font-size:20px;color:#64748b">×</button>
-        </div>
-        <div class="kem-field"><label>NAMA PRODUK</label><input id="kem-name" type="text"></div>
-        <div class="kem-field"><label>HARGA HPP</label><input id="kem-cost" type="number" inputmode="numeric"></div>
-        <div class="kem-field"><label>HARGA JUAL</label><input id="kem-price" type="number" inputmode="numeric"></div>
-        <div class="kem-field"><label>GANTI FOTO PRODUK</label>
-          <div class="kem-photo"><img id="kem-preview" alt=""><input id="kem-photo" type="file" accept="image/jpeg,image/png"></div>
-        </div>
-        <div class="kem-actions">
-          <button type="button" class="kem-cancel" id="kem-cancel">Batal</button>
-          <button type="button" class="kem-save" id="kem-save">Simpan</button>
-        </div>
-      </div>`;
-    document.body.appendChild(m);
-    const close=()=>m.classList.remove("show");
-    m.querySelector("#kem-x").onclick=close;
-    m.querySelector("#kem-cancel").onclick=close;
-    m.addEventListener("click",e=>{if(e.target===m)close()});
-    m.querySelector("#kem-photo").addEventListener("change",e=>{
-      const f=e.target.files&&e.target.files[0]; if(!f)return;
-      const r=new FileReader();r.onload=()=>m.querySelector("#kem-preview").src=r.result;r.readAsDataURL(f);
-    });
-    m.querySelector("#kem-save").onclick=()=>{
-      if(!editProduct)return;
-      const list=read("pr");
-      const idx=list.findIndex(x=>String(x.id)===String(editProduct.id));
-      if(idx<0){close();return}
-      const name=m.querySelector("#kem-name").value.trim();
-      const cost=Number(m.querySelector("#kem-cost").value)||0;
-      const price=Number(m.querySelector("#kem-price").value)||0;
-      if(!name||price<0){alert("Nama produk dan harga jual harus diisi.");return}
-      const updated={...list[idx],name:name,cost:cost,hpp:cost,price:price};
-      const photo=m.querySelector("#kem-photo").files[0];
-      const finish=(photo)=>{
-        if(photo)updated.photo=photo;
-        list[idx]=updated;write("pr",list);
-        if(typeof window.renderKasirManagementProducts==="function")window.renderKasirManagementProducts();
-        else if(typeof window.renderKasirProducts==="function")window.renderKasirProducts();
-        close();
-      };
-      if(photo){const r=new FileReader();r.onload=()=>finish(r.result);r.readAsDataURL(photo)}
-      else finish(null);
-    };
-  }
-  function openEdit(product){
-    ensureModal();editProduct=product;
-    const m=document.getElementById("kasir-edit-modal");
-    m.querySelector("#kem-name").value=product.name||product.nama||"";
-    m.querySelector("#kem-cost").value=Number(product.cost??product.hpp)||0;
-    m.querySelector("#kem-price").value=Number(product.price)||0;
-    m.querySelector("#kem-photo").value="";
-    m.querySelector("#kem-preview").src=product.photo||product.image||"";
-    m.classList.add("show");
-  }
-
-  function decorateProducts(){
-    const grid=document.getElementById("kasir-management-product-grid");
-    if(!grid)return;
-    [...grid.children].forEach((card,index)=>{
-      if(card.querySelector(".mk-product-actions"))return;
-      const products=read("pr");
-      const product=products[index];
-      if(!product)return;
-      const row=document.createElement("div");
-      row.className="mk-product-actions";
-      row.innerHTML=`<button type="button" class="mk-edit-product"><i class="fa-solid fa-pen"></i> Edit</button>
-                     <button type="button" class="mk-delete-product"><i class="fa-solid fa-trash"></i> Hapus</button>`;
-      row.querySelector(".mk-edit-product").onclick=()=>openEdit(product);
-      row.querySelector(".mk-delete-product").onclick=()=>{
-        if(!confirm("Hapus produk ini?"))return;
-        const fresh=read("pr").filter(x=>String(x.id)!==String(product.id));
-        write("pr",fresh);
-        if(typeof window.renderKasirManagementProducts==="function")window.renderKasirManagementProducts();
-        setTimeout(decorateProducts,50);
-      };
-      card.appendChild(row);
-    });
-  }
-
-  /* Hasil transaksi Kasir: tambahkan toggle Hapus pada setiap hasil,
-     tanpa mengganti renderer transaksi original. */
-  function decorateTransactions(){
-    const candidates=[
-      document.getElementById("kasir-history-grid"),
-      document.getElementById("kasir-transactions-grid"),
-      document.getElementById("kasir-result-grid"),
-      document.querySelector("#view-management-kasir .mk-daily-grid")
-    ];
-    const grid=candidates.find(x=>x);
-    if(!grid)return;
-    [...grid.children].forEach((card,index)=>{
-      if(card.querySelector(".mk-delete-transaction"))return;
-      const tx=read("tx")[index];if(!tx)return;
-      const b=document.createElement("button");
-      b.type="button";b.className="mk-delete-transaction";
-      b.style.cssText="margin-top:8px;width:100%;min-height:36px;border:1px solid #fecaca;border-radius:9px;background:#fff;color:#dc2626;font-weight:700";
-      b.innerHTML='<i class="fa-solid fa-trash"></i> Hapus';
-      b.onclick=()=>{
-        if(!confirm("Hapus hasil transaksi ini?"))return;
-        const fresh=read("tx").filter(x=>String(x.id)!==String(tx.id));
-        write("tx",fresh);
-        setTimeout(decorateTransactions,50);
-      };
-      card.appendChild(b);
-    });
-  }
-
-  function observe(){
-    decorateProducts();decorateTransactions();
-    const grid=document.getElementById("kasir-management-product-grid");
-    if(grid&&!grid.__observer){
-      grid.__observer=new MutationObserver(()=>setTimeout(decorateProducts,0));
-      grid.__observer.observe(grid,{childList:true});
-    }
-    const view=document.getElementById("view-management-kasir");
-    if(view&&!view.__observerTx){
-      view.__observerTx=new MutationObserver(()=>setTimeout(decorateTransactions,0));
-      view.__observerTx.observe(view,{childList:true,subtree:true});
-    }
-  }
-  document.addEventListener("DOMContentLoaded",()=>setTimeout(observe,300));
-  document.addEventListener("click",e=>{
-    if(e.target.closest("#nav-management-kasir"))setTimeout(observe,150);
-  });
-  setInterval(observe,1200);
-})();
-</script>
 
 </body>
 </html>
