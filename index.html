@@ -4,20 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Aplikasi Keuangan - Toko</title>
-    <!-- PATCH FOKUS: sidebar desktop tetap tampil sejak awal reload, tanpa mengubah fungsi/menu. -->
-    <style id="rekapinyu-sidebar-early-boot">
-      @media (min-width:768px){
-        #sidebar{display:flex!important;}
-      }
-    </style>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PATCH FOKUS RELOAD: aturan ini sengaja diletakkan SETELAH Tailwind agar kelas hidden tidak sempat memenangkan first paint desktop. -->
-    <style id="rekapinyu-sidebar-final-early-boot">
-      @media (min-width:768px){
-        #sidebar{display:flex!important;visibility:visible!important;opacity:1!important;}
-      }
-    </style>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS for Excel Export (Dibiarkan untuk fungsi lain jika diperlukan) -->
@@ -28,7 +17,6 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         /* Sticky input/filter selalu berada di atas isi saat halaman discroll. */
         #kasbon-sticky-container,
         #pengeluaran-sticky-container {
@@ -51,9 +39,6 @@
 
     <!-- PATCH MINIMAL: tombol minimize disembunyikan + perbaikan watermark Beranda mobile -->
     <style>
-      /* Hilangkan tombol toggle/minimize sidebar tanpa mengubah fungsi lain. */
-      #sidebar-toggle-icon,
-      button[onclick="toggleSidebar()"]{display:none!important}
 
       /* Beranda mobile: ikon watermark tetap berada di dalam kotak dan tidak melebar. */
       @media (max-width:767px){
@@ -246,42 +231,6 @@
         background:var(--rk-bg)!important;
         color:var(--rk-text)!important;
       }
-      #sidebar{
-        background:#f8fafc!important;
-        color:#475569!important;
-        border-right:1px solid var(--rk-border)!important;
-        box-shadow:8px 0 28px rgba(15,23,42,.035)!important;
-      }
-      #sidebar > div:first-child,
-      #sidebar > div:nth-child(2),
-      #sidebar > div:last-child,
-      #sidebar > nav{
-        background:#f8fafc!important;
-        border-color:var(--rk-border)!important;
-      }
-      #sidebar > div:first-child{
-        box-shadow:0 1px 0 rgba(15,23,42,.02);
-      }
-      #sidebar [class*="border-[#15327a)"],
-      #sidebar [class*="border-[#15327a]"],
-      #sidebar [class*="border-blue-900"]{
-        border-color:var(--rk-border)!important;
-      }
-      #sidebar [class*="bg-[#0a1c47]"],
-      #sidebar [class*="bg-blue-900"]{
-        background:#f8fafc!important;
-      }
-      #sidebar [class*="text-blue-100"],
-      #sidebar [class*="text-blue-200"]{
-        color:#475569!important;
-      }
-      #sidebar [class*="text-blue-300"],
-      #sidebar [class*="text-blue-400"]{
-        color:#8a96a8!important;
-      }
-      #sidebar [class*="text-emerald-400"]{
-        color:var(--rk-green)!important;
-      }
 
       /* Header: bersih, ringan, seperti panel dashboard referensi. */
       header{
@@ -303,76 +252,6 @@
         background:var(--rk-green-soft)!important;
         color:var(--rk-green-dark)!important;
         border-color:#ccefe5!important;
-      }
-
-      /* Menu sidebar: item menjadi lebih lembut dan modern. */
-      #sidebar nav{
-        padding-left:10px!important;
-        padding-right:10px!important;
-      }
-      #sidebar nav > div:first-child{
-        color:#9aa5b4!important;
-        letter-spacing:.12em!important;
-      }
-      #sidebar nav button,
-      #sidebar nav > div > div{
-        border-radius:13px!important;
-        transition:background .18s ease,box-shadow .18s ease,color .18s ease,transform .18s ease!important;
-      }
-      #sidebar nav button:hover,
-      #sidebar nav > div > div:hover,
-      #sidebar [class*="hover:bg-blue-800"]:hover{
-        background:#edf3f2!important;
-        color:#203039!important;
-      }
-      #sidebar nav button i,
-      #sidebar nav > div i{
-        color:#8794a6!important;
-      }
-      #sidebar nav button[class*="bg-blue-600"],
-      #sidebar nav > div > div[class*="bg-blue-600"]{
-        background:var(--rk-green)!important;
-        color:#fff!important;
-        box-shadow:0 7px 18px rgba(22,160,133,.20)!important;
-      }
-      #sidebar nav button[class*="bg-blue-600"] i,
-      #sidebar nav > div > div[class*="bg-blue-600"] i{
-        color:#fff!important;
-      }
-
-      /* Kartu profil + footer sidebar. */
-      #sidebar-user-avatar-container{
-        background:#e9f8f4!important;
-        color:var(--rk-green)!important;
-        border-color:#ccefe5!important;
-      }
-      #sidebar-user-name{color:#253044!important}
-      #sidebar .toggle-profile-setting-container button{
-        background:#f1f5f9!important;
-        color:#718096!important;
-      }
-      #sidebar > div:last-child{
-        box-shadow:0 -2px 16px rgba(15,23,42,.025)!important;
-      }
-      #sidebar > div:last-child > div:first-child{
-        background:#fff!important;
-        border-color:var(--rk-border)!important;
-        border-radius:16px!important;
-      }
-      #sidebar > div:last-child > div:first-child .bg-blue-500\/30{
-        background:#e9f8f4!important;
-      }
-      #sidebar > div:last-child > div:first-child .border-blue-400\/30{
-        border-color:#ccefe5!important;
-      }
-      #sidebar > div:last-child > div:first-child .text-blue-200{
-        color:#475569!important;
-      }
-      #sidebar > div:last-child > div:first-child .text-blue-300{
-        color:#8a96a8!important;
-      }
-      #sidebar > div:last-child > div:nth-child(3) button{
-        border-radius:12px!important;
       }
 
       /* Area konten utama. */
@@ -585,121 +464,7 @@
         }
       }
     </style>
-
-
-<!-- PATCH SIDEBAR WHITE: hanya mengubah warna/background sidebar, tanpa mengubah menu, fungsi, atau logika. -->
-<style id="rekapinyu-sidebar-white">
-  #sidebar,
-  #sidebar > div:first-child,
-  #sidebar > div:nth-child(2),
-  #sidebar > div:last-child,
-  #sidebar > nav{
-    background:#ffffff!important;
-    color:#334155!important;
-    border-color:#e5e7eb!important;
-  }
-
-  #sidebar [class*="bg-[#0a1c47]"],
-  #sidebar [class*="bg-blue-900"],
-  #sidebar [class*="bg-blue-600"],
-  #sidebar [class*="bg-emerald-"],
-  #sidebar [class*="bg-green-"]{
-    background:#ffffff!important;
-  }
-
-  #sidebar [class*="text-emerald-400"],
-  #sidebar [class*="text-emerald-500"],
-  #sidebar [class*="text-emerald-600"],
-  #sidebar [class*="text-green-"]{
-    color:#64748b!important;
-  }
-
-  #sidebar [class*="text-blue-100"],
-  #sidebar [class*="text-blue-200"],
-  #sidebar [class*="text-blue-300"],
-  #sidebar [class*="text-blue-400"]{
-    color:#64748b!important;
-  }
-
-  #sidebar nav button,
-  #sidebar nav > div > div{
-    color:#475569!important;
-  }
-
-  #sidebar nav button i,
-  #sidebar nav > div i{
-    color:#64748b!important;
-  }
-
-  /* Menu aktif: ganti aksen hijau menjadi abu-abu netral. */
-  #sidebar nav button[class*="bg-blue-600"],
-  #sidebar nav > div > div[class*="bg-blue-600"]{
-    background:#f1f5f9!important;
-    color:#1e293b!important;
-    box-shadow:0 4px 12px rgba(15,23,42,.06)!important;
-  }
-  #sidebar nav button[class*="bg-blue-600"] i,
-  #sidebar nav > div > div[class*="bg-blue-600"] i{
-    color:#334155!important;
-  }
-  #sidebar nav button[class*="bg-blue-600"] .absolute{
-    background:#334155!important;
-  }
-
-  #sidebar nav button:hover,
-  #sidebar nav > div > div:hover,
-  #sidebar [class*="hover:bg-blue-800"]:hover,
-  #sidebar [class*="hover:bg-blue-800/60"]:hover{
-    background:#f1f5f9!important;
-    color:#1e293b!important;
-  }
-
-  /* Avatar/logo sidebar: tanpa palet hijau. */
-  #sidebar-user-avatar-container,
-  #sidebar > div:last-child > div:first-child .bg-blue-500\/30{
-    background:#f1f5f9!important;
-    color:#475569!important;
-    border-color:#e2e8f0!important;
-  }
-  #sidebar > div:last-child > div:first-child .border-blue-400\/30{
-    border-color:#e2e8f0!important;
-  }
-  #sidebar > div:last-child > div:first-child .text-blue-200,
-  #sidebar > div:last-child > div:first-child .text-blue-300{
-    color:#64748b!important;
-  }
-  #sidebar-user-name,
-  #sidebar > div:last-child > div:first-child h1{
-    color:#1e293b!important;
-  }
-
-  /* Tombol simpan foto sampul yang berada di sidebar. */
-  #sidebar #shop-cover-save{
-    background:#334155!important;
-  }
-  #sidebar #shop-cover-save:hover{
-    background:#1e293b!important;
-  }
-
-  /* Popup setting yang masih membawa warna gelap/hijau dari kode asli. */
-  #sidebar #profile-setting-popup,
-  #sidebar #kasbon-submenu-popup{
-    background:#ffffff!important;
-    border-color:#e2e8f0!important;
-    box-shadow:0 12px 28px rgba(15,23,42,.12)!important;
-  }
-  #sidebar #profile-setting-popup button,
-  #sidebar #kasbon-submenu-popup button{
-    color:#475569!important;
-  }
-  #sidebar #profile-setting-popup button:hover,
-  #sidebar #kasbon-submenu-popup button:hover{
-    background:#f1f5f9!important;
-    color:#1e293b!important;
-  }
-</style>
-
-    <!-- PATCH HISTORY STICKY: pindahkan filter History ke posisi atas seperti Kasbon. Hanya CSS, tanpa mengubah fungsi/logika. -->
+<!-- PATCH HISTORY STICKY: pindahkan filter History ke posisi atas seperti Kasbon. Hanya CSS, tanpa mengubah fungsi/logika. -->
     <style>
         @media (min-width: 768px) {
             body:has(#view-history:not(.hidden)) #sticky-filter-container {
@@ -709,8 +474,6 @@
             }
         }
     </style>
-
-        <!-- PATCH FOKUS TERAKHIR: hover/aktif jelas + logo header + footer ikon/logout. -->
         <style>
             /* Hover dan menu yang sedang diklik: hindari hijau palet agar teks selalu terbaca. */
             #sidebar nav button:hover,
@@ -923,237 +686,8 @@
     </style>
 
 
-<!-- PATCH FINAL TERSTRUKTUR: seluruh perbaikan sidebar/menu desktop yang sebelumnya tersebar
-     dan saling menimpa digabung menjadi satu blok. Fungsi, ID, HTML, dan JavaScript tidak diubah. -->
-<style id="rekapinyu-sidebar-final-structured">
-@media (min-width:768px){
-  /* Grid kartu menu desktop */
-  #sidebar nav{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:10px!important;
-    padding:12px!important;
-    background:#fff!important;
-  }
 
-  #sidebar nav > button[id^="nav-"],
-  #sidebar nav > .toggle-kasbon-menu-container{
-    position:relative!important;
-    min-height:116px!important;
-    height:116px!important;
-    width:100%!important;
-    overflow:hidden!important;
-    border:0!important;
-    outline:0!important;
-    border-radius:0!important;
-    background:#fff!important;
-    color:#334155!important;
-    box-shadow:0 4px 12px rgba(15,23,42,.10)!important;
-    transition:none!important;
-    box-sizing:border-box!important;
-  }
-
-  #sidebar nav > button[id^="nav-"],
-  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
-    gap:9px!important;
-    padding:14px 8px!important;
-    text-align:center!important;
-  }
-
-  /* Tidak ada efek kotak hitam/transform saat cursor berada di menu. */
-  #sidebar nav > button[id^="nav-"]:hover,
-  #sidebar nav > button[id^="nav-"]:focus,
-  #sidebar nav > button[id^="nav-"]:active,
-  #sidebar nav > .toggle-kasbon-menu-container:hover,
-  #sidebar nav > .toggle-kasbon-menu-container:focus,
-  #sidebar nav > .toggle-kasbon-menu-container:focus-within{
-    background:#fff!important;
-    color:#334155!important;
-    border:0!important;
-    outline:0!important;
-    transform:none!important;
-    box-shadow:0 5px 14px rgba(15,23,42,.13)!important;
-  }
-
-  /* Menu aktif tetap putih, tidak berubah menjadi blok biru. */
-  #sidebar nav > button[id^="nav-"].bg-blue-600\/80,
-  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper.bg-blue-600\/85{
-    background:#fff!important;
-    color:#334155!important;
-    border:0!important;
-    outline:0!important;
-    box-shadow:0 5px 14px rgba(15,23,42,.13)!important;
-  }
-
-  /* Ikon utama: tanpa kotak putih/outline, tetap solid dan terlihat. */
-  #sidebar nav > button[id^="nav-"] > i,
-  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
-    position:relative!important;
-    z-index:2!important;
-    width:auto!important;
-    height:auto!important;
-    min-width:0!important;
-    min-height:0!important;
-    flex:0 0 auto!important;
-    padding:0!important;
-    margin:0!important;
-    border:0!important;
-    outline:0!important;
-    border-radius:0!important;
-    background:transparent!important;
-    box-shadow:none!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    font-size:23px!important;
-    line-height:1!important;
-    opacity:1!important;
-    visibility:visible!important;
-    filter:none!important;
-    -webkit-filter:none!important;
-    text-shadow:none!important;
-  }
-
-  #sidebar nav > #nav-pengeluaran > i{color:#0284c7!important}
-  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{color:#f59e0b!important}
-  #sidebar nav > #nav-input > i{color:#059669!important}
-  #sidebar nav > #nav-history > i{color:#9333ea!important}
-  #sidebar nav > #nav-report > i{color:#db2777!important}
-  #sidebar nav > #nav-backup > i{color:#0891b2!important}
-
-  #sidebar nav > button[id^="nav-"] > span,
-  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon .sidebar-text{
-    position:relative!important;
-    z-index:2!important;
-    display:block!important;
-    width:100%!important;
-    max-width:100%!important;
-    font-size:12px!important;
-    line-height:1.25!important;
-    font-weight:700!important;
-    text-align:center!important;
-    color:#334155!important;
-  }
-
-  /* Watermark kartu */
-  #sidebar nav > button[id^="nav-"]::after,
-  #sidebar nav > .toggle-kasbon-menu-container::after{
-    position:absolute!important;
-    right:-8px!important;
-    bottom:-12px!important;
-    z-index:1!important;
-    font-family:"Font Awesome 6 Free"!important;
-    font-weight:900!important;
-    font-size:62px!important;
-    line-height:1!important;
-    opacity:.05!important;
-    pointer-events:none!important;
-  }
-  #sidebar nav > #nav-input::after{content:"\f303";color:#10b981!important}
-  #sidebar nav > #nav-pengeluaran::after{content:"\f543";color:#f59e0b!important}
-  #sidebar nav > .toggle-kasbon-menu-container::after{content:"\f02d";color:#3b82f6!important}
-  #sidebar nav > #nav-history::after{content:"\f017";color:#8b5cf6!important}
-  #sidebar nav > #nav-report::after{content:"\f200";color:#ef4444!important}
-  #sidebar nav > #nav-backup::after{content:"\f0ee";color:#06b6d4!important}
-
-  /* Kasbon: struktur kartu tetap utuh, hanya ikon gembok yang dipakai. */
-  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper{
-    width:100%!important;
-    height:100%!important;
-    min-height:116px!important;
-    background:transparent!important;
-    box-shadow:none!important;
-    border:0!important;
-    border-radius:0!important;
-  }
-  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
-    width:100%!important;
-    height:100%!important;
-    min-height:116px!important;
-    box-sizing:border-box!important;
-  }
-
-  #sidebar-kasbon-lock-icon,
-  #nav-kasbon-wrapper > button[title="Pengaturan Gembok Kasbon"]{
-    display:none!important;
-  }
-
-  #nav-kasbon #icon-kasbon{
-    width:auto!important;
-    min-width:0!important;
-    padding:0!important;
-    margin:0!important;
-    border:0!important;
-    background:transparent!important;
-    box-shadow:none!important;
-    font-size:22px!important;
-    line-height:1!important;
-  }
-  #nav-kasbon #icon-kasbon.rk-kasbon-locked{color:#10b981!important}
-  #nav-kasbon #icon-kasbon.rk-kasbon-unlocked{color:#f59e0b!important}
-
-  /* Popup fitur Kasbon tetap di atas kartu dan seluruh isinya terbaca. */
-  #sidebar #kasbon-submenu-popup{
-    z-index:100!important;
-    background:#fff!important;
-    border-color:#e2e8f0!important;
-    box-shadow:0 12px 28px rgba(15,23,42,.12)!important;
-  }
-  #sidebar #kasbon-submenu-popup button,
-  #sidebar #kasbon-submenu-popup a{
-    display:flex!important;
-    align-items:center!important;
-    gap:10px!important;
-    visibility:visible!important;
-    opacity:1!important;
-    color:#334155!important;
-  }
-  #sidebar #kasbon-submenu-popup button i,
-  #sidebar #kasbon-submenu-popup a i{
-    display:inline-flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    visibility:visible!important;
-    opacity:1!important;
-    width:30px!important;
-    min-width:30px!important;
-    height:30px!important;
-    border-radius:9px!important;
-    font-size:14px!important;
-  }
-
-  /* Menu Input dibuat identik dengan kartu menu sidebar lainnya. */
-  #sidebar nav > #nav-input,
-  #sidebar nav > #nav-input:hover,
-  #sidebar nav > #nav-input:focus,
-  #sidebar nav > #nav-input:focus-visible,
-  #sidebar nav > #nav-input:active,
-  #sidebar nav > #nav-input.bg-blue-600\/80{
-    min-height:116px!important;
-    height:116px!important;
-    width:100%!important;
-    box-sizing:border-box!important;
-    margin:0!important;
-    border:0!important;
-    outline:0!important;
-    border-radius:0!important;
-    background:#fff!important;
-    box-shadow:0 4px 12px rgba(15,23,42,.10)!important;
-  }
-  #sidebar nav > #nav-input::before,
-  #sidebar nav > #nav-input::after{
-    border:0!important;
-    outline:0!important;
-    box-shadow:none!important;
-  }
-  #sidebar nav > #nav-input > *{border-radius:0!important}
-}
-</style>
-
-<!-- PATCH FOKUS BOOT: cegah flash tampilan sidebar lama/login saat reload. -->
+<!-- PATCH FOKUS BOOT: cegah flash tampilan login saat reload. -->
 <style id="rekapinyu-boot-guard">
   html.rk-session-boot #auth-container{visibility:hidden!important}
 </style>
@@ -1581,7 +1115,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                     </div>
                 </div>
 
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-sm shadow-emerald-200 text-sm">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm">
                     Masuk ke Aplikasi
                 </button>
             </form>
@@ -1629,7 +1163,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                     </div>
                 </div>
 
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-sm shadow-emerald-200 text-sm">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm">
                     Daftar Sekarang
                 </button>
             </form>
@@ -1642,10 +1176,10 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     </div>
 
     <!-- Sidebar Navigation for Desktop & Mobile Responsive -->
-    <aside id="sidebar" class="w-64 bg-[#0d235a] text-blue-100 border-r border-[#15327a] flex flex-col z-20 shrink-0 md:flex sidebar-transition relative">
+    <aside id="sidebar" class="w-64 flex flex-col z-20 shrink-0 md:flex relative">
 
         <!-- Foto Sampul Toko: menggantikan area Logo + REKAPINYU sebelumnya -->
-        <div class="border-b border-[#15327a] bg-[#0a1c47] relative">
+        <div class="relative">
             <div id="shop-cover-frame" class="w-full h-20 bg-slate-100 overflow-hidden flex items-center justify-center shadow-sm relative cursor-pointer select-none" title="Ganti Foto Sampul Toko" style="touch-action:none;">
                 <img id="shop-cover-image" src="" alt="Foto Sampul Toko" class="w-full h-full object-cover hidden select-none pointer-events-none" draggable="false">
                 <span id="shop-cover-placeholder" class="text-slate-400 text-[10px] font-semibold text-center px-2 select-none">Pasang foto sampul disini</span>
@@ -1656,30 +1190,30 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         </div>
 
         <!-- User Profile Card Section -->
-        <div class="p-4 border-b border-[#15327a] flex items-center justify-between gap-3 bg-[#0a1c47]/50 relative toggle-profile-setting-container">
+        <div class="p-4 flex items-center justify-between gap-3 relative toggle-profile-setting-container">
             <div class="flex items-center gap-3 truncate">
-                <div id="sidebar-user-avatar-container" class="w-10 h-10 rounded-full bg-blue-500/30 text-blue-200 flex items-center justify-center text-base shrink-0 border border-blue-400/30 overflow-hidden">
+                <div id="sidebar-user-avatar-container" class="w-10 h-10 rounded-full flex items-center justify-center text-base shrink-0 overflow-hidden">
                     <i id="sidebar-user-avatar-icon" class="fa-solid fa-user"></i>
                 </div>
                 <div class="sidebar-text truncate">
                     <h2 id="sidebar-user-name" class="font-semibold text-white text-sm truncate">Dashboard Profesional</h2>
-                    <p class="text-[11px] text-blue-300 font-medium">Administrator</p>
+                    <p class="text-[11px] font-medium">Administrator</p>
                 </div>
             </div>
             <!-- Tombol Gear Setting Profil -->
             <div class="relative">
-                <button onclick="toggleProfileSettingMenu(event)" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/40 hover:bg-blue-800 transition sidebar-text" title="Pengaturan Profil">
+                <button onclick="toggleProfileSettingMenu(event)" class="p-2 sidebar-text" title="Pengaturan Profil">
                     <i class="fa-solid fa-sliders text-xs"></i>
                 </button>
                 <!-- Popup Menu Setting Profil -->
-                <div id="profile-setting-popup" class="absolute right-0 mt-2 w-48 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-40">
-                    <button onclick="openProfileModal('ganti-nama')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                <div id="profile-setting-popup" class="absolute right-0 mt-2 w-48 rounded-xl shadow-2xl py-1 hidden z-40">
+                    <button onclick="openProfileModal('ganti-nama')" class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-user-pen text-emerald-400 w-4"></i> Ganti Nama
                     </button>
-                    <button onclick="openProfileModal('ganti-foto')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                    <button onclick="openProfileModal('ganti-foto')" class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-camera text-blue-400 w-4"></i> Ganti Foto Profil
                     </button>
-                    <button onclick="openProfileModal('ganti-password')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                    <button onclick="openProfileModal('ganti-password')" class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti Password
                     </button>
                 </div>
@@ -1687,64 +1221,64 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         </div>
 
         <!-- Navigation Menu Items -->
-        <nav class="flex-1 p-3 space-y-1.5 overflow-y-auto">
-            <button onclick="switchTab('pengeluaran')" id="nav-pengeluaran" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Pengeluaran">
-                <i id="icon-pengeluaran" class="fa-solid fa-money-bill-transfer w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+        <nav class="flex-1 overflow-y-auto">
+            <button onclick="switchTab('pengeluaran')" id="nav-pengeluaran" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="Pengeluaran">
+                <i id="icon-pengeluaran" class="fa-solid fa-money-bill-transfer w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">Pengeluaran</span>
             </button>
             
             <!-- MENU KASBON -->
             <div class="relative toggle-kasbon-menu-container">
-                <div class="flex items-center w-full rounded-xl text-sm font-medium text-blue-200 transition duration-200 group relative" id="nav-kasbon-wrapper">
-                    <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate" title="Kasbon">
-                        <i id="icon-kasbon" class="fa-solid fa-hand-holding-dollar w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                <div class="flex items-center w-full text-sm font-medium group relative" id="nav-kasbon-wrapper">
+                    <button onclick="switchTab('kasbon')" id="nav-kasbon" class="flex-1 flex items-center gap-3 text-left truncate" title="Kasbon">
+                        <i id="icon-kasbon" class="fa-solid fa-hand-holding-dollar w-5 text-center shrink-0"></i>
                         <span class="sidebar-text truncate">Kasbon</span>
                     </button>
-                    <button onclick="toggleKasbonSubMenu(event)" class="px-3 py-2.5 text-blue-300 hover:text-white transition sidebar-text" title="Pengaturan Gembok Kasbon">
+                    <button onclick="toggleKasbonSubMenu(event)" class="px-3 py-2.5 sidebar-text" title="Pengaturan Gembok Kasbon">
                         <i id="sidebar-kasbon-lock-icon" class="fa-solid fa-sliders text-xs"></i>
                     </button>
                 </div>
                 <!-- Sub Menu Popup Buka/Kunci/Ganti Pin -->
-                <div id="kasbon-submenu-popup" class="absolute left-2 right-2 mt-1 bg-[#0a1c47] border border-blue-900 rounded-xl shadow-2xl py-1 hidden z-30">
-                    <button onclick="handleKasbonSubMenuAction('buka')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                <div id="kasbon-submenu-popup" class="absolute left-2 right-2 mt-1 rounded-xl shadow-2xl py-1 hidden z-30">
+                    <button onclick="handleKasbonSubMenuAction('buka')" class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-lock-open text-emerald-400 w-4"></i> Buka Kasbon
                     </button>
-                    <button onclick="handleKasbonSubMenuAction('kunci')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                    <button onclick="handleKasbonSubMenuAction('kunci')" class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-lock text-rose-400 w-4"></i> Kunci Kasbon
                     </button>
-                    <button onclick="handleKasbonSubMenuAction('ganti-pin')" class="w-full text-left px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-800/60 hover:text-white flex items-center gap-2">
+                    <button onclick="handleKasbonSubMenuAction('ganti-pin')" class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti PIN Kasbon
                     </button>
                 </div>
             </div>
 
-            <button onclick="switchTab('kasir')" id="nav-kasir" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Kasir">
-                <i id="icon-kasir" class="fa-solid fa-cash-register w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+            <button onclick="switchTab('kasir')" id="nav-kasir" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="Kasir">
+                <i id="icon-kasir" class="fa-solid fa-cash-register w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">Kasir</span>
             </button>
 
-            <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/80 shadow-sm transition duration-200 group relative" title="Input Data">
+            <button onclick="switchTab('input')" id="nav-input" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white group relative" title="Input Data">
                 <i id="icon-input" class="fa-solid fa-pen-to-square w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">Input Data</span>
             </button>
-            <button onclick="switchTab('history')" id="nav-history" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="History">
-                <i id="icon-history" class="fa-solid fa-clock-rotate-left w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+            <button onclick="switchTab('history')" id="nav-history" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="History">
+                <i id="icon-history" class="fa-solid fa-clock-rotate-left w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">History</span>
             </button>
-            <button onclick="switchTab('report')" id="nav-report" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Laporan Bulanan">
-                <i id="icon-report" class="fa-solid fa-chart-line w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+            <button onclick="switchTab('report')" id="nav-report" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="Laporan Bulanan">
+                <i id="icon-report" class="fa-solid fa-chart-line w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">Laporan Bulanan</span>
             </button>
-            <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative" title="Backup Otomatis">
-                <i id="icon-backup" class="fa-solid fa-cloud-arrow-up w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+            <button onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="Backup Otomatis">
+                <i id="icon-backup" class="fa-solid fa-cloud-arrow-up w-5 text-center shrink-0"></i>
                 <span class="sidebar-text truncate">Backup Otomatis</span>
             </button>
         </nav>
 
         <!-- Sidebar Footer Info -->
-        <div class="p-4 border-t border-[#15327a] space-y-1 bg-[#0a1c47]">
+        <div class="p-4 space-y-1">
             <!-- Kotak ikon sosial -->
-            <div class="p-4 border-b border-[#15327a] flex items-center justify-center gap-3 bg-[#0a1c47]/50 relative sidebar-social-box">
+            <div class="p-4 flex items-center justify-center gap-3 relative sidebar-social-box">
                 <div class="sidebar-social-row" aria-label="Sosial">
                     <button type="button" class="sidebar-social-btn sidebar-social-tiktok" title="TikTok" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></button>
                     <button type="button" class="sidebar-social-btn sidebar-social-whatsapp" title="WhatsApp" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
@@ -1763,9 +1297,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
                     
                                     </div>
-                <button onclick="toggleSidebar()" class="text-blue-300 hover:text-white p-2 rounded-lg bg-blue-900/50 hover:bg-blue-800 transition shrink-0" title="Minimalisir Sidebar">
-                    <i id="sidebar-toggle-icon" class="fa-solid fa-arrow-left text-xs"></i>
-                </button>
             </div>
 
         </div>
@@ -1825,7 +1356,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                         </div>
 
                         <div class="col-span-3">
-                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs">
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs">
                                 <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
                             </button>
                         </div>
@@ -1857,7 +1388,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                         </div>
 
                         <div class="col-span-2">
-                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-3 rounded-full transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1 text-[11px] md:text-xs">
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-3 rounded-full shadow-sm shadow-emerald-200 flex items-center justify-center gap-1 text-[11px] md:text-xs">
                                 <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span>
                             </button>
                         </div>
@@ -2011,7 +1542,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                                     </div>
                                 </div>
 
-                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 text-sm">
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 text-sm">
                                     <i class="fa-solid fa-floppy-disk"></i> Simpan Data Harian
                                 </button>
                             </form>
@@ -2361,32 +1892,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
-
-        let isSidebarMinimized = false;
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const toggleIcon = document.getElementById('sidebar-toggle-icon');
-            const textElements = document.querySelectorAll('.sidebar-text');
-            
-            isSidebarMinimized = !isSidebarMinimized;
-            
-            if (isSidebarMinimized) {
-                sidebar.classList.remove('w-64');
-                sidebar.classList.add('w-20');
-                toggleIcon.classList.remove('fa-arrow-left');
-                toggleIcon.classList.add('fa-arrow-right');
-                textElements.forEach(el => el.classList.add('hidden'));
-            } else {
-                sidebar.classList.remove('w-20');
-                sidebar.classList.add('w-64');
-                toggleIcon.classList.remove('fa-arrow-right');
-                toggleIcon.classList.add('fa-arrow-left');
-                textElements.forEach(el => el.classList.remove('hidden'));
-            }
-        }
-
-        function checkAuth() {
+function checkAuth() {
             const authContainer = document.getElementById('auth-container');
             if (currentSessionUser || window.__rekapinyuLandingHandoffActive) {
                 // Saat datang dari Landing Page, jangan tampilkan login bawaan aplikasi
@@ -3061,14 +2567,14 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                     if (v === tab) {
                         if (v === 'kasbon') {
                             const wrapper = document.getElementById('nav-kasbon-wrapper');
-                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md group relative";
                             deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
                             deskNav.innerHTML = `
     <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
     <span class="sidebar-text truncate">Kasbon</span>
                             `;
                         } else {
-                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md transition duration-200 group relative";
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/85 shadow-md group relative";
                             deskNav.innerHTML = `
                                 <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
                                 <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
@@ -3077,16 +2583,16 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                     } else {
                         if (v === 'kasbon') {
                             const wrapper = document.getElementById('nav-kasbon-wrapper');
-                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium text-blue-200 transition duration-200 group relative";
+                            if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium group relative";
                             deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
                             deskNav.innerHTML = `
-                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
                                 <span class="sidebar-text truncate">Kasbon</span>
                             `;
                         } else {
-                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-800/40 hover:text-white transition duration-200 group relative";
+                            deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium group relative";
                             deskNav.innerHTML = `
-                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center text-blue-300 group-hover:text-white shrink-0"></i>
+                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
                                 <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
                             `;
                         }
