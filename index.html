@@ -1596,6 +1596,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </style>
 
 <style id="patch-mobile-admin-income-chooser">@media(max-width:767px){#mobile-admin-settings-button{appearance:none!important;border:0!important;background:transparent!important;padding:4px!important;margin:0!important;width:34px!important;height:34px!important;display:flex!important;align-items:center!important;justify-content:center!important;color:#aab4c1!important;opacity:.75!important;border-radius:10px!important}#mobile-admin-settings-button i{font-size:20px!important}.mobile-admin-income-chooser{position:fixed!important;z-index:99999!important;width:205px!important;background:#fff!important;border:1px solid #e5eaf0!important;border-radius:14px!important;padding:6px!important;box-shadow:0 14px 35px rgba(15,23,42,.16)!important}.mobile-admin-income-chooser button{width:100%!important;min-height:42px!important;border:0!important;background:#fff!important;color:#334155!important;border-radius:10px!important;display:flex!important;align-items:center!important;gap:10px!important;padding:9px 10px!important;font-size:12px!important;font-weight:700!important;text-align:left!important}.mobile-admin-income-chooser button:active{background:#f1f5f9!important}.mobile-admin-income-chooser button i{width:20px!important;text-align:center!important;color:#64748b!important}}@media(min-width:768px){#mobile-admin-settings-button{display:none!important}}</style>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -1701,7 +1702,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 <div id="shop-cover-edit-hint" class="absolute inset-x-0 bottom-0 bg-black/45 text-white text-[9px] text-center py-1 hidden pointer-events-none">Geser foto dengan mouse</div>
                 <button type="button" id="shop-cover-save" class="absolute bottom-1 right-1 hidden px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-bold shadow-lg transition z-10" title="Simpan posisi foto">Simpan</button>
             </div>
-            <input id="shop-cover-input" type="file" accept="image/*" class="hidden">
+            <input id="shop-cover-input" type="file" class="hidden">
         </div>
 
         <!-- User Profile Card Section -->
@@ -2138,7 +2139,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                                 <div class="management-field management-name-field"><label>NAMA PRODUK</label><input id="kasir-product-name" type="text" placeholder="Contoh: Kopi Susu" required></div>
                                 <div class="management-field"><label>HARGA</label><input id="kasir-product-price" type="text" inputmode="numeric" placeholder="0" required></div>
                                 <div class="management-field"><label>HARGA HPP</label><input id="kasir-product-cost" type="text" inputmode="numeric" placeholder="0"></div>
-                                <div class="management-field management-photo-field"><label>FOTO PRODUK</label><div class="management-photo-row"><label for="kasir-product-photo" class="management-photo-input"><i class="fa-solid fa-camera"></i><span id="kasir-photo-label">Pilih foto</span></label><input id="kasir-product-photo" type="file" accept="image/jpeg,image/png" hidden><div id="kasir-photo-preview" class="management-photo-preview"><i class="fa-solid fa-image"></i></div></div></div>
+                                <div class="management-field management-photo-field"><label>FOTO PRODUK</label><div class="management-photo-row"><label for="kasir-product-photo" class="management-photo-input"><i class="fa-solid fa-camera"></i><span id="kasir-photo-label">Pilih foto</span></label><input id="kasir-product-photo" type="file" hidden><div id="kasir-photo-preview" class="management-photo-preview"><i class="fa-solid fa-image"></i></div></div></div>
                                 <button type="submit" class="management-add-btn"><i class="fa-solid fa-plus"></i> Tambah Produk</button>
                             </form>
                         </div>
@@ -2616,7 +2617,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 bodyEl.innerHTML = `
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pilih File Gambar</label>
-                        <input type="file" id="input-new-photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        <input type="file" id="input-new-photo" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                     </div>
                 `;
                 saveBtn.onclick = function() {
@@ -4539,7 +4540,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     <button type="button" id="history-io-import" title="Import Backup Excel" aria-label="Import Backup Excel"><i class="fa-solid fa-file-import"></i></button>
     <button type="button" id="history-io-export" title="Backup Semua History ke Excel" aria-label="Backup Semua History ke Excel"><i class="fa-solid fa-database"></i></button>
 </div>
-<input id="history-io-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+<input id="history-io-file" type="file" hidden>
 
 <script>
 (function(){
@@ -4643,7 +4644,7 @@ async function saveCloudData(){
    pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
    kasbonData:Array.isArray(kasbonData)?kasbonData:[],
    backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
-   kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
+   kasirProducts:loadKasirProductsStorage(phone),
    kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
  };
@@ -4689,7 +4690,7 @@ async function hydrate(uid){
  const preservedPengeluaran=syncCloudArrayToCache(phone,"pengeluaran",d.pengeluaranData);
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
- const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
+ const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:loadKasirProductsStorage(phone);
  const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
  nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
@@ -5024,7 +5025,7 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const localKasirProducts=loadKasirProductsStorage(p);
 const cloudKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:null;
 let preservedKasirProducts=cloudKasirProducts||localKasirProducts;
 let kasirProductPending=false;
@@ -6047,6 +6048,22 @@ onAuthStateChanged(auth,async u=>{
   let kasirCategory='Semua';
   let kasirPhotoData='';
 
+document.addEventListener('change',function(e){
+  const input=e.target;
+  if(!input||input.id!=='kasir-product-photo')return;
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    kasirPhotoData=ev.target.result||'';
+  };
+  reader.onerror=function(){
+    kasirPhotoData='';
+  };
+  reader.readAsDataURL(file);
+});
+
+
   function kasirUserKey(name){
     const phone=(typeof currentSessionUser!=='undefined' && currentSessionUser && currentSessionUser.phone) ? currentSessionUser.phone : 'guest';
     return 'finance_kasir_'+name+'_'+phone;
@@ -6073,152 +6090,39 @@ onAuthStateChanged(auth,async u=>{
     try{kasirProducts=JSON.parse(localStorage.getItem(kasirUserKey('products'))||'[]')}catch(e){kasirProducts=[]}
     try{kasirTransactions=JSON.parse(localStorage.getItem(kasirUserKey('transactions'))||'[]')}catch(e){kasirTransactions=[]}
   }
-  function saveKasirStore(){
-    localStorage.setItem(kasirUserKey('products'),JSON.stringify(kasirProducts));
-    localStorage.setItem(kasirUserKey('transactions'),JSON.stringify(kasirTransactions));
-  }
-  function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
-  function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-
-  function renderManagementProducts(){
-    const grid=document.getElementById('kasir-management-product-grid'); const count=document.getElementById('kasir-product-count');
-    if(!grid)return;
-    if(count)count.textContent=kasirProducts.length+' produk';
-    if(!kasirProducts.length){grid.innerHTML='<div class="management-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Tambahkan produk dan harga di atas.</span></div>';return}
-    grid.innerHTML=kasirProducts.map(p=>`<div class="management-product-card">${p.photo?`<img src="${p.photo}" alt="">`:'<div class="management-product-thumb"><i class="fa-solid fa-image"></i></div>'}<div class="management-product-data"><strong>${esc(p.name)}</strong><span class="mk-product-cost">Harga Grosir/HPP: ${rupiah(p.cost)}</span><span class="mk-product-sale">Harga Jual: ${rupiah(p.price)}</span></div><div class="management-product-actions"><button type="button" class="mk-product-edit-toggle" data-edit-product="${p.id}" title="Edit" aria-label="Edit produk"><i class="fa-solid fa-pen"></i></button><button type="button" class="mk-product-delete-toggle" data-delete-product="${p.id}" title="Hapus" aria-label="Hapus produk"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('');
-  }
-
-  function renderKasirProducts(){
-    const grid=document.getElementById('kasir-product-grid'); if(!grid)return;
-    const search=(document.getElementById('kasir-search')?.value||'').trim().toLowerCase();
-    const list=kasirProducts.filter(p=>{const cat=kasirCategory==='Semua'||(p.category||'Lainnya')===kasirCategory; const q=!search||`${p.name} ${p.barcode||''}`.toLowerCase().includes(search);return cat&&q});
-    if(!list.length){grid.innerHTML='<div class="kasir-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Tambahkan produk di Management Kasir, lalu pilih produk di sini.</span></div>';return}
-    grid.innerHTML=list.map(p=>`<button type="button" class="kasir-product-card" data-add-product="${p.id}"><div class="kasir-product-photo">${p.photo?`<img src="${p.photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div><div class="kasir-product-info"><strong>${esc(p.name)}</strong><span>${rupiah(p.price)}</span></div></button>`).join('');
-  }
-
-  function renderCart(){
-    const list=document.getElementById('kasir-cart-list'); if(!list)return;
-    const count=kasirCart.reduce((a,x)=>a+x.qty,0); const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    document.getElementById('kasir-cart-count').textContent=count+' Item';
-    document.getElementById('kasir-total-products').textContent=rupiah(total);
-    if(!kasirCart.length){list.innerHTML='<div class="kasir-cart-empty"><i class="fa-solid fa-cart-shopping"></i><strong>Keranjang masih kosong</strong><span>Tambahkan produk dari kotak sebelah kiri.</span></div>'}
-    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item">${x.photo?`<img class="kasir-cart-thumb" src="${x.photo}" alt="">`:`<div class="kasir-cart-thumb"></div>`}<div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
-    updateChange();
-  }
-  function updateChange(){
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0); const paid=Number((document.getElementById('kasir-payment')?.value||'').replace(/[^0-9]/g,''))||0;
-    const el=document.getElementById('kasir-change'); if(el)el.textContent=rupiah(Math.max(0,paid-total));
-  }
-  function renderTransactions(){
-    const count=document.getElementById('kasir-transaction-count'), list=document.getElementById('kasir-transaction-list');
-    const omzet=kasirTransactions.reduce((a,t)=>a+(Number(t.total)||0),0), paid=kasirTransactions.reduce((a,t)=>a+(Number(t.paid)||0),0);
-    if(count)count.textContent=kasirTransactions.length+' transaksi';
-    const o=document.getElementById('kasir-stat-omzet'),p=document.getElementById('kasir-stat-paid'),c=document.getElementById('kasir-stat-count');
-    if(o)o.textContent=rupiah(omzet); if(p)p.textContent=rupiah(paid); if(c)c.textContent=kasirTransactions.length;
-
-    if(!list)return;
-    if(!kasirTransactions.length){
-      list.innerHTML='<div class="management-empty" style="min-height:90px"><span>Belum ada transaksi kasir.</span></div>';
-      return;
+  
+function decodeKasirProductsStorage(raw){
+  try{
+    if(!raw)return [];
+    if(typeof raw==='string'&&raw.startsWith('LZK1')){
+      if(typeof LZString==='undefined'||!LZString.decompressFromUTF16)return [];
+      const decoded=LZString.decompressFromUTF16(raw.slice(4));
+      const parsed=decoded?JSON.parse(decoded):[];
+      return Array.isArray(parsed)?parsed:[];
     }
-
-    const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-
-    function getTransactionDate(t){
-      const n=Number(t.id);
-      if(Number.isFinite(n) && n>0){
-        const d=new Date(n);
-        if(!Number.isNaN(d.getTime()))return d;
-      }
-      const text=String(t.date||'').trim();
-      const m=text.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
-      if(m){
-        let y=Number(m[3]); if(y<100)y+=2000;
-        const d=new Date(y,Number(m[2])-1,Number(m[1]));
-        if(!Number.isNaN(d.getTime()))return d;
-      }
-      return new Date(0);
-    }
-
-    const groups={};
-    kasirTransactions.forEach(t=>{
-      const d=getTransactionDate(t);
-      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      if(!groups[key])groups[key]={date:d,items:[]};
-      groups[key].items.push(t);
-    });
-
-    const ordered=Object.values(groups).sort((a,b)=>b.date-a.date);
-    list.innerHTML=`<div class="mk-daily-grid">${ordered.map(g=>{
-      g.items.sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));
-      const dayTotal=g.items.reduce((sum,t)=>sum+(Number(t.total)||0),0);
-      const dayItems=g.items.reduce((sum,t)=>sum+(Number(t.items)||0),0);
-      return `<div class="mk-daily-card">
-        <div class="mk-daily-head">
-          <div>
-            <strong>${days[g.date.getDay()]}, ${g.date.getDate()} ${months[g.date.getMonth()]} ${g.date.getFullYear()}</strong>
-            <span>${g.items.length} transaksi • ${dayItems} item</span>
-          </div>
-          <b>${rupiah(dayTotal)}</b>
-        </div>
-        <div class="mk-daily-rows">
-          ${g.items.map(t=>{
-            const text=String(t.date||'');
-            const tm=text.match(/(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?)/);
-            const time=tm?tm[1]:'';
-            return `<div class="mk-daily-row"><span>${time?esc(time):'Transaksi'} • ${Number(t.items)||0} item</span><strong>${rupiah(t.total)}</strong><button type="button" class="mk-transaction-delete-toggle" data-delete-transaction="${t.id}" title="Hapus transaksi" aria-label="Hapus transaksi"><i class="fa-solid fa-trash-can"></i></button></div>`;
-          }).join('')}
-        </div>
-      </div>`;
-    }).join('')}</div>`;
+    const parsed=JSON.parse(raw);
+    return Array.isArray(parsed)?parsed:[];
+  }catch(e){
+    return [];
   }
+}
+function loadKasirProductsStorage(phone){
+  try{return decodeKasirProductsStorage(localStorage.getItem(`finance_kasir_products_${phone}`));}
+  catch(e){return [];}
+}
 
-  function initKasirManagement(){
-    loadKasirStore(); renderManagementProducts(); renderKasirProducts(); renderCart(); renderTransactions();
-    const photo=document.getElementById('kasir-product-photo');
-    if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;if(!/^image\/(jpeg|png)$/i.test(f.type)){showModal('Gagal','Format foto hanya JPG atau PNG.','fa-solid fa-circle-xmark text-rose-600');return}const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
-    const form=document.getElementById('kasir-product-form');
-    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();kasirProducts.push({id:newProductId,name,price,cost,photo:kasirPhotoData,category:'Lainnya'});markKasirProductPending(newProductId);saveKasirStore();form.reset();kasirPhotoData='';document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();showModal('Berhasil','Produk berhasil ditambahkan.')})}
-  }
-
-  function closeKasirProductEditModal(){const modal=document.getElementById('kasir-product-edit-modal');if(modal)modal.remove()}
-  function openKasirProductEditModal(product){
-    closeKasirProductEditModal();
-    const modal=document.createElement('div'); modal.id='kasir-product-edit-modal'; modal.className='kasir-product-edit-modal';
-    const photo=product.photo||'';
-    modal.innerHTML=`<div class="kasir-product-edit-dialog" role="dialog" aria-modal="true"><div class="kasir-product-edit-head"><div><h3>Edit Produk</h3><span>Ubah data produk</span></div><button type="button" class="kasir-product-edit-close"><i class="fa-solid fa-xmark"></i></button></div><div class="kasir-product-edit-body"><label class="kasir-edit-field"><span>NAMA PRODUK</span><input id="kasir-edit-name" type="text" value="${esc(product.name)}"></label><div class="kasir-edit-field"><span>FOTO PRODUK</span><div class="kasir-edit-photo-row"><label for="kasir-edit-photo" class="kasir-edit-photo-btn"><i class="fa-solid fa-camera"></i><span>Ubah Foto Produk</span></label><input id="kasir-edit-photo" type="file" accept="image/jpeg,image/png" hidden><div id="kasir-edit-photo-preview" class="kasir-edit-photo-preview">${photo?`<img src="${photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div></div></div><label class="kasir-edit-field"><span>HARGA HPP / GROSIR</span><input id="kasir-edit-cost" type="text" inputmode="numeric" value="${Number(product.cost)||0}"></label><label class="kasir-edit-field"><span>HARGA JUAL</span><input id="kasir-edit-price" type="text" inputmode="numeric" value="${Number(product.price)||0}"></label></div><div class="kasir-product-edit-footer"><button type="button" class="kasir-edit-cancel">Batal</button><button type="button" class="kasir-edit-save"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></div>`;
-    document.body.appendChild(modal);
-    let newPhoto=photo;
-    const pi=modal.querySelector('#kasir-edit-photo');
-    pi.onchange=ev=>{const f=ev.target.files?.[0];if(!f)return;if(!/^image\/(jpeg|png)$/i.test(f.type)){showModal('Gagal','Format foto hanya JPG atau PNG.','fa-solid fa-circle-xmark text-rose-600');pi.value='';return}const r=new FileReader();r.onload=()=>{newPhoto=r.result;modal.querySelector('#kasir-edit-photo-preview').innerHTML=`<img src="${r.result}" alt="">`};r.readAsDataURL(f)};
-    modal.querySelectorAll('#kasir-edit-cost,#kasir-edit-price').forEach(i=>i.addEventListener('input',()=>i.value=i.value.replace(/[^0-9]/g,'')));
-    modal.querySelector('.kasir-product-edit-close').onclick=closeKasirProductEditModal;
-    modal.querySelector('.kasir-edit-cancel').onclick=closeKasirProductEditModal;
-    modal.querySelector('.kasir-edit-save').onclick=()=>{const name=modal.querySelector('#kasir-edit-name').value.trim();const cost=Number(modal.querySelector('#kasir-edit-cost').value)||0;const price=Number(modal.querySelector('#kasir-edit-price').value)||0;if(!name||!price){showModal('Gagal','Nama produk dan harga jual wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}product.name=name;product.cost=cost;product.price=price;product.photo=newPhoto;saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();closeKasirProductEditModal();showModal('Berhasil','Produk berhasil diperbarui.')};
-    modal.onclick=ev=>{if(ev.target===modal)closeKasirProductEditModal()};
-    setTimeout(()=>modal.querySelector('#kasir-edit-name')?.focus(),50);
-  }
-
-  document.addEventListener('click',e=>{
-    const add=e.target.closest('[data-add-product]');if(add){const id=Number(add.dataset.addProduct),p=kasirProducts.find(x=>x.id===id);if(p){const x=kasirCart.find(x=>x.id===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
-    const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
-    const dec=e.target.closest('[data-cart-dec]');if(dec){const i=kasirCart.findIndex(x=>x.id===Number(dec.dataset.cartDec));if(i>-1){kasirCart[i].qty--;if(kasirCart[i].qty<=0)kasirCart.splice(i,1)}renderCart();return}
-    const edit=e.target.closest('[data-edit-product]');if(edit){const id=Number(edit.dataset.editProduct);const p=kasirProducts.find(x=>Number(x.id)===id);if(p){openKasirProductEditModal(p)}return}
-    const del=e.target.closest('[data-delete-product]');if(del){const id=Number(del.dataset.deleteProduct);kasirProducts=kasirProducts.filter(x=>Number(x.id)!==id);kasirCart=kasirCart.filter(x=>Number(x.id)!==id);saveKasirStore();renderManagementProducts();renderKasirProducts();renderCart();return}
-    const delTransaction=e.target.closest('[data-delete-transaction]');if(delTransaction){const id=Number(delTransaction.dataset.deleteTransaction);kasirTransactions=kasirTransactions.filter(x=>Number(x.id)!==id);saveKasirStore();renderTransactions();return}
-    const cat=e.target.closest('.kasir-category');if(cat){kasirCategory=cat.dataset.category;document.querySelectorAll('.kasir-category').forEach(x=>x.classList.toggle('active',x===cat));renderKasirProducts()}
-  });
-
-  document.addEventListener('input',e=>{if(e.target.id==='kasir-search')renderKasirProducts();if(e.target.id==='kasir-payment'){e.target.value=e.target.value.replace(/[^0-9]/g,'');updateChange()}});
-  document.addEventListener('submit',e=>{if(e.target.id!=='kasir-product-form')return});
-  document.addEventListener('click',e=>{
-    if(e.target.closest('#kasir-refresh-btn')){loadKasirStore();renderKasirProducts();renderManagementProducts()}
-    if(e.target.closest('#kasir-cancel-btn')){kasirCart=[];document.getElementById('kasir-payment').value='';renderCart()}
-    if(e.target.closest('#kasir-save-btn')){const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);const paid=Number((document.getElementById('kasir-payment').value||'').replace(/[^0-9]/g,''))||0;if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return}if(paid<total){showModal('Gagal','Pembayaran masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return}kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total,paid,change:paid-total});saveKasirStore();kasirCart=[];document.getElementById('kasir-payment').value='';renderCart();renderTransactions();showModal('Berhasil','Transaksi kasir berhasil disimpan.')}
-  });
-
-  window.__initKasirViews=function(){initKasirManagement()};
+function saveKasirStore(){
+  try{
+    const phone=localStorage.getItem('phone')||'';
+    const productKey=`finance_kasir_products_${phone}`;
+    const productJson=JSON.stringify(Array.isArray(kasirProducts)?kasirProducts:[]);
+    const storedProducts=(typeof LZString!=='undefined'&&LZString.compressToUTF16)
+      ? 'LZK1'+LZString.compressToUTF16(productJson)
+      : productJson;
+    localStorage.setItem(productKey,storedProducts);
+    localStorage.setItem(`finance_kasir_transactions_${phone}`,JSON.stringify(kasirTransactions||[]));
+    window.__rekapinyuSaveCloudData?.();
+  }catch(e){}
 })();
 </script>
 
