@@ -4629,7 +4629,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
@@ -4693,6 +4693,18 @@ function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e
 // Bridge untuk script klasik: helper di dalam module tidak terlihat oleh script biasa.
 window.__markDataPending=(key,items)=>markDataPending(key,items);
 window.__requestDataCloudSync=()=>requestDataCloudSync();
+// Tambahkan produk Kasir secara atomik ke field kasirProducts agar produk baru tidak menimpa produk lama.
+window.__addKasirProductToFirestore=async(product)=>{
+ try{
+  const uid=cloudUid();
+  if(!uid||!product)return false;
+  await setDoc(dref(uid),{kasirProducts:arrayUnion(product),updatedAt:serverTimestamp()},{merge:true});
+  return true;
+ }catch(e){
+  console.warn("Rekapinyu: produk Kasir gagal disimpan ke Firestore.",e);
+  return false;
+ }
+};
 
 async function saveCloudData(){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
@@ -6281,7 +6293,7 @@ onAuthStateChanged(auth,async u=>{
     const photo=document.getElementById('kasir-product-photo');
     if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;if(!/^image\/(jpeg|png)$/i.test(f.type)){showModal('Gagal','Format foto hanya JPG atau PNG.','fa-solid fa-circle-xmark text-rose-600');return}const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
     const form=document.getElementById('kasir-product-form');
-    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=(Date.now()*1000)+Math.floor(Math.random()*1000);kasirProducts.push({id:newProductId,name,price,cost,photo:kasirPhotoData,category:'Lainnya'});window.__markKasirProductPending?.(newProductId);saveKasirStore();form.reset();kasirPhotoData='';document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();showModal('Berhasil','Produk berhasil ditambahkan.')})}
+    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=(Date.now()*1000)+Math.floor(Math.random()*1000);const newProduct={id:newProductId,name,price,cost,photo:kasirPhotoData,category:'Lainnya'};kasirProducts.push(newProduct);window.__markKasirProductPending?.(newProductId);saveKasirStore();window.__addKasirProductToFirestore?.(newProduct);form.reset();kasirPhotoData='';document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();showModal('Berhasil','Produk berhasil ditambahkan.')})}
   }
 
   function closeKasirProductEditModal(){const modal=document.getElementById('kasir-product-edit-modal');if(modal)modal.remove()}
