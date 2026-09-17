@@ -2562,9 +2562,11 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         });
 
         function handleLogout() {
+            // Logout harus langsung mengembalikan tampilan ke halaman login.
             currentSessionUser = null;
             isKasbonUnlocked = false;
-            localStorage.removeItem('finance_active_session');
+            window.__rekapinyuLandingHandoffActive = false;
+            try { localStorage.removeItem('finance_active_session'); } catch (e) {}
             checkAuth();
             toggleAuthView('login');
         }
@@ -4896,7 +4898,20 @@ if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
 },true);
 
 // Logout now signs out from Firebase Auth.
-window.handleLogout=async()=>{try{await saveCloudData()}catch{}try{await signOut(auth)}catch{}currentSessionUser=null;isKasbonUnlocked=false;nativeRemove.call(localStorage,"finance_active_session");checkAuth();toggleAuthView("login")};
+window.handleLogout=()=>{
+  // Tampilkan halaman login SEGERA; proses Firebase dijalankan di belakang layar.
+  currentSessionUser=null;
+  isKasbonUnlocked=false;
+  window.__rekapinyuLandingHandoffActive=false;
+  try{nativeRemove.call(localStorage,"finance_active_session")}catch(e){}
+  try{checkAuth();toggleAuthView("login")}catch(e){
+    const authContainer=document.getElementById("auth-container");
+    if(authContainer)authContainer.classList.remove("hidden");
+    try{toggleAuthView("login")}catch(_){}
+  }
+  // Jangan menunggu Firebase sebelum memindahkan pengguna ke login.
+  try{signOut(auth).catch(()=>{})}catch(e){}
+};
 
 // Profile changes save to Firestore instead of only localStorage.
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
