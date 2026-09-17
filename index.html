@@ -3665,6 +3665,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             renderPengeluaranGrid();
             if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Berhasil", "Data pengeluaran berhasil disimpan.");
+            setTimeout(() => { try { closeModal(); } catch (err) {} }, 1600);
         });
 
         document.getElementById('kasbon-form').addEventListener('submit', (e) => {
@@ -3718,6 +3719,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             renderKasbonGrid();
             if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Berhasil", "Data kasbon berhasil disimpan.");
+            setTimeout(() => { try { closeModal(); } catch (err) {} }, 1600);
         });
 
         function toggleLunasKasbon(id) {
@@ -4781,7 +4783,16 @@ function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();rend
  */
 let cloudSaveChain=Promise.resolve();
 window.__rekapinyuSaveCloudData=()=>{
- cloudSaveChain=cloudSaveChain.then(()=>saveCloudData()).catch(err=>{
+ cloudSaveChain=cloudSaveChain.then(async()=>{
+   await saveCloudData();
+   const phone=phoneOf(currentSessionUser?.phone);
+   if(phone){
+     clearDataPending('history',safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]));
+     clearDataPending('pengeluaran',safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]));
+     clearDataPending('kasbon',safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]));
+     clearDataPending('backup',safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]));
+   }
+ }).catch(err=>{
    console.warn("Rekapinyu: sinkronisasi Firestore gagal, cache lokal tetap dipertahankan.",err);
  });
  return cloudSaveChain;
