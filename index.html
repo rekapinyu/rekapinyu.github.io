@@ -4746,68 +4746,102 @@ function getKasirLocalPhoto(productId){
 function removeKasirLocalPhoto(productId){
   try{localStorage.removeItem(kasirLocalPhotoKey(productId));}catch(e){}
 }
-async function compressKasirPhoto(dataUrl){
-  if(!dataUrl)throw new Error('Foto kosong.');
-  return await new Promise((resolve,reject)=>{
-    const img=new Image();
-    img.onload=()=>{
-      try{
-        const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-        if(!w||!h)throw new Error('Ukuran foto tidak terbaca.');
-        let maxSide=1200, scale=Math.min(1,maxSide/Math.max(w,h));
-        let cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
-        let best='';
-        for(let pass=0;pass<8;pass++){
-          const canvas=document.createElement('canvas');
-          canvas.width=cw; canvas.height=ch;
-          const ctx=canvas.getContext('2d',{alpha:false});
-          if(!ctx)throw new Error('Canvas tidak didukung browser.');
-          ctx.fillStyle='#fff'; ctx.fillRect(0,0,cw,ch); ctx.drawImage(img,0,0,cw,ch);
-          for(const q of [.78,.68,.58,.48,.38,.30,.22]){
-            const out=canvas.toDataURL('image/jpeg',q);
-            if(!best||out.length<best.length)best=out;
-            if(out.length<=280000){resolve(out);return;}
-          }
-          cw=Math.max(240,Math.round(cw*.72));
-          ch=Math.max(240,Math.round(ch*.72));
-        }
-        if(best&&best.length<=500000){resolve(best);return;}
-        throw new Error('Foto terlalu besar setelah kompresi.');
-      }catch(e){reject(e)}
-    };
-    img.onerror=()=>reject(new Error('Format foto tidak dapat dibaca browser.'));
-    img.src=String(dataUrl);
+
+/* SISTEM FOTO PRODUK BARU: satu jalur saja.
+   - menerima semua file yang terdeteksi sebagai gambar + ekstensi gambar umum
+   - membaca file sebagai data URL
+   - kompres otomatis bila browser bisa mendekode formatnya
+   - bila format tidak bisa didekode browser, file asli tetap disimpan
+   - foto tidak pernah dimasukkan ke payload Firestore
+*/
+const KASIR_IMAGE_EXTENSIONS=/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|jpe|png|svg|tif|tiff|webp|apng)$/i;
+function isKasirImageFile(file){
+  return !!file && (String(file.type||'').toLowerCase().startsWith('image/') || KASIR_IMAGE_EXTENSIONS.test(String(file.name||'')));
+}
+function readKasirFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    if(!file){reject(new Error('File foto kosong.'));return;}
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>reject(new Error('Foto tidak dapat dibaca browser.'));
+    reader.readAsDataURL(file);
   });
+}
+async function compressKasirPhoto(dataUrl){
+  if(!dataUrl)return '';
+  try{
+    const img=new Image();
+    const loaded=new Promise((resolve,reject)=>{
+      img.onload=()=>resolve();
+      img.onerror=()=>reject(new Error('FORMAT_UNSUPPORTED'));
+    });
+    img.src=String(dataUrl);
+    await loaded;
+    const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+    if(!w||!h)throw new Error('FORMAT_UNSUPPORTED');
+    let maxSide=1280;
+    let scale=Math.min(1,maxSide/Math.max(w,h));
+    let cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+    let best='';
+    for(let pass=0;pass<7;pass++){
+      const canvas=document.createElement('canvas');
+      canvas.width=cw;canvas.height=ch;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(!ctx)throw new Error('FORMAT_UNSUPPORTED');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);ctx.drawImage(img,0,0,cw,ch);
+      for(const quality of [.82,.70,.58,.46,.34,.24]){
+        const out=canvas.toDataURL('image/jpeg',quality);
+        if(!best||out.length<best.length)best=out;
+        if(out.length<=300000)return out;
+      }
+      cw=Math.max(180,Math.round(cw*.70));
+      ch=Math.max(180,Math.round(ch*.70));
+    }
+    if(best&&best.length<=450000)return best;
+    throw new Error('PHOTO_TOO_LARGE');
+  }catch(e){
+    if(String(e?.message)==='PHOTO_TOO_LARGE')throw e;
+    // Format seperti HEIC/HEIF atau format baru yang tidak bisa didekode
+    // tetap diterima: simpan data URL asli tanpa mengubah formatnya.
+    return String(dataUrl);
+  }
 }
 async function saveKasirLocalPhoto(productId,dataUrl){
   const key=kasirLocalPhotoKey(productId);
-  const compressed=await compressKasirPhoto(dataUrl);
+  if(!dataUrl)throw new Error('Foto kosong.');
+  let value=await compressKasirPhoto(dataUrl);
   try{
-    localStorage.setItem(key,compressed);
-    return compressed;
-  }catch(e){
+    localStorage.setItem(key,value);
+    return value;
+  }catch(firstError){
+    // Percobaan terakhir dengan versi JPEG kecil jika browser masih menolak quota.
     try{
-      const tiny=await new Promise((resolve,reject)=>{
-        const img=new Image();
+      const img=new Image();
+      const small=await new Promise((resolve,reject)=>{
         img.onload=()=>{
           try{
             const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
-            const scale=Math.min(1,600/Math.max(w,h));
+            if(!w||!h)throw new Error('NO_DIMENSION');
+            const scale=Math.min(1,480/Math.max(w,h));
             const c=document.createElement('canvas');
-            c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
-            const x=c.getContext('2d',{alpha:false});
-            if(!x)throw new Error('Canvas tidak didukung browser.');
-            x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
-            resolve(c.toDataURL('image/jpeg',.18));
+            c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));
+            const ctx=c.getContext('2d',{alpha:false});
+            if(!ctx)throw new Error('NO_CANVAS');
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+            resolve(c.toDataURL('image/jpeg',.15));
           }catch(err){reject(err)}
         };
-        img.onerror=()=>reject(e); img.src=compressed;
+        img.onerror=()=>reject(firstError);
+        img.src=String(dataUrl);
       });
-      localStorage.setItem(key,tiny);
-      return tiny;
-    }catch(finalErr){throw finalErr||e;}
+      localStorage.setItem(key,small);
+      return small;
+    }catch(finalError){
+      throw finalError||firstError;
+    }
   }
 }
+
 
 async function saveCloudData(snapshot=null){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone);
@@ -6427,7 +6461,7 @@ onAuthStateChanged(auth,async u=>{
   function initKasirManagement(){
     loadKasirStore(); renderManagementProducts(); renderKasirProducts(); renderCart(); renderTransactions();
     const photo=document.getElementById('kasir-product-photo');
-    if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const isImage=String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name);if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');photo.value='';return}kasirPhotoFile=f;const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
+    if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(!isKasirImageFile(f)){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');photo.value='';return}kasirPhotoFile=f;try{kasirPhotoData=await readKasirFileAsDataURL(f);const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${kasirPhotoData}" alt="" style="width:100%;height:100%;object-fit:cover;">`;if(lab)lab.textContent=f.name;}catch(err){kasirPhotoData='';kasirPhotoFile=null;photo.value='';showModal('Gagal','Foto tidak dapat dibaca. Silakan pilih file foto lain.','fa-solid fa-circle-xmark text-rose-600');}})}
     const form=document.getElementById('kasir-product-form');
     if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();const newProduct={id:newProductId,name,price,cost,photo:'',category:'Lainnya'};kasirProducts.push(newProduct);markKasirProductPending(newProductId);const saved=await saveKasirStore();if(!saved){kasirProducts=kasirProducts.filter(p=>Number(p.id)!==Number(newProductId));showModal('Gagal','Produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}if(kasirPhotoData){try{newProduct.photo=await saveKasirLocalPhoto(newProductId,kasirPhotoData);showModal('Berhasil','Produk dan foto berhasil disimpan.');}catch(err){console.error('Simpan foto produk ke localStorage gagal:',err);showModal('Peringatan','Produk berhasil disimpan, tetapi foto tidak dapat disimpan di penyimpanan browser.','fa-solid fa-triangle-exclamation text-amber-500');}}else{showModal('Berhasil','Produk berhasil ditambahkan.')}form.reset();kasirPhotoData='';kasirPhotoFile=null;document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();})}
   }
@@ -6442,7 +6476,7 @@ onAuthStateChanged(auth,async u=>{
     let newPhoto=photo;
     const pi=modal.querySelector('#kasir-edit-photo');
     let newPhotoFile=null;
-    pi.onchange=ev=>{const f=ev.target.files?.[0];if(!f)return;const isImage=String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name);if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');pi.value='';return}newPhotoFile=f;const r=new FileReader();r.onload=()=>{newPhoto=r.result;modal.querySelector('#kasir-edit-photo-preview').innerHTML=`<img src="${r.result}" alt="">`};r.readAsDataURL(f)};
+    pi.onchange=async ev=>{const f=ev.target.files?.[0];if(!f)return;if(!isKasirImageFile(f)){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');pi.value='';return}newPhotoFile=f;try{newPhoto=await readKasirFileAsDataURL(f);modal.querySelector('#kasir-edit-photo-preview').innerHTML=`<img src="${newPhoto}" alt="" style="width:100%;height:100%;object-fit:cover;">`;}catch(err){newPhotoFile=null;pi.value='';showModal('Gagal','Foto tidak dapat dibaca. Silakan pilih file foto lain.','fa-solid fa-circle-xmark text-rose-600');}};
     modal.querySelectorAll('#kasir-edit-cost,#kasir-edit-price').forEach(i=>i.addEventListener('input',()=>i.value=i.value.replace(/[^0-9]/g,'')));
     modal.querySelector('.kasir-product-edit-close').onclick=closeKasirProductEditModal;
     modal.querySelector('.kasir-edit-cancel').onclick=closeKasirProductEditModal;
