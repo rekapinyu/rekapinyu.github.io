@@ -4743,9 +4743,78 @@ function kasirLocalPhotoKey(productId){
 function getKasirLocalPhoto(productId){
   try{return localStorage.getItem(kasirLocalPhotoKey(productId))||"";}catch(e){return "";}
 }
-function saveKasirLocalPhoto(productId,dataUrl){
+async function saveKasirLocalPhoto(productId,dataUrl){
   if(!dataUrl)return;
-  localStorage.setItem(kasirLocalPhotoKey(productId),dataUrl);
+  // Foto hanya untuk localStorage. Data produk/metadata tetap masuk Firestore.
+  // Foto selalu dikompres otomatis agar tidak mudah terkena batas quota localStorage.
+  const key=kasirLocalPhotoKey(productId);
+  let value=String(dataUrl);
+  try{
+    value=await new Promise((resolve,reject)=>{
+      const img=new Image();
+      const canvas=document.createElement('canvas');
+      const ctx=canvas.getContext('2d');
+      img.onload=()=>{
+        try{
+          const maxSide=1200;
+          const w=img.naturalWidth||img.width||1;
+          const h=img.naturalHeight||img.height||1;
+          const scale=Math.min(1,maxSide/Math.max(w,h));
+          canvas.width=Math.max(1,Math.round(w*scale));
+          canvas.height=Math.max(1,Math.round(h*scale));
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          let q=.78;
+          let out=canvas.toDataURL('image/jpeg',q);
+          // Target kecil supaya aman untuk localStorage dan tetap cukup jelas.
+          while(out.length>650000 && q>.30){
+            q-=.08;
+            out=canvas.toDataURL('image/jpeg',q);
+          }
+          if(out.length>650000){
+            canvas.width=Math.max(1,Math.round(canvas.width*.75));
+            canvas.height=Math.max(1,Math.round(canvas.height*.75));
+            ctx.drawImage(img,0,0,canvas.width,canvas.height);
+            out=canvas.toDataURL('image/jpeg',.35);
+          }
+          resolve(out);
+        }catch(err){reject(err)}
+      };
+      img.onerror=()=>reject(new Error('Foto tidak dapat diproses browser.'));
+      img.src=value;
+    });
+  }catch(e){
+    // Jika browser tidak bisa decode format tertentu, tetap coba simpan data aslinya.
+    value=String(dataUrl);
+  }
+
+  // Beberapa browser memiliki quota localStorage yang lebih kecil.
+  // Jika penyimpanan pertama ditolak, kompres lagi sampai jauh lebih kecil.
+  try{
+    localStorage.setItem(key,value);
+  }catch(firstErr){
+    try{
+      const img=new Image();
+      const canvas=document.createElement('canvas');
+      const ctx=canvas.getContext('2d');
+      value=await new Promise((resolve,reject)=>{
+        img.onload=()=>{
+          try{
+            const w=img.naturalWidth||img.width||1,h=img.naturalHeight||img.height||1;
+            const scale=Math.min(1,900/Math.max(w,h));
+            canvas.width=Math.max(1,Math.round(w*scale));
+            canvas.height=Math.max(1,Math.round(h*scale));
+            ctx.drawImage(img,0,0,canvas.width,canvas.height);
+            resolve(canvas.toDataURL('image/jpeg',.25));
+          }catch(err){reject(err)}
+        };
+        img.onerror=()=>reject(firstErr);
+        img.src=String(dataUrl);
+      });
+      localStorage.setItem(key,value);
+    }catch(secondErr){
+      throw secondErr||firstErr;
+    }
+  }
 }
 function removeKasirLocalPhoto(productId){
   try{localStorage.removeItem(kasirLocalPhotoKey(productId));}catch(e){}
@@ -6371,7 +6440,7 @@ onAuthStateChanged(auth,async u=>{
     const photo=document.getElementById('kasir-product-photo');
     if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const isImage=String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name);if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');photo.value='';return}kasirPhotoFile=f;const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
     const form=document.getElementById('kasir-product-form');
-    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();const newProduct={id:newProductId,name,price,cost,photo:'',category:'Lainnya'};kasirProducts.push(newProduct);markKasirProductPending(newProductId);const saved=await saveKasirStore();if(!saved){kasirProducts=kasirProducts.filter(p=>Number(p.id)!==Number(newProductId));showModal('Gagal','Produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}if(kasirPhotoFile&&kasirPhotoData){try{saveKasirLocalPhoto(newProductId,kasirPhotoData);newProduct.photo=kasirPhotoData;showModal('Berhasil','Produk dan foto berhasil disimpan.');}catch(err){console.error('Simpan foto produk ke localStorage gagal:',err);showModal('Peringatan','Produk berhasil disimpan, tetapi foto tidak dapat disimpan di penyimpanan browser.','fa-solid fa-triangle-exclamation text-amber-500');}}else{showModal('Berhasil','Produk berhasil ditambahkan.')}form.reset();kasirPhotoData='';kasirPhotoFile=null;document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();})}
+    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();const newProduct={id:newProductId,name,price,cost,photo:'',category:'Lainnya'};kasirProducts.push(newProduct);markKasirProductPending(newProductId);const saved=await saveKasirStore();if(!saved){kasirProducts=kasirProducts.filter(p=>Number(p.id)!==Number(newProductId));showModal('Gagal','Produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}if(kasirPhotoFile&&kasirPhotoData){try{await saveKasirLocalPhoto(newProductId,kasirPhotoData);newProduct.photo=getKasirLocalPhoto(newProductId)||kasirPhotoData;showModal('Berhasil','Produk dan foto berhasil disimpan.');}catch(err){console.error('Simpan foto produk ke localStorage gagal:',err);showModal('Peringatan','Produk berhasil disimpan, tetapi foto tidak dapat disimpan di penyimpanan browser.','fa-solid fa-triangle-exclamation text-amber-500');}}else{showModal('Berhasil','Produk berhasil ditambahkan.')}form.reset();kasirPhotoData='';kasirPhotoFile=null;document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();})}
   }
 
   function closeKasirProductEditModal(){const modal=document.getElementById('kasir-product-edit-modal');if(modal)modal.remove()}
