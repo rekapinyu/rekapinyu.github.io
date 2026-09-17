@@ -4652,6 +4652,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",databaseURL:"https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
@@ -4736,48 +4737,25 @@ function cleanFirestoreValue(value, seen=new WeakSet()){
   }
   return null;
 }
-async function uploadKasirPhotoFile(file,productId){
+async function uploadKasirPhoto(file, productId){
   const uid=cloudUid();
-  if(!uid)throw new Error('Sesi Firebase belum siap.');
-  if(!file) return '';
-  const name=String(file.name||'foto');
-  const ext=(name.match(/\.([a-z0-9]{1,12})$/i)||[])[1]||'img';
-  const safeExt=ext.toLowerCase().replace(/[^a-z0-9]/g,'')||'img';
-  const path=`users/${uid}/kasir-products/${String(productId)}-${Date.now()}.${safeExt}`;
-  const contentType=String(file.type||'').toLowerCase().startsWith('image/')?file.type:'application/octet-stream';
-  const r=ref(storage,path);
-  await uploadBytes(r,file,{contentType,cacheControl:'public,max-age=31536000'});
+  if(!uid)throw new Error("Firebase Auth belum siap.");
+  if(!file) return "";
+  const type=String(file.type||"").toLowerCase();
+  const name=String(file.name||"foto");
+  const ext=((name.match(/\.([a-z0-9]{1,15})$/i)||[])[1]||"img").toLowerCase().replace(/[^a-z0-9]/g,"")||"img";
+  const path=`users/${uid}/kasir-products/${String(productId)}-${Date.now()}.${ext}`;
+  const r=storageRef(storage,path);
+  await uploadBytes(r,file,{contentType:type.startsWith("image/")?type:"application/octet-stream",cacheControl:"public,max-age=31536000"});
   return await getDownloadURL(r);
 }
-window.__uploadKasirPhoto=uploadKasirPhotoFile;
-
-async function migrateKasirDataUrlPhotos(products){
-  const arr=Array.isArray(products)?products:[];
-  for(const product of arr){
-    const photo=String(product?.photo||'');
-    if(!photo.startsWith('data:image/'))continue;
-    try{
-      const response=await fetch(photo);
-      const blob=await response.blob();
-      const ext=(blob.type.split('/')[1]||'img').replace(/[^a-z0-9]/gi,'').toLowerCase()||'img';
-      const file=new File([blob],`kasir-${product.id||Date.now()}.${ext}`,{type:blob.type||'application/octet-stream'});
-      product.photo=await uploadKasirPhotoFile(file,product.id||Date.now());
-    }catch(err){
-      console.error('Migrasi foto produk lama ke Firebase Storage gagal:',err);
-      throw err;
-    }
-  }
-  return arr;
-}
+window.__uploadKasirPhoto=uploadKasirPhoto;
 
 async function saveCloudData(snapshot=null){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone);
  if(!uid||!phone)throw new Error('Sesi Firebase belum siap. Silakan tunggu sampai login selesai.');
  const live=(typeof window.__rekapinyuGetDataSnapshot==='function')?window.__rekapinyuGetDataSnapshot():{};
  const source=snapshot||live;
- // Foto produk disimpan di Firebase Storage; Firestore hanya menyimpan URL.
- const kasirProductsSource=Array.isArray(source.kasirProducts)?source.kasirProducts:[];
- await migrateKasirDataUrlPhotos(kasirProductsSource);
  // Jangan membersihkan serverTimestamp() dengan cleanFirestoreValue().
  // FieldValue sentinel harus dikirim langsung ke Firestore; jika diubah menjadi
  // object biasa, Firestore akan membalas error invalid-argument.
@@ -4788,8 +4766,8 @@ async function saveCloudData(snapshot=null){
    pengeluaranData:Array.isArray(source.pengeluaranData)?source.pengeluaranData:[],
    kasbonData:Array.isArray(source.kasbonData)?source.kasbonData:[],
    backupOtomatisData:Array.isArray(source.backupOtomatisData)?source.backupOtomatisData:[],
-   kasirProducts:kasirProductsSource,
-   kasirTransactions:Array.isArray(source.kasirTransactions)?source.kasirTransactions:[],
+   kasirProducts:Array.isArray(live.kasirProducts)?live.kasirProducts:[],
+   kasirTransactions:Array.isArray(live.kasirTransactions)?live.kasirTransactions:[],
    kasbonPass:(typeof window.__rekapinyuGetKasbonPass==='function')?(window.__rekapinyuGetKasbonPass()||''):''
  };
  const payload=cleanFirestoreValue(rawPayload);
@@ -6269,8 +6247,7 @@ onAuthStateChanged(auth,async u=>{
     if(!Array.isArray(kasirTransactions))kasirTransactions=[];
   }
   async function saveKasirStore(){
-    // Foto TIDAK disimpan sebagai base64 di Firestore. File asli diunggah ke Firebase Storage,
-    // lalu Firestore hanya menyimpan URL-nya agar ukuran dokumen tidak membengkak.
+    // Firestore adalah satu-satunya penyimpanan data produk/transaksi.
     try{window.__rekapinyuSetKasirMemory?.(kasirProducts,kasirTransactions);}catch(e){}
     try{
       const ok=await window.__saveAllFinanceDataDirectToFirestore?.();
@@ -6387,9 +6364,9 @@ onAuthStateChanged(auth,async u=>{
   function initKasirManagement(){
     loadKasirStore(); renderManagementProducts(); renderKasirProducts(); renderCart(); renderTransactions();
     const photo=document.getElementById('kasir-product-photo');
-    if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const isImage=(String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name));if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar. Silakan pilih file gambar apa saja.','fa-solid fa-circle-xmark text-rose-600');photo.value='';return}kasirPhotoFile=f;const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
+    if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const isImage=String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name);if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');photo.value='';return}kasirPhotoFile=f;const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
     const form=document.getElementById('kasir-product-form');
-    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();let photoUrl=kasirPhotoData;try{if(kasirPhotoFile&&typeof window.__uploadKasirPhoto==='function'){photoUrl=await window.__uploadKasirPhoto(kasirPhotoFile,newProductId);}}catch(err){console.error('Upload foto produk gagal:',err);showModal('Gagal','Foto produk tidak dapat diunggah ke Firebase Storage. Periksa Firebase Storage Rules lalu coba lagi.','fa-solid fa-circle-xmark text-rose-600');return}kasirProducts.push({id:newProductId,name,price,cost,photo:photoUrl||'',category:'Lainnya'});markKasirProductPending(newProductId);const saved=await saveKasirStore();if(!saved){kasirProducts=kasirProducts.filter(p=>Number(p.id)!==Number(newProductId));showModal('Gagal','Produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}form.reset();kasirPhotoData='';kasirPhotoFile=null;document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();showModal('Berhasil','Produk berhasil ditambahkan.')})}
+    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();const newProduct={id:newProductId,name,price,cost,photo:'',category:'Lainnya'};kasirProducts.push(newProduct);markKasirProductPending(newProductId);const saved=await saveKasirStore();if(!saved){kasirProducts=kasirProducts.filter(p=>Number(p.id)!==Number(newProductId));showModal('Gagal','Produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}if(kasirPhotoFile){try{const url=await window.__uploadKasirPhoto(kasirPhotoFile,newProductId);newProduct.photo=url;const photoSaved=await saveKasirStore();if(!photoSaved){newProduct.photo='';showModal('Peringatan','Produk sudah tersimpan, tetapi URL foto belum tersimpan ke Firestore.','fa-solid fa-triangle-exclamation text-amber-500');}else{showModal('Berhasil','Produk dan foto berhasil disimpan.');}}catch(err){console.error('Upload foto produk gagal:',err);showModal('Peringatan','Produk berhasil disimpan, tetapi foto belum tersimpan. Periksa Firebase Storage Rules.','fa-solid fa-triangle-exclamation text-amber-500');}}else{showModal('Berhasil','Produk berhasil ditambahkan.')}form.reset();kasirPhotoData='';kasirPhotoFile=null;document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();})}
   }
 
   function closeKasirProductEditModal(){const modal=document.getElementById('kasir-product-edit-modal');if(modal)modal.remove()}
@@ -6400,13 +6377,13 @@ onAuthStateChanged(auth,async u=>{
     modal.innerHTML=`<div class="kasir-product-edit-dialog" role="dialog" aria-modal="true"><div class="kasir-product-edit-head"><div><h3>Edit Produk</h3><span>Ubah data produk</span></div><button type="button" class="kasir-product-edit-close"><i class="fa-solid fa-xmark"></i></button></div><div class="kasir-product-edit-body"><label class="kasir-edit-field"><span>NAMA PRODUK</span><input id="kasir-edit-name" type="text" value="${esc(product.name)}"></label><div class="kasir-edit-field"><span>FOTO PRODUK</span><div class="kasir-edit-photo-row"><label for="kasir-edit-photo" class="kasir-edit-photo-btn"><i class="fa-solid fa-camera"></i><span>Ubah Foto Produk</span></label><input id="kasir-edit-photo" type="file" accept="image/*" hidden><div id="kasir-edit-photo-preview" class="kasir-edit-photo-preview">${photo?`<img src="${photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div></div></div><label class="kasir-edit-field"><span>HARGA HPP / GROSIR</span><input id="kasir-edit-cost" type="text" inputmode="numeric" value="${Number(product.cost)||0}"></label><label class="kasir-edit-field"><span>HARGA JUAL</span><input id="kasir-edit-price" type="text" inputmode="numeric" value="${Number(product.price)||0}"></label></div><div class="kasir-product-edit-footer"><button type="button" class="kasir-edit-cancel">Batal</button><button type="button" class="kasir-edit-save"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></div>`;
     document.body.appendChild(modal);
     let newPhoto=photo;
-    let newPhotoFile=null;
     const pi=modal.querySelector('#kasir-edit-photo');
-    pi.onchange=ev=>{const f=ev.target.files?.[0];if(!f)return;const isImage=(String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name));if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar. Silakan pilih file gambar apa saja.','fa-solid fa-circle-xmark text-rose-600');pi.value='';return}newPhotoFile=f;const r=new FileReader();r.onload=()=>{newPhoto=r.result;modal.querySelector('#kasir-edit-photo-preview').innerHTML=`<img src="${r.result}" alt="">`};r.readAsDataURL(f)};
+    let newPhotoFile=null;
+    pi.onchange=ev=>{const f=ev.target.files?.[0];if(!f)return;const isImage=String(f.type||'').toLowerCase().startsWith('image/')||/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|png|svg|tif|tiff|webp)$/i.test(f.name);if(!isImage){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');pi.value='';return}newPhotoFile=f;const r=new FileReader();r.onload=()=>{newPhoto=r.result;modal.querySelector('#kasir-edit-photo-preview').innerHTML=`<img src="${r.result}" alt="">`};r.readAsDataURL(f)};
     modal.querySelectorAll('#kasir-edit-cost,#kasir-edit-price').forEach(i=>i.addEventListener('input',()=>i.value=i.value.replace(/[^0-9]/g,'')));
     modal.querySelector('.kasir-product-edit-close').onclick=closeKasirProductEditModal;
     modal.querySelector('.kasir-edit-cancel').onclick=closeKasirProductEditModal;
-    modal.querySelector('.kasir-edit-save').onclick=async()=>{const name=modal.querySelector('#kasir-edit-name').value.trim();const cost=Number(modal.querySelector('#kasir-edit-cost').value)||0;const price=Number(modal.querySelector('#kasir-edit-price').value)||0;if(!name||!price){showModal('Gagal','Nama produk dan harga jual wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}try{if(newPhotoFile&&typeof window.__uploadKasirPhoto==='function'){newPhoto=await window.__uploadKasirPhoto(newPhotoFile,product.id);}}catch(err){console.error('Upload foto produk gagal:',err);showModal('Gagal','Foto produk tidak dapat diunggah ke Firebase Storage. Periksa Firebase Storage Rules lalu coba lagi.','fa-solid fa-circle-xmark text-rose-600');return}const old={name:product.name,cost:product.cost,price:product.price,photo:product.photo};product.name=name;product.cost=cost;product.price=price;product.photo=newPhoto||'';const saved=await saveKasirStore();if(!saved){Object.assign(product,old);showModal('Gagal','Perubahan produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}renderManagementProducts();renderKasirProducts();renderCart();closeKasirProductEditModal();showModal('Berhasil','Produk berhasil diperbarui.')};
+    modal.querySelector('.kasir-edit-save').onclick=async()=>{const name=modal.querySelector('#kasir-edit-name').value.trim();const cost=Number(modal.querySelector('#kasir-edit-cost').value)||0;const price=Number(modal.querySelector('#kasir-edit-price').value)||0;if(!name||!price){showModal('Gagal','Nama produk dan harga jual wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const old={name:product.name,cost:product.cost,price:product.price,photo:product.photo};product.name=name;product.cost=cost;product.price=price;try{if(newPhotoFile){product.photo=await window.__uploadKasirPhoto(newPhotoFile,product.id);}else{product.photo=old.photo||'';}const saved=await saveKasirStore();if(!saved)throw new Error('Firestore save gagal');renderManagementProducts();renderKasirProducts();renderCart();closeKasirProductEditModal();showModal('Berhasil','Produk berhasil diperbarui.');}catch(err){Object.assign(product,old);console.error('Edit foto/produk gagal:',err);showModal('Gagal','Perubahan produk belum berhasil disimpan. Periksa Firebase Storage Rules jika mengganti foto.','fa-solid fa-circle-xmark text-rose-600')}};
     modal.onclick=ev=>{if(ev.target===modal)closeKasirProductEditModal()};
     setTimeout(()=>modal.querySelector('#kasir-edit-name')?.focus(),50);
   }
