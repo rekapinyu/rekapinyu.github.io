@@ -2696,7 +2696,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         function updateLiveProfit() {
             const val = parseNum(document.getElementById('income').value);
             const cashoutVal = parseNum(document.getElementById('cashout').value);
-            const profitPct = parseFloat(document.getElementById('profit-percentage').value) || 0;
+            const profitPct = parseFloat(document.getElementById('profit-percentage').value) || 10;
             const profit = (val - cashoutVal) * (profitPct / 100);
             profitDisplay.innerText = formatRupiah(profit > 0 ? profit : 0);
         }
@@ -3977,7 +3977,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             const income = parseNum(document.getElementById('income').value);
             const expense = parseNum(document.getElementById('expense').value);
             const cashout = parseNum(document.getElementById('cashout').value);
-            const profitPercentage = parseFloat(document.getElementById('profit-percentage').value) || 0;
+            const profitPercentage = parseFloat(document.getElementById('profit-percentage').value) || 10;
             
             const profit = (income - cashout) * (profitPercentage / 100);
 
@@ -4089,11 +4089,13 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
             const fMonth = fMonthEl ? fMonthEl.value : "";
             const fYear = fYearEl ? fYearEl.value : "";
 
-            // Pastikan profit History selalu mengikuti rumus pada Form Input Data Harian.
+            // Hitung ulang Profit/Keuntungan otomatis setiap History ditampilkan.
+            // Jika persentase kosong/0, gunakan 10% sebagai nilai default.
             historyData.forEach(item => {
                 const income = Number(item.income) || 0;
                 const cashout = Number(item.cashout) || 0;
-                const pct = item.profitPercentage !== undefined ? (parseFloat(item.profitPercentage) || 0) : 10;
+                let pct = Number.parseFloat(item.profitPercentage);
+                if (!Number.isFinite(pct) || pct <= 0) pct = 10;
                 item.profitPercentage = pct;
                 item.profit = Math.max((income - cashout) * (pct / 100), 0);
             });
