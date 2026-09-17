@@ -6254,6 +6254,15 @@ onAuthStateChanged(auth,async u=>{
     localStorage.setItem(kasirUserKey('products'),JSON.stringify(kasirProducts));
     localStorage.setItem(kasirUserKey('transactions'),JSON.stringify(kasirTransactions));
     try{window.__saveAllFinanceDataDirectToFirestore?.();}catch(e){console.warn('Rekapinyu: sinkronisasi data kasir gagal.',e)}
+    try{
+      const uid=(typeof auth!=='undefined'&&auth.currentUser)?auth.currentUser.uid:null;
+      if(uid&&typeof db!=='undefined'&&typeof doc==='function'&&typeof setDoc==='function'){
+        Promise.all([
+          setDoc(doc(db,'kasirProducts',uid),{uid,products:kasirProducts,updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(doc(db,'kasirTransactions',uid),{uid,transactions:kasirTransactions,updatedAt:serverTimestamp()},{merge:true})
+        ]).catch(e=>console.warn('Rekapinyu: data kasir gagal disimpan ke Firestore.',e));
+      }
+    }catch(e){console.warn('Rekapinyu: sinkronisasi koleksi kasir gagal.',e)}
   }
   function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
