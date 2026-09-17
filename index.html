@@ -4630,12 +4630,13 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <!-- REKAPINYU: FIREBASE FULL INTEGRATION -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
-const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
+const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",databaseURL:"https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
 const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app), storage=getStorage(app);
+const authPersistenceReady=setPersistence(auth,browserLocalPersistence).catch(e=>{console.warn("Rekapinyu: Firebase Auth persistence gagal diaktifkan.",e);return false;});
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,unsubscribe:null};
 const USERS="rekapinyu_users", DATA="rekapinyu_data", MAX=850000;
 const phoneOf=v=>String(v||"").replace(/\D/g,"");
@@ -4652,7 +4653,7 @@ function openDashboardAfterLogin(){
 
 /* PATCH FOKUS DATA PERSISTEN: lindungi input terbaru dari snapshot Firestore yang masih lama/kosong. */
 function dataPendingKey(phone,key){return `finance_pending_${key}_${phone}`;}
-function window.__markDataPending?.(key,items){
+function markDataPending(key,items){
  try{
   const phone=phoneOf(currentSessionUser?.phone); if(!phone)return;
   const arr=Array.isArray(items)?items:[];
@@ -4693,8 +4694,8 @@ function persistAllDataLocally(){
 }
 function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e){}}
 // Bridge untuk script klasik: helper di dalam module tidak terlihat oleh script biasa.
-window.__markDataPending=(key,items)=>window.__markDataPending?.(key,items);
-window.__requestDataCloudSync=()=>window.__requestDataCloudSync?.();
+window.__markDataPending=(key,items)=>markDataPending(key,items);
+window.__requestDataCloudSync=()=>window.__rekapinyuSaveCloudData?.();
 
 async function saveCloudData(){
  const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
@@ -4867,6 +4868,7 @@ if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
    // Tunggu proses signOut Firebase dari logout sebelumnya selesai agar tidak terjadi
    // race: signOut lama tidak boleh memutus login Firebase yang baru.
    try{if(window.__rekapinyuLogoutPromise)await window.__rekapinyuLogoutPromise}catch(e){}
+   try{await authPersistenceReady}catch(e){}
    // Login Auth tetap menjadi sumber autentikasi utama.
    const c=await signInWithEmailAndPassword(auth,emailOf(phone),password);
    let u={name:c.user.displayName||"",phone,email:c.user.email,photo:""};
@@ -5187,6 +5189,7 @@ async function consumeLandingLogin(){
     const data=JSON.parse(new TextDecoder().decode(bytes));
     history.replaceState(null,document.title,window.location.pathname+window.location.search);
     if(!data?.phone||!data?.password)throw new Error("Data login dari Landing Page tidak lengkap.");
+    try{await authPersistenceReady}catch(e){}
     const c=await signInWithEmailAndPassword(auth,emailOf(data.phone),data.password);
     let u={uid:c.user.uid,name:c.user.displayName||"",phone:phoneOf(data.phone),email:c.user.email,photo:""};
     try{
