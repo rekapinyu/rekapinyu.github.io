@@ -4713,50 +4713,63 @@ function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e
 window.__markDataPending=(key,items)=>markDataPending(key,items);
 window.__requestDataCloudSync=()=>window.__rekapinyuSaveCloudData?.();
 
+function cleanFirestoreValue(value, seen=new WeakSet()){
+  if(value===undefined)return null;
+  if(value===null)return null;
+  if(typeof value==='number')return Number.isFinite(value)?value:null;
+  if(typeof value==='string'||typeof value==='boolean')return value;
+  if(value instanceof Date)return value;
+  if(typeof value==='function'||typeof value==='symbol')return null;
+  if(typeof value==='object'){
+    if(seen.has(value))return null;
+    seen.add(value);
+    if(Array.isArray(value))return value.map(v=>cleanFirestoreValue(v,seen));
+    const out={};
+    Object.keys(value).forEach(k=>{const v=cleanFirestoreValue(value[k],seen);if(v!==undefined)out[k]=v;});
+    return out;
+  }
+  return null;
+}
 async function saveCloudData(snapshot=null){
- const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone); if(!uid||!phone)return;
- // Ambil snapshot data tepat saat sinkronisasi diminta. Ini mencegah
- // callback realtime Firebase yang datang bersamaan mengganti array global
- // sebelum data terbaru sempat ditulis ke Firestore.
+ const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone);
+ if(!uid||!phone)throw new Error('Sesi Firebase belum siap. Silakan tunggu sampai login selesai.');
  const live=(typeof window.__rekapinyuGetDataSnapshot==='function')?window.__rekapinyuGetDataSnapshot():{};
  const source=snapshot||live;
- let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";
- if(shop.length>MAX)shop="";
- /*
-  * Firestore menjadi sumber data permanen.
-  * Semua array selalu dikirim, termasuk [].
-  * Jangan hanya menyimpan jika length > 0, karena ketika pengguna
-  * menghapus data sampai kosong, Firebase juga harus menerima [] agar
-  * data lama di cloud ikut terhapus dan tidak muncul lagi saat login
-  * dari perangkat/browser lain.
-  */
- const payload={
-   namaPengguna:currentSessionUser?.name||"",
-   nomorHp:currentSessionUser?.phone||"",
+ const payload=cleanFirestoreValue({
+   namaPengguna:currentSessionUser?.name||'',
+   nomorHp:currentSessionUser?.phone||'',
    historyData:Array.isArray(source.historyData)?source.historyData:[],
    pengeluaranData:Array.isArray(source.pengeluaranData)?source.pengeluaranData:[],
    kasbonData:Array.isArray(source.kasbonData)?source.kasbonData:[],
    backupOtomatisData:Array.isArray(source.backupOtomatisData)?source.backupOtomatisData:[],
    kasirProducts:Array.isArray(live.kasirProducts)?live.kasirProducts:[],
    kasirTransactions:Array.isArray(live.kasirTransactions)?live.kasirTransactions:[],
-   updatedAt:serverTimestamp()
- };
- const kasbonPass=(typeof window.__rekapinyuGetKasbonPass==='function')?(window.__rekapinyuGetKasbonPass()||""):"";
- payload.kasbonPass=kasbonPass;
- if(shop)payload.shopCover=shop;
+   updatedAt:serverTimestamp(),
+   kasbonPass:(typeof window.__rekapinyuGetKasbonPass==='function')?(window.__rekapinyuGetKasbonPass()||''):''
+ });
+ // Satu dokumen Firestore menjadi sumber utama seluruh menu. Data dibersihkan
+ // terlebih dahulu agar satu nilai undefined tidak membatalkan seluruh setDoc.
  await setDoc(dref(uid),payload,{merge:true});
+ return true;
 }
 window.__saveAllFinanceDataDirectToFirestore=async function(){
- const phone=phoneOf(currentSessionUser?.phone);
- const uid=cloudUid();
- if(!phone||!uid)return;
- const snapshot=(typeof window.__rekapinyuGetDataSnapshot==='function')?window.__rekapinyuGetDataSnapshot():{historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasirProducts:[],kasirTransactions:[]};
+ const phone=phoneOf(currentSessionUser?.phone),uid=cloudUid();
+ if(!phone||!uid){console.warn('Rekapinyu: penyimpanan dibatalkan karena Firebase Auth belum memiliki pengguna aktif.');return false;}
+ const snapshot=typeof window.__rekapinyuGetDataSnapshot==='function'?window.__rekapinyuGetDataSnapshot():null;
+ cloudSaveChain=cloudSaveChain.then(()=>saveCloudData(snapshot));
  try{
-   cloudSaveChain=cloudSaveChain.then(()=>saveCloudData(snapshot)).catch(e=>{ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); });
    await cloudSaveChain;
- }catch(e){ console.warn('Rekapinyu: penyimpanan data menu ke Firestore gagal.',e); }
+   return true;
+ }catch(e){
+   console.error('Rekapinyu FIRESTORE SAVE ERROR:',e);
+   notify('Gagal Simpan Firestore',`Data belum masuk Firestore. ${e?.code||e?.message||'Periksa Firestore Rules.'}`,'fa-solid fa-circle-exclamation text-rose-600');
+   // Jangan biarkan error membuat antrean berikutnya mati.
+   cloudSaveChain=Promise.resolve();
+   return false;
+ }
 };
 async function saveCloudUser(extra={}){
+
  const u=auth.currentUser;if(!u)return;
  const old=(await getDoc(uref(u.uid))).data()||{};
  await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),photo:extra.photo??currentSessionUser?.photo??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
