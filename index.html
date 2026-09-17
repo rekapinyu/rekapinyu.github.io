@@ -4864,6 +4864,9 @@ const lf=document.getElementById("login-form");
 if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
  const phone=phoneOf(document.getElementById("login-phone").value),password=document.getElementById("login-password").value;
  try{
+   // Tunggu proses signOut Firebase dari logout sebelumnya selesai agar tidak terjadi
+   // race: signOut lama tidak boleh memutus login Firebase yang baru.
+   try{if(window.__rekapinyuLogoutPromise)await window.__rekapinyuLogoutPromise}catch(e){}
    // Login Auth tetap menjadi sumber autentikasi utama.
    const c=await signInWithEmailAndPassword(auth,emailOf(phone),password);
    let u={name:c.user.displayName||"",phone,email:c.user.email,photo:""};
@@ -4910,7 +4913,8 @@ window.handleLogout=()=>{
     try{toggleAuthView("login")}catch(_){}
   }
   // Jangan menunggu Firebase sebelum memindahkan pengguna ke login.
-  try{signOut(auth).catch(()=>{})}catch(e){}
+  // Simpan promise agar login berikutnya dapat menunggu signOut ini selesai.
+  try{window.__rekapinyuLogoutPromise=signOut(auth).catch(()=>{}).finally(()=>{window.__rekapinyuLogoutPromise=null})}catch(e){window.__rekapinyuLogoutPromise=null}
 };
 
 // Profile changes save to Firestore instead of only localStorage.
