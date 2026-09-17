@@ -4735,7 +4735,10 @@ async function saveCloudData(snapshot=null){
  if(!uid||!phone)throw new Error('Sesi Firebase belum siap. Silakan tunggu sampai login selesai.');
  const live=(typeof window.__rekapinyuGetDataSnapshot==='function')?window.__rekapinyuGetDataSnapshot():{};
  const source=snapshot||live;
- const payload=cleanFirestoreValue({
+ // Jangan membersihkan serverTimestamp() dengan cleanFirestoreValue().
+ // FieldValue sentinel harus dikirim langsung ke Firestore; jika diubah menjadi
+ // object biasa, Firestore akan membalas error invalid-argument.
+ const rawPayload={
    namaPengguna:currentSessionUser?.name||'',
    nomorHp:currentSessionUser?.phone||'',
    historyData:Array.isArray(source.historyData)?source.historyData:[],
@@ -4744,9 +4747,10 @@ async function saveCloudData(snapshot=null){
    backupOtomatisData:Array.isArray(source.backupOtomatisData)?source.backupOtomatisData:[],
    kasirProducts:Array.isArray(live.kasirProducts)?live.kasirProducts:[],
    kasirTransactions:Array.isArray(live.kasirTransactions)?live.kasirTransactions:[],
-   updatedAt:serverTimestamp(),
    kasbonPass:(typeof window.__rekapinyuGetKasbonPass==='function')?(window.__rekapinyuGetKasbonPass()||''):''
- });
+ };
+ const payload=cleanFirestoreValue(rawPayload);
+ payload.updatedAt=serverTimestamp();
  // Satu dokumen Firestore menjadi sumber utama seluruh menu. Data dibersihkan
  // terlebih dahulu agar satu nilai undefined tidak membatalkan seluruh setDoc.
  await setDoc(dref(uid),payload,{merge:true});
