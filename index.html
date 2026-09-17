@@ -2140,7 +2140,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                                 <div class="management-field management-name-field"><label>NAMA PRODUK</label><input id="kasir-product-name" type="text" placeholder="Contoh: Kopi Susu" required></div>
                                 <div class="management-field"><label>HARGA</label><input id="kasir-product-price" type="text" inputmode="numeric" placeholder="0" required></div>
                                 <div class="management-field"><label>HARGA HPP</label><input id="kasir-product-cost" type="text" inputmode="numeric" placeholder="0"></div>
-                                <div class="management-field management-photo-field"><label>FOTO PRODUK</label><div class="management-photo-row"><label for="kasir-product-photo" class="management-photo-input"><i class="fa-solid fa-camera"></i><span id="kasir-photo-label">Pilih foto</span></label><input id="kasir-product-photo" type="file" accept="image/*" hidden><div id="kasir-photo-preview" class="management-photo-preview"><i class="fa-solid fa-image"></i></div></div></div>
+                                <div class="management-field management-photo-field"><label>FOTO PRODUK</label><div class="management-photo-row"><label for="kasir-product-photo" class="management-photo-input"><i class="fa-solid fa-camera"></i><span id="kasir-photo-label">Pilih foto</span></label><input id="kasir-product-photo" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg,.avif,.heic,.heif,.tif,.tiff,.ico,.jfif,.jif,.apng" hidden><div id="kasir-photo-preview" class="management-photo-preview"><i class="fa-solid fa-image"></i></div></div></div>
                                 <button type="submit" class="management-add-btn"><i class="fa-solid fa-plus"></i> Tambah Produk</button>
                             </form>
                         </div>
@@ -4747,151 +4747,70 @@ function removeKasirLocalPhoto(productId){
   try{localStorage.removeItem(kasirLocalPhotoKey(productId));}catch(e){}
 }
 
-/* SISTEM FOTO PRODUK BARU: satu jalur saja.
-   - menerima semua file yang terdeteksi sebagai gambar + ekstensi gambar umum
-   - membaca file sebagai data URL
-   - kompres otomatis bila browser bisa mendekode formatnya
-   - bila format tidak bisa didekode browser, file asli tetap disimpan
-   - foto tidak pernah dimasukkan ke payload Firestore
-*/
+/* SISTEM FOTO PRODUK BARU - SATU IMPLEMENTASI FINAL */
 const KASIR_IMAGE_EXTENSIONS=/\.(avif|bmp|gif|heic|heif|ico|jfif|jif|jpeg|jpg|jpe|png|svg|tif|tiff|webp|apng)$/i;
 function isKasirImageFile(file){
   return !!file && (String(file.type||'').toLowerCase().startsWith('image/') || KASIR_IMAGE_EXTENSIONS.test(String(file.name||'')));
 }
 function readKasirFileAsDataURL(file){
   return new Promise((resolve,reject)=>{
-    if(!file){reject(new Error('File foto kosong.'));return;}
+    if(!(file instanceof File)){reject(new Error('FILE_INVALID'));return;}
     const reader=new FileReader();
-    reader.onload=()=>resolve(String(reader.result||''));
-    reader.onerror=()=>reject(new Error('Foto tidak dapat dibaca browser.'));
-    reader.readAsDataURL(file);
+    reader.onload=()=>{
+      const result=String(reader.result||'');
+      if(result.startsWith('data:')) resolve(result); else reject(new Error('READ_EMPTY'));
+    };
+    reader.onerror=()=>reject(new Error('READ_ERROR'));
+    reader.onabort=()=>reject(new Error('READ_ABORT'));
+    try{reader.readAsDataURL(file);}catch(err){reject(err);}
   });
 }
 async function compressKasirPhoto(dataUrl){
   if(!dataUrl)return '';
+  const source=String(dataUrl);
   try{
     const img=new Image();
-    const loaded=new Promise((resolve,reject)=>{
-      img.onload=()=>resolve();
+    img.decoding='async';
+    await new Promise((resolve,reject)=>{
+      img.onload=resolve;
       img.onerror=()=>reject(new Error('FORMAT_UNSUPPORTED'));
+      img.src=source;
     });
-    img.src=String(dataUrl);
-    await loaded;
-    const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+    const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
     if(!w||!h)throw new Error('FORMAT_UNSUPPORTED');
-    let maxSide=1280;
-    let scale=Math.min(1,maxSide/Math.max(w,h));
-    let cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+    const scale=Math.min(1,900/Math.max(w,h));
+    let cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
     let best='';
-    for(let pass=0;pass<7;pass++){
-      const canvas=document.createElement('canvas');
-      canvas.width=cw;canvas.height=ch;
-      const ctx=canvas.getContext('2d',{alpha:false});
-      if(!ctx)throw new Error('FORMAT_UNSUPPORTED');
+    for(let pass=0;pass<5;pass++){
+      const canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+      const ctx=canvas.getContext('2d'); if(!ctx)throw new Error('FORMAT_UNSUPPORTED');
       ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);ctx.drawImage(img,0,0,cw,ch);
-      for(const quality of [.82,.70,.58,.46,.34,.24]){
-        const out=canvas.toDataURL('image/jpeg',quality);
+      for(const q of [.72,.58,.45,.32,.22]){
+        const out=canvas.toDataURL('image/jpeg',q);
         if(!best||out.length<best.length)best=out;
-        if(out.length<=300000)return out;
+        if(out.length<=250000)return out;
       }
-      cw=Math.max(180,Math.round(cw*.70));
-      ch=Math.max(180,Math.round(ch*.70));
+      cw=Math.max(160,Math.round(cw*.72)); ch=Math.max(160,Math.round(ch*.72));
     }
-    if(best&&best.length<=450000)return best;
-    throw new Error('PHOTO_TOO_LARGE');
-  }catch(e){
-    if(String(e?.message)==='PHOTO_TOO_LARGE')throw e;
-    // Format seperti HEIC/HEIF atau format baru yang tidak bisa didekode
-    // tetap diterima: simpan data URL asli tanpa mengubah formatnya.
-    return String(dataUrl);
+    if(best)return best;
+    throw new Error('COMPRESS_FAILED');
+  }catch(err){
+    /* Format yang tidak bisa didekode browser tetap dipertahankan sebagai data URL asli. */
+    return source;
   }
 }
-async function saveKasirLocalPhoto(productId,dataUrl){
+function saveKasirLocalPhoto(productId,dataUrl){
   const key=kasirLocalPhotoKey(productId);
-  if(!dataUrl)throw new Error('Foto kosong.');
-  let value=await compressKasirPhoto(dataUrl);
-  try{
-    localStorage.setItem(key,value);
-    return value;
-  }catch(firstError){
-    // Percobaan terakhir dengan versi JPEG kecil jika browser masih menolak quota.
-    try{
-      const img=new Image();
-      const small=await new Promise((resolve,reject)=>{
-        img.onload=()=>{
-          try{
-            const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
-            if(!w||!h)throw new Error('NO_DIMENSION');
-            const scale=Math.min(1,480/Math.max(w,h));
-            const c=document.createElement('canvas');
-            c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));
-            const ctx=c.getContext('2d',{alpha:false});
-            if(!ctx)throw new Error('NO_CANVAS');
-            ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
-            resolve(c.toDataURL('image/jpeg',.15));
-          }catch(err){reject(err)}
-        };
-        img.onerror=()=>reject(firstError);
-        img.src=String(dataUrl);
+  if(!dataUrl)throw new Error('PHOTO_EMPTY');
+  return compressKasirPhoto(dataUrl).then(value=>{
+    try{localStorage.setItem(key,value);return value;}
+    catch(err){
+      /* Jika quota browser penuh, simpan versi sangat kecil sekali lagi. */
+      return compressKasirPhoto(value).then(small=>{
+        try{localStorage.setItem(key,small);return small;}catch(e){throw e;}
       });
-      localStorage.setItem(key,small);
-      return small;
-    }catch(finalError){
-      throw finalError||firstError;
     }
-  }
-}
-
-
-async function saveCloudData(snapshot=null){
- const uid=cloudUid(), phone=phoneOf(currentSessionUser?.phone);
- if(!uid||!phone)throw new Error('Sesi Firebase belum siap. Silakan tunggu sampai login selesai.');
- const live=(typeof window.__rekapinyuGetDataSnapshot==='function')?window.__rekapinyuGetDataSnapshot():{};
- const source=snapshot||live;
- // Jangan membersihkan serverTimestamp() dengan cleanFirestoreValue().
- // FieldValue sentinel harus dikirim langsung ke Firestore; jika diubah menjadi
- // object biasa, Firestore akan membalas error invalid-argument.
- const rawPayload={
-   namaPengguna:currentSessionUser?.name||'',
-   nomorHp:currentSessionUser?.phone||'',
-   historyData:Array.isArray(source.historyData)?source.historyData:[],
-   pengeluaranData:Array.isArray(source.pengeluaranData)?source.pengeluaranData:[],
-   kasbonData:Array.isArray(source.kasbonData)?source.kasbonData:[],
-   backupOtomatisData:Array.isArray(source.backupOtomatisData)?source.backupOtomatisData:[],
-   kasirProducts:Array.isArray(live.kasirProducts)?live.kasirProducts.map(p=>{const x={...(p||{})};delete x.photo;return x;}):[],
-   kasirTransactions:Array.isArray(live.kasirTransactions)?live.kasirTransactions:[],
-   kasbonPass:(typeof window.__rekapinyuGetKasbonPass==='function')?(window.__rekapinyuGetKasbonPass()||''):''
- };
- const payload=cleanFirestoreValue(rawPayload);
- // serverTimestamp adalah satu-satunya sentinel Firebase yang sengaja dikirim
- // mentah. Semua data pengguna sudah menjadi plain JSON di baris sebelumnya.
- payload.updatedAt=serverTimestamp();
- // Satu dokumen Firestore menjadi sumber utama seluruh menu. Data dibersihkan
- // terlebih dahulu agar satu nilai undefined tidak membatalkan seluruh setDoc.
- await setDoc(dref(uid),payload,{merge:true});
- return true;
-}
-window.__saveAllFinanceDataDirectToFirestore=async function(){
- const phone=phoneOf(currentSessionUser?.phone),uid=cloudUid();
- if(!phone||!uid){console.warn('Rekapinyu: penyimpanan dibatalkan karena Firebase Auth belum memiliki pengguna aktif.');return false;}
- const snapshot=typeof window.__rekapinyuGetDataSnapshot==='function'?window.__rekapinyuGetDataSnapshot():null;
- cloudSaveChain=cloudSaveChain.then(()=>saveCloudData(snapshot));
- try{
-   await cloudSaveChain;
-   return true;
- }catch(e){
-   console.error('Rekapinyu FIRESTORE SAVE ERROR:',e);
-   notify('Gagal Simpan Firestore',`Data belum masuk Firestore. ${e?.code||e?.message||'Periksa Firestore Rules.'}`,'fa-solid fa-circle-exclamation text-rose-600');
-   // Jangan biarkan error membuat antrean berikutnya mati.
-   cloudSaveChain=Promise.resolve();
-   return false;
- }
-};
-async function saveCloudUser(extra={}){
-
- const u=auth.currentUser;if(!u)return;
- const old=(await getDoc(uref(u.uid))).data()||{};
- await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),photo:extra.photo??currentSessionUser?.photo??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
+  });
 }
 function localSession(u){
  currentSessionUser={uid:u.uid,name:u.name||"",phone:phoneOf(u.phone),photo:u.photo||"",email:u.email||auth.currentUser?.email||""};
@@ -6461,7 +6380,7 @@ onAuthStateChanged(auth,async u=>{
   function initKasirManagement(){
     loadKasirStore(); renderManagementProducts(); renderKasirProducts(); renderCart(); renderTransactions();
     const photo=document.getElementById('kasir-product-photo');
-    if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(!isKasirImageFile(f)){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');photo.value='';return}kasirPhotoFile=f;try{kasirPhotoData=await readKasirFileAsDataURL(f);const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${kasirPhotoData}" alt="" style="width:100%;height:100%;object-fit:cover;">`;if(lab)lab.textContent=f.name;}catch(err){kasirPhotoData='';kasirPhotoFile=null;photo.value='';showModal('Gagal','Foto tidak dapat dibaca. Silakan pilih file foto lain.','fa-solid fa-circle-xmark text-rose-600');}})}
+    if(photo){photo.dataset.bound='1';}
     const form=document.getElementById('kasir-product-form');
     if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();const newProduct={id:newProductId,name,price,cost,photo:'',category:'Lainnya'};kasirProducts.push(newProduct);markKasirProductPending(newProductId);const saved=await saveKasirStore();if(!saved){kasirProducts=kasirProducts.filter(p=>Number(p.id)!==Number(newProductId));showModal('Gagal','Produk belum berhasil disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');return}if(kasirPhotoData){try{newProduct.photo=await saveKasirLocalPhoto(newProductId,kasirPhotoData);showModal('Berhasil','Produk dan foto berhasil disimpan.');}catch(err){console.error('Simpan foto produk ke localStorage gagal:',err);showModal('Peringatan','Produk berhasil disimpan, tetapi foto tidak dapat disimpan di penyimpanan browser.','fa-solid fa-triangle-exclamation text-amber-500');}}else{showModal('Berhasil','Produk berhasil ditambahkan.')}form.reset();kasirPhotoData='';kasirPhotoFile=null;document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();})}
   }
@@ -6471,19 +6390,49 @@ onAuthStateChanged(auth,async u=>{
     closeKasirProductEditModal();
     const modal=document.createElement('div'); modal.id='kasir-product-edit-modal'; modal.className='kasir-product-edit-modal';
     const photo=product.photo||'';
-    modal.innerHTML=`<div class="kasir-product-edit-dialog" role="dialog" aria-modal="true"><div class="kasir-product-edit-head"><div><h3>Edit Produk</h3><span>Ubah data produk</span></div><button type="button" class="kasir-product-edit-close"><i class="fa-solid fa-xmark"></i></button></div><div class="kasir-product-edit-body"><label class="kasir-edit-field"><span>NAMA PRODUK</span><input id="kasir-edit-name" type="text" value="${esc(product.name)}"></label><div class="kasir-edit-field"><span>FOTO PRODUK</span><div class="kasir-edit-photo-row"><label for="kasir-edit-photo" class="kasir-edit-photo-btn"><i class="fa-solid fa-camera"></i><span>Ubah Foto Produk</span></label><input id="kasir-edit-photo" type="file" accept="image/*" hidden><div id="kasir-edit-photo-preview" class="kasir-edit-photo-preview">${photo?`<img src="${photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div></div></div><label class="kasir-edit-field"><span>HARGA HPP / GROSIR</span><input id="kasir-edit-cost" type="text" inputmode="numeric" value="${Number(product.cost)||0}"></label><label class="kasir-edit-field"><span>HARGA JUAL</span><input id="kasir-edit-price" type="text" inputmode="numeric" value="${Number(product.price)||0}"></label></div><div class="kasir-product-edit-footer"><button type="button" class="kasir-edit-cancel">Batal</button><button type="button" class="kasir-edit-save"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></div>`;
+    modal.innerHTML=`<div class="kasir-product-edit-dialog" role="dialog" aria-modal="true"><div class="kasir-product-edit-head"><div><h3>Edit Produk</h3><span>Ubah data produk</span></div><button type="button" class="kasir-product-edit-close"><i class="fa-solid fa-xmark"></i></button></div><div class="kasir-product-edit-body"><label class="kasir-edit-field"><span>NAMA PRODUK</span><input id="kasir-edit-name" type="text" value="${esc(product.name)}"></label><div class="kasir-edit-field"><span>FOTO PRODUK</span><div class="kasir-edit-photo-row"><label for="kasir-edit-photo" class="kasir-edit-photo-btn"><i class="fa-solid fa-camera"></i><span>Ubah Foto Produk</span></label><input id="kasir-edit-photo" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg,.avif,.heic,.heif,.tif,.tiff,.ico,.jfif,.jif,.apng" hidden><div id="kasir-edit-photo-preview" class="kasir-edit-photo-preview">${photo?`<img src="${photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div></div></div><label class="kasir-edit-field"><span>HARGA HPP / GROSIR</span><input id="kasir-edit-cost" type="text" inputmode="numeric" value="${Number(product.cost)||0}"></label><label class="kasir-edit-field"><span>HARGA JUAL</span><input id="kasir-edit-price" type="text" inputmode="numeric" value="${Number(product.price)||0}"></label></div><div class="kasir-product-edit-footer"><button type="button" class="kasir-edit-cancel">Batal</button><button type="button" class="kasir-edit-save"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></div>`;
     document.body.appendChild(modal);
     let newPhoto=photo;
     const pi=modal.querySelector('#kasir-edit-photo');
     let newPhotoFile=null;
-    pi.onchange=async ev=>{const f=ev.target.files?.[0];if(!f)return;if(!isKasirImageFile(f)){showModal('Gagal','File yang dipilih bukan foto/gambar.','fa-solid fa-circle-xmark text-rose-600');pi.value='';return}newPhotoFile=f;try{newPhoto=await readKasirFileAsDataURL(f);modal.querySelector('#kasir-edit-photo-preview').innerHTML=`<img src="${newPhoto}" alt="" style="width:100%;height:100%;object-fit:cover;">`;}catch(err){newPhotoFile=null;pi.value='';showModal('Gagal','Foto tidak dapat dibaca. Silakan pilih file foto lain.','fa-solid fa-circle-xmark text-rose-600');}};
+    pi.onchange=null;
+
     modal.querySelectorAll('#kasir-edit-cost,#kasir-edit-price').forEach(i=>i.addEventListener('input',()=>i.value=i.value.replace(/[^0-9]/g,'')));
     modal.querySelector('.kasir-product-edit-close').onclick=closeKasirProductEditModal;
     modal.querySelector('.kasir-edit-cancel').onclick=closeKasirProductEditModal;
-    modal.querySelector('.kasir-edit-save').onclick=async()=>{const name=modal.querySelector('#kasir-edit-name').value.trim();const cost=Number(modal.querySelector('#kasir-edit-cost').value)||0;const price=Number(modal.querySelector('#kasir-edit-price').value)||0;if(!name||!price){showModal('Gagal','Nama produk dan harga jual wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const old={name:product.name,cost:product.cost,price:product.price,photo:product.photo};product.name=name;product.cost=cost;product.price=price;try{if(newPhotoFile&&newPhoto){product.photo=await saveKasirLocalPhoto(product.id,newPhoto);}else{product.photo=getKasirLocalPhoto(product.id)||old.photo||'';}const saved=await saveKasirStore();if(!saved)throw new Error('Firestore save gagal');renderManagementProducts();renderKasirProducts();renderCart();closeKasirProductEditModal();showModal('Berhasil','Produk berhasil diperbarui.');}catch(err){Object.assign(product,old);console.error('Edit foto/produk gagal:',err);showModal('Gagal','Perubahan produk belum berhasil disimpan.','fa-solid fa-circle-xmark text-rose-600')}};
+    modal.querySelector('.kasir-edit-save').onclick=async()=>{const name=modal.querySelector('#kasir-edit-name').value.trim();const cost=Number(modal.querySelector('#kasir-edit-cost').value)||0;const price=Number(modal.querySelector('#kasir-edit-price').value)||0;if(!name||!price){showModal('Gagal','Nama produk dan harga jual wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const old={name:product.name,cost:product.cost,price:product.price,photo:product.photo};product.name=name;product.cost=cost;product.price=price;try{if(pi.dataset.photoData){product.photo=await saveKasirLocalPhoto(product.id,pi.dataset.photoData);}else{product.photo=getKasirLocalPhoto(product.id)||old.photo||'';}const saved=await saveKasirStore();if(!saved)throw new Error('Firestore save gagal');renderManagementProducts();renderKasirProducts();renderCart();closeKasirProductEditModal();showModal('Berhasil','Produk berhasil diperbarui.');}catch(err){Object.assign(product,old);console.error('Edit foto/produk gagal:',err);showModal('Gagal','Perubahan produk belum berhasil disimpan.','fa-solid fa-circle-xmark text-rose-600')}};
     modal.onclick=ev=>{if(ev.target===modal)closeKasirProductEditModal()};
     setTimeout(()=>modal.querySelector('#kasir-edit-name')?.focus(),50);
   }
+
+  document.addEventListener('change',async e=>{
+    const photo=e.target;
+    if(!(photo instanceof HTMLInputElement) || photo.type!=='file')return;
+    if(photo.id!=='kasir-product-photo' && photo.id!=='kasir-edit-photo')return;
+    const f=photo.files?.[0]; if(!f)return;
+    if(!isKasirImageFile(f)){
+      showModal('Gagal','File yang dipilih bukan file gambar. Pilih foto dengan format JPG, PNG, WEBP, GIF, BMP, SVG, AVIF, HEIC/HEIF, TIFF, ICO, JFIF atau format gambar lain yang didukung browser.','fa-solid fa-circle-xmark text-rose-600');
+      photo.value=''; return;
+    }
+    try{
+      const data=await readKasirFileAsDataURL(f);
+      if(photo.id==='kasir-product-photo'){
+        kasirPhotoFile=f; kasirPhotoData=data;
+        const pv=document.getElementById('kasir-photo-preview'), lab=document.getElementById('kasir-photo-label');
+        if(pv){pv.innerHTML=`<img src="${data}" alt="Foto produk" style="width:100%;height:100%;object-fit:cover;">`;}
+        if(lab)lab.textContent=f.name;
+      }else{
+        photo.dataset.photoData=data;
+        const pv=photo.closest('.kasir-edit-photo-row')?.querySelector('#kasir-edit-photo-preview');
+        if(pv)pv.innerHTML=`<img src="${data}" alt="Foto produk" style="width:100%;height:100%;object-fit:cover;">`;
+      }
+    }catch(err){
+      console.error('Baca foto produk gagal:',err);
+      photo.value='';
+      if(photo.id==='kasir-product-photo'){kasirPhotoData='';kasirPhotoFile=null;}
+      showModal('Gagal','Foto tidak dapat dibaca oleh browser. Coba pilih file gambar lain.','fa-solid fa-circle-xmark text-rose-600');
+    }
+  });
 
   document.addEventListener('click',e=>{
     const add=e.target.closest('[data-add-product]');if(add){const id=Number(add.dataset.addProduct),p=kasirProducts.find(x=>x.id===id);if(p){const x=kasirCart.find(x=>x.id===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
