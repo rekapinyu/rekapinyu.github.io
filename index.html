@@ -4714,18 +4714,24 @@ window.__markDataPending=(key,items)=>markDataPending(key,items);
 window.__requestDataCloudSync=()=>window.__rekapinyuSaveCloudData?.();
 
 function cleanFirestoreValue(value, seen=new WeakSet()){
-  if(value===undefined)return null;
-  if(value===null)return null;
-  if(typeof value==='number')return Number.isFinite(value)?value:null;
+  // Firestore hanya menerima nilai JSON-like. Jangan meneruskan object khusus
+  // dari browser/DOM/Firebase yang dapat memicu invalid-argument.
+  if(value===undefined||value===null)return null;
   if(typeof value==='string'||typeof value==='boolean')return value;
-  if(value instanceof Date)return value;
+  if(typeof value==='number')return Number.isFinite(value)?value:null;
+  if(value instanceof Date)return isNaN(value.getTime())?null:value.toISOString();
+  if(typeof value==='bigint')return String(value);
   if(typeof value==='function'||typeof value==='symbol')return null;
   if(typeof value==='object'){
     if(seen.has(value))return null;
     seen.add(value);
     if(Array.isArray(value))return value.map(v=>cleanFirestoreValue(v,seen));
+    // Hanya salin object biasa; Blob, File, DOM node, Firebase sentinel, dll.
+    // tidak boleh diteruskan mentah ke setDoc().
+    const proto=Object.getPrototypeOf(value);
+    if(proto!==Object.prototype&&proto!==null)return null;
     const out={};
-    Object.keys(value).forEach(k=>{const v=cleanFirestoreValue(value[k],seen);if(v!==undefined)out[k]=v;});
+    Object.keys(value).forEach(k=>{const v=cleanFirestoreValue(value[k],seen);out[k]=v;});
     return out;
   }
   return null;
@@ -4750,6 +4756,8 @@ async function saveCloudData(snapshot=null){
    kasbonPass:(typeof window.__rekapinyuGetKasbonPass==='function')?(window.__rekapinyuGetKasbonPass()||''):''
  };
  const payload=cleanFirestoreValue(rawPayload);
+ // serverTimestamp adalah satu-satunya sentinel Firebase yang sengaja dikirim
+ // mentah. Semua data pengguna sudah menjadi plain JSON di baris sebelumnya.
  payload.updatedAt=serverTimestamp();
  // Satu dokumen Firestore menjadi sumber utama seluruh menu. Data dibersihkan
  // terlebih dahulu agar satu nilai undefined tidak membatalkan seluruh setDoc.
