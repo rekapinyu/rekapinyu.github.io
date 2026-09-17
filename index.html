@@ -5024,7 +5024,25 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${p}`),[]),preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
+const cloudKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:null;
+let preservedKasirProducts=cloudKasirProducts||localKasirProducts;
+let kasirProductPending=false;
+try{
+  const pending=JSON.parse(sessionStorage.getItem(`finance_kasir_pending_products_${p}`)||'[]');
+  kasirProductPending=Array.isArray(pending)&&pending.some(id=>!((cloudKasirProducts||[]).some(x=>Number(x.id)===Number(id))));
+}catch(e){}
+if(kasirProductPending){
+  const byId=new Map((cloudKasirProducts||[]).map(x=>[String(x.id),x]));
+  localKasirProducts.forEach(x=>byId.set(String(x.id),x));
+  preservedKasirProducts=Array.from(byId.values());
+  window.__rekapinyuSaveCloudData?.();
+}else if(cloudKasirProducts){
+  preservedKasirProducts=cloudKasirProducts;
+}
+clearKasirProductPending(preservedKasirProducts);
+const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);
+nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
     if(!existing||!existing.src||String(existing.src).startsWith("http")){
@@ -6033,6 +6051,24 @@ onAuthStateChanged(auth,async u=>{
     const phone=(typeof currentSessionUser!=='undefined' && currentSessionUser && currentSessionUser.phone) ? currentSessionUser.phone : 'guest';
     return 'finance_kasir_'+name+'_'+phone;
   }
+  function markKasirProductPending(id){
+    try{
+      const key=kasirUserKey('pending_products');
+      const list=JSON.parse(sessionStorage.getItem(key)||'[]');
+      if(!list.includes(Number(id)))list.push(Number(id));
+      sessionStorage.setItem(key,JSON.stringify(list));
+    }catch(e){}
+  }
+  function clearKasirProductPending(ids){
+    try{
+      const key=kasirUserKey('pending_products');
+      const pending=JSON.parse(sessionStorage.getItem(key)||'[]');
+      const cloudIds=new Set((Array.isArray(ids)?ids:[]).map(x=>Number(x.id)));
+      const remaining=pending.filter(id=>!cloudIds.has(Number(id)));
+      if(remaining.length)sessionStorage.setItem(key,JSON.stringify(remaining));
+      else sessionStorage.removeItem(key);
+    }catch(e){}
+  }
   function loadKasirStore(){
     try{kasirProducts=JSON.parse(localStorage.getItem(kasirUserKey('products'))||'[]')}catch(e){kasirProducts=[]}
     try{kasirTransactions=JSON.parse(localStorage.getItem(kasirUserKey('transactions'))||'[]')}catch(e){kasirTransactions=[]}
@@ -6143,7 +6179,7 @@ onAuthStateChanged(auth,async u=>{
     const photo=document.getElementById('kasir-product-photo');
     if(photo && !photo.dataset.bound){photo.dataset.bound='1';photo.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;if(!/^image\/(jpeg|png)$/i.test(f.type)){showModal('Gagal','Format foto hanya JPG atau PNG.','fa-solid fa-circle-xmark text-rose-600');return}const r=new FileReader();r.onload=()=>{kasirPhotoData=r.result;const pv=document.getElementById('kasir-photo-preview');const lab=document.getElementById('kasir-photo-label');if(pv)pv.innerHTML=`<img src="${r.result}" alt="">`;if(lab)lab.textContent=f.name};r.readAsDataURL(f)})}
     const form=document.getElementById('kasir-product-form');
-    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}kasirProducts.push({id:Date.now(),name,price,cost,photo:kasirPhotoData,category:'Lainnya'});saveKasirStore();form.reset();kasirPhotoData='';document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();showModal('Berhasil','Produk berhasil ditambahkan.')})}
+    if(form && !form.dataset.bound){form.dataset.bound='1';form.addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('kasir-product-name').value.trim();const price=Number(document.getElementById('kasir-product-price').value.replace(/[^0-9]/g,''))||0;const cost=Number(document.getElementById('kasir-product-cost').value.replace(/[^0-9]/g,''))||0;if(!name||!price){showModal('Gagal','Nama produk dan harga wajib diisi.','fa-solid fa-circle-exclamation text-rose-600');return}const newProductId=Date.now();kasirProducts.push({id:newProductId,name,price,cost,photo:kasirPhotoData,category:'Lainnya'});markKasirProductPending(newProductId);saveKasirStore();form.reset();kasirPhotoData='';document.getElementById('kasir-photo-label').textContent='Pilih foto';document.getElementById('kasir-photo-preview').innerHTML='<i class="fa-solid fa-image"></i>';renderManagementProducts();renderKasirProducts();showModal('Berhasil','Produk berhasil ditambahkan.')})}
   }
 
   document.addEventListener('click',e=>{
