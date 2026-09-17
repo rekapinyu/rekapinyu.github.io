@@ -1595,6 +1595,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
+<style id="patch-mobile-admin-income-chooser">@media(max-width:767px){#mobile-admin-settings-button{appearance:none!important;border:0!important;background:transparent!important;padding:4px!important;margin:0!important;width:34px!important;height:34px!important;display:flex!important;align-items:center!important;justify-content:center!important;color:#aab4c1!important;opacity:.75!important;border-radius:10px!important}#mobile-admin-settings-button i{font-size:20px!important}.mobile-admin-income-chooser{position:fixed!important;z-index:99999!important;width:205px!important;background:#fff!important;border:1px solid #e5eaf0!important;border-radius:14px!important;padding:6px!important;box-shadow:0 14px 35px rgba(15,23,42,.16)!important}.mobile-admin-income-chooser button{width:100%!important;min-height:42px!important;border:0!important;background:#fff!important;color:#334155!important;border-radius:10px!important;display:flex!important;align-items:center!important;gap:10px!important;padding:9px 10px!important;font-size:12px!important;font-weight:700!important;text-align:left!important}.mobile-admin-income-chooser button:active{background:#f1f5f9!important}.mobile-admin-income-chooser button i{width:20px!important;text-align:center!important;color:#64748b!important}}@media(min-width:768px){#mobile-admin-settings-button{display:none!important}}</style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 
@@ -1986,22 +1987,22 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                                 <div class="mobile-admin-title"><i class="fa-solid fa-user-shield"></i> <span id="mobile-admin-store-name">ADMIN</span></div>
                                 <div class="mobile-admin-subtitle">Ringkasan input terbaru hari ini</div>
                             </div>
-                            <i class="fa-solid fa-chart-simple mobile-admin-title-icon"></i>
+                            <button type="button" id="mobile-admin-settings-button" class="mobile-admin-title-icon" aria-label="Pilihan pendapatan" title="Pilihan pendapatan"><i class="fa-solid fa-gear"></i></button>
                         </div>
                         <div class="mobile-admin-grid">
                             <div class="mobile-admin-card">
                                 <div class="mobile-admin-card-icon"><i class="fa-solid fa-wallet"></i></div>
-                                <div class="mobile-admin-card-label">Pendapatan</div>
+                                <div class="mobile-admin-card-label" id="mobile-admin-card-income-label">Pendapatan</div>
                                 <div id="mobile-admin-income" class="mobile-admin-card-value">Rp 0</div>
                             </div>
                             <div class="mobile-admin-card">
                                 <div class="mobile-admin-card-icon"><i class="fa-solid fa-cart-shopping"></i></div>
-                                <div class="mobile-admin-card-label">Total Belanja</div>
+                                <div class="mobile-admin-card-label" id="mobile-admin-card-expense-label">Total Belanja</div>
                                 <div id="mobile-admin-expense" class="mobile-admin-card-value">Rp 0</div>
                             </div>
                             <div class="mobile-admin-card">
                                 <div class="mobile-admin-card-icon"><i class="fa-solid fa-chart-line"></i></div>
-                                <div class="mobile-admin-card-label">Total Profit</div>
+                                <div class="mobile-admin-card-label" id="mobile-admin-card-profit-label">Total Profit</div>
                                 <div id="mobile-admin-profit" class="mobile-admin-card-value">Rp 0</div>
                             </div>
                         </div>
@@ -4500,7 +4501,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         expenseEl.textContent=formatMobileAdminCurrency(latest?.expense);
         profitEl.textContent=formatMobileAdminCurrency(latest?.profit);
       }
-            function syncMobileProfileButton(){
+            (function(){let mode="daily";function rp(n){return "Rp "+(Number(n)||0).toLocaleString("id-ID")}function kasir(){let t=[],p=[];try{let ph=(typeof currentSessionUser!=="undefined"&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:"guest";t=JSON.parse(localStorage.getItem("finance_kasir_transactions_"+ph)||"[]");p=JSON.parse(localStorage.getItem("finance_kasir_products_"+ph)||"[]")}catch(e){}let pm={};p.forEach(x=>pm[String(x.id)]=x);let omzet=t.reduce((a,x)=>a+(Number(x.total)||0),0),profit=0; t.forEach(x=>{let items=Array.isArray(x.cart)?x.cart:(Array.isArray(x.itemsDetail)?x.itemsDetail:null);if(items)profit+=items.reduce((s,i)=>{let q=Number(i.qty)||1, pr=Number(i.price)||0, c=Number((pm[String(i.id)]||i).cost??i.hpp)||0;return s+Math.max(pr-c,0)*q},0)});return{omzet,profit,count:t.length}}function setMode(m){mode=m==="kasir"?"kasir":"daily";let a=document.getElementById("mobile-admin-card-income-label"),b=document.getElementById("mobile-admin-card-expense-label"),c=document.getElementById("mobile-admin-card-profit-label"),x=document.getElementById("mobile-admin-income"),y=document.getElementById("mobile-admin-expense"),z=document.getElementById("mobile-admin-profit"),sub=document.querySelector(".mobile-admin-subtitle");if(mode==="kasir"){let s=kasir();if(a)a.textContent="Pendapatan (TOTAL OMZET)";if(b)b.textContent="Total Laba/Profit";if(c)c.textContent="JUMLAH TRANSAKSI";if(x)x.textContent=rp(s.omzet);if(y)y.textContent=rp(s.profit);if(z)z.textContent=s.count;if(sub)sub.textContent="Ringkasan pendapatan kasir"}else{if(a)a.textContent="Pendapatan";if(b)b.textContent="Total Belanja";if(c)c.textContent="Total Profit";if(sub)sub.textContent="Ringkasan input terbaru hari ini";if(typeof renderMobileAdminSummary==="function")renderMobileAdminSummary()}}function close(){let p=document.getElementById("mobile-admin-income-chooser");if(p)p.remove()}function open(){close();let b=document.getElementById("mobile-admin-settings-button");if(!b)return;let p=document.createElement("div");p.id="mobile-admin-income-chooser";p.className="mobile-admin-income-chooser";p.innerHTML="<button type=\"button\" data-mobile-admin-mode=\"kasir\"><i class=\"fa-solid fa-cash-register\"></i><span>Pendapatan Kasir</span></button><button type=\"button\" data-mobile-admin-mode=\"daily\"><i class=\"fa-solid fa-calendar-day\"></i><span>Pendapatan Harian</span></button>";document.body.appendChild(p);let r=b.getBoundingClientRect();p.style.top=Math.min(innerHeight-120,r.bottom+8)+"px";p.style.right=Math.max(8,innerWidth-r.right)+"px";p.querySelectorAll("[data-mobile-admin-mode]").forEach(q=>q.onclick=()=>{setMode(q.dataset.mobileAdminMode);close()});setTimeout(()=>{let f=e=>{if(!p.contains(e.target)&&e.target!==b){close();document.removeEventListener("click",f)}};document.addEventListener("click",f)},0)}function init(){let b=document.getElementById("mobile-admin-settings-button");if(!b||b.dataset.bound)return;b.dataset.bound="1";b.onclick=e=>{e.stopPropagation();open()};setMode("daily")}window.__mobileAdminSetMode=setMode;document.addEventListener("DOMContentLoaded",init);setTimeout(init,300)})();
+      function syncMobileProfileButton(){
                 const button=document.getElementById('mobile-profile-button');
                 if(!button)return;
                 const photo=currentSessionUser&&currentSessionUser.photo;
