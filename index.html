@@ -5253,63 +5253,152 @@ onAuthStateChanged(auth,async u=>{
 @media(max-width:900px){.produk-kasir-new-card{grid-template-columns:110px minmax(0,1fr)}.produk-kasir-new-photo{width:110px;height:132px}}
 @media(max-width:767px){#view-produk-kasir.produk-kasir-new-view{padding:0 0 90px!important}.produk-kasir-new-form{grid-template-columns:repeat(2,110px);gap:6px}.produk-kasir-new-list-toolbar{align-items:stretch;flex-direction:column}.produk-kasir-new-search{width:100%}.produk-kasir-new-grid{grid-template-columns:1fr 1fr;gap:8px}.produk-kasir-new-card{grid-template-columns:1fr;gap:9px;padding:9px;min-height:0}.produk-kasir-new-photo{width:100%;height:120px}.produk-kasir-new-data{margin-top:9px;gap:5px}.produk-kasir-new-data>div{padding:7px}.produk-kasir-new-actions{margin-top:8px}.produk-kasir-new-actions button{flex:1}}
 </style>
-<script id="produk-kasir-v21-js">
+<script id="produk-kasir-final-js">
 (function(){
+  'use strict';
   const phoneKey=()=>{const p=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return String(p).replace(/\D/g,'')||'guest'};
   const localKey=()=>`finance_kasir_products_${phoneKey()}`;
   const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let products=[];
   let photoData='';
-  function loadProducts(){try{const v=JSON.parse(localStorage.getItem(localKey())||'[]');products=Array.isArray(v)?v:[]}catch{products=[]}}
-  async function saveProducts(){
-    localStorage.setItem(localKey(),JSON.stringify(products));
-    try{
-      if(typeof window.__rekapinyuSaveCloudData==='function') await window.__rekapinyuSaveCloudData();
-    }catch(e){console.warn('Produk Kasir: sinkronisasi Firestore gagal, data lokal tetap dipertahankan.',e)}
-    try{window.__initKasirViews?.()}catch{}
+
+  function readLocal(){
+    try{const value=JSON.parse(localStorage.getItem(localKey())||'[]');return Array.isArray(value)?value:[];}catch{return[];}
   }
-  function resetForm(){document.getElementById('produk-kasir-new-form')?.reset();photoData='';const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent='Pilih foto'}
+  function writeLocal(){localStorage.setItem(localKey(),JSON.stringify(products));}
+  function loadProducts(){products=readLocal();}
+  function resetForm(){
+    const form=document.getElementById('produk-kasir-new-form');
+    if(form)form.reset();
+    photoData='';
+    const name=document.getElementById('produk-kasir-new-photo-name');
+    if(name)name.textContent='Pilih foto';
+  }
+  function numberValue(id){return Number((document.getElementById(id)?.value||'').replace(/[^0-9]/g,''))||0;}
+
   function renderProducts(){
-    const grid=document.getElementById('produk-kasir-new-grid');if(!grid)return;
+    const grid=document.getElementById('produk-kasir-new-grid');
+    if(!grid)return;
     const q=(document.getElementById('produk-kasir-new-search')?.value||'').trim().toLowerCase();
     const list=products.filter(p=>`${p.name||''} ${p.category||''} ${p.barcode||''}`.toLowerCase().includes(q));
-    const count=document.getElementById('produk-kasir-new-count');if(count)count.textContent=products.length+' produk';
-    if(!list.length){grid.innerHTML='<div class="produk-kasir-new-empty"><i class="fa-solid fa-box-open"></i><strong>'+(products.length?'Produk tidak ditemukan':'Belum ada produk')+'</strong><span>'+(products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.')+'</span></div>';return}
+    const count=document.getElementById('produk-kasir-new-count');
+    if(count)count.textContent=products.length+' produk';
+    if(!list.length){
+      grid.innerHTML='<div class="produk-kasir-new-empty"><i class="fa-solid fa-box-open"></i><strong>'+(products.length?'Produk tidak ditemukan':'Belum ada produk')+'</strong><span>'+(products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.')+'</span></div>';
+      return;
+    }
     grid.innerHTML=list.map(p=>`<article class="produk-kasir-new-card"><div class="produk-kasir-new-photo">${p.photo?`<img src="${esc(p.photo)}" alt="${esc(p.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="produk-kasir-new-info"><div class="produk-kasir-new-name-text" title="${esc(p.name)}">${esc(p.name)}</div><div class="produk-kasir-new-category">${esc(p.category||'Umum')}${p.barcode?` • ${esc(p.barcode)}`:''}</div><div class="produk-kasir-new-data"><div><small>STOK</small><strong>${Number(p.stock)||0}</strong></div><div><small>HPP</small><strong>${rupiah(p.cost??p.grosir)}</strong></div><div class="jual"><small>HARGA JUAL</small><strong>${rupiah(p.price)}</strong></div></div><div class="produk-kasir-new-actions"><button type="button" class="produk-kasir-new-edit" data-produk-edit="${p.id}"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="produk-kasir-new-delete" data-produk-delete="${p.id}"><i class="fa-solid fa-trash-can"></i> Hapus</button></div></div></article>`).join('');
   }
-  function numberValue(id){return Number((document.getElementById(id)?.value||'').replace(/[^0-9]/g,''))||0}
-  document.addEventListener('change',e=>{if(e.target.id!=='produk-kasir-new-photo')return;const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{photoData=String(rd.result||'');const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=f.name};rd.readAsDataURL(f)});
-  document.addEventListener('input',e=>{if(['produk-kasir-new-cost','produk-kasir-new-price','produk-kasir-new-stock'].includes(e.target.id))e.target.value=e.target.value.replace(/[^0-9]/g,'');if(e.target.id==='produk-kasir-new-search')renderProducts()});
-  const produkKasirForm=document.getElementById('produk-kasir-new-form');
-  if(produkKasirForm)produkKasirForm.addEventListener('submit',async e=>{
-    e.preventDefault();
+
+  async function saveKasirProductsToFirestore(){
+    const firebase=window.RekapinyuFirebase;
+    const uid=firebase?.auth?.currentUser?.uid;
+    const db=firebase?.db;
+    if(!uid||!db)throw new Error('Koneksi akun Firebase belum siap.');
+    const {doc,setDoc}=await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js');
+    const cloudProducts=products.map(({photo,...text})=>text);
+    await setDoc(doc(db,'rekapinyu_data',uid),{kasirProducts:cloudProducts,updatedAt:new Date()},{merge:true});
+  }
+
+  async function addProduct(){
     const name=document.getElementById('produk-kasir-new-name-input')?.value.trim()||'';
     const price=numberValue('produk-kasir-new-price');
-    if(!name||price<=0){showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return;}
-    const product={id:Date.now(),name,category:document.getElementById('produk-kasir-new-category')?.value.trim()||'Umum',barcode:document.getElementById('produk-kasir-new-barcode')?.value.trim()||'',cost:numberValue('produk-kasir-new-cost'),grosir:numberValue('produk-kasir-new-cost'),price,stock:numberValue('produk-kasir-new-stock'),photo:photoData};
-    products.unshift(product);
-    localStorage.setItem(localKey(),JSON.stringify(products));
+    if(!name||price<=0){
+      if(typeof showModal==='function')showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');
+      return;
+    }
+    const product={
+      id:Date.now()+Math.floor(Math.random()*1000),
+      name,
+      category:document.getElementById('produk-kasir-new-category')?.value.trim()||'Umum',
+      barcode:document.getElementById('produk-kasir-new-barcode')?.value.trim()||'',
+      cost:numberValue('produk-kasir-new-cost'),
+      grosir:numberValue('produk-kasir-new-cost'),
+      price,
+      stock:numberValue('produk-kasir-new-stock'),
+      photo:photoData
+    };
+    const previous=products;
+    products=[product,...products];
+    writeLocal();
     try{
-      if(typeof window.__rekapinyuSaveCloudData==='function') await window.__rekapinyuSaveCloudData();
-    }catch(err){
-      products=products.filter(p=>Number(p.id)!==Number(product.id));
-      localStorage.setItem(localKey(),JSON.stringify(products));
+      await saveKasirProductsToFirestore();
+    }catch(error){
+      products=previous;
+      writeLocal();
       renderProducts();
-      showModal('Gagal','Produk belum berhasil disinkronkan ke Firestore.');
+      console.error('Produk Kasir Firestore:',error);
+      if(typeof showModal==='function')showModal('Gagal','Produk belum berhasil disimpan ke Firestore. Periksa koneksi akun Firebase.');
       return;
     }
     renderProducts();
     resetForm();
-    showModal('Berhasil','Produk berhasil ditambahkan dan disimpan.');
+    if(typeof showModal==='function')showModal('Berhasil','Produk berhasil ditambahkan dan disimpan ke Firestore.');
+    try{window.__initKasirViews?.();}catch{}
+  }
+
+  document.addEventListener('change',e=>{
+    if(e.target?.id!=='produk-kasir-new-photo')return;
+    const file=e.target.files?.[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      photoData=String(reader.result||'');
+      const name=document.getElementById('produk-kasir-new-photo-name');
+      if(name)name.textContent=file.name;
+    };
+    reader.readAsDataURL(file);
   });
+
+  document.addEventListener('input',e=>{
+    if(['produk-kasir-new-cost','produk-kasir-new-price','produk-kasir-new-stock'].includes(e.target?.id))e.target.value=e.target.value.replace(/[^0-9]/g,'');
+    if(e.target?.id==='produk-kasir-new-search')renderProducts();
+  });
+
+  document.addEventListener('submit',e=>{
+    if(e.target?.id!=='produk-kasir-new-form')return;
+    e.preventDefault();
+    if(e.defaultPrevented!==true)return;
+    if(e.target.dataset.saving==='1')return;
+    e.target.dataset.saving='1';
+    const button=e.target.querySelector('.produk-kasir-new-add');
+    if(button)button.disabled=true;
+    addProduct().finally(()=>{e.target.dataset.saving='';if(button)button.disabled=false;});
+  });
+
   document.addEventListener('click',e=>{
     const del=e.target.closest('[data-produk-delete]');
-    if(del){const id=Number(del.dataset.produkDelete);products=products.filter(p=>Number(p.id)!==id);saveProducts();renderProducts();return}
+    if(del){
+      const id=Number(del.dataset.produkDelete);
+      products=products.filter(x=>Number(x.id)!==id);
+      writeLocal();
+      renderProducts();
+      saveKasirProductsToFirestore().catch(console.warn);
+      return;
+    }
     const edit=e.target.closest('[data-produk-edit]');
-    if(edit){const p=products.find(x=>Number(x.id)===Number(edit.dataset.produkEdit));if(!p)return;document.getElementById('produk-kasir-new-name-input').value=p.name||'';document.getElementById('produk-kasir-new-category').value=p.category||'';document.getElementById('produk-kasir-new-barcode').value=p.barcode||'';document.getElementById('produk-kasir-new-cost').value=Number(p.cost??p.grosir)||0;document.getElementById('produk-kasir-new-price').value=Number(p.price)||0;document.getElementById('produk-kasir-new-stock').value=Number(p.stock)||0;photoData=p.photo||'';const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=p.photo?'Foto tersimpan':'Pilih foto';products=products.filter(x=>Number(x.id)!==Number(p.id));saveProducts();renderProducts();document.getElementById('produk-kasir-new-name-input')?.focus();window.scrollTo({top:0,behavior:'smooth'})}
+    if(edit){
+      const p=products.find(x=>Number(x.id)===Number(edit.dataset.produkEdit));
+      if(!p)return;
+      document.getElementById('produk-kasir-new-name-input').value=p.name||'';
+      document.getElementById('produk-kasir-new-category').value=p.category||'';
+      document.getElementById('produk-kasir-new-barcode').value=p.barcode||'';
+      document.getElementById('produk-kasir-new-cost').value=Number(p.cost??p.grosir)||0;
+      document.getElementById('produk-kasir-new-price').value=Number(p.price)||0;
+      document.getElementById('produk-kasir-new-stock').value=Number(p.stock)||0;
+      photoData=p.photo||'';
+      const name=document.getElementById('produk-kasir-new-photo-name');
+      if(name)name.textContent=p.photo?'Foto tersimpan':'Pilih foto';
+      products=products.filter(x=>Number(x.id)!==Number(p.id));
+      writeLocal();
+      renderProducts();
+      document.getElementById('produk-kasir-new-name-input')?.focus();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
   });
-  window.__initProdukKasir=function(){loadProducts();renderProducts()};
+
+  window.__initProdukKasir=function(){loadProducts();renderProducts();};
 })();
 </script>
 <script id="kasir-final-js">
