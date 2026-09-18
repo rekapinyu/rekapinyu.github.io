@@ -378,7 +378,6 @@
 
       /* Modal tetap sama fungsinya, hanya dibuat lebih premium. */
       #custom-modal > div,
-      #kasbon-password-modal > div,
       #pdf-modal > div,
       #profile-modal > div{
         border:1px solid var(--rk-border)!important;
@@ -689,19 +688,6 @@
     transform:none!important;
     opacity:.16!important;
   }
-  .mobile-home-settings{
-    top:7px!important;
-    right:7px!important;
-    width:27px!important;
-    height:27px!important;
-    border-radius:9px!important;
-  }
-  .mobile-kasbon-settings-popup{
-    top:42px!important;
-    right:7px!important;
-    max-width:calc(100vw - 30px)!important;
-    z-index:80!important;
-  }
 
   /* Ringkasan admin tidak terlalu tinggi di layar kecil. */
   #mobile-admin-summary{
@@ -799,7 +785,6 @@
 
   /* Modal mengikuti lebar layar tanpa horizontal overflow. */
   #custom-modal > div,
-  #kasbon-password-modal > div,
   #pdf-modal > div,
   #profile-modal > div{
     width:calc(100vw - 24px)!important;
@@ -1071,6 +1056,9 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="openProfileModal('ganti-password')">
 <i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti Password
                     </button>
+<button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="openProfileModal('ganti-password-kasbon')">
+<i class="fa-solid fa-key text-blue-400 w-4"></i> Ubah Password Kasbon
+                    </button>
 </div>
 </div>
 </div>
@@ -1101,26 +1089,10 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <span class="sidebar-text truncate">Laporan Bulanan</span>
 </button>
 <!-- MENU KASBON -->
-<div class="relative toggle-kasbon-menu-container">
-<div class="flex items-center w-full text-sm font-medium group relative" id="nav-kasbon-wrapper">
-<button class="flex-1 flex items-center gap-3 text-left truncate" id="nav-kasbon" onclick="switchTab('kasbon')" title="Kasbon">
+<button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-kasbon" onclick="switchTab('kasbon')" title="Kasbon">
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-kasbon"><i aria-hidden="true" class="fa-solid fa-hand-holding-dollar"></i><i aria-hidden="true" class="fa-solid fa-hand-holding-dollar"></i></span>
 <span class="sidebar-text truncate">Kasbon</span>
 </button>
-</div>
-<!-- Sub Menu Popup Buka/Kunci/Ganti Pin -->
-<div class="absolute left-2 right-2 mt-1 rounded-xl shadow-2xl py-1 hidden z-30" id="kasbon-submenu-popup">
-<button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="handleKasbonSubMenuAction('buka')">
-<i class="fa-solid fa-lock-open text-emerald-400 w-4"></i> Buka Kasbon
-                    </button>
-<button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="handleKasbonSubMenuAction('kunci')">
-<i class="fa-solid fa-lock text-rose-400 w-4"></i> Kunci Kasbon
-                    </button>
-<button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="handleKasbonSubMenuAction('ganti-pin')">
-<i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti PIN Kasbon
-                    </button>
-</div>
-</div>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-backup" onclick="switchTab('backup')" title="Backup Otomatis">
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-backup"><i aria-hidden="true" class="fa-solid fa-cloud-arrow-up"></i><i aria-hidden="true" class="fa-solid fa-cloud-arrow-up"></i></span>
 <span class="sidebar-text truncate">Backup Otomatis</span>
@@ -1427,9 +1399,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <button class="mobile-home-card" onclick="switchTab('input')" type="button"><i class="fa-solid fa-file-pen mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-file-pen"></i></div><span>Input Data</span></div></button>
 <button class="mobile-home-card" onclick="switchTab('pengeluaran')" type="button"><i class="fa-solid fa-receipt mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-receipt"></i></div><span>Pengeluaran</span></div></button>
 <div class="mobile-home-card mobile-home-kasbon-card">
-<button class="mobile-home-card-main" onclick="handleKasbonMenuClick()" type="button"><i class="fa-solid fa-book-bookmark mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-book-bookmark"></i></div><span>Data Kasbon</span></div></button>
-<button aria-label="Pengaturan Kasbon" class="mobile-home-settings" onclick="toggleMobileKasbonSettings(event)" title="Pengaturan Kasbon" type="button"><i class="fa-solid fa-gear"></i></button>
-<div class="mobile-kasbon-settings-popup hidden" id="mobile-kasbon-settings-popup"><button onclick="handleMobileKasbonSetting('buka')" type="button"><i class="fa-solid fa-lock-open"></i> Data Kasbon</button><button onclick="handleMobileKasbonSetting('kunci')" type="button"><i class="fa-solid fa-lock"></i> Kunci Kasbon</button><button onclick="handleMobileKasbonSetting('ganti-pin')" type="button"><i class="fa-solid fa-key"></i> Ganti PIN Kasbon</button></div>
+<button class="mobile-home-card-main" onclick="switchTab('kasbon')" type="button"><i class="fa-solid fa-book-bookmark mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-book-bookmark"></i></div><span>Data Kasbon</span></div></button>
 </div>
 <button class="mobile-home-card" onclick="switchTab('history')" type="button"><i class="fa-solid fa-clock-rotate-left mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-clock-rotate-left"></i></div><span>History</span></div></button>
 <button class="mobile-home-card" onclick="switchTab('report')" type="button"><i class="fa-solid fa-chart-pie mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-chart-pie"></i></div><span>Laporan Bulanan</span></div></button>
@@ -1621,30 +1591,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-3 rounded-xl transition shadow-sm" onclick="closeModal()">OK, Mengerti</button>
 </div>
 </div>
-<!-- MODAL PASSWORD KASBON -->
-<div class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center hidden p-4" id="kasbon-password-modal">
-<div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border border-slate-100 space-y-4">
-<div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-200 mx-auto">
-<i class="fa-solid fa-lock"></i>
-</div>
-<div>
-<h3 class="font-bold text-slate-800 text-base" id="kasbon-modal-title">Silahkan Buat Pin Untuk Akses Menu Kasbon</h3>
-<p class="text-slate-400 text-xs mt-1" id="kasbon-modal-subtitle">Buat PIN atau kata sandi baru untuk mengamankan menu kasbon.</p>
-</div>
-<form class="space-y-3 text-left" id="kasbon-password-form">
-<div class="relative">
-<input class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-semibold text-center transition pr-10" id="kasbon-pass-input" placeholder="Masukkan PIN/Password..." required="" type="password"/>
-<button class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600" onclick="togglePasswordVisibility()" type="button">
-<i class="fa-solid fa-eye text-xs" id="eye-icon"></i>
-</button>
-</div>
-<div class="flex gap-2">
-<button class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-3 rounded-xl transition" onclick="closeKasbonPasswordModal()" type="button">Tutup</button>
-<button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-3 rounded-xl transition shadow-sm" id="kasbon-submit-btn" type="submit">Buat Password</button>
-</div>
-</form>
-</div>
-</div>
 <!-- MODAL PENGATURAN PROFIL -->
 <div class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center hidden p-4" id="profile-modal">
 <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
@@ -1707,7 +1653,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         let pengeluaranData = [];
         let kasbonData = [];
         let backupOtomatisData = [];
-        let isKasbonUnlocked = false;
 
         function loadUserData() {
             if (currentSessionUser && currentSessionUser.phone) {
@@ -1916,7 +1861,6 @@ function checkAuth() {
 
         function handleLogout() {
             currentSessionUser = null;
-            isKasbonUnlocked = false;
             localStorage.removeItem('finance_active_session');
             checkAuth();
             toggleAuthView('login');
@@ -2004,6 +1948,37 @@ function checkAuth() {
                     updateUserInStorage();
                     closeProfileModal();
                     showModal("Berhasil", "Kata sandi login berhasil diperbarui.");
+                };
+            } else if (type === 'ganti-password-kasbon') {
+                titleEl.innerText = "Ubah Password Kasbon";
+                const kasbonKey = `finance_kasbon_pass_${currentSessionUser.phone}`;
+                const currentKasbonPass = localStorage.getItem(kasbonKey) || '';
+                bodyEl.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Password Kasbon Baru</label>
+                        <input type="password" id="input-new-kasbon-password" placeholder="Masukkan password kasbon baru" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Konfirmasi Password</label>
+                        <input type="password" id="input-confirm-kasbon-password" placeholder="Ulangi password kasbon baru" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                    </div>
+                    ${currentKasbonPass ? '<p class="text-[10px] text-slate-400">Password Kasbon saat ini sudah tersimpan.</p>' : '<p class="text-[10px] text-slate-400">Belum ada Password Kasbon. Simpan password baru untuk akun ini.</p>'}
+                `;
+                saveBtn.onclick = function() {
+                    const newPass = document.getElementById('input-new-kasbon-password')?.value || '';
+                    const confirmPass = document.getElementById('input-confirm-kasbon-password')?.value || '';
+                    if (!newPass) {
+                        showModal("Gagal", "Password Kasbon baru wajib diisi.", "fa-solid fa-circle-exclamation text-rose-600");
+                        return;
+                    }
+                    if (newPass !== confirmPass) {
+                        showModal("Gagal", "Konfirmasi Password Kasbon tidak sama.", "fa-solid fa-circle-exclamation text-rose-600");
+                        return;
+                    }
+                    localStorage.setItem(kasbonKey, newPass);
+                    try { window.__rekapinyuSaveCloudData?.(); } catch(e) {}
+                    closeProfileModal();
+                    showModal("Berhasil", "Password Kasbon berhasil diperbarui.");
                 };
             }
 
@@ -2315,143 +2290,8 @@ function checkAuth() {
         };
         const profitDisplay = document.getElementById('profit-display');
 
-        function togglePasswordVisibility() {
-            const passInput = document.getElementById('kasbon-pass-input');
-            const eyeIcon = document.getElementById('eye-icon');
-            if (passInput.type === 'password') {
-                passInput.type = 'text';
-                eyeIcon.classList.remove('fa-eye');
-                eyeIcon.classList.add('fa-eye-slash');
-            } else {
-                passInput.type = 'password';
-                eyeIcon.classList.remove('fa-eye-slash');
-                eyeIcon.classList.add('fa-eye');
-            }
-        }
-
-        function toggleKasbonSubMenu(event) {
-            event.stopPropagation();
-            const popup = document.getElementById('kasbon-submenu-popup');
-            popup.classList.toggle('hidden');
-        }
-
-        window.addEventListener('click', function(e) {
-            if (!e.target.closest('.toggle-kasbon-menu-container')) {
-                const popup = document.getElementById('kasbon-submenu-popup');
-                if (popup) popup.classList.add('hidden');
-            }
-        });
-
-        function handleKasbonSubMenuAction(action) {
-            const popup = document.getElementById('kasbon-submenu-popup');
-            if (popup) popup.classList.add('hidden');
-
-            if (action === 'buka') {
-                if (isKasbonUnlocked) {
-                    switchTab('kasbon');
-                } else {
-                    handleKasbonMenuClick();
-                }
-            } else if (action === 'kunci') {
-                isKasbonUnlocked = false;
-                updateKasbonLockUI();
-                showModal("Kasbon Dikunci", "Menu kasbon berhasil dikunci secara manual.");
-                switchTab('input');
-            } else if (action === 'ganti-pin') {
-                openGantiPinModal();
-            }
-        }
-
-        function openGantiPinModal() {
-            if (!currentSessionUser) return;
-            const modal = document.getElementById('kasbon-password-modal');
-            const titleEl = document.getElementById('kasbon-modal-title');
-            const subtitleEl = document.getElementById('kasbon-modal-subtitle');
-            const submitBtn = document.getElementById('kasbon-submit-btn');
-            document.getElementById('kasbon-pass-input').value = '';
-
-            titleEl.innerText = "Ganti PIN Kasbon Baru";
-            subtitleEl.innerText = "Masukkan PIN atau password baru untuk menu kasbon.";
-            submitBtn.innerText = "Simpan PIN Baru";
-            modal.classList.remove('hidden');
-        }
-
-        function updateKasbonLockUI() {
-            const kasbonIcon = document.getElementById('icon-kasbon');
-            if (kasbonIcon) {
-                kasbonIcon.querySelectorAll('i').forEach(icon => {
-                    icon.className = 'fa-solid fa-hand-holding-dollar';
-                });
-            }
-        }
-
-        function handleKasbonMenuClick() {
-            if (isKasbonUnlocked) {
-                switchTab('kasbon');
-                return;
-            }
-
-            if (!currentSessionUser) return;
-            const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
-
-            const modal = document.getElementById('kasbon-password-modal');
-            const titleEl = document.getElementById('kasbon-modal-title');
-            const subtitleEl = document.getElementById('kasbon-modal-subtitle');
-            const submitBtn = document.getElementById('kasbon-submit-btn');
-            document.getElementById('kasbon-pass-input').value = '';
-
-            if (!savedKasbonPass) {
-                titleEl.innerText = "Silahkan Buat Pin Untuk Akses Menu Kasbon";
-                subtitleEl.innerText = "Buat PIN/Password Anda untuk keamanan data kasbon.";
-                submitBtn.innerText = "Buat Password";
-            } else {
-                titleEl.innerText = "Masukan Pasword/Pin Kamu";
-                subtitleEl.innerText = "Masukkan PIN atau password untuk membuka menu kasbon.";
-                submitBtn.innerText = "Buka Akses";
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeKasbonPasswordModal() {
-            document.getElementById('kasbon-password-modal').classList.add('hidden');
-        }
-
-        document.getElementById('kasbon-password-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const inputPass = document.getElementById('kasbon-pass-input').value;
-            if (!currentSessionUser) return;
-
-            const savedKasbonPass = localStorage.getItem(`finance_kasbon_pass_${currentSessionUser.phone}`);
-            const titleText = document.getElementById('kasbon-modal-title').innerText;
-
-            if (!savedKasbonPass || titleText.includes("Ganti") || titleText.includes("Buat")) {
-                localStorage.setItem(`finance_kasbon_pass_${currentSessionUser.phone}`, inputPass);
-                isKasbonUnlocked = true;
-                updateKasbonLockUI();
-                closeKasbonPasswordModal();
-                showModal("Berhasil", "PIN/Password kasbon berhasil disimpan. Akses terbuka.");
-                switchTab('kasbon');
-            } else {
-                if (inputPass === savedKasbonPass) {
-                    isKasbonUnlocked = true;
-                    updateKasbonLockUI();
-                    closeKasbonPasswordModal();
-                    switchTab('kasbon');
-                } else {
-                    closeKasbonPasswordModal();
-                    showModal("Akses Ditolak", "Pasword/pin kamu salah silahkan ingat ingat kembali", "fa-solid fa-circle-xmark text-rose-600");
-                }
-            }
-        });
-
         function switchTab(tab) {
-            if (tab === 'kasbon' && !isKasbonUnlocked) {
-                handleKasbonMenuClick();
-                return;
-            }
-
-            const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'laporan-kasir', 'history', 'report', 'backup'];
+const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'laporan-kasir', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
@@ -2540,7 +2380,6 @@ function checkAuth() {
 
             if (tab === 'laporan-kasir' && typeof window.__renderLaporanKasir === 'function') window.__renderLaporanKasir();
 
-            updateKasbonLockUI();
 
             document.getElementById(`view-${tab}`).classList.remove('hidden');
             document.getElementById('page-title-header').innerText = titles[tab].title;
@@ -3810,7 +3649,7 @@ function checkAuth() {
       body > nav.md\:hidden.fixed.bottom-0:not(#mobile-simplified-dock){display:none!important}
             #mobile-date-header{display:none!important}
             header .md\:hidden.bg-rose-50{display:none!important}
-            .mobile-home-settings,.mobile-kasbon-settings-popup{display:none!important}
+            .mobile-home-settings,
             #mobile-profile-menu-container{display:block!important}
             header{position:relative;z-index:60!important}
             .mobile-profile-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ecfdf5;color:#059669;border:2px solid #a7f3d0;overflow:hidden;font-size:15px;box-shadow:0 3px 10px rgba(5,150,105,.15)}
@@ -3836,10 +3675,6 @@ function checkAuth() {
       .mobile-home-card-content>span{display:block;max-width:100%;font-size:12px;line-height:1.25;font-weight:700}
       .mobile-home-icon{width:42px;height:42px;border-radius:13px;background:#ecfdf5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:18px}
       .mobile-home-watermark{position:absolute;right:-8px;bottom:-12px;font-size:74px;line-height:1;color:#0f172a;opacity:.10;pointer-events:none;z-index:1}
-      .mobile-home-settings{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#64748b;background:rgba(248,250,252,.95);border:1px solid #e2e8f0;z-index:5;font-size:13px}
-      .mobile-kasbon-settings-popup{position:absolute;top:45px;right:8px;width:172px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.16);z-index:20}
-      .mobile-kasbon-settings-popup button{width:100%;display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:10px;color:#475569;font-size:11px;font-weight:700;text-align:left}
-      .mobile-kasbon-settings-popup button:active{background:#475569}.mobile-kasbon-settings-popup button i{width:16px;text-align:center}
       .mobile-admin-summary{position:sticky;top:0;z-index:25;background:#2563eb;color:#fff;border-radius:18px;padding:12px;box-shadow:0 8px 22px rgba(37,99,235,.24);border:1px solid rgba(255,255,255,.16)}
       .mobile-admin-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
       .mobile-admin-title{font-size:14px;font-weight:900;letter-spacing:.4px;display:flex;align-items:center;gap:7px}
@@ -3894,9 +3729,7 @@ function checkAuth() {
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
     function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','history-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
-      window.toggleMobileKasbonSettings=function(e){if(e)e.stopPropagation();const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.toggle('hidden')};
-      window.handleMobileKasbonSetting=function(a){const p=document.getElementById('mobile-kasbon-settings-popup');if(p)p.classList.add('hidden');if(typeof handleKasbonSubMenuAction==='function')handleKasbonSubMenuAction(a)};
-    document.addEventListener('click',e=>{const p=document.getElementById('mobile-kasbon-settings-popup'),c=document.querySelector('.mobile-home-kasbon-card');if(p&&c&&!c.contains(e.target))p.classList.add('hidden');const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
+    document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
     function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
     })();
     </script>
@@ -4109,6 +3942,7 @@ async function hydrate(uid){
  const preservedPengeluaran=syncCloudArrayToCache(phone,"pengeluaran",d.pengeluaranData);
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
+ if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(d.kasirTransactions));
  const pendingHistory=mergePendingData(phone,"history",d.historyData).pending;
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
  const pendingKasbon=mergePendingData(phone,"kasbon",d.kasbonData).pending;
@@ -4122,7 +3956,7 @@ async function hydrate(uid){
  }
  if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto(); if(typeof updateUserAvatarUI==="function")updateUserAvatarUI();
 }
-function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{window.__initKasirViews?.()}catch{} try{renderMobileAdminSummary?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
+function redraw(){try{loadUserData()}catch{} try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{} try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{} try{renderKasbonGrid?.()}catch{} try{populateBackupFilters?.();renderBackupGrid?.()}catch{} try{window.__initKasirViews?.()}catch{} try{window.__renderLaporanKasir?.()}catch{} try{renderMobileAdminSummary?.()}catch{} try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
 /*
  * Sinkronisasi eksplisit untuk perubahan data.
  * Handler lama tetap bekerja seperti semula melalui localStorage; helper ini
@@ -4241,7 +4075,7 @@ if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
 },true);
 
 // Logout now signs out from Firebase Auth.
-window.handleLogout=async()=>{try{await saveCloudData()}catch{}try{await signOut(auth)}catch{}currentSessionUser=null;isKasbonUnlocked=false;nativeRemove.call(localStorage,"finance_active_session");checkAuth();toggleAuthView("login")};
+window.handleLogout=async()=>{try{await saveCloudData()}catch{}try{await signOut(auth)}catch{}currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");checkAuth();toggleAuthView("login")};
 
 // Profile changes save to Firestore instead of only localStorage.
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
@@ -4453,7 +4287,8 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);
+if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(d.kasirTransactions));const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
     if(!existing||!existing.src||String(existing.src).startsWith("http")){
@@ -5119,7 +4954,7 @@ onAuthStateChanged(auth,async u=>{
     position:relative!important;
     overflow:hidden!important;
   }
-  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper,
+  ,
   #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon{
     width:100%!important;
     height:100%!important;
@@ -5454,16 +5289,13 @@ onAuthStateChanged(auth,async u=>{
 #sidebar #sidebar-user-name,
 #sidebar .toggle-profile-setting-container p,
 #sidebar nav > button[id^="nav-"],
-#sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper{
+{
     color:#000!important;
 }
-#sidebar nav > button[id^="nav-"],
-#sidebar nav > .toggle-kasbon-menu-container,
-#sidebar nav > .toggle-kasbon-menu-container #nav-kasbon-wrapper{
+#sidebar nav > button[id^="nav-"]{
     background:#fff!important;
 }
-#sidebar #profile-setting-popup button,
-#sidebar #kasbon-submenu-popup button{
+#sidebar #profile-setting-popup button{
     color:#000!important;
 }
 
