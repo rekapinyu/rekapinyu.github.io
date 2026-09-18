@@ -5406,7 +5406,7 @@ onAuthStateChanged(auth,async u=>{
   }
 
   document.addEventListener('click',e=>{
-    const add=e.target.closest('[data-add-product]');if(add){const id=Number(add.dataset.addProduct),p=kasirProducts.find(x=>x.id===id);if(p){const x=kasirCart.find(x=>x.id===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
+    const add=e.target.closest('[data-add-product]');if(add){const id=String(add.dataset.addProduct||'');const p=kasirProducts.find(x=>String(x.id)===id);if(p){const x=kasirCart.find(x=>String(x.id)===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
     const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
     const dec=e.target.closest('[data-cart-dec]');if(dec){const i=kasirCart.findIndex(x=>x.id===Number(dec.dataset.cartDec));if(i>-1){kasirCart[i].qty--;if(kasirCart[i].qty<=0)kasirCart.splice(i,1)}renderCart();return}
     const delTransaction=e.target.closest('[data-delete-transaction]');if(delTransaction){const id=Number(delTransaction.dataset.deleteTransaction);kasirTransactions=kasirTransactions.filter(x=>Number(x.id)!==id);saveKasirStore();renderTransactions();return}
