@@ -908,6 +908,27 @@
 }
 </style>
 
+<style id="produk-kasir-v16-css">
+.produk-kasir-view{width:100%;min-width:0}
+.produk-kasir-sticky{position:sticky;top:0;z-index:30;padding-bottom:10px}
+.produk-kasir-form-card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 10px 28px rgba(15,23,42,.06);padding:14px}
+.produk-kasir-form{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(4,minmax(120px,1fr)) minmax(130px,.8fr) auto;gap:8px;align-items:end}
+.produk-kasir-field label{display:block;font-size:9px;font-weight:800;color:#64748b;margin:0 0 5px;text-transform:uppercase}
+.produk-kasir-field input{width:100%;height:40px;border:1px solid #dbe3eb;border-radius:10px;background:#f8fafc;padding:0 10px;outline:0;font-size:12px;font-weight:600;box-sizing:border-box}
+.produk-kasir-field input:focus{border-color:#5fc7b5;box-shadow:0 0 0 3px rgba(22,160,133,.08)}
+.produk-kasir-photo-label{height:40px;border:1px dashed #b9c7d5;border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;font-size:10px;font-weight:700;color:#64748b;cursor:pointer;white-space:nowrap;overflow:hidden}
+.produk-kasir-photo-label span{overflow:hidden;text-overflow:ellipsis}
+.produk-kasir-add{height:40px;border:0;border-radius:10px;background:#0fa58f;color:#fff;padding:0 14px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer}
+.produk-kasir-list-card{margin-top:2px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.produk-kasir-list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.produk-kasir-list-head h3{margin:0;font-size:14px;color:#334155}.produk-kasir-list-head span{font-size:10px;color:#94a3b8;font-weight:700}
+.produk-kasir-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.produk-kasir-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:9px;min-width:0;box-sizing:border-box}
+.produk-kasir-card-photo{width:76px;height:76px;border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:center;overflow:hidden}.produk-kasir-card-photo img{width:100%;height:100%;object-fit:cover}.produk-kasir-card-photo i{color:#cbd5e1;font-size:22px}
+.produk-kasir-card-info{min-width:0}.produk-kasir-name{font-size:12px;font-weight:800;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:7px}.produk-kasir-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px}.produk-kasir-meta div{background:#f8fafc;border-radius:8px;padding:6px;min-width:0}.produk-kasir-meta small{display:block;font-size:8px;color:#94a3b8;font-weight:700}.produk-kasir-meta strong{display:block;font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.produk-kasir-meta .harga-jual strong{color:#16a085}
+@media(max-width:900px){.produk-kasir-form{grid-template-columns:repeat(2,minmax(0,1fr))}.produk-kasir-name-field,.produk-kasir-photo-field{grid-column:span 2}.produk-kasir-add{width:100%}}
+@media(max-width:560px){main:has(#view-produk-kasir:not(.hidden)){overflow:auto!important}.produk-kasir-view{padding-bottom:88px}.produk-kasir-sticky{top:0}.produk-kasir-form{grid-template-columns:1fr 1fr}.produk-kasir-name-field,.produk-kasir-photo-field{grid-column:span 2}.produk-kasir-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.produk-kasir-card{display:block;padding:7px}.produk-kasir-card-photo{width:100%;height:88px;margin-bottom:7px}.produk-kasir-meta{grid-template-columns:1fr 1fr}.produk-kasir-meta div{padding:5px 4px}.produk-kasir-meta small{font-size:7px}.produk-kasir-meta strong{font-size:9px}}
+</style>
+
 <style id="kasir-final-css">
 
 /* KASIR: putih full frame, menempel ke seluruh sisi area setelah header */
@@ -1115,7 +1136,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 <span class="sidebar-text truncate">Kasir</span>
             </button>
 
-            <button type="button" id="nav-produk-kasir" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="Produk Kasir">
+            <button type="button" id="nav-produk-kasir" onclick="switchTab('produk-kasir')" class="w-full flex items-center gap-3 text-sm font-medium group relative" title="Produk Kasir">
                 <i id="icon-produk-kasir" class="fa-solid fa-boxes-stacked w-5 text-center shrink-0" style="color:#14b8a6!important;"></i>
                 <span class="sidebar-text truncate">Produk Kasir</span>
             </button>
@@ -1449,6 +1470,30 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
                 <section id="view-kasbon" class="hidden space-y-6">
                     <div id="kasbon-grid" class="grid grid-cols-1 gap-4"></div>
                 </section>
+
+                        </aside>
+                    </div>
+
+                    <!-- VIEW PRODUK KASIR -->
+                    <section id="view-produk-kasir" class="hidden produk-kasir-view">
+                        <div class="produk-kasir-sticky">
+                            <div class="produk-kasir-form-card">
+                                <form id="produk-kasir-form" class="produk-kasir-form">
+                                    <div class="produk-kasir-field produk-kasir-name-field"><label>Nama Produk</label><input id="produk-kasir-name" type="text" placeholder="Nama produk" required></div>
+                                    <div class="produk-kasir-field"><label>Harga Grosir</label><input id="produk-kasir-grosir" type="text" inputmode="numeric" placeholder="0" required></div>
+                                    <div class="produk-kasir-field"><label>Harga Jual</label><input id="produk-kasir-jual" type="text" inputmode="numeric" placeholder="0" required></div>
+                                    <div class="produk-kasir-field"><label>Stok</label><input id="produk-kasir-stok" type="text" inputmode="numeric" placeholder="0" required></div>
+                                    <div class="produk-kasir-field produk-kasir-photo-field"><label>Foto Produk</label><label for="produk-kasir-photo" class="produk-kasir-photo-label"><i class="fa-solid fa-camera"></i><span id="produk-kasir-photo-label">Upload foto</span></label><input id="produk-kasir-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
+                                    <button type="submit" class="produk-kasir-add"><i class="fa-solid fa-plus"></i> Tambah</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="produk-kasir-list-card">
+                            <div class="produk-kasir-list-head"><h3>Daftar Produk</h3><span id="produk-kasir-count">0 produk</span></div>
+                            <div id="produk-kasir-grid" class="produk-kasir-grid"></div>
+                        </div>
+                    </section>
+</style>
 
                 <!-- VIEW KASIR -->
                 <section id="view-kasir" class="hidden kasir-view space-y-4">
@@ -2404,12 +2449,13 @@ function checkAuth() {
                 return;
             }
 
-            const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'history', 'report', 'backup'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'history', 'report', 'backup'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
                 kasbon: { title: 'Manajemen Kasbon Pelanggan', subtitle: 'Catat kasbon dan status pembayaran pelanggan secara transparan.' },
                 kasir: { title: 'Kasir', subtitle: 'Menu kasir untuk transaksi penjualan.' },
+                'produk-kasir': { title: 'Produk Kasir', subtitle: 'Kelola produk yang langsung digunakan di menu Kasir.' },
                 history: { title: 'Riwayat Rekapitulasi Realtime', subtitle: 'Semua riwayat entri data harian lengkap.' },
                 report: { title: 'Laporan Rekapitulasi Bulanan', subtitle: 'Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.' },
                 backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' }
@@ -2420,6 +2466,7 @@ function checkAuth() {
                 pengeluaran: 'fa-money-bill-transfer',
                 kasbon: 'fa-hand-holding-dollar',
                 kasir: 'fa-cash-register',
+                'produk-kasir': 'fa-boxes-stacked',
                 history: 'fa-clock-rotate-left',
                 report: 'fa-chart-line',
                 backup: 'fa-cloud-arrow-up'
@@ -2502,6 +2549,9 @@ function checkAuth() {
             }
             if (tab === 'kasir' && typeof window.__initKasirViews === 'function') {
                 window.__initKasirViews();
+            }
+            if (tab === 'produk-kasir' && typeof window.__initProdukKasir === 'function') {
+                window.__initProdukKasir();
             }
 
             if (tab === 'pengeluaran') {
@@ -4009,7 +4059,7 @@ async function saveCloudData(){
    pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
    kasbonData:Array.isArray(kasbonData)?kasbonData:[],
    backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
-   kasirProducts:[],
+   kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
    kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
  };
@@ -4060,7 +4110,7 @@ async function hydrate(uid){
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
  const pendingKasbon=mergePendingData(phone,"kasbon",d.kasbonData).pending;
  const pendingBackup=mergePendingData(phone,"backup",d.backupOtomatisData).pending;
- const preservedKasirProducts=[];
+ const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
  const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
  nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
@@ -4404,7 +4454,7 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const preservedKasirProducts=[];
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
 const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);
 nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
@@ -5102,6 +5152,23 @@ onAuthStateChanged(auth,async u=>{
 
 
 
+<script id="produk-kasir-v16-js">
+(function(){
+  function key(){const phone=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return 'finance_kasir_products_'+phone}
+  function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  let data=[];let photo='';
+  function load(){try{data=JSON.parse(localStorage.getItem(key())||'[]');if(!Array.isArray(data))data=[]}catch(e){data=[]}}
+  function save(){localStorage.setItem(key(),JSON.stringify(data));try{window.__rekapinyuSaveCloudData?.()}catch(e){};try{window.__initKasirViews?.()}catch(e){}}
+  function render(){const g=document.getElementById('produk-kasir-grid');const c=document.getElementById('produk-kasir-count');if(!g)return;if(c)c.textContent=data.length+' produk';if(!data.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:38px 10px;color:#94a3b8;font-size:11px">Belum ada produk. Tambahkan produk dari form di atas.</div>';return}g.innerHTML=data.map(p=>`<div class="produk-kasir-card"><div class="produk-kasir-card-photo">${p.photo?`<img src="${p.photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div><div class="produk-kasir-card-info"><div class="produk-kasir-name" title="${esc(p.name)}">${esc(p.name)}</div><div class="produk-kasir-meta"><div><small>STOK</small><strong>${Number(p.stock)||0}</strong></div><div><small>HARGA GROSIR</small><strong>${rupiah(p.grosir)}</strong></div><div class="harga-jual"><small>HARGA JUAL</small><strong>${rupiah(p.price)}</strong></div></div></div></div>`).join('')}
+  function reset(){document.getElementById('produk-kasir-form')?.reset();photo='';const l=document.getElementById('produk-kasir-photo-label');if(l)l.textContent='Upload foto'}
+  document.addEventListener('change',e=>{if(e.target.id!=='produk-kasir-photo')return;const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{photo=rd.result;const l=document.getElementById('produk-kasir-photo-label');if(l)l.textContent=f.name};rd.readAsDataURL(f)})
+  document.addEventListener('submit',e=>{if(e.target.id!=='produk-kasir-form')return;e.preventDefault();const name=document.getElementById('produk-kasir-name').value.trim();const grosir=Number(document.getElementById('produk-kasir-grosir').value.replace(/[^0-9]/g,''))||0;const price=Number(document.getElementById('produk-kasir-jual').value.replace(/[^0-9]/g,''))||0;const stock=Number(document.getElementById('produk-kasir-stok').value.replace(/[^0-9]/g,''))||0;if(!name)return;data.unshift({id:Date.now(),name,grosir,price,stock,photo});save();render();reset();showModal('Berhasil','Produk berhasil ditambahkan.')})
+  document.addEventListener('input',e=>{if(['produk-kasir-grosir','produk-kasir-jual','produk-kasir-stok'].includes(e.target.id))e.target.value=e.target.value.replace(/[^0-9]/g,'')})
+  window.__initProdukKasir=function(){load();render()}
+})();
+</script>
+
 <script id="kasir-final-js">
 (function(){
   let kasirProducts=[];
@@ -5114,11 +5181,11 @@ onAuthStateChanged(auth,async u=>{
     return 'finance_kasir_'+name+'_'+phone;
   }
   function loadKasirStore(){
-    kasirProducts=[]; try{localStorage.removeItem(kasirUserKey('products'))}catch(e){}
-    try{kasirTransactions=JSON.parse(localStorage.getItem(kasirUserKey('transactions'))||'[]')}catch(e){kasirTransactions=[]}
+    try{kasirProducts=JSON.parse(localStorage.getItem(kasirUserKey('products'))||'[]');if(!Array.isArray(kasirProducts))kasirProducts=[]}catch(e){kasirProducts=[]}
+    try{kasirTransactions=JSON.parse(localStorage.getItem(kasirUserKey('transactions'))||'[]');if(!Array.isArray(kasirTransactions))kasirTransactions=[]}catch(e){kasirTransactions=[]}
   }
   function saveKasirStore(){
-    localStorage.removeItem(kasirUserKey('products'));
+    localStorage.setItem(kasirUserKey('products'),JSON.stringify(kasirProducts));
     localStorage.setItem(kasirUserKey('transactions'),JSON.stringify(kasirTransactions));
     try{window.__rekapinyuSaveCloudData?.();}catch(e){}
   }
