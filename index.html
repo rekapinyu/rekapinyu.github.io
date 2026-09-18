@@ -4051,7 +4051,7 @@ async function saveCloudData(){
    pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
    kasbonData:Array.isArray(kasbonData)?kasbonData:[],
    backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
-   kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]),
+   kasirProducts:(()=>{const v=safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);return Array.isArray(v)?v.map(({photo,...text})=>text):[]})(),
    kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
  };
@@ -4102,7 +4102,9 @@ async function hydrate(uid){
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
  const pendingKasbon=mergePendingData(phone,"kasbon",d.kasbonData).pending;
  const pendingBackup=mergePendingData(phone,"backup",d.backupOtomatisData).pending;
- const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
+ const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
+ const localProductMap=new Map((Array.isArray(localKasirProducts)?localKasirProducts:[]).map(x=>[String(x?.id),x]));
+ const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts.map(x=>({...x,photo:localProductMap.get(String(x?.id))?.photo||""})):localKasirProducts;
  const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
  nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(preservedKasirProducts));
  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(preservedKasirTransactions));
@@ -4446,7 +4448,9 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts:safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;const localKasirProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);
+const localProductMap=new Map((Array.isArray(localKasirProducts)?localKasirProducts:[]).map(x=>[String(x?.id),x]));
+const preservedKasirProducts=Array.isArray(d.kasirProducts)?d.kasirProducts.map(x=>({...x,photo:localProductMap.get(String(x?.id))?.photo||""})):localKasirProducts;
 const preservedKasirTransactions=Array.isArray(d.kasirTransactions)?d.kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${p}`),[]);
 nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(preservedKasirProducts));nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(preservedKasirTransactions));if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
@@ -5195,13 +5199,11 @@ onAuthStateChanged(auth,async u=>{
   }
 }
 </style>
-<style id="produk-kasir-v25-css">
-/* Produk Kasir: satu ukuran kotak, rapat, sejajar, dan seluruh form tetap berada di dalam card. */
-#view-produk-kasir.produk-kasir-new-view{
-  position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;min-width:0;margin:0!important;padding:0 1rem 90px!important;box-sizing:border-box;z-index:35;overflow-y:auto!important;overflow-x:hidden!important;
-}
+<style id="produk-kasir-v26-css">
+/* Produk Kasir: form ringkas + daftar produk 2 kolom seimbang. */
+#view-produk-kasir.produk-kasir-new-view{position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;min-width:0;margin:0!important;padding:0 1rem 90px!important;box-sizing:border-box;z-index:35;overflow-y:auto!important;overflow-x:hidden!important}
 .produk-kasir-new-sticky{position:sticky;top:0!important;z-index:40;margin:0!important;padding:0 0 12px;background:#f1f4f8}
-#icon-produk-kasir{color:#f59e0b!important;}
+#icon-produk-kasir{color:#f59e0b!important}
 .produk-kasir-new-form-card,.produk-kasir-new-list-card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
 .produk-kasir-new-form-card{padding:15px;margin:6px 0 0!important;position:relative;z-index:41;overflow:hidden}
 .produk-kasir-new-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
@@ -5225,45 +5227,67 @@ onAuthStateChanged(auth,async u=>{
 .produk-kasir-new-search{width:240px;position:relative}
 .produk-kasir-new-search i{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:11px;color:#94a3b8}
 .produk-kasir-new-search input{width:100%;height:36px;padding:0 10px 0 30px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:12px;outline:none;box-sizing:border-box}
-.produk-kasir-new-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.produk-kasir-new-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:stretch}
+.produk-kasir-new-card{min-width:0;display:grid;grid-template-columns:130px minmax(0,1fr);gap:14px;padding:12px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-sizing:border-box;min-height:176px}
+.produk-kasir-new-photo{width:130px;height:152px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#94a3b8}
+.produk-kasir-new-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.produk-kasir-new-photo i{font-size:26px}
+.produk-kasir-new-info{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.produk-kasir-new-name-text{font-size:15px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.produk-kasir-new-category{margin-top:4px;font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.produk-kasir-new-data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.produk-kasir-new-data>div{min-width:0;padding:8px 9px;border-radius:10px;background:#f8fafc;border:1px solid #edf2f7}
+.produk-kasir-new-data small{display:block;font-size:9px;font-weight:800;color:#94a3b8}
+.produk-kasir-new-data strong{display:block;margin-top:3px;font-size:12px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.produk-kasir-new-data .jual{grid-column:1/-1}
+.produk-kasir-new-data .jual strong{color:#059669}
+.produk-kasir-new-actions{display:flex;gap:7px;margin-top:12px}
+.produk-kasir-new-actions button{height:30px;padding:0 10px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-size:10px;font-weight:800;cursor:pointer}
+.produk-kasir-new-edit{color:#0f766e}
+.produk-kasir-new-delete{color:#dc2626}
 .produk-kasir-new-empty{grid-column:1/-1;text-align:center;padding:34px 15px;color:#94a3b8}
 .produk-kasir-new-empty i{font-size:24px}
 .produk-kasir-new-empty strong{display:block;margin-top:8px;font-size:12px;color:#64748b}
 .produk-kasir-new-empty span{display:block;margin-top:4px;font-size:10px}
-@media(max-width:1200px){
-  .produk-kasir-new-form{grid-template-columns:repeat(4,110px)}
-}
-@media(max-width:767px){
-  #view-produk-kasir.produk-kasir-new-view{padding:0 0 90px!important}
-  .produk-kasir-new-form{grid-template-columns:repeat(2,110px);gap:6px}
-  .produk-kasir-new-list-toolbar{align-items:stretch;flex-direction:column}
-  .produk-kasir-new-search{width:100%}
-  .produk-kasir-new-grid{grid-template-columns:1fr 1fr}
-}
+@media(max-width:1200px){.produk-kasir-new-form{grid-template-columns:repeat(4,110px)}}
+@media(max-width:900px){.produk-kasir-new-card{grid-template-columns:110px minmax(0,1fr)}.produk-kasir-new-photo{width:110px;height:132px}}
+@media(max-width:767px){#view-produk-kasir.produk-kasir-new-view{padding:0 0 90px!important}.produk-kasir-new-form{grid-template-columns:repeat(2,110px);gap:6px}.produk-kasir-new-list-toolbar{align-items:stretch;flex-direction:column}.produk-kasir-new-search{width:100%}.produk-kasir-new-grid{grid-template-columns:1fr 1fr;gap:8px}.produk-kasir-new-card{grid-template-columns:1fr;gap:9px;padding:9px;min-height:0}.produk-kasir-new-photo{width:100%;height:120px}.produk-kasir-new-data{margin-top:9px;gap:5px}.produk-kasir-new-data>div{padding:7px}.produk-kasir-new-actions{margin-top:8px}.produk-kasir-new-actions button{flex:1}}
 </style>
-<script id="produk-kasir-v20-js">
+<script id="produk-kasir-v21-js">
 (function(){
-  const storageKey=()=>{const phone=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return 'finance_kasir_products_'+phone};
+  const phoneKey=()=>{const p=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return String(p).replace(/\D/g,'')||'guest'};
+  const localKey=()=>`finance_kasir_products_${phoneKey()}`;
   const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let products=[];let photoData='';
-  function load(){try{products=JSON.parse(localStorage.getItem(storageKey())||'[]');if(!Array.isArray(products))products=[]}catch(e){products=[]}}
-  function persist(){localStorage.setItem(storageKey(),JSON.stringify(products));try{window.__rekapinyuSaveCloudData?.()}catch(e){}try{window.__initKasirViews?.()}catch(e){}}
+  let products=[];
+  let photoData='';
+  function loadProducts(){try{const v=JSON.parse(localStorage.getItem(localKey())||'[]');products=Array.isArray(v)?v:[]}catch{products=[]}}
+  function saveProducts(){localStorage.setItem(localKey(),JSON.stringify(products));try{window.__rekapinyuSaveCloudData?.()}catch{}try{window.__initKasirViews?.()}catch{}}
   function resetForm(){document.getElementById('produk-kasir-new-form')?.reset();photoData='';const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent='Pilih foto'}
-  function render(){
-    const grid=document.getElementById('produk-kasir-new-grid');const count=document.getElementById('produk-kasir-new-count');if(!grid)return;
+  function renderProducts(){
+    const grid=document.getElementById('produk-kasir-new-grid');if(!grid)return;
     const q=(document.getElementById('produk-kasir-new-search')?.value||'').trim().toLowerCase();
     const list=products.filter(p=>`${p.name||''} ${p.category||''} ${p.barcode||''}`.toLowerCase().includes(q));
-    if(count)count.textContent=products.length+' produk';
-    if(!list.length){grid.innerHTML='<div class="produk-kasir-new-empty"><i class="fa-solid fa-box-open"></i><strong>'+ (products.length?'Produk tidak ditemukan':'Belum ada produk') +'</strong><span>'+ (products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.') +'</span></div>';return}
-    grid.innerHTML=list.map(p=>`<article class="produk-kasir-new-card"><div class="produk-kasir-new-photo">${p.photo?`<img src="${p.photo}" alt="">`:'<i class="fa-solid fa-image"></i>'}</div><div class="produk-kasir-new-info"><div class="produk-kasir-new-name-text" title="${esc(p.name)}">${esc(p.name)}</div><div class="produk-kasir-new-category">${esc(p.category||'Umum')}${p.barcode?` • ${esc(p.barcode)}`:''}</div><div class="produk-kasir-new-data"><div><small>STOK</small><strong>${Number(p.stock)||0}</strong></div><div><small>HPP</small><strong>${rupiah(p.cost??p.grosir)}</strong></div><div class="jual"><small>HARGA JUAL</small><strong>${rupiah(p.price)}</strong></div></div><div class="produk-kasir-new-actions"><button type="button" class="produk-kasir-new-edit" data-produk-edit="${p.id}"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="produk-kasir-new-delete" data-produk-delete="${p.id}"><i class="fa-solid fa-trash-can"></i> Hapus</button></div></div></article>`).join('');
+    const count=document.getElementById('produk-kasir-new-count');if(count)count.textContent=products.length+' produk';
+    if(!list.length){grid.innerHTML='<div class="produk-kasir-new-empty"><i class="fa-solid fa-box-open"></i><strong>'+(products.length?'Produk tidak ditemukan':'Belum ada produk')+'</strong><span>'+(products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.')+'</span></div>';return}
+    grid.innerHTML=list.map(p=>`<article class="produk-kasir-new-card"><div class="produk-kasir-new-photo">${p.photo?`<img src="${esc(p.photo)}" alt="${esc(p.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="produk-kasir-new-info"><div class="produk-kasir-new-name-text" title="${esc(p.name)}">${esc(p.name)}</div><div class="produk-kasir-new-category">${esc(p.category||'Umum')}${p.barcode?` • ${esc(p.barcode)}`:''}</div><div class="produk-kasir-new-data"><div><small>STOK</small><strong>${Number(p.stock)||0}</strong></div><div><small>HPP</small><strong>${rupiah(p.cost??p.grosir)}</strong></div><div class="jual"><small>HARGA JUAL</small><strong>${rupiah(p.price)}</strong></div></div><div class="produk-kasir-new-actions"><button type="button" class="produk-kasir-new-edit" data-produk-edit="${p.id}"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="produk-kasir-new-delete" data-produk-delete="${p.id}"><i class="fa-solid fa-trash-can"></i> Hapus</button></div></div></article>`).join('');
   }
-  function valueNumber(id){return Number((document.getElementById(id)?.value||'').replace(/[^0-9]/g,''))||0}
-  document.addEventListener('change',e=>{if(e.target.id!=='produk-kasir-new-photo')return;const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{photoData=rd.result;const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=f.name};rd.readAsDataURL(f)});
-  document.addEventListener('input',e=>{if(['produk-kasir-new-cost','produk-kasir-new-price','produk-kasir-new-stock'].includes(e.target.id))e.target.value=e.target.value.replace(/[^0-9]/g,'');if(e.target.id==='produk-kasir-new-search')render()});
-  document.addEventListener('submit',e=>{if(e.target.id!=='produk-kasir-new-form')return;e.preventDefault();const name=document.getElementById('produk-kasir-new-name-input').value.trim();const price=valueNumber('produk-kasir-new-price');if(!name||!price)return;products.unshift({id:Date.now(),name,category:document.getElementById('produk-kasir-new-category').value.trim()||'Umum',barcode:document.getElementById('produk-kasir-new-barcode').value.trim(),cost:valueNumber('produk-kasir-new-cost'),grosir:valueNumber('produk-kasir-new-cost'),price,stock:valueNumber('produk-kasir-new-stock'),photo:photoData});persist();render();resetForm();showModal('Berhasil','Produk berhasil ditambahkan.')});
-  document.addEventListener('click',e=>{const del=e.target.closest('[data-produk-delete]');if(del){const id=Number(del.dataset.produkDelete);products=products.filter(p=>Number(p.id)!==id);persist();render();return}const edit=e.target.closest('[data-produk-edit]');if(edit){const p=products.find(x=>Number(x.id)===Number(edit.dataset.produkEdit));if(!p)return;document.getElementById('produk-kasir-new-name-input').value=p.name||'';document.getElementById('produk-kasir-new-category').value=p.category||'';document.getElementById('produk-kasir-new-barcode').value=p.barcode||'';document.getElementById('produk-kasir-new-cost').value=Number(p.cost??p.grosir)||0;document.getElementById('produk-kasir-new-price').value=Number(p.price)||0;document.getElementById('produk-kasir-new-stock').value=Number(p.stock)||0;photoData=p.photo||'';const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=p.photo?'Foto tersimpan':'Pilih foto';products=products.filter(x=>Number(x.id)!==Number(p.id));persist();render();document.getElementById('produk-kasir-new-name-input')?.focus();window.scrollTo({top:0,behavior:'smooth'});}});
-  window.__initProdukKasir=function(){load();render()};
+  function numberValue(id){return Number((document.getElementById(id)?.value||'').replace(/[^0-9]/g,''))||0}
+  document.addEventListener('change',e=>{if(e.target.id!=='produk-kasir-new-photo')return;const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{photoData=String(rd.result||'');const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=f.name};rd.readAsDataURL(f)});
+  document.addEventListener('input',e=>{if(['produk-kasir-new-cost','produk-kasir-new-price','produk-kasir-new-stock'].includes(e.target.id))e.target.value=e.target.value.replace(/[^0-9]/g,'');if(e.target.id==='produk-kasir-new-search')renderProducts()});
+  document.addEventListener('submit',e=>{
+    if(e.target.id!=='produk-kasir-new-form')return;e.preventDefault();
+    const name=document.getElementById('produk-kasir-new-name-input')?.value.trim()||'',price=numberValue('produk-kasir-new-price');if(!name||!price)return;
+    products.unshift({id:Date.now(),name,category:document.getElementById('produk-kasir-new-category')?.value.trim()||'Umum',barcode:document.getElementById('produk-kasir-new-barcode')?.value.trim()||'',cost:numberValue('produk-kasir-new-cost'),grosir:numberValue('produk-kasir-new-cost'),price,stock:numberValue('produk-kasir-new-stock'),photo:photoData});
+    saveProducts();renderProducts();resetForm();showModal('Berhasil','Produk berhasil ditambahkan.');
+  });
+  document.addEventListener('click',e=>{
+    const del=e.target.closest('[data-produk-delete]');
+    if(del){const id=Number(del.dataset.produkDelete);products=products.filter(p=>Number(p.id)!==id);saveProducts();renderProducts();return}
+    const edit=e.target.closest('[data-produk-edit]');
+    if(edit){const p=products.find(x=>Number(x.id)===Number(edit.dataset.produkEdit));if(!p)return;document.getElementById('produk-kasir-new-name-input').value=p.name||'';document.getElementById('produk-kasir-new-category').value=p.category||'';document.getElementById('produk-kasir-new-barcode').value=p.barcode||'';document.getElementById('produk-kasir-new-cost').value=Number(p.cost??p.grosir)||0;document.getElementById('produk-kasir-new-price').value=Number(p.price)||0;document.getElementById('produk-kasir-new-stock').value=Number(p.stock)||0;photoData=p.photo||'';const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=p.photo?'Foto tersimpan':'Pilih foto';products=products.filter(x=>Number(x.id)!==Number(p.id));saveProducts();renderProducts();document.getElementById('produk-kasir-new-name-input')?.focus();window.scrollTo({top:0,behavior:'smooth'})}
+  });
+  window.__initProdukKasir=function(){loadProducts();renderProducts()};
 })();
 </script>
 <script id="kasir-final-js">
