@@ -1163,13 +1163,14 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 @keyframes sidebarRefreshProgress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 </style>
 <script id="sidebar-refresh-loading-js">
-/* Refresh sidebar: satu implementasi loading modern 10 detik lalu reload penuh. */
 (function(){
   const refreshButton=document.getElementById('sidebar-refresh-btn');
-  if(!refreshButton) return;
-  let refreshTimer=null;
-  refreshButton.addEventListener('click',function(){
-    if(refreshTimer) return;
+  const refreshStateKey='rekapinyu_refresh_loading_state';
+  const refreshDuration=10000;
+  const refreshInterval=1000;
+  let refreshIntervalId=null;
+
+  function createRefreshLoading(){
     let overlay=document.getElementById('sidebar-refresh-loading');
     if(!overlay){
       overlay=document.createElement('div');
@@ -1180,11 +1181,53 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
       document.body.appendChild(overlay);
     }
     overlay.classList.add('is-active');
-    refreshButton.disabled=true;
-    refreshTimer=window.setTimeout(function(){
+    return overlay;
+  }
+
+  function stopRefreshState(){
+    window.clearInterval(refreshIntervalId);
+    refreshIntervalId=null;
+    sessionStorage.removeItem(refreshStateKey);
+  }
+
+  function continueRefreshState(){
+    const startedAt=Number(sessionStorage.getItem(refreshStateKey)||0);
+    if(!startedAt) return;
+    const elapsed=Date.now()-startedAt;
+    if(elapsed>=refreshDuration){
+      stopRefreshState();
+      return;
+    }
+    createRefreshLoading();
+    if(refreshButton) refreshButton.disabled=true;
+    window.clearInterval(refreshIntervalId);
+    refreshIntervalId=window.setInterval(function(){
+      const age=Date.now()-startedAt;
+      if(age>=refreshDuration){
+        stopRefreshState();
+        const overlay=document.getElementById('sidebar-refresh-loading');
+        if(overlay) overlay.classList.remove('is-active');
+        if(refreshButton) refreshButton.disabled=false;
+        return;
+      }
       window.location.reload();
-    },10000);
-  });
+    },refreshInterval);
+  }
+
+  if(refreshButton){
+    refreshButton.addEventListener('click',function(){
+      if(sessionStorage.getItem(refreshStateKey)) return;
+      sessionStorage.setItem(refreshStateKey,String(Date.now()));
+      createRefreshLoading();
+      refreshButton.disabled=true;
+      window.setTimeout(function(){
+        continueRefreshState();
+        window.location.reload();
+      },100);
+    });
+  }
+
+  continueRefreshState();
 })();
 </script>
 </aside>
