@@ -1144,13 +1144,46 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
 </button>
 </div>
-<script id="sidebar-refresh-f5-js">
-/* Refresh sidebar: satu implementasi untuk memicu reload halaman penuh seperti F5. */
+<style id="sidebar-refresh-loading-css">
+/* Refresh sidebar: satu implementasi loading modern selama 10 detik sebelum reload penuh. */
+#sidebar-refresh-loading{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.38);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .25s ease,visibility .25s ease;box-sizing:border-box}
+#sidebar-refresh-loading.is-active{opacity:1;visibility:visible;pointer-events:auto}
+#sidebar-refresh-loading .refresh-loading-card{width:min(360px,calc(100vw - 40px));padding:28px 24px 24px;border:1px solid rgba(255,255,255,.7);border-radius:22px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(15,23,42,.24);text-align:center;box-sizing:border-box}
+#sidebar-refresh-loading .refresh-loading-spinner{width:58px;height:58px;margin:0 auto 16px;border:5px solid #dbeafe;border-top-color:#2563eb;border-right-color:#60a5fa;border-radius:50%;animation:sidebarRefreshSpin .9s linear infinite;box-sizing:border-box}
+#sidebar-refresh-loading .refresh-loading-title{margin:0;color:#0f172a;font-size:16px;font-weight:800;line-height:1.3}
+#sidebar-refresh-loading .refresh-loading-text{margin:7px 0 0;color:#64748b;font-size:12px;font-weight:600;line-height:1.5}
+#sidebar-refresh-loading .refresh-loading-dots{display:inline-flex;gap:4px;margin-left:3px;vertical-align:middle}
+#sidebar-refresh-loading .refresh-loading-dots span{width:5px;height:5px;border-radius:50%;background:#2563eb;animation:sidebarRefreshDot 1s ease-in-out infinite}
+#sidebar-refresh-loading .refresh-loading-dots span:nth-child(2){animation-delay:.15s}
+#sidebar-refresh-loading .refresh-loading-dots span:nth-child(3){animation-delay:.3s}
+#sidebar-refresh-loading .refresh-loading-progress{height:5px;margin-top:18px;overflow:hidden;border-radius:999px;background:#e2e8f0}
+#sidebar-refresh-loading .refresh-loading-progress span{display:block;width:100%;height:100%;transform-origin:left center;background:linear-gradient(90deg,#2563eb,#60a5fa,#38bdf8);animation:sidebarRefreshProgress 10s linear forwards}
+@keyframes sidebarRefreshSpin{to{transform:rotate(360deg)}}
+@keyframes sidebarRefreshDot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-4px);opacity:1}}
+@keyframes sidebarRefreshProgress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+</style>
+<script id="sidebar-refresh-loading-js">
+/* Refresh sidebar: satu implementasi loading modern 10 detik lalu reload penuh. */
 (function(){
   const refreshButton=document.getElementById('sidebar-refresh-btn');
   if(!refreshButton) return;
+  let refreshTimer=null;
   refreshButton.addEventListener('click',function(){
-    window.location.reload();
+    if(refreshTimer) return;
+    let overlay=document.getElementById('sidebar-refresh-loading');
+    if(!overlay){
+      overlay=document.createElement('div');
+      overlay.id='sidebar-refresh-loading';
+      overlay.setAttribute('aria-live','polite');
+      overlay.setAttribute('aria-busy','true');
+      overlay.innerHTML='<div class="refresh-loading-card"><div class="refresh-loading-spinner" aria-hidden="true"></div><p class="refresh-loading-title">Mohon tunggu</p><p class="refresh-loading-text">Sedang syncron data<span class="refresh-loading-dots" aria-hidden="true"><span></span><span></span><span></span></span></p><div class="refresh-loading-progress" aria-hidden="true"><span></span></div></div>';
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add('is-active');
+    refreshButton.disabled=true;
+    refreshTimer=window.setTimeout(function(){
+      window.location.reload();
+    },10000);
   });
 })();
 </script>
