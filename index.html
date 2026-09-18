@@ -1077,34 +1077,34 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <!-- Navigation Menu Items -->
 <nav class="flex-1 overflow-y-auto">
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-kasir" onclick="switchTab('kasir')" title="Kasir">
-<i class="fa-solid fa-cash-register w-5 text-center shrink-0" id="icon-kasir"></i>
+<span class="sidebar-icon-overlay" id="icon-kasir" aria-hidden="true"><i class="fa-solid fa-cash-register" aria-hidden="true"></i><i class="fa-solid fa-cash-register" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">Kasir</span>
 </button>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-produk-kasir" onclick="switchTab('produk-kasir')" title="Produk Kasir" type="button">
-<i class="fa-solid fa-boxes-stacked w-5 text-center shrink-0" id="icon-produk-kasir" style="color:#14b8a6!important;"></i>
+<span class="sidebar-icon-overlay" id="icon-produk-kasir" aria-hidden="true"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i><i class="fa-solid fa-boxes-stacked" aria-hidden="true" style="color:#14b8a6!important;"></i></span>
 <span class="sidebar-text truncate">Produk Kasir</span>
 </button>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-laporan-kasir" title="Laporan Kasir" type="button">
-<i class="fa-solid fa-file-invoice-dollar w-5 text-center shrink-0" id="icon-laporan-kasir"></i>
+<span class="sidebar-icon-overlay" id="icon-laporan-kasir" aria-hidden="true"><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">Laporan Kasir</span>
 </button>
 <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white group relative" id="nav-input" onclick="switchTab('input')" title="Input Data">
-<i class="fa-solid fa-pen-to-square w-5 text-center shrink-0" id="icon-input"></i>
+<span class="sidebar-icon-overlay" id="icon-input" aria-hidden="true"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">Input Data</span>
 </button>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-history" onclick="switchTab('history')" title="History">
-<i class="fa-solid fa-clock-rotate-left w-5 text-center shrink-0" id="icon-history"></i>
+<span class="sidebar-icon-overlay" id="icon-history" aria-hidden="true"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">History</span>
 </button>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-report" onclick="switchTab('report')" title="Laporan Bulanan">
-<i class="fa-solid fa-chart-line w-5 text-center shrink-0" id="icon-report"></i>
+<span class="sidebar-icon-overlay" id="icon-report" aria-hidden="true"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">Laporan Bulanan</span>
 </button>
 <!-- MENU KASBON -->
 <div class="relative toggle-kasbon-menu-container">
 <div class="flex items-center w-full text-sm font-medium group relative" id="nav-kasbon-wrapper">
 <button class="flex-1 flex items-center gap-3 text-left truncate" id="nav-kasbon" onclick="switchTab('kasbon')" title="Kasbon">
-<i class="fa-solid fa-hand-holding-dollar w-5 text-center shrink-0" id="icon-kasbon"></i>
+<span class="sidebar-icon-overlay" id="icon-kasbon" aria-hidden="true"><i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i><i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">Kasbon</span>
 </button>
 </div>
@@ -1122,7 +1122,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 </div>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-backup" onclick="switchTab('backup')" title="Backup Otomatis">
-<i class="fa-solid fa-cloud-arrow-up w-5 text-center shrink-0" id="icon-backup"></i>
+<span class="sidebar-icon-overlay" id="icon-backup" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i></span>
 <span class="sidebar-text truncate">Backup Otomatis</span>
 </button>
 </nav>
@@ -2296,7 +2296,9 @@ function checkAuth() {
         function updateKasbonLockUI() {
             const kasbonIcon = document.getElementById('icon-kasbon');
             if (kasbonIcon) {
-                kasbonIcon.className = 'fa-solid fa-hand-holding-dollar w-5 text-center shrink-0';
+                kasbonIcon.querySelectorAll('i').forEach(icon => {
+                    icon.className = 'fa-solid fa-hand-holding-dollar';
+                });
             }
         }
 
@@ -2409,13 +2411,13 @@ function checkAuth() {
                             if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-semibold text-white bg-blue-600/85 group relative";
                             deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
                             deskNav.innerHTML = `
-    <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+    <span class="sidebar-icon-overlay" id="icon-kasbon" aria-hidden="true"><i class="fa-solid ${iconClass}" aria-hidden="true"></i><i class="fa-solid ${iconClass}" aria-hidden="true"></i></span>
     <span class="sidebar-text truncate">Kasbon</span>
                             `;
                         } else {
                             deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600/85 group relative";
                             deskNav.innerHTML = `
-                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-icon-overlay" id="icon-${v}" aria-hidden="true"><i class="fa-solid ${iconClass}" aria-hidden="true"></i><i class="fa-solid ${iconClass}" aria-hidden="true"></i></span>
                                 <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
                             `;
                         }
@@ -2425,13 +2427,13 @@ function checkAuth() {
                             if (wrapper) wrapper.className = "flex items-center w-full rounded-xl text-sm font-medium group relative";
                             deskNav.className = "flex-1 flex items-center gap-3 px-3 py-2.5 text-left truncate";
                             deskNav.innerHTML = `
-                                <i id="icon-kasbon" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-icon-overlay" id="icon-kasbon" aria-hidden="true"><i class="fa-solid ${iconClass}" aria-hidden="true"></i><i class="fa-solid ${iconClass}" aria-hidden="true"></i></span>
                                 <span class="sidebar-text truncate">Kasbon</span>
                             `;
                         } else {
                             deskNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium group relative";
                             deskNav.innerHTML = `
-                                <i id="icon-${v}" class="fa-solid ${iconClass} w-5 text-center shrink-0"></i>
+                                <span class="sidebar-icon-overlay" id="icon-${v}" aria-hidden="true"><i class="fa-solid ${iconClass}" aria-hidden="true"></i><i class="fa-solid ${iconClass}" aria-hidden="true"></i></span>
                                 <span class="sidebar-text truncate">${deskNav.querySelector('span').innerText}</span>
                             `;
                         }
@@ -5049,24 +5051,57 @@ onAuthStateChanged(auth,async u=>{
     text-align:center!important;
     cursor:pointer!important;
   }
-  /* Icon opacity langsung di dalam kotak menu, tanpa kotak icon tambahan. */
-  #sidebar nav > button[id^="nav-"] > i,
-  #sidebar nav > .toggle-kasbon-menu-container #icon-kasbon{
+  /* Dua icon yang sama dalam satu kotak menu: icon belakang opacity + icon depan original. */
+  #sidebar nav > button[id^="nav-"] > .sidebar-icon-overlay,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon > .sidebar-icon-overlay{
+    position:relative!important;
+    width:32px!important;
+    height:32px!important;
+    flex:0 0 32px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
     margin:0!important;
     padding:0!important;
     border:0!important;
     background:transparent!important;
     box-shadow:none!important;
-    opacity:.48!important;
-    font-size:23px!important;
+  }
+  #sidebar nav > button[id^="nav-"] > .sidebar-icon-overlay > i,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon > .sidebar-icon-overlay > i{
+    position:absolute!important;
+    left:50%!important;
+    top:50%!important;
+    margin:0!important;
+    padding:0!important;
+    width:auto!important;
+    transform:translate(-50%,-50%)!important;
     line-height:1!important;
-    display:inline-block!important;
+    text-align:center!important;
+    display:block!important;
+    pointer-events:none!important;
     transition:opacity .2s ease,transform .2s ease,filter .2s ease!important;
   }
-  #sidebar nav > button[id^="nav-"]:hover > i,
-  #sidebar nav > .toggle-kasbon-menu-container:hover #icon-kasbon{
-    opacity:.9!important;
-    transform:scale(1.08)!important;
+  #sidebar nav > button[id^="nav-"] > .sidebar-icon-overlay > i:first-child,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon > .sidebar-icon-overlay > i:first-child{
+    opacity:.28!important;
+    font-size:30px!important;
+    z-index:1!important;
+  }
+  #sidebar nav > button[id^="nav-"] > .sidebar-icon-overlay > i:last-child,
+  #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon > .sidebar-icon-overlay > i:last-child{
+    opacity:1!important;
+    font-size:23px!important;
+    z-index:2!important;
+  }
+  #sidebar nav > button[id^="nav-"]:hover > .sidebar-icon-overlay > i:first-child,
+  #sidebar nav > .toggle-kasbon-menu-container:hover #nav-kasbon > .sidebar-icon-overlay > i:first-child{
+    opacity:.42!important;
+    transform:translate(-50%,-50%) scale(1.04)!important;
+  }
+  #sidebar nav > button[id^="nav-"]:hover > .sidebar-icon-overlay > i:last-child,
+  #sidebar nav > .toggle-kasbon-menu-container:hover #nav-kasbon > .sidebar-icon-overlay > i:last-child{
+    transform:translate(-50%,-50%) scale(1.03)!important;
   }
   #sidebar nav > button[id^="nav-"] > span,
   #sidebar nav > .toggle-kasbon-menu-container #nav-kasbon .sidebar-text{
@@ -5306,14 +5341,14 @@ onAuthStateChanged(auth,async u=>{
 }
 
 /* Warna ikon menu sidebar. */
-#sidebar #icon-pengeluaran{color:#10b981!important;}
-#sidebar #icon-kasbon{color:#f59e0b!important;}
-#sidebar #icon-kasir{color:#3b82f6!important;}
-#sidebar #icon-input{color:#8b5cf6!important;}
-#sidebar #icon-history{color:#ef4444!important;}
-#sidebar #icon-report{color:#06b6d4!important;}
-#sidebar #icon-backup{color:#f97316!important;}
-#icon-laporan-kasir{color:#0ea5e9!important;}
+#sidebar #icon-pengeluaran > i{color:#10b981!important;}
+#sidebar #icon-kasbon > i{color:#f59e0b!important;}
+#sidebar #icon-kasir > i{color:#3b82f6!important;}
+#sidebar #icon-input > i{color:#8b5cf6!important;}
+#sidebar #icon-history > i{color:#ef4444!important;}
+#sidebar #icon-report > i{color:#06b6d4!important;}
+#sidebar #icon-backup > i{color:#f97316!important;}
+#icon-laporan-kasir > i{color:#0ea5e9!important;}
 
 /* Pembatas bawah profil toko + Administrator. */
 #sidebar .toggle-profile-setting-container{
