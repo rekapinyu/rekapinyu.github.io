@@ -5281,12 +5281,27 @@ onAuthStateChanged(auth,async u=>{
   function numberValue(id){return Number((document.getElementById(id)?.value||'').replace(/[^0-9]/g,''))||0}
   document.addEventListener('change',e=>{if(e.target.id!=='produk-kasir-new-photo')return;const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{photoData=String(rd.result||'');const n=document.getElementById('produk-kasir-new-photo-name');if(n)n.textContent=f.name};rd.readAsDataURL(f)});
   document.addEventListener('input',e=>{if(['produk-kasir-new-cost','produk-kasir-new-price','produk-kasir-new-stock'].includes(e.target.id))e.target.value=e.target.value.replace(/[^0-9]/g,'');if(e.target.id==='produk-kasir-new-search')renderProducts()});
-  document.addEventListener('submit',async e=>{
-    if(e.target.id!=='produk-kasir-new-form')return;e.preventDefault();
-    const name=document.getElementById('produk-kasir-new-name-input')?.value.trim()||'',price=numberValue('produk-kasir-new-price');if(!name||!price)return;
-    products.unshift({id:Date.now(),name,category:document.getElementById('produk-kasir-new-category')?.value.trim()||'Umum',barcode:document.getElementById('produk-kasir-new-barcode')?.value.trim()||'',cost:numberValue('produk-kasir-new-cost'),grosir:numberValue('produk-kasir-new-cost'),price,stock:numberValue('produk-kasir-new-stock'),photo:photoData});
-    await saveProducts();
-    renderProducts();resetForm();showModal('Berhasil','Produk berhasil ditambahkan.');
+  const produkKasirForm=document.getElementById('produk-kasir-new-form');
+  if(produkKasirForm)produkKasirForm.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const name=document.getElementById('produk-kasir-new-name-input')?.value.trim()||'';
+    const price=numberValue('produk-kasir-new-price');
+    if(!name||price<=0){showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return;}
+    const product={id:Date.now(),name,category:document.getElementById('produk-kasir-new-category')?.value.trim()||'Umum',barcode:document.getElementById('produk-kasir-new-barcode')?.value.trim()||'',cost:numberValue('produk-kasir-new-cost'),grosir:numberValue('produk-kasir-new-cost'),price,stock:numberValue('produk-kasir-new-stock'),photo:photoData};
+    products.unshift(product);
+    localStorage.setItem(localKey(),JSON.stringify(products));
+    try{
+      if(typeof window.__rekapinyuSaveCloudData==='function') await window.__rekapinyuSaveCloudData();
+    }catch(err){
+      products=products.filter(p=>Number(p.id)!==Number(product.id));
+      localStorage.setItem(localKey(),JSON.stringify(products));
+      renderProducts();
+      showModal('Gagal','Produk belum berhasil disinkronkan ke Firestore.');
+      return;
+    }
+    renderProducts();
+    resetForm();
+    showModal('Berhasil','Produk berhasil ditambahkan dan disimpan.');
   });
   document.addEventListener('click',e=>{
     const del=e.target.closest('[data-produk-delete]');
