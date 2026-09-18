@@ -1514,7 +1514,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     <button id="pk3-import" class="pk3-data-tool pk3-import" type="button" title="Import daftar produk" aria-label="Import daftar produk">
       <i class="fa-solid fa-upload"></i>
     </button>
-    <input id="pk3-import-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+    <input id="pk3-import-file" type="file" accept=".json,application/json" hidden>
   </div>
 </section>
 <!-- VIEW KASIR -->
@@ -3894,7 +3894,7 @@ function checkAuth() {
 <button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
 <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
 </div>
-<input accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden="" id="history-io-file" type="file"/>
+<input accept=".json,application/json" hidden="" id="history-io-file" type="file"/>
 <script>
 (function(){
   'use strict';
@@ -5234,51 +5234,59 @@ onAuthStateChanged(auth,async u=>{
   async function add(e){e.preventDefault();const name=$('pk3-name').value.trim(),price=num('pk3-price');if(!name||price<=0){if(typeof showModal==='function')showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return}const btn=$('pk3-submit');if(btn?.disabled)return;btn.disabled=true;const item={id:String(Date.now())+'_'+Math.random().toString(36).slice(2,8),name,category:$('pk3-category').value.trim()||'Umum',barcode:$('pk3-barcode').value.trim(),cost:num('pk3-cost'),grosir:num('pk3-cost'),price,stock:num('pk3-stock'),photo:addPhoto};products.unshift(item);write();render();resetForm();btn.disabled=false;if(typeof showModal==='function')showModal('Berhasil','Produk berhasil ditambahkan.')}
   function remove(id){const before=products.length;products=products.filter(p=>String(p.id)!==String(id));if(products.length===before)return;write();render()}
   function saveEdit(e){e.preventDefault();const i=products.findIndex(p=>String(p.id)===String(editingId));if(i<0){closeEdit();return}const old=products[i];products[i]={...old,name:$('pk3-edit-name').value.trim(),category:$('pk3-edit-category').value.trim()||'Umum',barcode:$('pk3-edit-barcode').value.trim(),cost:num('pk3-edit-cost'),grosir:num('pk3-edit-cost'),price:num('pk3-edit-price'),stock:num('pk3-edit-stock'),photo:editPhoto};write();render();closeEdit();if(typeof showModal==='function')showModal('Berhasil','Produk berhasil diperbarui.')}
-  function ensureXlsx(){
-    if(window.XLSX)return Promise.resolve(window.XLSX);
-    return new Promise((resolve,reject)=>{
-      const existing=document.querySelector('script[data-pk3-xlsx-loader]');
-      if(existing){existing.addEventListener('load',()=>window.XLSX?resolve(window.XLSX):reject(new Error('Library Excel tidak tersedia.')), {once:true});existing.addEventListener('error',()=>reject(new Error('Library Excel gagal dimuat.')), {once:true});return}
-      const sc=document.createElement('script');sc.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';sc.async=true;sc.dataset.pk3XlsxLoader='1';sc.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('Library Excel tidak tersedia.'));sc.onerror=()=>reject(new Error('Library Excel gagal dimuat.'));document.head.appendChild(sc);
-    });
-  }
   function backupProducts(){
+    const latest=read();
+    products=latest;
     if(!products.length){if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');return}
-    ensureXlsx().then(XLSX=>{
-      const rows=products.map(p=>({'ID':p.id||'', 'Nama Produk':p.name||'', 'Kategori':p.category||'Umum', 'Barcode':p.barcode||'', 'HPP / Grosir':Number(p.cost??p.grosir)||0, 'Harga Jual':Number(p.price)||0, 'Stok':Number(p.stock)||0, 'Foto Produk':p.photo||''}));
-      const wb=XLSX.utils.book_new();
-      const ws=XLSX.utils.json_to_sheet(rows);
-      ws['!cols']=[{wch:24},{wch:28},{wch:18},{wch:20},{wch:18},{wch:18},{wch:12},{wch:55}];
-      XLSX.utils.book_append_sheet(wb,ws,'Backup Produk');
-      XLSX.writeFile(wb,`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.xlsx`);
-      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup ke Excel.`);
-    }).catch(err=>{if(typeof showModal==='function')showModal('Backup Gagal',err.message||'Gagal membuat file Excel.')});
+    try{
+      const backup={
+        format:'Rekapinyu Produk Kasir',
+        version:1,
+        exportedAt:new Date().toISOString(),
+        products:products
+      };
+      const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup.`);
+    }catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}
   }
   function importProducts(file){
     if(!file)return;
-    ensureXlsx().then(async XLSX=>{
-      const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
-      const sheetName=wb.SheetNames.find(n=>n==='Backup Produk')||wb.SheetNames[0];
-      if(!sheetName)throw new Error('Sheet backup produk tidak ditemukan.');
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:''});
-      const imported=rows.map(r=>({
-        id:String(r['ID']||Date.now()+'_'+Math.random().toString(36).slice(2,8)),
-        name:String(r['Nama Produk']||'').trim(),
-        category:String(r['Kategori']||'Umum').trim()||'Umum',
-        barcode:String(r['Barcode']||'').trim(),
-        cost:Number(r['HPP / Grosir'])||0,
-        grosir:Number(r['HPP / Grosir'])||0,
-        price:Number(r['Harga Jual'])||0,
-        stock:Number(r['Stok'])||0,
-        photo:String(r['Foto Produk']||'')
-      })).filter(p=>p.name&&p.price>0);
-      if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
-      products=imported;
-      write();
-      render();
-      if(typeof window.__initKasirViews==='function')window.__initKasirViews();
-      if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport dan menggantikan daftar produk saat ini.`);
-    }).catch(err=>{if(typeof showModal==='function')showModal('Import Gagal',err.message||'File backup tidak dapat dibaca.')}).finally(()=>{if($('pk3-import-file'))$('pk3-import-file').value=''})
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const parsed=JSON.parse(String(reader.result||''));
+        const source=Array.isArray(parsed)?parsed:parsed?.products;
+        if(!Array.isArray(source)||!source.length)throw new Error('File backup tidak berisi daftar produk yang valid.');
+        const imported=source.map((p,i)=>({
+          id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8)),
+          name:String(p?.name||'').trim(),
+          category:String(p?.category||'Umum').trim()||'Umum',
+          barcode:String(p?.barcode||'').trim(),
+          cost:Number(p?.cost??p?.grosir)||0,
+          grosir:Number(p?.grosir??p?.cost)||0,
+          price:Number(p?.price)||0,
+          stock:Number(p?.stock)||0,
+          photo:String(p?.photo||'')
+        })).filter(p=>p.name&&p.price>0);
+        if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
+        products=imported;
+        write();
+        render();
+        if(typeof window.__initKasirViews==='function')window.__initKasirViews();
+        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`);
+      }catch(err){if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.')}
+      finally{if($('pk3-import-file'))$('pk3-import-file').value=''}
+    };
+    reader.onerror=()=>{if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');if($('pk3-import-file'))$('pk3-import-file').value=''};
+    reader.readAsText(file);
   }
   function bind(){if(bound)return;bound=true;$('pk3-form')?.addEventListener('submit',add);$('pk3-search')?.addEventListener('input',render);$('pk3-grid')?.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const p=products.find(x=>String(x.id)===String(b.dataset.id));if(!p)return;if(b.dataset.action==='edit')openEdit(p);if(b.dataset.action==='delete')remove(p.id)});$('pk3-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{addPhoto=await compress(f);$('pk3-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-photo-name').textContent='Gagal memproses foto'}});$('pk3-edit-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{editPhoto=await compress(f);$('pk3-edit-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-edit-photo-name').textContent='Gagal memproses foto'}});['pk3-cost','pk3-price','pk3-stock','pk3-edit-cost','pk3-edit-price','pk3-edit-stock'].forEach(id=>$(id)?.addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,'')));$('pk3-edit-form')?.addEventListener('submit',saveEdit);$('pk3-backup')?.addEventListener('click',backupProducts);$('pk3-import')?.addEventListener('click',()=>$('pk3-import-file')?.click());$('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));document.addEventListener('click',e=>{if(e.target.closest('[data-pk3-close]'))closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()})}
   window.__initProdukKasir=function(){bind();load();render()};
