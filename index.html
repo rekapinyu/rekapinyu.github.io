@@ -5301,13 +5301,15 @@ onAuthStateChanged(auth,async u=>{
       const p=kasirProducts.find(x=>String(x.id)===id);
       const input=document.getElementById('kasir-search');
       if(p){
-        if(input)input.value=p.name||'';
         const x=kasirCart.find(x=>String(x.id)===id);
         if(x)x.qty++;else kasirCart.push({...p,qty:1});
         kasirLastAddedProductId=id;
+        kasirCartSelectedIndex=kasirCart.findIndex(item=>String(item.id)===id);
+        if(input)input.value='';
         renderCart(); renderKasirProducts();
         const box=document.getElementById('kasir-search-suggestions');if(box)box.style.display='none';
-        if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}
+        kasirSuggestIndex=-1;
+        setTimeout(updateKasirCartSelection,0);
       }
       return;
     }
@@ -5322,9 +5324,9 @@ onAuthStateChanged(auth,async u=>{
     const items=[...document.querySelectorAll('#kasir-cart-list [data-kasir-cart-item]')];
     items.forEach((item,i)=>{
       const selected=i===kasirCartSelectedIndex;
-      item.style.outline=selected?'2px solid #94a3b8':'';
-      item.style.outlineOffset=selected?'2px':'0';
-      item.style.background=selected?'#f8fafc':'';
+      item.style.outline='';
+      item.style.outlineOffset='0';
+      item.style.background=selected?'#eef2ff':'';
       item.setAttribute('aria-selected',selected?'true':'false');
     });
   }
