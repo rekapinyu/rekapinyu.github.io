@@ -1056,9 +1056,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="openProfileModal('ganti-password')">
 <i class="fa-solid fa-key text-amber-400 w-4"></i> Ganti Password
                     </button>
-<button class="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2" onclick="openProfileModal('ganti-password-kasbon')">
-<i class="fa-solid fa-key text-blue-400 w-4"></i> Ubah Password Kasbon
-                    </button>
 </div>
 </div>
 </div>
@@ -1948,37 +1945,6 @@ function checkAuth() {
                     updateUserInStorage();
                     closeProfileModal();
                     showModal("Berhasil", "Kata sandi login berhasil diperbarui.");
-                };
-            } else if (type === 'ganti-password-kasbon') {
-                titleEl.innerText = "Ubah Password Kasbon";
-                const kasbonKey = `finance_kasbon_pass_${currentSessionUser.phone}`;
-                const currentKasbonPass = localStorage.getItem(kasbonKey) || '';
-                bodyEl.innerHTML = `
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Password Kasbon Baru</label>
-                        <input type="password" id="input-new-kasbon-password" placeholder="Masukkan password kasbon baru" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Konfirmasi Password</label>
-                        <input type="password" id="input-confirm-kasbon-password" placeholder="Ulangi password kasbon baru" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                    </div>
-                    ${currentKasbonPass ? '<p class="text-[10px] text-slate-400">Password Kasbon saat ini sudah tersimpan.</p>' : '<p class="text-[10px] text-slate-400">Belum ada Password Kasbon. Simpan password baru untuk akun ini.</p>'}
-                `;
-                saveBtn.onclick = function() {
-                    const newPass = document.getElementById('input-new-kasbon-password')?.value || '';
-                    const confirmPass = document.getElementById('input-confirm-kasbon-password')?.value || '';
-                    if (!newPass) {
-                        showModal("Gagal", "Password Kasbon baru wajib diisi.", "fa-solid fa-circle-exclamation text-rose-600");
-                        return;
-                    }
-                    if (newPass !== confirmPass) {
-                        showModal("Gagal", "Konfirmasi Password Kasbon tidak sama.", "fa-solid fa-circle-exclamation text-rose-600");
-                        return;
-                    }
-                    localStorage.setItem(kasbonKey, newPass);
-                    try { window.__rekapinyuSaveCloudData?.(); } catch(e) {}
-                    closeProfileModal();
-                    showModal("Berhasil", "Password Kasbon berhasil diperbarui.");
                 };
             }
 
@@ -3899,8 +3865,6 @@ async function saveCloudData(){
    kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),
    updatedAt:serverTimestamp()
  };
- const kasbonPass=localStorage.getItem(`finance_kasbon_pass_${phone}`)||"";
- payload.kasbonPass=kasbonPass;
  if(shop)payload.shopCover=shop;
  await setDoc(dref(uid),payload,{merge:true});
 }
@@ -3948,7 +3912,6 @@ async function hydrate(uid){
  const pendingKasbon=mergePendingData(phone,"kasbon",d.kasbonData).pending;
  const pendingBackup=mergePendingData(phone,"backup",d.backupOtomatisData).pending;
  if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup)saveCloudData().catch(console.warn);
- if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${phone}`,d.kasbonPass);
  if(typeof d.shopCover==="string"&&d.shopCover)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,d.shopCover);
  loadUserData();
  if((preservedHistory.length||preservedPengeluaran.length||preservedKasbon.length||preservedBackup.length) && (!Array.isArray(d.historyData)||!d.historyData.length) && (!Array.isArray(d.pengeluaranData)||!d.pengeluaranData.length) && (!Array.isArray(d.kasbonData)||!d.kasbonData.length) && (!Array.isArray(d.backupOtomatisData)||!d.backupOtomatisData.length)){
@@ -3983,7 +3946,7 @@ window.__rekapinyuSaveCloudData=()=>{
 // Data tertentu tetap disinkronkan ke Firebase; Produk Kasir dikelola sepenuhnya di localStorage.
 if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.setItem=function(k,v){const r=nativeSet.call(this,k,v);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){
-   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_kasbon_pass_${p}`,`finance_shop_cover_${p}`,`finance_kasir_transactions_${p}`];
+   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_shop_cover_${p}`,`finance_kasir_transactions_${p}`];
    if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),200)}
  }return r};
  Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),100)}return r};
@@ -4004,7 +3967,7 @@ if(rf)rf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
    await updateProfile(c.user,{displayName:name});
 
    const userData={uid:c.user.uid,name,phone,email:c.user.email,photo:""};
-   const emptyData={historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasbonPass:"",shopCover:""};
+   const emptyData={historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],shopCover:""};
 
    // Coba simpan ke Firestore. Jika Rules menolak, akun Auth tetap valid
    // dan data lokal tetap menjadi fallback sehingga pengguna tetap bisa masuk.
@@ -4065,7 +4028,7 @@ if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediateP
      try{
        await setDoc(uref(c.user.uid),{uid:c.user.uid,name:legacy.name||"",phone,email:c.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
        let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-       await setDoc(dref(c.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),kasbonPass:localStorage.getItem(`finance_kasbon_pass_${phone}`)||"",shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
+       await setDoc(dref(c.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
      }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
      localSession({uid:c.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:c.user.email});
      try{await hydrate(c.user.uid)}catch{}
@@ -4288,7 +4251,7 @@ document.addEventListener("click",function(e){
 
 let dataUnsub=null,userUnsub=null;
 function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData);
-if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(d.kasirTransactions));const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;if(typeof d.kasbonPass==="string")nativeSet.call(localStorage,`finance_kasbon_pass_${p}`,d.kasbonPass);if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
+if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(d.kasirTransactions));const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
     if(!existing||!existing.src||String(existing.src).startsWith("http")){
