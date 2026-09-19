@@ -5211,6 +5211,30 @@ onAuthStateChanged(auth,async u=>{
     }).join('')}</div>`;
   }
 
+  function addKasirProductToCart(p){
+    const id=String(p.id);
+    const index=kasirCart.findIndex(x=>String(x.id)===id);
+    if(index!==-1){
+      const x=kasirCart.splice(index,1)[0];
+      x.qty++;
+      kasirCart.unshift(x);
+    }else{
+      kasirCart.unshift({...p,qty:1});
+    }
+  }
+  function resetKasirSearchAndSelectCart(id){
+    const input=document.getElementById('kasir-search');
+    if(input)input.value='';
+    const box=document.getElementById('kasir-search-suggestions');
+    if(box){box.style.display='none';box.innerHTML='';}
+    kasirSuggestIndex=-1;
+    kasirLastAddedProductId=String(id);
+    kasirCartSelectedIndex=0;
+    renderCart();
+    renderKasirProducts();
+    setTimeout(updateKasirCartSelection,0);
+  }
+
   function initKasirViews(){
     loadKasirStore();  renderKasirProducts(); renderCart(); renderTransactions();
   }
@@ -5236,7 +5260,7 @@ onAuthStateChanged(auth,async u=>{
   });
 
   document.addEventListener('click',e=>{
-    const add=e.target.closest('[data-add-product]');if(add){const id=String(add.dataset.addProduct||'');const p=kasirProducts.find(x=>String(x.id)===id);if(p){const x=kasirCart.find(x=>String(x.id)===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
+    const add=e.target.closest('[data-add-product]');if(add){const id=String(add.dataset.addProduct||'');const p=kasirProducts.find(x=>String(x.id)===id);if(p){addKasirProductToCart(p);resetKasirSearchAndSelectCart(id);}return}
     const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
     const dec=e.target.closest('[data-cart-dec]');if(dec){const i=kasirCart.findIndex(x=>x.id===Number(dec.dataset.cartDec));if(i>-1){kasirCart[i].qty--;if(kasirCart[i].qty<=0)kasirCart.splice(i,1)}renderCart();return}
     const delTransaction=e.target.closest('[data-delete-transaction]');if(delTransaction){const id=Number(delTransaction.dataset.deleteTransaction);kasirTransactions=kasirTransactions.filter(x=>Number(x.id)!==id);saveKasirStore();renderTransactions();return}
@@ -5301,15 +5325,8 @@ onAuthStateChanged(auth,async u=>{
       const p=kasirProducts.find(x=>String(x.id)===id);
       const input=document.getElementById('kasir-search');
       if(p){
-        const x=kasirCart.find(x=>String(x.id)===id);
-        if(x)x.qty++;else kasirCart.push({...p,qty:1});
-        kasirLastAddedProductId=id;
-        kasirCartSelectedIndex=kasirCart.findIndex(item=>String(item.id)===id);
-        if(input)input.value='';
-        renderCart(); renderKasirProducts();
-        const box=document.getElementById('kasir-search-suggestions');if(box)box.style.display='none';
-        kasirSuggestIndex=-1;
-        setTimeout(updateKasirCartSelection,0);
+        addKasirProductToCart(p);
+        resetKasirSearchAndSelectCart(id);
       }
       return;
     }
