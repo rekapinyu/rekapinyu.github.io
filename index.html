@@ -5258,6 +5258,7 @@ onAuthStateChanged(auth,async u=>{
   }
 
   let kasirSuggestIndex=-1;
+  let kasirLastAddedProductId=null;
 
   function renderKasirSuggestions(){
     const input=document.getElementById('kasir-search');
@@ -5281,7 +5282,7 @@ onAuthStateChanged(auth,async u=>{
   }
 
   document.addEventListener('input',e=>{
-    if(e.target.id==='kasir-search'){renderKasirProducts();renderKasirSuggestions()}
+    if(e.target.id==='kasir-search'){kasirLastAddedProductId=null;renderKasirProducts();renderKasirSuggestions()}
     if(e.target.id==='kasir-payment'){e.target.value=e.target.value.replace(/[^0-9]/g,'');updateChange()}
   });
 
@@ -5295,8 +5296,10 @@ onAuthStateChanged(auth,async u=>{
         if(input)input.value=p.name||'';
         const x=kasirCart.find(x=>String(x.id)===id);
         if(x)x.qty++;else kasirCart.push({...p,qty:1});
+        kasirLastAddedProductId=id;
         renderCart(); renderKasirProducts();
         const box=document.getElementById('kasir-search-suggestions');if(box)box.style.display='none';
+        if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}
       }
       return;
     }
@@ -5311,6 +5314,12 @@ onAuthStateChanged(auth,async u=>{
     // Tombol tepat sebelum angka 1 pada keyboard: ` / ~
     if((e.key==='`'||e.key==='~') && !isTyping){e.preventDefault();focusKasirSearch();return}
     if(active?.id==='kasir-search'){
+      if(e.key==='+' || (e.key==='=' && e.shiftKey)){
+        if(kasirLastAddedProductId!==null){
+          const x=kasirCart.find(x=>String(x.id)===String(kasirLastAddedProductId));
+          if(x){e.preventDefault();x.qty++;renderCart();return}
+        }
+      }
       const box=document.getElementById('kasir-search-suggestions');
       const items=box?[...box.querySelectorAll('[data-kasir-suggest]')]:[];
       if(items.length && (e.key==='ArrowDown'||e.key==='ArrowUp')){
