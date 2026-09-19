@@ -5139,7 +5139,7 @@ onAuthStateChanged(auth,async u=>{
     document.getElementById('kasir-cart-count').textContent=count+' Item';
     document.getElementById('kasir-total-products').textContent=rupiah(total);
     if(!kasirCart.length){list.innerHTML='<div class="kasir-cart-empty"><i class="fa-solid fa-cart-shopping"></i><strong>Keranjang masih kosong</strong><span>Tambahkan produk dari kotak sebelah kiri.</span></div>'}
-    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item">${x.photo?`<img class="kasir-cart-thumb" src="${x.photo}" alt="">`:`<div class="kasir-cart-thumb"></div>`}<div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
+    else list.innerHTML=kasirCart.map(x=>`<div class="kasir-cart-item" data-kasir-cart-item>${x.photo?`<img class="kasir-cart-thumb" src="${x.photo}" alt="">`:`<div class="kasir-cart-thumb"></div>`}<div><strong>${esc(x.name)}</strong><small>${rupiah(x.price)} × ${x.qty} = ${rupiah(x.price*x.qty)}</small></div><div class="kasir-qty"><button type="button" data-cart-dec="${x.id}">−</button><span>${x.qty}</span><button type="button" data-cart-inc="${x.id}">+</button></div></div>`).join('');
     updateChange();
   }
   function updateChange(){
@@ -5227,6 +5227,14 @@ onAuthStateChanged(auth,async u=>{
     });
   });
 
+  document.addEventListener('mouseover',e=>{
+    const item=e.target.closest('#kasir-cart-list [data-kasir-cart-item]');
+    if(!item)return;
+    const items=[...document.querySelectorAll('#kasir-cart-list [data-kasir-cart-item]')];
+    kasirCartSelectedIndex=items.indexOf(item);
+    updateKasirCartSelection();
+  });
+
   document.addEventListener('click',e=>{
     const add=e.target.closest('[data-add-product]');if(add){const id=String(add.dataset.addProduct||'');const p=kasirProducts.find(x=>String(x.id)===id);if(p){const x=kasirCart.find(x=>String(x.id)===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
     const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
@@ -5308,18 +5316,25 @@ onAuthStateChanged(auth,async u=>{
     if(e.target.closest('#kasir-save-btn'))saveKasirTransaction();
   });
 
+  let kasirCartSelectedIndex=-1;
+
+  function updateKasirCartSelection(){
+    const items=[...document.querySelectorAll('#kasir-cart-list [data-kasir-cart-item]')];
+    items.forEach((item,i)=>{
+      const selected=i===kasirCartSelectedIndex;
+      item.style.outline=selected?'2px solid #94a3b8':'';
+      item.style.outlineOffset=selected?'2px':'0';
+      item.style.background=selected?'#f8fafc':'';
+      item.setAttribute('aria-selected',selected?'true':'false');
+    });
+  }
+
   document.addEventListener('keydown',e=>{
     const active=e.target;
     const isTyping=active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable);
     // Tombol tepat sebelum angka 1 pada keyboard: ` / ~
     if((e.key==='`'||e.key==='~') && !isTyping){e.preventDefault();focusKasirSearch();return}
     if(active?.id==='kasir-search'){
-      if(e.key==='='){
-        if(kasirLastAddedProductId!==null){
-          const x=kasirCart.find(x=>String(x.id)===String(kasirLastAddedProductId));
-          if(x){e.preventDefault();x.qty++;renderCart();return}
-        }
-      }
       const box=document.getElementById('kasir-search-suggestions');
       const items=box?[...box.querySelectorAll('[data-kasir-suggest]')]:[];
       if(items.length && (e.key==='ArrowDown'||e.key==='ArrowUp')){
@@ -5340,6 +5355,50 @@ onAuthStateChanged(auth,async u=>{
           const chosen=items[kasirSuggestIndex>=0?kasirSuggestIndex:0];
           if(chosen)chosen.click();
         }
+        return;
+      }
+    }
+    if(active?.id==='kasir-search' && (e.key==='='||e.key==='-')){
+      if(kasirLastAddedProductId!==null){
+        const x=kasirCart.find(x=>String(x.id)===String(kasirLastAddedProductId));
+        if(x){
+          e.preventDefault();
+          if(e.key==='=') x.qty++;
+          else {
+            x.qty--;
+            if(x.qty<=0){
+              const index=kasirCart.findIndex(item=>String(item.id)===String(kasirLastAddedProductId));
+              if(index!==-1)kasirCart.splice(index,1);
+              kasirLastAddedProductId=null;
+            }
+          }
+          renderCart();
+          return;
+        }
+      }
+    }
+    const cartItems=[...document.querySelectorAll('#kasir-cart-list [data-kasir-cart-item]')];
+    if(cartItems.length && (e.key==='ArrowDown'||e.key==='ArrowUp') && active?.id==='kasir-search'){
+      e.preventDefault();
+      if(e.key==='ArrowDown')kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex+1,cartItems.length-1);
+      else kasirCartSelectedIndex=Math.max(kasirCartSelectedIndex-1,0);
+      updateKasirCartSelection();
+      return;
+    }
+    if(cartItems.length && (e.key==='='||e.key==='-') && kasirCartSelectedIndex>=0){
+      const selected=kasirCart[kasirCartSelectedIndex];
+      if(selected){
+        e.preventDefault();
+        if(e.key==='=')selected.qty++;
+        else {
+          selected.qty--;
+          if(selected.qty<=0){
+            kasirCart.splice(kasirCartSelectedIndex,1);
+            kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);
+          }
+        }
+        renderCart();
+        setTimeout(updateKasirCartSelection,0);
         return;
       }
     }
