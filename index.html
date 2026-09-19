@@ -5215,6 +5215,18 @@ onAuthStateChanged(auth,async u=>{
     loadKasirStore();  renderKasirProducts(); renderCart(); renderTransactions();
   }
 
+  document.addEventListener('mouseover',e=>{
+    const suggestion=e.target.closest('[data-kasir-suggest]');
+    if(!suggestion)return;
+    const items=[...document.querySelectorAll('#kasir-search-suggestions [data-kasir-suggest]')];
+    kasirSuggestIndex=items.indexOf(suggestion);
+    items.forEach((item,i)=>{
+      const selected=i===kasirSuggestIndex;
+      item.style.background=selected?'#eef2ff':'#fff';
+      item.setAttribute('aria-selected',selected?'true':'false');
+    });
+  });
+
   document.addEventListener('click',e=>{
     const add=e.target.closest('[data-add-product]');if(add){const id=String(add.dataset.addProduct||'');const p=kasirProducts.find(x=>String(x.id)===id);if(p){const x=kasirCart.find(x=>String(x.id)===id);if(x)x.qty++;else kasirCart.push({...p,qty:1});renderCart();}return}
     const inc=e.target.closest('[data-cart-inc]');if(inc){const x=kasirCart.find(x=>x.id===Number(inc.dataset.cartInc));if(x)x.qty++;renderCart();return}
@@ -5245,6 +5257,8 @@ onAuthStateChanged(auth,async u=>{
     input.select();
   }
 
+  let kasirSuggestIndex=-1;
+
   function renderKasirSuggestions(){
     const input=document.getElementById('kasir-search');
     if(!input)return;
@@ -5258,10 +5272,11 @@ onAuthStateChanged(auth,async u=>{
       if(wrap){wrap.style.position='relative';wrap.appendChild(box)}
     }
     const q=(input.value||'').trim().toLowerCase();
+    kasirSuggestIndex=-1;
     if(!q){box.style.display='none';box.innerHTML='';return}
     const matches=kasirProducts.filter(p=>String(p.name||'').toLowerCase().includes(q)||String(p.barcode||'').toLowerCase().includes(q)).slice(0,8);
     if(!matches.length){box.style.display='none';box.innerHTML='';return}
-    box.innerHTML=matches.map(p=>`<button type="button" data-kasir-suggest="${esc(p.id)}" style="display:block;width:100%;text-align:left;border:0;background:#fff;padding:8px 9px;border-radius:6px;cursor:pointer"><strong style="display:block;font-size:11px;color:#334155">${esc(p.name)}</strong><span style="display:block;font-size:9px;color:#94a3b8;margin-top:2px">${rupiah(p.price)}${p.barcode?' • '+esc(p.barcode):''}</span></button>`).join('');
+    box.innerHTML=matches.map((p,i)=>`<button type="button" data-kasir-suggest="${esc(p.id)}" data-kasir-suggest-index="${i}" style="display:block;width:100%;text-align:left;border:0;background:#fff;padding:8px 9px;border-radius:6px;cursor:pointer"><strong style="display:block;font-size:11px;color:#334155">${esc(p.name)}</strong><span style="display:block;font-size:9px;color:#94a3b8;margin-top:2px">${rupiah(p.price)}${p.barcode?' • '+esc(p.barcode):''}</span></button>`).join('');
     box.style.display='block';
   }
 
@@ -5295,10 +5310,29 @@ onAuthStateChanged(auth,async u=>{
     const isTyping=active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable);
     // Tombol tepat sebelum angka 1 pada keyboard: ` / ~
     if((e.key==='`'||e.key==='~') && !isTyping){e.preventDefault();focusKasirSearch();return}
-    if(e.key==='Enter' && active?.id==='kasir-search'){
-      const first=document.querySelector('#kasir-search-suggestions [data-kasir-suggest]');
-      if(first){e.preventDefault();first.click();}
-      return;
+    if(active?.id==='kasir-search'){
+      const box=document.getElementById('kasir-search-suggestions');
+      const items=box?[...box.querySelectorAll('[data-kasir-suggest]')]:[];
+      if(items.length && (e.key==='ArrowDown'||e.key==='ArrowUp')){
+        e.preventDefault();
+        if(e.key==='ArrowDown') kasirSuggestIndex=(kasirSuggestIndex+1)%items.length;
+        else kasirSuggestIndex=(kasirSuggestIndex-1+items.length)%items.length;
+        items.forEach((item,i)=>{
+          const selected=i===kasirSuggestIndex;
+          item.style.background=selected?'#eef2ff':'#fff';
+          item.setAttribute('aria-selected',selected?'true':'false');
+          if(selected)item.scrollIntoView({block:'nearest'});
+        });
+        return;
+      }
+      if(e.key==='Enter'){
+        if(items.length){
+          e.preventDefault();
+          const chosen=items[kasirSuggestIndex>=0?kasirSuggestIndex:0];
+          if(chosen)chosen.click();
+        }
+        return;
+      }
     }
     if(e.key==='Enter' && active?.id==='kasir-payment'){e.preventDefault();saveKasirTransaction();}
   });
