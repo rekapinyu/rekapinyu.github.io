@@ -5223,11 +5223,84 @@ onAuthStateChanged(auth,async u=>{
     const cat=e.target.closest('.kasir-category');if(cat){kasirCategory=cat.dataset.category;document.querySelectorAll('.kasir-category').forEach(x=>x.classList.toggle('active',x===cat));renderKasirProducts()}
   });
 
-  document.addEventListener('input',e=>{if(e.target.id==='kasir-search')renderKasirProducts();if(e.target.id==='kasir-payment'){e.target.value=e.target.value.replace(/[^0-9]/g,'');updateChange()}});
+  function saveKasirTransaction(){
+    const payment=document.getElementById('kasir-payment');
+    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
+    const paid=Number((payment?.value||'').replace(/[^0-9]/g,''))||0;
+    if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return false}
+    if(paid<total){showModal('Gagal','Pembayaran masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return false}
+    kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total,paid,change:paid-total});
+    saveKasirStore();
+    kasirCart=[];
+    if(payment)payment.value='';
+    renderCart(); renderTransactions();
+    showModal('Berhasil','Transaksi kasir berhasil disimpan.');
+    return true;
+  }
+
+  function focusKasirSearch(){
+    const input=document.getElementById('kasir-search');
+    if(!input)return;
+    input.focus();
+    input.select();
+  }
+
+  function renderKasirSuggestions(){
+    const input=document.getElementById('kasir-search');
+    if(!input)return;
+    let box=document.getElementById('kasir-search-suggestions');
+    if(!box){
+      box=document.createElement('div');
+      box.id='kasir-search-suggestions';
+      box.setAttribute('role','listbox');
+      box.style.cssText='position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:1000;background:#fff;border:1px solid #dbe3eb;border-radius:8px;box-shadow:0 8px 20px rgba(15,23,42,.12);max-height:220px;overflow:auto;display:none;padding:4px;';
+      const wrap=input.closest('.kasir-search-wrap');
+      if(wrap){wrap.style.position='relative';wrap.appendChild(box)}
+    }
+    const q=(input.value||'').trim().toLowerCase();
+    if(!q){box.style.display='none';box.innerHTML='';return}
+    const matches=kasirProducts.filter(p=>String(p.name||'').toLowerCase().includes(q)||String(p.barcode||'').toLowerCase().includes(q)).slice(0,8);
+    if(!matches.length){box.style.display='none';box.innerHTML='';return}
+    box.innerHTML=matches.map(p=>`<button type="button" data-kasir-suggest="${esc(p.id)}" style="display:block;width:100%;text-align:left;border:0;background:#fff;padding:8px 9px;border-radius:6px;cursor:pointer"><strong style="display:block;font-size:11px;color:#334155">${esc(p.name)}</strong><span style="display:block;font-size:9px;color:#94a3b8;margin-top:2px">${rupiah(p.price)}${p.barcode?' • '+esc(p.barcode):''}</span></button>`).join('');
+    box.style.display='block';
+  }
+
+  document.addEventListener('input',e=>{
+    if(e.target.id==='kasir-search'){renderKasirProducts();renderKasirSuggestions()}
+    if(e.target.id==='kasir-payment'){e.target.value=e.target.value.replace(/[^0-9]/g,'');updateChange()}
+  });
+
   document.addEventListener('click',e=>{
-    if(e.target.closest('#kasir-refresh-btn')){loadKasirStore();renderKasirProducts()}
+    const suggestion=e.target.closest('[data-kasir-suggest]');
+    if(suggestion){
+      const id=String(suggestion.dataset.kasirSuggest||'');
+      const p=kasirProducts.find(x=>String(x.id)===id);
+      const input=document.getElementById('kasir-search');
+      if(p){
+        if(input)input.value=p.name||'';
+        const x=kasirCart.find(x=>String(x.id)===id);
+        if(x)x.qty++;else kasirCart.push({...p,qty:1});
+        renderCart(); renderKasirProducts();
+        const box=document.getElementById('kasir-search-suggestions');if(box)box.style.display='none';
+      }
+      return;
+    }
+    if(e.target.closest('#kasir-refresh-btn')){loadKasirStore();renderKasirProducts();renderKasirSuggestions()}
     if(e.target.closest('#kasir-cancel-btn')){kasirCart=[];document.getElementById('kasir-payment').value='';renderCart()}
-    if(e.target.closest('#kasir-save-btn')){const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);const paid=Number((document.getElementById('kasir-payment').value||'').replace(/[^0-9]/g,''))||0;if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return}if(paid<total){showModal('Gagal','Pembayaran masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return}kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total,paid,change:paid-total});saveKasirStore();kasirCart=[];document.getElementById('kasir-payment').value='';renderCart();renderTransactions();showModal('Berhasil','Transaksi kasir berhasil disimpan.')}
+    if(e.target.closest('#kasir-save-btn'))saveKasirTransaction();
+  });
+
+  document.addEventListener('keydown',e=>{
+    const active=e.target;
+    const isTyping=active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable);
+    // Tombol tepat sebelum angka 1 pada keyboard: ` / ~
+    if((e.key==='`'||e.key==='~') && !isTyping){e.preventDefault();focusKasirSearch();return}
+    if(e.key==='Enter' && active?.id==='kasir-search'){
+      const first=document.querySelector('#kasir-search-suggestions [data-kasir-suggest]');
+      if(first){e.preventDefault();first.click();}
+      return;
+    }
+    if(e.key==='Enter' && active?.id==='kasir-payment'){e.preventDefault();saveKasirTransaction();}
   });
 
   window.__initKasirViews=initKasirViews;
