@@ -5349,9 +5349,46 @@ onAuthStateChanged(auth,async u=>{
     });
   }
 
+  let kasirQtyKeyBuffer='';
+  let kasirQtyKeyTimer=null;
+
+  function applyKasirKeyboardQty(){
+    if(kasirQtyKeyTimer){clearTimeout(kasirQtyKeyTimer);kasirQtyKeyTimer=null}
+    if(!kasirQtyKeyBuffer)return;
+    const items=[...document.querySelectorAll('#kasir-cart-list [data-kasir-cart-item]')];
+    if(kasirCartSelectedIndex<0||kasirCartSelectedIndex>=items.length){kasirQtyKeyBuffer='';return}
+    const selected=kasirCart[kasirCartSelectedIndex];
+    const qty=Math.max(0,Number(kasirQtyKeyBuffer)||0);
+    kasirQtyKeyBuffer='';
+    if(!selected)return;
+    if(qty<=0){
+      kasirCart.splice(kasirCartSelectedIndex,1);
+      kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);
+    }else{
+      selected.qty=qty;
+    }
+    renderCart();
+    setTimeout(updateKasirCartSelection,0);
+  }
+
   document.addEventListener('keydown',e=>{
     const active=e.target;
     const isTyping=active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable);
+    // Angka keyboard hanya mengubah jumlah produk yang sedang dipilih di keranjang.
+    // Angka yang ditekan < 1 detik digabung (contoh 2 lalu 0 = 20).
+    // Jika jeda >= 1 detik, angka sebelumnya langsung diterapkan sebagai satuan.
+    const isKasirNumberKey=/^[0-9]$/.test(e.key);
+    if(isKasirNumberKey && !isTyping && kasirCartSelectedIndex>=0){
+      const cartItemsNow=[...document.querySelectorAll('#kasir-cart-list [data-kasir-cart-item]')];
+      if(kasirCartSelectedIndex<cartItemsNow.length){
+        e.preventDefault();
+        kasirQtyKeyBuffer+=e.key;
+        if(kasirQtyKeyTimer)clearTimeout(kasirQtyKeyTimer);
+        kasirQtyKeyTimer=setTimeout(applyKasirKeyboardQty,1000);
+        return;
+      }
+    }
+
     // Tombol tepat sebelum angka 1 pada keyboard: ` / ~
     if((e.key==='`'||e.key==='~') && !isTyping){e.preventDefault();focusKasirSearch();return}
     if(active?.id==='kasir-search'){
