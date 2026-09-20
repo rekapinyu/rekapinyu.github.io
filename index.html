@@ -6133,34 +6133,63 @@ onAuthStateChanged(auth,async u=>{
 })();
 </script>
 <style id="rekapinyu-activity-style">
-#view-activity #activity-history-list{width:100%;font-size:16px;line-height:1.9;font-weight:800;word-break:break-word}
-#view-activity .activity-item{display:flex;align-items:center;gap:10px;padding:8px 0;margin:0;background:transparent;border:0;border-radius:0;box-shadow:none}
-#view-activity .activity-item .activity-live-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:22px;height:22px;font-size:15px;animation:rekapinyuActivityPulse 1s ease-in-out infinite}
-#view-activity .activity-empty{padding:24px 0;text-align:left;font-size:16px;font-weight:700;color:#94a3b8}
-@keyframes rekapinyuActivityPulse{0%,100%{transform:scale(1) rotate(0deg);opacity:.65}50%{transform:scale(1.2) rotate(12deg);opacity:1}}
+#view-activity #activity-history-list{width:100%;font-size:18px;line-height:2;font-weight:800;word-break:break-word}
+#view-activity .activity-item{display:flex;align-items:center;gap:11px;padding:9px 0;margin:0;background:transparent;border:0;border-radius:0;box-shadow:none}
+#view-activity .activity-item .activity-live-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:24px;height:24px;font-size:17px;animation:rekapinyuActivityPulse 1s ease-in-out infinite}
+#view-activity .activity-empty{padding:24px 0;text-align:left;font-size:17px;font-weight:700;color:#94a3b8}
+@keyframes rekapinyuActivityPulse{0%,100%{transform:scale(1) rotate(0deg);opacity:.55}50%{transform:scale(1.25) rotate(12deg);opacity:1}}
 </style>
 <script id="rekapinyu-activity-script">
 (function(){
 const key=()=>{try{return currentSessionUser&&currentSessionUser.phone?`finance_activity_desktop_${currentSessionUser.phone}`:'finance_activity_guest'}catch(e){return 'finance_activity_guest'}};
 const colorKey=()=>`${key()}_color_index`;
 let activities=[];
-const text=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const colors=['#16a085','#2563eb','#ea580c'];
-function nextColor(){let i=0;try{i=Number(localStorage.getItem(colorKey())||0);if(!Number.isFinite(i)||i<0)i=0}catch(e){};const c=colors[i%colors.length];try{localStorage.setItem(colorKey(),String((i+1)%colors.length))}catch(e){}return c}
-function ensureColors(){let changed=false;activities=activities.map((a,i)=>{if(a&&a.color)return a;changed=true;return {...a,color:colors[i%colors.length]}});if(changed){try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}}}
-function render(){const b=document.getElementById('activity-history-list');if(!b)return;ensureColors();if(!activities.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}b.innerHTML=activities.map(a=>`<div class="activity-item" style="color:${text(a.color||colors[0])}"><span class="activity-live-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span><span>${text(a.dateTime)} — ${text(a.menu)} — ${text(a.activity)}</span></div>`).join('')}
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function nextColor(){let i=0;try{i=Number(localStorage.getItem(colorKey())||0);if(!Number.isFinite(i)||i<0)i=0}catch(e){}const c=colors[i%colors.length];try{localStorage.setItem(colorKey(),String((i+1)%colors.length))}catch(e){}return c}
+function ensureColors(){let changed=false;activities=activities.map((a,i)=>{if(a&&a.color)return a;changed=true;return {...a,color:colors[i%colors.length]}});if(changed)try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}}
+function render(){const b=document.getElementById('activity-history-list');if(!b)return;ensureColors();if(!activities.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}b.innerHTML=activities.map(a=>`<div class="activity-item" style="color:${esc(a.color||colors[0])}"><span class="activity-live-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span><span>${esc(a.dateTime)} — ${esc(a.menu)} — ${esc(a.activity)}</span></div>`).join('')}
 function save(){window.__rekapinyuActivityData=activities.slice();try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}render()}
-function record(menu,activity){const n=new Date();activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity,color:nextColor()});activities=activities.slice(0,300);save()}
+function record(menu,activity){if(!menu||!activity||!currentSessionUser)return;const n=new Date();activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity,color:nextColor()});activities=activities.slice(0,300);save()}
 window.__rekapinyuRecordActivity=record;
 window.__rekapinyuRefreshActivities=function(){try{const x=JSON.parse(localStorage.getItem(key())||'[]');activities=Array.isArray(x)?x:[];window.__rekapinyuActivityData=activities;render()}catch(e){activities=[];render()}};
 window.__rekapinyuSetActivityData=function(data){activities=Array.isArray(data)?data:[];ensureColors();window.__rekapinyuActivityData=activities;render()};
-const wrap=(name,menu,activity,check)=>{const fn=window[name];if(typeof fn!=='function'||fn.__rkActivity)return;const w=function(){const r=fn.apply(this,arguments);const done=v=>{if(check(v))record(menu,activity);return v};return r&&typeof r.then==='function'?r.then(done):done(r)};w.__rkActivity=true;window[name]=w};
-function install(){wrap('saveKasirTransaction','Kasir','Aktifitas transaksi baru',v=>v!==false);wrap('add','Produk Kasir','Menambah Produk',v=>v!==false);wrap('remove','Produk Kasir','Mengapus Produk',v=>v!==false);wrap('saveEdit','Produk Kasir','Mengedit Produk',v=>v!==false);wrap('backupProducts','Produk Kasir','Melakukan Proses backup',()=>true);wrap('importProducts','Produk Kasir','Melakukan Proses Import',()=>true);wrap('deleteHistoryItem','History','Menghapus data History',v=>v!==false);wrap('backupAllHistoryToExcel','History','Melakukan proses backup di menu History',()=>true);wrap('importBackupExcel','History','Melakukan import di menu History',()=>true);wrap('restoreHistoryFromBackup','Backup Otomatis','Melakukan proses backup di menu Backup Otomatis',v=>v!==false);wrap('editBackupDate','Backup Otomatis','Mengedit hari tanggal bulan tahun di Backup Otomatis',v=>v!==false)}
-setTimeout(install,0);setTimeout(install,1500);setTimeout(install,3500);
-document.addEventListener('submit',e=>{if(e.target?.id==='finance-form')setTimeout(()=>record('Input Data','Menginput data Harian'),0);if(e.target?.id==='kasbon-form')setTimeout(()=>record('Kasbon','Menambahkan Kasbon'),0)},true);
-document.addEventListener('click',e=>{const p=e.target.closest('#save-profile-btn');if(p)setTimeout(()=>{const t=document.getElementById('profile-modal-title')?.innerText||'';if(/Nama Profil/i.test(t))record('Setting','Mengganti nama toko');else if(/Foto Profil/i.test(t))record('Setting','Mengganti foto profi toko');else if(/Kata Sandi/i.test(t))record('Setting','Mengganti pasword toko')},40);const b=e.target.closest('#save-edit-btn');if(b)setTimeout(()=>{const t=document.getElementById('edit-modal-title')?.innerText||'';if(/^Edit Nominal/i.test(t))record('History','Mengedit Nominal data input');else if(/^Edit Waktu & Tanggal Backup/i.test(t))record('Backup Otomatis','Mengedit hari tanggal bulan tahun di Backup Otomatis');else if(/^Edit Waktu & Tanggal/i.test(t))record('History','Mengedit hari tanggal bulan tahun');else if(/^Ganti Nama Pelanggan/i.test(t))record('Kasbon','Mengganti nama Pelanggan Kasbon')},40);const v=e.target.closest('#view-backup');if(v){const x=e.target.closest('button');if(x&&(x.innerText||x.title||'').toLowerCase().includes('hapus'))setTimeout(()=>record('Backup Otomatis','Menghapus data di menu Backup Otomatis'),20)}const cover=e.target.closest('#shop-cover-save');if(cover)setTimeout(()=>record('Setting','Mengganti foto sampu toko'),30)},true);
-function refreshOnActivity(){if(document.getElementById('view-activity')&&!document.getElementById('view-activity').classList.contains('hidden')){window.__rekapinyuRefreshActivities?.()}}
-document.addEventListener('DOMContentLoaded',function(){window.__rekapinyuRefreshActivities?.();setInterval(refreshOnActivity,1000)});
+function later(fn,ms=500){setTimeout(()=>{try{fn()}catch(e){}},ms)}
+function modalTitle(){return document.getElementById('edit-modal-title')?.innerText||''}
+function bind(){
+  document.addEventListener('submit',e=>{
+    const id=e.target?.id;
+    if(id==='finance-form') later(()=>record('Input Data','Menginput data Harian'));
+    if(id==='kasbon-form') later(()=>record('Kasbon','Menambahkan Kasbon'));
+    if(id==='pk3-form') later(()=>record('Produk Kasir','Menambah Produk'));
+    if(id==='pk3-edit-form') later(()=>record('Produk Kasir','Mengedit Produk'));
+  },true);
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='pk3-import-file'&&e.target.files?.length) later(()=>record('Produk Kasir','Melakukan Proses Import'),100);
+    if(e.target?.id==='history-io-file'&&e.target.files?.length) later(()=>record('History','Melakukan import di menu History'),100);
+  },true);
+  document.addEventListener('click',e=>{
+    const t=e.target?.closest?.('button,[role="button"]');
+    if(!t)return;
+    if(t.id==='pk3-backup') later(()=>record('Produk Kasir','Melakukan Proses backup'),100);
+    if(t.dataset?.action==='delete') later(()=>record('Produk Kasir','Mengapus Produk'));
+    if(t.dataset?.action==='edit') return;
+    if(t.id==='history-io-export') later(()=>record('History','Melakukan proses backup di menu History'),100);
+    if(t.id==='kasir-save-print-btn') later(()=>{const title=document.getElementById('modal-title')?.innerText||'';if(!/Gagal|Error/i.test(title))record('Kasir','Aktifitas transaksi baru')},900);
+    if(t.id==='save-profile-btn') later(()=>{const title=document.getElementById('profile-modal-title')?.innerText||'';if(/Nama Profil/i.test(title))record('Setting','Mengganti nama toko');else if(/Foto Profil/i.test(title))record('Setting','Mengganti foto profi toko');else if(/Kata Sandi/i.test(title))record('Setting','Mengganti pasword toko')},100);
+    if(t.id==='shop-cover-save') later(()=>record('Setting','Mengganti foto sampu toko'),100);
+    if(t.id==='save-edit-btn') later(()=>{const title=modalTitle();if(/^Edit Nominal/i.test(title))record('History','Mengedit Nominal data input');else if(/^Edit Waktu & Tanggal Backup/i.test(title))record('Backup Otomatis','Mengedit hari tanggal bulan tahun');else if(/^Edit Waktu & Tanggal/i.test(title))record('History','Mengedit hari tanggal bulan tahun');else if(/^Ganti Nama Pelanggan/i.test(title))record('Kasbon','Mengganti nama Pelanggan Kasbon')},100);
+    if(t.closest('#view-backup')){
+      const label=(t.innerText||t.title||t.getAttribute('aria-label')||'').toLowerCase();
+      if(label.includes('hapus'))later(()=>record('Backup Otomatis','Menghapus data di menu Backup Otomatis'),100);
+      else if(label.includes('pulihkan'))later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);
+    }
+  },true);
+  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('kasir-payment-popup')?.classList.contains('is-open'))later(()=>{const title=document.getElementById('modal-title')?.innerText||'';if(!/Gagal|Error/i.test(title))record('Kasir','Aktifitas transaksi baru')},900)},true);
+}
+function installAutoBackupHook(){const fn=window.triggerDailyAutoBackup;if(typeof fn!=='function'||fn.__rkActivityBackup)return;const w=function(){const r=fn.apply(this,arguments);later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);return r};w.__rkActivityBackup=true;window.triggerDailyAutoBackup=w}
+function refresh(){if(document.getElementById('view-activity')&&!document.getElementById('view-activity').classList.contains('hidden'))window.__rekapinyuRefreshActivities?.()}
+document.addEventListener('DOMContentLoaded',()=>{window.__rekapinyuRefreshActivities?.();bind();installAutoBackupHook();setInterval(refresh,1000);setInterval(installAutoBackupHook,1500)});
 render();
 })();
 </script>
