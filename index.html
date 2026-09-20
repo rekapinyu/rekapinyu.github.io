@@ -1337,6 +1337,14 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 #sidebar .sidebar-logout-box button i{color:inherit!important;}
 </style>
+<style id="rekapinyu-auth-reload-single">
+/* Satu gate visual auth: jangan izinkan halaman login terlihat sebelum Firebase selesai. */
+#auth-container.rk-auth-bootstrap{
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 <div aria-hidden="true" id="kasir-payment-popup">
@@ -1356,7 +1364,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <div id="kasir-print-area" style="display:none"></div>
 <!-- AUTHENTICATION OVERLAY / PAGES -->
-<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
+<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 rk-auth-bootstrap" id="auth-container">
 <!-- CARD LOGIN -->
 <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 transition-all" id="login-card">
 <div class="text-center mb-6 login-brand-header">
@@ -2111,43 +2119,49 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
+/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI BARU
+   Login tidak boleh tampil selama Firebase masih memulihkan sesi.
+   Setelah Firebase selesai:
+   - ada sesi Firebase -> langsung masuk aplikasi
+   - tidak ada sesi -> baru tampilkan login
+*/
 function checkAuth() {
-            const authContainer = document.getElementById('auth-container');
-            if (!authContainer) return;
+    const authContainer = document.getElementById('auth-container');
+    if (!authContainer) return;
 
-            // Saat reload, tahan tampilan login sampai Firebase selesai
-            // memastikan status sesi yang sebenarnya.
-            if (window.__rekapinyuAuthBootstrapPending) {
-                authContainer.classList.add('hidden');
-                return;
-            }
+    if (window.__rekapinyuAuthBooting) {
+        authContainer.classList.add('rk-auth-bootstrap');
+        authContainer.classList.add('hidden');
+        return;
+    }
 
-            if (currentSessionUser || window.__rekapinyuLandingHandoffActive) {
-                authContainer.classList.add('hidden');
-                if (currentSessionUser) {
-                    document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
-                    updateUserAvatarUI();
-                    loadUserData();
-                }
-            } else {
-                authContainer.classList.remove('hidden');
-                historyData = [];
-                pengeluaranData = [];
-                kasbonData = [];
-                backupOtomatisData = [];
-            }
-        }
+    authContainer.classList.remove('rk-auth-bootstrap');
 
-        // Satu gate autentikasi untuk reload: login ditahan sampai Firebase
-        // mengembalikan status sesi yang sebenarnya.
-        window.__rekapinyuAuthBootstrapPending = true;
+    if (currentSessionUser) {
+        authContainer.classList.add('hidden');
+        const nameEl = document.getElementById('sidebar-user-name');
+        if (nameEl) nameEl.innerText = currentSessionUser.name || '';
+        updateUserAvatarUI();
+        loadUserData();
+    } else {
+        authContainer.classList.remove('hidden');
+        historyData = [];
+        pengeluaranData = [];
+        kasbonData = [];
+        backupOtomatisData = [];
+    }
+}
 
-        // Deteksi handoff SEBELUM checkAuth pertama kali dijalankan.
-        // Ini mencegah race condition yang sempat menampilkan popup login aplikasi.
-        window.__rekapinyuLandingHandoffActive = /^#rekapinyu_login=/.test(window.location.hash || '');
-        checkAuth();
+/* Gate dimulai sebelum UI auth boleh tampil. */
+window.__rekapinyuAuthBooting = true;
 
-        function updateUserAvatarUI() {
+/* Jika cache sesi lokal masih ada, langsung siapkan state aplikasi.
+   Firebase tetap menjadi sumber autentikasi dan akan mengonfirmasi sesi di observer. */
+if (currentSessionUser && currentSessionUser.phone) {
+    loadUserData();
+}
+
+function updateUserAvatarUI() {
             const avatarContainer = document.getElementById('sidebar-user-avatar-container');
             if (!avatarContainer || !currentSessionUser) return;
 
@@ -4291,8 +4305,8 @@ if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.__rekapinyuFirebaseFull=true;
 }
 
-// REKAPINYU AUTH — SATU IMPLEMENTASI FIREBASE UNTUK LOGIN + DAFTAR + RELOAD SESI
-// Sesi Firebase dipertahankan di browser dan login ditahan selama status sesi dipulihkan.
+// REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI FIREBASE
+// Persistensi sesi diaktifkan sebelum observer auth dipasang.
 const authReadyPromise = setPersistence(auth, browserLocalPersistence).catch(err => {
   console.warn("Rekapinyu: persistensi sesi Firebase tidak dapat diaktifkan.", err);
 });
@@ -4657,7 +4671,6 @@ if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || ((preserv
 
 // LOGIN HANDOFF DARI LANDING PAGE
 // Landing Page dan aplikasi memakai origin berbeda, jadi localStorage tidak dapat dibagi.
-// Kredensial dikirim sekali melalui URL fragment, lalu langsung dihapus dari address bar.
 async function consumeLandingLogin(){
   try{
     await authReadyPromise;
@@ -4674,47 +4687,55 @@ async function consumeLandingLogin(){
     const c=await signInWithEmailAndPassword(auth,emailOf(data.phone),data.password);
     let u={uid:c.user.uid,name:c.user.displayName||"",phone:phoneOf(data.phone),email:c.user.email,photo:""};
     try{
-      const s=await getDoc(uref(c.user.uid));
-      if(s.exists())u={...u,...s.data()};
+      const snap=await getDoc(uref(c.user.uid));
+      if(snap.exists())u={...u,...snap.data()};
     }catch(e){console.warn("Rekapinyu handoff: profil Firestore belum dapat dibaca.",e)}
     localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||data.phone),email:c.user.email});
-    window.__rekapinyuLandingHandoffActive = true;
+    window.__rekapinyuLandingHandoffActive=true;
     try{await hydrate(c.user.uid)}catch(e){console.warn("Rekapinyu handoff: data belum dapat dimuat.",e)}
     return true;
   }catch(e){
     console.error("Rekapinyu landing login handoff:",e);
-    window.__rekapinyuLandingHandoffActive = false;
+    window.__rekapinyuLandingHandoffActive=false;
     try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}
     notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }
 }
+
 const landingHandoffPromise=consumeLandingLogin();
 
+/* SATU titik penyelesaian auth saat reload.
+   Tidak memanggil checkAuth sebelum Firebase menentukan user. */
 onAuthStateChanged(auth,async u=>{
   await authReadyPromise;
   await landingHandoffPromise;
+
   window.RekapinyuFirebase.ready=true;
   window.RekapinyuFirebase.uid=u?.uid||null;
+
   if(!u){
     if(dataUnsub)dataUnsub();
     if(userUnsub)userUnsub();
     window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBootstrapPending=false;
+    window.__rekapinyuAuthBooting=false;
+    currentSessionUser=null;
+    nativeRemove.call(localStorage,"finance_active_session");
     checkAuth();
-    return
+    return;
   }
+
   try{
     await hydrate(u.uid);
     realtime(u);
     window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBootstrapPending=false;
+    window.__rekapinyuAuthBooting=false;
     checkAuth();
-    redraw()
+    redraw();
   }catch(e){
     console.error("Firebase hydrate:",e);
     window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBootstrapPending=false;
+    window.__rekapinyuAuthBooting=false;
     checkAuth();
   }
 });
