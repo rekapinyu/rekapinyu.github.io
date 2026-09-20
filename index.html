@@ -4630,6 +4630,39 @@ onAuthStateChanged(auth,async u=>{
   };
 })();
 </script>
+<style id="rekapinyu-kasbon-pengeluaran-sticky-size">
+#pengeluaran-sticky-container,
+#kasbon-sticky-container{
+  width:100%!important;
+  max-width:900px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
+#pengeluaran-sticky-container > div,
+#kasbon-sticky-container > div{
+  width:100%!important;
+  max-width:900px!important;
+  box-sizing:border-box!important;
+}
+#view-pengeluaran{
+  margin-top:0!important;
+  padding-top:0!important;
+}
+#view-pengeluaran #pengeluaran-grid{
+  margin-top:0!important;
+}
+@media(max-width:767px){
+  #pengeluaran-sticky-container,
+  #kasbon-sticky-container{
+    max-width:calc(100vw - 24px)!important;
+  }
+  #pengeluaran-sticky-container > div,
+  #kasbon-sticky-container > div{
+    max-width:100%!important;
+  }
+}
+</style>
 <style id="rekapinyu-kasbon-pengeluaran-history-size">
 #view-kasbon #kasbon-grid > div,
 #view-pengeluaran #pengeluaran-grid > div{
@@ -6182,12 +6215,12 @@ onAuthStateChanged(auth,async u=>{
 #view-activity .activity-filter-search:focus,
 #view-activity .activity-filter-select:focus,
 #view-activity .activity-filter-date:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.10)}
-#view-activity .activity-filter-menu{grid-column:span 3}
 #view-activity .activity-filter-date-wrap{grid-column:span 2}
-#view-activity .activity-filter-reset{grid-column:span 3;height:40px;border:0;border-radius:9999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:800;cursor:pointer}
+#view-activity .activity-filter-month-wrap{grid-column:span 3}
+#view-activity .activity-filter-year-wrap{grid-column:span 3}
 @media(max-width:700px){
   #view-activity .activity-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  #view-activity .activity-filter-search-wrap,#view-activity .activity-filter-menu,#view-activity .activity-filter-date-wrap,#view-activity .activity-filter-reset{grid-column:span 2}
+  #view-activity .activity-filter-search-wrap,#view-activity .activity-filter-date-wrap,#view-activity .activity-filter-month-wrap,#view-activity .activity-filter-year-wrap{grid-column:span 2}
 }
 #view-activity .activity-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;width:100%}
 #view-activity .activity-day-card{min-width:0;min-height:88px;padding:9px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,.08);display:flex;flex-direction:column;justify-content:space-between}
@@ -6222,6 +6255,8 @@ let activities=[];
 let activityFilter='all';
 let activityDate='';
 let activitySearch='';
+let activityMonth='';
+let activityYear='';
 const colors=['#16a085','#2563eb','#ea580c'];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function nextColor(){let i=0;try{i=Number(localStorage.getItem(colorKey())||0);if(!Number.isFinite(i)||i<0)i=0}catch(e){}const c=colors[i%colors.length];try{localStorage.setItem(colorKey(),String((i+1)%colors.length))}catch(e){}return c}
@@ -6238,7 +6273,8 @@ function filteredActivities(){
   return activities.filter(a=>{
     const info=dateInfo(a);
     const menu=String(a?.menu||'').trim();
-    return (activityFilter==='all'||menu===activityFilter) && (!activityDate||info.key===activityDate) && (!activitySearch||`${a?.activity||''} ${a?.menu||''}`.toLowerCase().includes(activitySearch.toLowerCase()));
+    const parts=info.key.split('-');
+    return (!activityDate||info.key===activityDate) && (!activityMonth||parts[1]===activityMonth) && (!activityYear||parts[0]===activityYear) && (!activitySearch||`${a?.activity||''} ${a?.menu||''}`.toLowerCase().includes(activitySearch.toLowerCase()));
   });
 }
 function grouped(){
@@ -6264,19 +6300,26 @@ function renderFilter(){
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <input id="activity-search-filter" class="activity-filter-search" type="text" placeholder="Search" aria-label="Cari aktifitas">
         </div>
-        <div class="activity-filter-menu">
-          <select id="activity-menu-filter" class="activity-filter-select" aria-label="Filter menu aktifitas">
-            <option value="all">Semua Menu</option>
-            ${menus.map(m=>`<option value="${esc(m)}"${activityFilter===m?' selected':''}>${esc(m)}</option>`).join('')}
-          </select>
-        </div>
         <div class="activity-filter-date-wrap">
           <input id="activity-date-filter" class="activity-filter-date" type="date" value="${esc(activityDate)}" aria-label="Filter tanggal aktifitas">
         </div>
-        <button type="button" id="activity-reset-filter" class="activity-filter-reset">Reset</button>
+        <div class="activity-filter-month-wrap">
+          <select id="activity-month-filter" class="activity-filter-select" aria-label="Filter bulan aktifitas">
+            <option value="">Bulan</option>
+            ${Array.from({length:12},(_,i)=>{const v=String(i+1).padStart(2,'0');const n=new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'});return `<option value="${v}"${activityMonth===v?' selected':''}>${n}</option>`}).join('')}
+          </select>
+        </div>
+        <div class="activity-filter-year-wrap">
+          <select id="activity-year-filter" class="activity-filter-select" aria-label="Filter tahun aktifitas">
+            <option value="">Tahun</option>
+            ${[...new Set(activities.map(a=>dateInfo(a).key.slice(0,4)))].sort((a,b)=>b.localeCompare(a)).map(y=>`<option value="${esc(y)}"${activityYear===y?' selected':''}>${esc(y)}</option>`).join('')}
+          </select>
+        </div>
       </div>
     </div>
   </div>`;
+  const search=document.getElementById('activity-search-filter');
+  if(search)search.value=window.__rekapinyuActivitySearch||'';
   const search=document.getElementById('activity-search-filter');
   if(search)search.value=window.__rekapinyuActivitySearch||'';
 }
@@ -6342,15 +6385,15 @@ function recordMenuClick(t){
 }
 function bind(){
   document.addEventListener('change',e=>{
-    if(e.target?.id==='activity-menu-filter'){activityFilter=e.target.value||'all';render()}
     if(e.target?.id==='activity-date-filter'){activityDate=e.target.value||'';render()}
+    if(e.target?.id==='activity-month-filter'){activityMonth=e.target.value||'';render()}
+    if(e.target?.id==='activity-year-filter'){activityYear=e.target.value||'';render()}
     if(e.target?.id==='activity-search-filter'){activitySearch=e.target.value||'';window.__rekapinyuActivitySearch=activitySearch;render()}
   },true);
   document.addEventListener('click',e=>{
     const eye=e.target?.closest?.('[data-activity-day]');
     if(eye){openDetail(eye.getAttribute('data-activity-day'));return}
     if(e.target?.closest?.('[data-activity-close]')){closeDetail();return}
-    if(e.target?.id==='activity-reset-filter'){activityFilter='all';activityDate='';activitySearch='';window.__rekapinyuActivitySearch='';render();return}
     const t=e.target?.closest?.('button,[role="button"],a');
     if(!t)return;
 
