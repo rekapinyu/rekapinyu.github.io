@@ -254,8 +254,7 @@
         max-width:1100px!important;
       }
 
-      /* Semua panel/filter sticky mengikuti bahasa visual referensi. */
-      #sticky-filter-container > div,
+      /* Panel sticky lain tetap memakai bahasa visual referensi. */
       #pengeluaran-sticky-container > div,
       #kasbon-sticky-container > div,
       #backup-sticky-container > div{
@@ -264,8 +263,6 @@
         box-shadow:0 10px 30px rgba(15,23,42,.065)!important;
         border-radius:18px!important;
       }
-      #sticky-filter-container input,
-      #sticky-filter-container select,
       #pengeluaran-sticky-container input,
       #kasbon-sticky-container input,
       #backup-sticky-container input,
@@ -304,14 +301,12 @@
       }
 
       /* Tombol utama: hijau segar, tetap memakai tombol yang sudah ada. */
-      main button.bg-emerald-600,
-      #sticky-filter-container button.bg-emerald-600{
+      main button.bg-emerald-600{
         background:var(--rk-green)!important;
         border-radius:12px!important;
         box-shadow:0 8px 18px rgba(22,160,133,.16)!important;
       }
-      main button.bg-emerald-600:hover,
-      #sticky-filter-container button.bg-emerald-600:hover{
+      main button.bg-emerald-600:hover{
         background:var(--rk-green-dark)!important;
       }
 
@@ -942,7 +937,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #kasir-payment-popup .kasir-bluetooth-status.is-connecting{color:#2563eb}
 #kasir-payment-popup .kasir-bluetooth-status i{font-size:14px}
 </style>
-<style id="rekapinyu-setting-filter-hide">body:has(#view-settings:not(.hidden)) #sticky-filter-container,body:has(#view-activity:not(.hidden)) #sticky-filter-container{display:none!important}</style>
+<style id="rekapinyu-setting-filter-hide">body:has(#view-settings:not(.hidden)) body:has(#view-activity:not(.hidden)) {display:none!important}</style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 <div id="kasir-payment-popup" aria-hidden="true">
@@ -1600,21 +1595,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="backup-grid"></div>
 </section>
 </main></div>
-<!-- STICKY FILTER BAR -->
-<div class="fixed bottom-16 left-0 right-0 md:left-64 z-20 px-4 py-2 pointer-events-none hidden" id="sticky-filter-container">
-<div class="max-w-4xl mx-auto bg-white p-2.5 rounded-2xl shadow-xl border border-slate-200 pointer-events-auto flex flex-wrap items-center justify-between gap-2">
-<div class="hidden sm:flex items-center gap-2 px-2">
-<div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
-<i class="fa-solid fa-filter"></i>
-</div>
-<div>
-<span class="text-[11px] font-bold text-slate-700 block leading-tight">Filter Data</span>
-<span class="text-[10px] text-slate-400" id="sticky-count-label">Ringkas &amp; Cepat</span>
-</div>
-</div>
-<div class="flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]" id="filter-inputs-wrapper"></div>
-</div>
-</div>
 <!-- Mobile Bottom Dock Menu -->
 <!-- Custom Modal Notifikasi -->
 <div class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden p-4" id="custom-modal">
@@ -2272,7 +2252,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 settings: 'fa-gear'
             };
 
-            const stickyFilterContainer = document.getElementById('sticky-filter-container');
             const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
             const kasbonStickyContainer = document.getElementById('kasbon-sticky-container');
             const backupStickyContainer = document.getElementById('backup-sticky-container');
@@ -2345,9 +2324,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             if (produkKasirDataTools) produkKasirDataTools.classList.add('hidden');
             if (backupStickyContainer) backupStickyContainer.classList.add('hidden');
             // Kasir tidak menggunakan sticky filter umum.
-            if (stickyFilterContainer && tab === 'kasir') {
-                stickyFilterContainer.classList.add('hidden');
-            }
             if (tab === 'kasir' && typeof window.__initKasirViews === 'function') {
                 window.__initKasirViews();
             }
@@ -2370,39 +2346,29 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             }
 
             if (tab === 'input' || tab === 'backup' || tab === 'laporan-kasir' || tab === 'settings') {
-                stickyFilterContainer.classList.add('hidden');
                 if (tab === 'backup') {
-                    renderStickyFilterBackup();
                     populateBackupFilters();
                     renderBackupGrid();
                 }
             } else if (tab === 'kasir') {
-                stickyFilterContainer.classList.add('hidden');
             } else {
                 if (tab === 'history' && window.matchMedia('(max-width:767px)').matches) {
-                    stickyFilterContainer.classList.add('hidden');
-                } else {
-                    stickyFilterContainer.classList.remove('hidden');
+                    } else {
                 }
                 if (tab === 'pengeluaran') {
-                    renderStickyFilterPengeluaran();
                     populatePengeluaranFilters();
                     renderPengeluaranGrid();
                 } else if (tab === 'kasbon') {
-                    renderStickyFilterKasbon();
                     renderKasbonGrid();
                     // Desktop: sembunyikan filter sticky Lunas/Belum Lunas yang melayang di bawah.
                     // Mobile tetap mempertahankan filter kasbon yang sudah ada.
                     if (window.matchMedia('(min-width:768px)').matches) {
-                        stickyFilterContainer.classList.add('hidden');
-                    } else {
-                        stickyFilterContainer.classList.remove('hidden');
-                    }
+                            } else {
+                        }
                 } else if (tab === 'history') {
                     populateHistoryFilters();
                     renderHistory();
                 } else if (tab === 'report') {
-                    renderStickyFilterReport();
                     populateReportFilters();
                     renderReport();
                 }
@@ -2519,10 +2485,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             switchTab('history');
         }
 
-        function renderStickyFilterBackup() {
-            // Filter Backup sudah dibuat sebagai sticky khusus di posisi yang sama dengan Pengeluaran.
-        }
-
         function populateBackupFilters() {
             const dateSelect = document.getElementById('filter-backup-date');
             const monthSelect = document.getElementById('filter-backup-month');
@@ -2548,67 +2510,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             dateSelect.value = currentDate;
             monthSelect.value = currentMonth;
             yearSelect.value = currentYear;
-        }
-
-        function renderStickyFilterPengeluaran() {
-            const wrapper = document.getElementById('filter-inputs-wrapper');
-            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
-            wrapper.innerHTML = `
-                <div>
-                    <select id="filter-pengeluaran-date" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Tgl</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-pengeluaran-month" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Bln</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-pengeluaran-year" onchange="renderPengeluaranGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Thn</option>
-                    </select>
-                </div>
-            `;
-        }
-
-        function renderStickyFilterKasbon() {
-            const wrapper = document.getElementById('filter-inputs-wrapper');
-            wrapper.className = "flex-1 grid grid-cols-2 gap-1.5 min-w-[260px]";
-            wrapper.innerHTML = `
-                <div>
-                    <select id="filter-kasbon-status" onchange="renderKasbonGrid()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Status (Lunas & Belum Lunas)</option>
-                        <option value="lunas">Lunas</option>
-                        <option value="belum_lunas">Belum Lunas</option>
-                    </select>
-                </div>
-                <div>
-                    <input type="text" id="filter-kasbon-nama" oninput="renderKasbonGrid()" placeholder="Cari Nama Pelanggan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                </div>
-            `;
-        }
-
-        function renderStickyFilterReport() {
-            const wrapper = document.getElementById('filter-inputs-wrapper');
-            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
-            wrapper.innerHTML = `
-                <div>
-                    <select id="filter-report-date" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Tgl (1-31)</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-report-month" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Bln</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-report-year" onchange="renderReport()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Thn</option>
-                    </select>
-                </div>
-            `;
         }
 
         function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
@@ -2949,9 +2850,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 return matchDate && matchMonth && matchYear;
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
-
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
@@ -3025,9 +2923,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 
                 return matchStatus && matchNama;
             });
-
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -3228,9 +3123,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 return (Number(b.id)||0) - (Number(a.id)||0);
             });
 
-            const countLabel = document.getElementById('sticky-count-label');
-            if(countLabel) countLabel.innerText = `${filtered.length} Data Ditemukan`;
-
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
@@ -3361,9 +3253,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 let matchYear = fYear === "" || item.year.toString() === fYear;
                 return matchDate && matchMonth && matchYear;
             });
-
-            const countLabel = document.getElementById('sticky-count-label');
-            if (countLabel) countLabel.innerText = `${filtered.length} Data Rekap`;
 
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -3655,7 +3544,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
       window.renderMobileAdminSummary=renderMobileAdminSummary;
       const originalSwitchTab=window.switchTab;
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-    function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
+    function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
     document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
     function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
@@ -3715,8 +3604,11 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 }
 #history-filter-popup{
   position:fixed;
-  right:18px;
-  bottom:266px;
+  left:50%;
+  top:50%;
+  right:auto;
+  bottom:auto;
+  transform:translate(-50%,-50%);
   z-index:46;
   width:min(330px,calc(100vw - 36px));
   padding:14px;
@@ -3789,8 +3681,11 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
   #history-io-floating{right:14px;bottom:76px}
   #history-io-floating button{width:50px;height:50px;flex-basis:50px}
   #history-filter-popup{
-    right:14px;
-    bottom:256px;
+    left:50%;
+    top:50%;
+    right:auto;
+    bottom:auto;
+    transform:translate(-50%,-50%);
     width:min(320px,calc(100vw - 28px));
   }
 }
