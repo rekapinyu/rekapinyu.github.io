@@ -944,17 +944,46 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </style>
 
 <style id="kasir-bluetooth-unified-css">
-/* KASIR BLUETOOTH: satu implementasi status + koneksi + cetak. */
-#kasir-refresh-btn{position:relative!important;color:#dc2626!important;transition:color .18s ease,background .18s ease,border-color .18s ease}
+/* KASIR BLUETOOTH: popup daftar perangkat + koneksi printer. */
+#kasir-refresh-btn{position:relative!important;color:#2563eb!important;transition:color .18s ease,background .18s ease,border-color .18s ease}
 #kasir-refresh-btn.is-bluetooth-connected{color:#16a34a!important;border-color:#bbf7d0!important;background:#f0fdf4!important}
 #kasir-refresh-btn.is-bluetooth-connecting{color:#2563eb!important;border-color:#bfdbfe!important;background:#eff6ff!important}
 #kasir-payment-popup .kasir-bluetooth-status{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:9px;font-size:10px;font-weight:800;color:#dc2626}
 #kasir-payment-popup .kasir-bluetooth-status.is-connected{color:#16a34a}
 #kasir-payment-popup .kasir-bluetooth-status.is-connecting{color:#2563eb}
 #kasir-payment-popup .kasir-bluetooth-status i{font-size:14px}
+#kasir-bluetooth-device-popup{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(3px)}
+#kasir-bluetooth-device-popup.is-open{display:flex}
+#kasir-bluetooth-device-popup .kasir-bt-dialog{width:min(430px,94vw);max-height:80vh;overflow:hidden;background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28)}
+#kasir-bluetooth-device-popup .kasir-bt-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #e2e8f0}
+#kasir-bluetooth-device-popup .kasir-bt-head h3{margin:0;font-size:15px;font-weight:800;color:#0f172a}
+#kasir-bluetooth-device-popup .kasir-bt-close{border:0;background:transparent;color:#64748b;font-size:18px;cursor:pointer;padding:4px 7px}
+#kasir-bluetooth-device-popup .kasir-bt-body{padding:16px 18px}
+#kasir-bluetooth-device-popup .kasir-bt-note{margin:0 0 12px;color:#64748b;font-size:11px;line-height:1.55}
+#kasir-bluetooth-device-popup .kasir-bt-scan{width:100%;border:0;border-radius:10px;padding:10px 14px;background:#2563eb;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+#kasir-bluetooth-device-popup .kasir-bt-scan:disabled{opacity:.65;cursor:wait}
+#kasir-bluetooth-device-list{margin-top:12px;display:grid;gap:8px;max-height:310px;overflow:auto}
+#kasir-bluetooth-device-list .kasir-bt-device{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid #e2e8f0;border-radius:11px;background:#f8fafc}
+#kasir-bluetooth-device-list .kasir-bt-device-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:#dbeafe;color:#2563eb;flex:0 0 32px}
+#kasir-bluetooth-device-list .kasir-bt-device-info{min-width:0;flex:1}
+#kasir-bluetooth-device-list .kasir-bt-device-name{display:block;font-size:12px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#kasir-bluetooth-device-list .kasir-bt-device-state{display:block;margin-top:2px;font-size:9px;color:#64748b}
+#kasir-bluetooth-device-list .kasir-bt-connect{border:0;border-radius:8px;background:#16a34a;color:#fff;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+#kasir-bluetooth-device-list .kasir-bt-connect:disabled{opacity:.6;cursor:wait}
+#kasir-bluetooth-device-list .kasir-bt-empty{text-align:center;padding:18px 10px;color:#94a3b8;font-size:11px}
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
+<div id="kasir-bluetooth-device-popup" aria-hidden="true">
+  <div class="kasir-bt-dialog" role="dialog" aria-modal="true" aria-labelledby="kasir-bt-title">
+    <div class="kasir-bt-head"><h3 id="kasir-bt-title">Perangkat Bluetooth</h3><button class="kasir-bt-close" id="kasir-bt-close" type="button" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="kasir-bt-body">
+      <p class="kasir-bt-note">Scan untuk menampilkan perangkat Bluetooth yang tersedia. Setelah perangkat muncul, tekan <strong>Sambungkan</strong> di sebelah nama perangkat.</p>
+      <button class="kasir-bt-scan" id="kasir-bt-scan" type="button"><i class="fa-solid fa-rotate"></i> Scan Perangkat</button>
+      <div id="kasir-bluetooth-device-list"><div class="kasir-bt-empty">Belum ada perangkat. Tekan Scan Perangkat.</div></div>
+    </div>
+  </div>
+</div>
 <div id="kasir-payment-popup" aria-hidden="true">
   <div class="kasir-payment-dialog" role="dialog" aria-modal="true" aria-labelledby="kasir-payment-popup-title">
     <div class="kasir-payment-title"><h3 id="kasir-payment-popup-title">PEMBAYARAN</h3><button class="kasir-payment-close" id="kasir-payment-close" type="button" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
@@ -1547,7 +1576,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <i class="fa-solid fa-magnifying-glass"></i>
 <input autocomplete="off" id="kasir-search" placeholder="Scan / ketik barcode" type="text"/>
 </div>
-<button class="kasir-tool-btn" id="kasir-refresh-btn" title="Hubungkan printer Bluetooth" type="button" aria-label="Hubungkan printer Bluetooth"><i class="fa-brands fa-bluetooth-b"></i></button>
+<button class="kasir-tool-btn" id="kasir-refresh-btn" title="Perangkat Bluetooth" type="button" aria-label="Perangkat Bluetooth"><i class="fa-brands fa-bluetooth-b"></i></button>
 <button class="kasir-tool-btn" id="kasir-manual-btn" type="button"><i class="fa-solid fa-keyboard"></i> Manual</button>
 <button class="kasir-tool-btn" id="kasir-barcode-btn" type="button"><i class="fa-solid fa-barcode"></i> Barcode</button>
 </div>
@@ -5332,114 +5361,68 @@ onAuthStateChanged(auth,async u=>{
     if(totalEl)totalEl.textContent=kasirPopupRupiah(finalTotal);
     if(changeEl)changeEl.textContent=kasirPopupRupiah(Math.max(0,paid-finalTotal));
   }
-  /* KASIR BLUETOOTH — IMPLEMENTASI TUNGGAL. Implementasi lama dihapus seluruhnya. */
-  const kasirBluetooth={device:null,characteristic:null,connecting:false};
+  /* KASIR BLUETOOTH — POPUP DAFTAR PERANGKAT. Implementasi lama dihapus seluruhnya. */
+  const kasirBluetooth={device:null,characteristic:null,connecting:false,devices:[]};
   const kasirBluetoothServices=[
-    '0000ffe0-0000-1000-8000-00805f9b34fb',
-    '0000ffe5-0000-1000-8000-00805f9b34fb',
-    '0000fff0-0000-1000-8000-00805f9b34fb',
-    '000018f0-0000-1000-8000-00805f9b34fb',
-    '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-    '49535343-8841-43f4-a8d4-ecbe34729bb3',
-    '0000ae30-0000-1000-8000-00805f9b34fb'
+    '0000ffe0-0000-1000-8000-00805f9b34fb','0000ffe5-0000-1000-8000-00805f9b34fb','0000fff0-0000-1000-8000-00805f9b34fb','000018f0-0000-1000-8000-00805f9b34fb','49535343-fe7d-4ae5-8fa9-9fafd205e455','49535343-8841-43f4-a8d4-ecbe34729bb3','0000ae30-0000-1000-8000-00805f9b34fb'
   ];
 
   function updateKasirBluetoothUi(state='disconnected',message='Koneksi Bluetooth terputus'){
-    const button=document.getElementById('kasir-refresh-btn');
-    const status=document.getElementById('kasir-payment-bluetooth-status');
-    const printButton=document.getElementById('kasir-save-print-btn');
-    const connected=state==='connected';
-    const connecting=state==='connecting';
-    if(button){
-      button.classList.toggle('is-bluetooth-connected',connected);
-      button.classList.toggle('is-bluetooth-connecting',connecting);
-      button.style.color=connected?'#16a34a':connecting?'#2563eb':'#dc2626';
-      button.title=connected?'Printer Bluetooth tersambung':'Hubungkan printer Bluetooth';
-      button.setAttribute('aria-label',button.title);
-      const icon=button.querySelector('i');
-      if(icon)icon.className='fa-brands fa-bluetooth-b';
-    }
-    if(status){
-      status.classList.toggle('is-connected',connected);
-      status.classList.toggle('is-connecting',connecting);
-      status.innerHTML=`<i class="fa-brands fa-bluetooth-b"></i><span>${esc(message)}</span>`;
-    }
-    if(printButton){
-      printButton.disabled=!connected;
-      printButton.title=connected?'Simpan transaksi dan cetak melalui printer Bluetooth':'Sambungkan printer Bluetooth terlebih dahulu';
-    }
+    const button=document.getElementById('kasir-refresh-btn'),status=document.getElementById('kasir-payment-bluetooth-status'),printButton=document.getElementById('kasir-save-print-btn');
+    const connected=state==='connected',connecting=state==='connecting';
+    if(button){button.classList.toggle('is-bluetooth-connected',connected);button.classList.toggle('is-bluetooth-connecting',connecting);button.title=connected?'Printer Bluetooth tersambung':'Perangkat Bluetooth';button.setAttribute('aria-label',button.title);button.style.color=connected?'#16a34a':'#2563eb'}
+    if(status){status.classList.toggle('is-connected',connected);status.classList.toggle('is-connecting',connecting);status.innerHTML=`<i class="fa-brands fa-bluetooth-b"></i><span>${esc(message)}</span>`}
+    if(printButton){printButton.disabled=!connected;printButton.title=connected?'Simpan transaksi dan cetak melalui printer Bluetooth':'Sambungkan printer Bluetooth terlebih dahulu'}
   }
 
-  function kasirBluetoothDisconnect(){
-    const device=kasirBluetooth.device;
-    kasirBluetooth.characteristic=null;
-    kasirBluetooth.device=null;
-    try{if(device?.gatt?.connected)device.gatt.disconnect()}catch(e){}
-    updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-  }
+  function kasirBluetoothDisconnect(){const device=kasirBluetooth.device;kasirBluetooth.characteristic=null;kasirBluetooth.device=null;try{if(device?.gatt?.connected)device.gatt.disconnect()}catch(e){}updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus')}
 
   async function findKasirBluetoothCharacteristic(server){
-    const services=[];
-    try{
-      const exposed=await server.getPrimaryServices();
-      exposed.forEach(service=>services.push(service));
-    }catch(e){}
-    for(const uuid of kasirBluetoothServices){
-      if(services.some(service=>service.uuid===uuid))continue;
-      try{services.push(await server.getPrimaryService(uuid))}catch(e){}
-    }
-    for(const service of services){
-      try{
-        const chars=await service.getCharacteristics();
-        const writable=chars.find(c=>c.properties?.writeWithoutResponse||c.properties?.write);
-        if(writable)return writable;
-      }catch(e){}
-    }
+    const services=[];try{(await server.getPrimaryServices()).forEach(service=>services.push(service))}catch(e){}
+    for(const uuid of kasirBluetoothServices){if(services.some(service=>service.uuid===uuid))continue;try{services.push(await server.getPrimaryService(uuid))}catch(e){}}
+    for(const service of services){try{const chars=await service.getCharacteristics();const writable=chars.find(c=>c.properties?.writeWithoutResponse||c.properties?.write);if(writable)return writable}catch(e){}}
     return null;
   }
 
-  async function connectKasirBluetoothPrinter(){
-    if(kasirBluetooth.connecting)return;
-    if(!navigator.bluetooth){
-      showModal('Bluetooth Tidak Didukung','Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome atau Edge pada perangkat yang mendukung Bluetooth.','fa-brands fa-bluetooth-b text-rose-600');
-      return;
-    }
-    kasirBluetooth.connecting=true;
-    updateKasirBluetoothUi('connecting','Mencari printer Bluetooth...');
+  function openKasirBluetoothPopup(){
+    const popup=document.getElementById('kasir-bluetooth-device-popup');if(!popup)return;
+    popup.classList.add('is-open');popup.setAttribute('aria-hidden','false');renderKasirBluetoothDevices();
+  }
+  function closeKasirBluetoothPopup(){const popup=document.getElementById('kasir-bluetooth-device-popup');if(!popup)return;popup.classList.remove('is-open');popup.setAttribute('aria-hidden','true')}
+
+  function renderKasirBluetoothDevices(){
+    const list=document.getElementById('kasir-bluetooth-device-list');if(!list)return;
+    if(!kasirBluetooth.devices.length){list.innerHTML='<div class="kasir-bt-empty">Belum ada perangkat. Tekan Scan Perangkat.</div>';return}
+    list.innerHTML=kasirBluetooth.devices.map((device,index)=>`<div class="kasir-bt-device"><div class="kasir-bt-device-icon"><i class="fa-brands fa-bluetooth-b"></i></div><div class="kasir-bt-device-info"><span class="kasir-bt-device-name">${esc(device.name||'Perangkat Bluetooth')}</span><span class="kasir-bt-device-state">${device.gatt?.connected?'Sudah tersambung':'Tersedia'}</span></div><button class="kasir-bt-connect" type="button" data-kasir-bt-connect="${index}" ${device.gatt?.connected?'disabled':''}>${device.gatt?.connected?'Tersambung':'Sambungkan'}</button></div>`).join('');
+  }
+
+  async function scanKasirBluetoothDevices(){
+    if(!navigator.bluetooth){showModal('Bluetooth Tidak Didukung','Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome atau Edge pada perangkat yang mendukung Bluetooth.','fa-brands fa-bluetooth-b text-rose-600');return}
+    const scanButton=document.getElementById('kasir-bt-scan');if(scanButton){scanButton.disabled=true;scanButton.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Memindai...'}
     try{
-      if(kasirBluetooth.device?.gatt?.connected)kasirBluetooth.device.gatt.disconnect();
-      const device=await navigator.bluetooth.requestDevice({
-        acceptAllDevices:true,
-        optionalServices:kasirBluetoothServices
-      });
-      kasirBluetooth.device=device;
-      device.addEventListener('gattserverdisconnected',()=>{
-        kasirBluetooth.characteristic=null;
-        updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      },{once:false});
-      if(!device.gatt)throw new Error('Perangkat Bluetooth tidak menyediakan koneksi GATT.');
-      const server=await device.gatt.connect();
-      const characteristic=await findKasirBluetoothCharacteristic(server);
-      if(!characteristic){
-        kasirBluetooth.characteristic=null;
-        updateKasirBluetoothUi('connected','Printer Bluetooth tersambung');
-        showModal('Bluetooth Tersambung','Printer sudah tersambung, tetapi layanan cetak Bluetooth tidak tersedia melalui Web Bluetooth pada perangkat ini.','fa-brands fa-bluetooth-b text-amber-500');
-        return;
-      }
-      kasirBluetooth.characteristic=characteristic;
-      updateKasirBluetoothUi('connected','Printer Bluetooth tersambung');
-      showModal('Berhasil','Printer Bluetooth tersambung dan siap mencetak.','fa-brands fa-bluetooth-b text-emerald-600');
+      let remembered=[];try{if(navigator.bluetooth.getDevices)remembered=await navigator.bluetooth.getDevices()}catch(e){}
+      const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:kasirBluetoothServices});
+      if(device&&!remembered.some(x=>x.id===device.id))remembered.push(device);
+      kasirBluetooth.devices=remembered;
+      renderKasirBluetoothDevices();
     }catch(err){
-      kasirBluetooth.characteristic=null;
-      kasirBluetooth.device=null;
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      if(err?.name!=='NotFoundError'){
-        showModal('Bluetooth Gagal',err?.message||'Printer Bluetooth tidak dapat disambungkan.','fa-brands fa-bluetooth-b text-rose-600');
-      }
-    }finally{
-      kasirBluetooth.connecting=false;
-      if(kasirBluetooth.device?.gatt?.connected)updateKasirBluetoothUi(kasirBluetooth.characteristic?'connected':'connected','Printer Bluetooth tersambung');
-    }
+      if(err?.name!=='NotFoundError')showModal('Scan Bluetooth Gagal',err?.message||'Perangkat Bluetooth tidak dapat dipindai.','fa-brands fa-bluetooth-b text-rose-600');
+    }finally{if(scanButton){scanButton.disabled=false;scanButton.innerHTML='<i class="fa-solid fa-rotate"></i> Scan Perangkat'}}
+  }
+
+  async function connectKasirBluetoothPrinter(device){
+    if(!device||kasirBluetooth.connecting)return;
+    kasirBluetooth.connecting=true;updateKasirBluetoothUi('connecting','Menyambungkan printer Bluetooth...');
+    try{
+      kasirBluetooth.device=device;
+      device.addEventListener('gattserverdisconnected',()=>{kasirBluetooth.characteristic=null;updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');renderKasirBluetoothDevices()},{once:false});
+      if(!device.gatt)throw new Error('Perangkat Bluetooth tidak menyediakan koneksi GATT.');
+      if(!device.gatt.connected)await device.gatt.connect();
+      const characteristic=await findKasirBluetoothCharacteristic(device.gatt);
+      if(!characteristic){kasirBluetooth.characteristic=null;updateKasirBluetoothUi('connected','Printer Bluetooth tersambung');renderKasirBluetoothDevices();showModal('Bluetooth Tersambung','Printer sudah tersambung, tetapi layanan cetak Bluetooth tidak tersedia melalui Web Bluetooth pada perangkat ini.','fa-brands fa-bluetooth-b text-amber-500');return}
+      kasirBluetooth.characteristic=characteristic;updateKasirBluetoothUi('connected','Printer Bluetooth tersambung');renderKasirBluetoothDevices();closeKasirBluetoothPopup();showModal('Berhasil','Printer Bluetooth tersambung dan siap mencetak.','fa-brands fa-bluetooth-b text-emerald-600');
+    }catch(err){kasirBluetooth.characteristic=null;updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');showModal('Bluetooth Gagal',err?.message||'Printer Bluetooth tidak dapat disambungkan.','fa-brands fa-bluetooth-b text-rose-600')}
+    finally{kasirBluetooth.connecting=false}
   }
 
   function buildKasirEscPosReceipt(){
@@ -5483,7 +5466,12 @@ onAuthStateChanged(auth,async u=>{
   updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
 
   document.addEventListener('click',e=>{
-    if(e.target.closest('#kasir-refresh-btn')){e.preventDefault();connectKasirBluetoothPrinter();return}
+    if(e.target.closest('#kasir-refresh-btn')){e.preventDefault();openKasirBluetoothPopup();return}
+    if(e.target.closest('#kasir-bt-close')){e.preventDefault();closeKasirBluetoothPopup();return}
+    if(e.target.closest('#kasir-bt-scan')){e.preventDefault();scanKasirBluetoothDevices();return}
+    const connectButton=e.target.closest('[data-kasir-bt-connect]');
+    if(connectButton){e.preventDefault();const device=kasirBluetooth.devices[Number(connectButton.dataset.kasirBtConnect)];connectKasirBluetoothPrinter(device);return}
+    if(e.target.id==='kasir-bluetooth-device-popup'){closeKasirBluetoothPopup();return}
   });
 
   function renderKasirReceiptPreview(){
