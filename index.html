@@ -5641,15 +5641,19 @@ onAuthStateChanged(auth,async u=>{
   }
 
   function kasirPopupRupiah(value){return rupiah(Math.max(0,Number(String(value||'').replace(/[^0-9]/g,''))||0));}
+  /* KEMBALIAN KASIR — SATU IMPLEMENTASI FINAL */
   function updateKasirPaymentPopup(){
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
-    const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0;
+    const total=kasirCart.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
+    const discountRaw=String(document.getElementById('kasir-popup-discount')?.value||'').replace(/\D/g,'');
+    const paidRaw=String(document.getElementById('kasir-popup-paid')?.value||'').replace(/\D/g,'');
+    const discount=Math.min(total,Number(discountRaw)||0);
+    const paid=Number(paidRaw)||0;
     const finalTotal=Math.max(0,total-discount);
+    const change=Math.max(0,paid-finalTotal);
     const totalEl=document.getElementById('kasir-popup-total');
     const changeEl=document.getElementById('kasir-popup-change');
-    if(totalEl)totalEl.textContent=kasirPopupRupiah(finalTotal);
-    if(changeEl)changeEl.textContent=kasirPopupRupiah(Math.max(0,paid-finalTotal));
+    if(totalEl)totalEl.textContent=rupiah(finalTotal);
+    if(changeEl)changeEl.textContent=rupiah(change);
   }
   /* KASIR BLUETOOTH — IMPLEMENTASI TUNGGAL. Implementasi lama dihapus seluruhnya. */
   const kasirBluetooth={device:null,characteristic:null,connecting:false};
