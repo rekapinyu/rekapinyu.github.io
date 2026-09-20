@@ -2113,9 +2113,16 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
         }
 function checkAuth() {
             const authContainer = document.getElementById('auth-container');
+            if (!authContainer) return;
+
+            // Saat reload, tahan tampilan login sampai Firebase selesai
+            // memastikan status sesi yang sebenarnya.
+            if (window.__rekapinyuAuthBootstrapPending) {
+                authContainer.classList.add('hidden');
+                return;
+            }
+
             if (currentSessionUser || window.__rekapinyuLandingHandoffActive) {
-                // Saat datang dari Landing Page, jangan tampilkan login bawaan aplikasi
-                // sebelum proses handoff Firebase selesai.
                 authContainer.classList.add('hidden');
                 if (currentSessionUser) {
                     document.getElementById('sidebar-user-name').innerText = currentSessionUser.name;
@@ -2130,6 +2137,10 @@ function checkAuth() {
                 backupOtomatisData = [];
             }
         }
+
+        // Satu gate autentikasi untuk reload: login ditahan sampai Firebase
+        // mengembalikan status sesi yang sebenarnya.
+        window.__rekapinyuAuthBootstrapPending = true;
 
         // Deteksi handoff SEBELUM checkAuth pertama kali dijalankan.
         // Ini mencegah race condition yang sempat menampilkan popup login aplikasi.
@@ -4103,7 +4114,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 <!-- REKAPINYU: FIREBASE FULL INTEGRATION -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
@@ -4280,13 +4291,12 @@ if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.__rekapinyuFirebaseFull=true;
 }
 
-// REKAPINYU AUTH — SATU IMPLEMENTASI FIREBASE UNTUK LOGIN + DAFTAR
-// Tidak ada handler Login/Daftar kedua. Form ditangani hanya di blok ini.
-const authReadyPromise = new Promise(resolve => {
-  window.__rekapinyuAuthReadyResolve = resolve;
+// REKAPINYU AUTH — SATU IMPLEMENTASI FIREBASE UNTUK LOGIN + DAFTAR + RELOAD SESI
+// Sesi Firebase dipertahankan di browser dan login ditahan selama status sesi dipulihkan.
+const authReadyPromise = setPersistence(auth, browserLocalPersistence).catch(err => {
+  console.warn("Rekapinyu: persistensi sesi Firebase tidak dapat diaktifkan.", err);
 });
 window.__rekapinyuAuthReady = authReadyPromise;
-window.__rekapinyuAuthReadyResolve();
 
 function authErrorMessage(err, mode){
   const code = err?.code || "";
@@ -4650,6 +4660,7 @@ if(pendingHistory||pendingPengeluaran||pendingKasbon||pendingBackup || ((preserv
 // Kredensial dikirim sekali melalui URL fragment, lalu langsung dihapus dari address bar.
 async function consumeLandingLogin(){
   try{
+    await authReadyPromise;
     const hash=window.location.hash||"";
     const m=hash.match(/^#rekapinyu_login=([^&]+)$/);
     if(!m)return false;
@@ -4681,6 +4692,7 @@ async function consumeLandingLogin(){
 const landingHandoffPromise=consumeLandingLogin();
 
 onAuthStateChanged(auth,async u=>{
+  await authReadyPromise;
   await landingHandoffPromise;
   window.RekapinyuFirebase.ready=true;
   window.RekapinyuFirebase.uid=u?.uid||null;
@@ -4688,6 +4700,7 @@ onAuthStateChanged(auth,async u=>{
     if(dataUnsub)dataUnsub();
     if(userUnsub)userUnsub();
     window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBootstrapPending=false;
     checkAuth();
     return
   }
@@ -4695,11 +4708,13 @@ onAuthStateChanged(auth,async u=>{
     await hydrate(u.uid);
     realtime(u);
     window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBootstrapPending=false;
     checkAuth();
     redraw()
   }catch(e){
     console.error("Firebase hydrate:",e);
     window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBootstrapPending=false;
     checkAuth();
   }
 });
