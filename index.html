@@ -1849,57 +1849,6 @@ function checkAuth() {
             }
         }
 
-        document.getElementById('register-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value.trim();
-            const phone = document.getElementById('reg-phone').value.trim();
-            const password = document.getElementById('reg-password').value;
-
-            const existingUser = registeredUsers.find(u => u.phone === phone);
-            if (existingUser) {
-                showModal("Gagal Daftar", "Nomor HP sudah terdaftar. Silakan gunakan nomor lain atau langsung masuk.", "fa-solid fa-circle-exclamation text-rose-600");
-                return;
-            }
-
-            const newUser = { name, phone, password, photo: "" };
-            registeredUsers.push(newUser);
-            localStorage.setItem('finance_registered_users', JSON.stringify(registeredUsers));
-
-            localStorage.setItem(`finance_history_desktop_${phone}`, JSON.stringify([]));
-            localStorage.setItem(`finance_pengeluaran_desktop_${phone}`, JSON.stringify([]));
-            localStorage.setItem(`finance_kasbon_desktop_${phone}`, JSON.stringify([]));
-            localStorage.setItem(`finance_backup_desktop_${phone}`, JSON.stringify([]));
-
-            document.getElementById('register-form').reset();
-            toggleAuthView('login');
-            showModal("Pendaftaran Berhasil", "Akun Anda berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
-        });
-
-        document.getElementById('login-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const phone = document.getElementById('login-phone').value.trim();
-            const password = document.getElementById('login-password').value;
-
-            const user = registeredUsers.find(u => u.phone === phone && u.password === password);
-            if (!user) {
-                showModal("Gagal Masuk", "Nomor HP atau Kata Sandi yang Anda masukkan salah. Pastikan data terdaftar dengan benar.", "fa-solid fa-circle-xmark text-rose-600");
-                return;
-            }
-
-            currentSessionUser = user;
-            localStorage.setItem('finance_active_session', JSON.stringify(user));
-            document.getElementById('login-form').reset();
-            checkAuth();
-            showModal("Masuk Berhasil", `Selamat datang kembali, ${user.name}!`);
-        });
-
-        function handleLogout() {
-            currentSessionUser = null;
-            localStorage.removeItem('finance_active_session');
-            checkAuth();
-            toggleAuthView('login');
-        }
-
         function toggleProfileSettingMenu(event) {
             event.stopPropagation();
             const popup = document.getElementById('profile-setting-popup');
@@ -2418,6 +2367,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             } else if (tab === 'backup') {
                 if (backupStickyContainer) backupStickyContainer.classList.remove('hidden');
+            }
 
             if (tab === 'input' || tab === 'backup' || tab === 'laporan-kasir' || tab === 'settings') {
                 stickyFilterContainer.classList.add('hidden');
@@ -4101,92 +4051,132 @@ if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.__rekapinyuFirebaseFull=true;
 }
 
-// Firebase registration replaces the original registration handler.
+// REKAPINYU AUTH — SATU IMPLEMENTASI FIREBASE UNTUK LOGIN + DAFTAR
+// Tidak ada handler Login/Daftar kedua. Form ditangani hanya di blok ini.
+const authReadyPromise = new Promise(resolve => {
+  window.__rekapinyuAuthReadyResolve = resolve;
+});
+window.__rekapinyuAuthReady = authReadyPromise;
+window.__rekapinyuAuthReadyResolve();
+
+function authErrorMessage(err, mode){
+  const code = err?.code || "";
+  if(code === "auth/unauthorized-domain") return "Domain aplikasi belum diizinkan di Firebase Authentication. Tambahkan domain GitHub Pages aplikasi ini pada Firebase Console > Authentication > Settings > Authorized domains.";
+  if(code === "auth/operation-not-allowed") return "Login Email/Password belum diaktifkan di Firebase Console > Authentication > Sign-in method.";
+  if(code === "auth/email-already-in-use") return "Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.";
+  if(code === "auth/invalid-email") return "Nomor HP tidak valid.";
+  if(code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "Nomor HP atau Kata Sandi yang Anda masukkan salah.";
+  if(code === "auth/weak-password") return "Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
+  if(code === "auth/network-request-failed") return "Koneksi ke Firebase gagal. Periksa internet lalu coba lagi.";
+  if(code === "auth/too-many-requests") return "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.";
+  if(mode === "register") return "Pendaftaran gagal. Periksa koneksi dan pengaturan Firebase Authentication.";
+  return "Login gagal. Periksa nomor HP, kata sandi, dan koneksi Firebase.";
+}
+
+async function firebaseRegister(){
+  const form=document.getElementById("register-form");
+  if(!form)return;
+  const name=document.getElementById("reg-name")?.value.trim()||"";
+  const phone=phoneOf(document.getElementById("reg-phone")?.value||"");
+  const password=document.getElementById("reg-password")?.value||"";
+  if(!name){notify("Gagal Daftar","Nama wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
+  if(!phone){notify("Gagal Daftar","Nomor HP wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
+  if(password.length<6){notify("Gagal Daftar","Kata sandi minimal 6 karakter.","fa-solid fa-circle-exclamation text-rose-600");return;}
+  const submit=form.querySelector('button[type="submit"]');
+  if(submit?.dataset.busy==="1")return;
+  if(submit)submit.dataset.busy="1";
+  try{
+    await authReadyPromise;
+    const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
+    await updateProfile(credential.user,{displayName:name});
+    const userData={uid:credential.user.uid,name,phone,email:credential.user.email,photo:""};
+    // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
+    try{
+      await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      await setDoc(dref(credential.user.uid),{historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasirTransactions:[],activityData:[],shopCover:"",updatedAt:serverTimestamp()});
+    }catch(dbErr){
+      console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
+    }
+    // Cache lokal hanya untuk kompatibilitas UI lama; bukan sumber autentikasi.
+    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
+    currentSessionUser=null;
+    nativeRemove.call(localStorage,"finance_active_session");
+    try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
+    form.reset();
+    toggleAuthView("login");
+    notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
+  }catch(err){
+    console.error("Rekapinyu Firebase registration:",err);
+    notify("Gagal Daftar",authErrorMessage(err,"register"),"fa-solid fa-circle-xmark text-rose-600");
+  }finally{
+    if(submit)delete submit.dataset.busy;
+  }
+}
+
+async function firebaseLogin(){
+  const form=document.getElementById("login-form");
+  if(!form)return;
+  const phone=phoneOf(document.getElementById("login-phone")?.value||"");
+  const password=document.getElementById("login-password")?.value||"";
+  if(!phone||!password){notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
+  const submit=form.querySelector('button[type="submit"]');
+  if(submit?.dataset.busy==="1")return;
+  if(submit)submit.dataset.busy="1";
+  try{
+    await authReadyPromise;
+    const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
+    let user={uid:credential.user.uid,name:credential.user.displayName||"",phone,email:credential.user.email,photo:""};
+    try{
+      const snap=await getDoc(uref(credential.user.uid));
+      if(snap.exists())user={...user,...snap.data()};
+    }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
+    localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
+    try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
+    checkAuth();
+    openDashboardAfterLogin();
+    form.reset();
+    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+  }catch(err){
+    console.error("Rekapinyu Firebase login:",err);
+    // Migrasi satu kali akun lama yang masih tersimpan di versi sebelum Firebase.
+    const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
+    if(legacy && (err?.code==="auth/user-not-found" || err?.code==="auth/invalid-credential" || err?.code==="auth/invalid-login-credentials")){
+      try{
+        const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
+        await updateProfile(credential.user,{displayName:legacy.name||""});
+        try{
+          await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+          let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
+          await setDoc(dref(credential.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
+        }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
+        localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
+        try{await hydrate(credential.user.uid)}catch{}
+        checkAuth();openDashboardAfterLogin();form.reset();
+        notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
+        return;
+      }catch(migrateErr){
+        console.error("Rekapinyu legacy migration:",migrateErr);
+      }
+    }
+    notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
+  }finally{
+    if(submit)delete submit.dataset.busy;
+  }
+}
+
 const rf=document.getElementById("register-form");
-if(rf)rf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
- const name=document.getElementById("reg-name").value.trim(),phone=phoneOf(document.getElementById("reg-phone").value),password=document.getElementById("reg-password").value;
- if(!name){notify("Gagal Daftar","Nama wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
- if(!phone){notify("Gagal Daftar","Nomor HP wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
- if(password.length<6){notify("Gagal Daftar","Kata sandi minimal 6 karakter.","fa-solid fa-circle-exclamation text-rose-600");return;}
- try{
-   // Akun dibuat di Firebase Auth terlebih dahulu. Penyimpanan Firestore
-   // tidak boleh membuat proses pendaftaran dianggap gagal.
-   const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
-   await updateProfile(c.user,{displayName:name});
-
-   const userData={uid:c.user.uid,name,phone,email:c.user.email,photo:""};
-   const emptyData={historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],shopCover:""};
-
-   // Coba simpan ke Firestore. Jika Rules menolak, akun Auth tetap valid
-   // dan data lokal tetap menjadi fallback sehingga pengguna tetap bisa masuk.
-   try{
-     await setDoc(uref(c.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-     await setDoc(dref(c.user.uid),{...emptyData,updatedAt:serverTimestamp()});
-   }catch(firestoreErr){
-     console.warn("Rekapinyu: Firestore belum mengizinkan penyimpanan awal. Akun Auth tetap dibuat.",firestoreErr);
-   }
-
-   // Simpan cache lokal termasuk password agar akun yang baru dibuat
-   // tetap dapat dipakai jika Firestore belum memiliki permission.
-   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
-   await signOut(auth);
-   currentSessionUser=null;
-   nativeRemove.call(localStorage,"finance_active_session");
-   rf.reset();
-   toggleAuthView("login");
-   notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
- }catch(err){
-   console.error("Rekapinyu Firebase registration:",err);
-   let msg="Pendaftaran gagal. Silakan coba lagi.";
-   if(err.code==="auth/email-already-in-use") msg="Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.";
-   else if(err.code==="auth/invalid-email") msg="Format nomor HP tidak valid.";
-   else if(err.code==="auth/weak-password") msg="Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
-   else if(err.code==="auth/operation-not-allowed") msg="Login Email/Password belum diaktifkan di Firebase Console.";
-   else if(err.message) msg=err.message;
-   notify("Gagal Daftar",msg,"fa-solid fa-circle-xmark text-rose-600");
- }
-},true);
-
-// Firebase login + one-time migration of old localStorage accounts.
 const lf=document.getElementById("login-form");
-if(lf)lf.addEventListener("submit",async e=>{e.preventDefault();e.stopImmediatePropagation();
- const phone=phoneOf(document.getElementById("login-phone").value),password=document.getElementById("login-password").value;
- try{
-   // Login Auth tetap menjadi sumber autentikasi utama.
-   const c=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-   let u={name:c.user.displayName||"",phone,email:c.user.email,photo:""};
-   let firestoreAvailable=true;
-   try{
-     const s=await getDoc(uref(c.user.uid));
-     if(s.exists())u={...u,...s.data()};
-   }catch(firestoreErr){
-     firestoreAvailable=false;
-     console.warn("Rekapinyu: profil Firestore belum dapat dibaca. Menggunakan data lokal/Auth.",firestoreErr);
-   }
-   localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||phone),email:c.user.email});
-   if(firestoreAvailable){
-     try{await hydrate(c.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat. Menggunakan cache lokal.",hydrateErr)}
-   }
-    checkAuth();openDashboardAfterLogin();lf.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
- }catch(err){
-   const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-   if(!legacy){notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");return;}
-   try{
-     const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);await updateProfile(c.user,{displayName:legacy.name||""});
-     try{
-       await setDoc(uref(c.user.uid),{uid:c.user.uid,name:legacy.name||"",phone,email:c.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-       let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-       await setDoc(dref(c.user.uid),{historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
-     }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
-     localSession({uid:c.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:c.user.email});
-     try{await hydrate(c.user.uid)}catch{}
-    checkAuth();openDashboardAfterLogin();lf.reset();notify("Masuk Berhasil","Akun berhasil masuk. Data lokal tetap digunakan sampai Firebase siap.");
-   }catch(m){console.error(m);notify("Gagal Masuk",m.message||"Akun tidak dapat masuk.","fa-solid fa-circle-xmark text-rose-600")}
- }
-},true);
+if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseRegister();});
+if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
-// Logout now signs out from Firebase Auth.
-window.handleLogout=async()=>{try{await saveCloudData()}catch{}try{await signOut(auth)}catch{}currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");checkAuth();toggleAuthView("login")};
+window.handleLogout=async()=>{
+  try{await saveCloudData()}catch{}
+  try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
+  currentSessionUser=null;
+  nativeRemove.call(localStorage,"finance_active_session");
+  checkAuth();
+  toggleAuthView("login");
+};
 
 // Profile changes save to Firestore instead of only localStorage.
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
