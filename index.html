@@ -2294,12 +2294,24 @@ function updateUserAvatarUI() {
             return parseFloat(val.toString().replace(/\./g, '')) || 0;
         }
 
-        function formatInputRibuan(input) {
-            let val = input.value.replace(/\D/g, '');
-            if (val) {
-                val = parseInt(val, 10).toLocaleString('id-ID');
+        /* NOMINAL INPUT — SATU IMPLEMENTASI UNTUK SELURUH APLIKASI */
+        function formatNominalInput(input) {
+            if (!input) return;
+            const raw = String(input.value || '');
+            const cursor = typeof input.selectionStart === 'number' ? input.selectionStart : raw.length;
+            const digitsBeforeCursor = (raw.slice(0, cursor).match(/\d/g) || []).length;
+            const digits = raw.replace(/\D/g, '');
+            const formatted = digits ? Number(digits).toLocaleString('id-ID') : '';
+            input.value = formatted;
+            if (document.activeElement === input && typeof input.setSelectionRange === 'function') {
+                let position = 0;
+                let seen = 0;
+                while (position < formatted.length && seen < digitsBeforeCursor) {
+                    if (/\d/.test(formatted[position])) seen++;
+                    position++;
+                }
+                input.setSelectionRange(position, position);
             }
-            input.value = val;
         }
 
         function updateLiveProfit() {
@@ -2310,22 +2322,41 @@ function updateUserAvatarUI() {
             profitDisplay.innerText = formatRupiah(profit > 0 ? profit : 0);
         }
 
-        ['income', 'expense', 'cashout', 'pengeluaran-nominal', 'kasbon-harga'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', (e) => {
-                    formatInputRibuan(e.target);
-                    if (['income', 'expense', 'cashout'].includes(id)) {
-                        updateLiveProfit();
-                    }
-                });
+        const nominalInputIds = new Set([
+            'income', 'expense', 'cashout', 'pengeluaran-nominal', 'kasbon-harga',
+            'kasir-popup-paid', 'kasir-popup-discount',
+            'pk3-cost', 'pk3-price', 'pk3-edit-cost', 'pk3-edit-price',
+            'edit-val-income', 'edit-val-expense', 'edit-val-cashout'
+        ]);
+        const stockInputIds = new Set(['pk3-stock', 'pk3-edit-stock']);
+
+        document.addEventListener('input', (event) => {
+            const input = event.target;
+            if (!(input instanceof HTMLInputElement)) return;
+
+            if (nominalInputIds.has(input.id)) {
+                formatNominalInput(input);
+                if (input.id === 'income' || input.id === 'expense' || input.id === 'cashout') {
+                    updateLiveProfit();
+                }
+                if (input.id === 'kasir-popup-paid' || input.id === 'kasir-popup-discount') {
+                    updateKasirPaymentPopup();
+                    renderKasirReceiptPreview();
+                }
+            } else if (stockInputIds.has(input.id)) {
+                input.value = input.value.replace(/\D/g, '');
+            }
+
+            if (input.id === 'kasir-search') {
+                kasirLastAddedProductId = null;
+                renderKasirProducts();
+                renderKasirSuggestions();
+            }
+
+            if (input.id === 'profit-percentage') {
+                updateLiveProfit();
             }
         });
-
-        const profitPercentageInput = document.getElementById('profit-percentage');
-        if (profitPercentageInput) {
-            profitPercentageInput.addEventListener('input', updateLiveProfit);
-        }
 
         function updateHeaderDate() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -2908,15 +2939,15 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 modalBody.innerHTML = `
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pendapatan</label>
-                        <input type="text" id="edit-val-income" value="${item.income.toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                        <input type="text" id="edit-val-income" value="${item.income.toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatNominalInput(this)">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Total Belanja</label>
-                        <input type="text" id="edit-val-expense" value="${(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                        <input type="text" id="edit-val-expense" value="${(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatNominalInput(this)">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pengeluaran</label>
-                        <input type="text" id="edit-val-cashout" value="${(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatInputRibuan(this)">
+                        <input type="text" id="edit-val-cashout" value="${(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold" oninput="formatNominalInput(this)">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Profit Persen (%)</label>
@@ -5416,7 +5447,7 @@ onAuthStateChanged(auth,async u=>{
     reader.onerror=()=>{if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');if($('pk3-import-file'))$('pk3-import-file').value=''};
     reader.readAsText(file);
   }
-  function bind(){if(bound)return;bound=true;$('pk3-form')?.addEventListener('submit',add);$('pk3-search')?.addEventListener('input',render);$('pk3-grid')?.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const p=products.find(x=>String(x.id)===String(b.dataset.id));if(!p)return;if(b.dataset.action==='edit')openEdit(p);if(b.dataset.action==='delete')remove(p.id)});$('pk3-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{addPhoto=await compress(f);$('pk3-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-photo-name').textContent='Gagal memproses foto'}});$('pk3-edit-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{editPhoto=await compress(f);$('pk3-edit-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-edit-photo-name').textContent='Gagal memproses foto'}});['pk3-cost','pk3-price','pk3-stock','pk3-edit-cost','pk3-edit-price','pk3-edit-stock'].forEach(id=>$(id)?.addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,'')));$('pk3-edit-form')?.addEventListener('submit',saveEdit);$('pk3-backup')?.addEventListener('click',backupProducts);$('pk3-import')?.addEventListener('click',()=>$('pk3-import-file')?.click());$('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));document.addEventListener('click',e=>{if(e.target.closest('[data-pk3-close]'))closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()})}
+  function bind(){if(bound)return;bound=true;$('pk3-form')?.addEventListener('submit',add);$('pk3-search')?.addEventListener('input',render);$('pk3-grid')?.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const p=products.find(x=>String(x.id)===String(b.dataset.id));if(!p)return;if(b.dataset.action==='edit')openEdit(p);if(b.dataset.action==='delete')remove(p.id)});$('pk3-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{addPhoto=await compress(f);$('pk3-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-photo-name').textContent='Gagal memproses foto'}});$('pk3-edit-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{editPhoto=await compress(f);$('pk3-edit-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-edit-photo-name').textContent='Gagal memproses foto'}});$('pk3-edit-form')?.addEventListener('submit',saveEdit);$('pk3-backup')?.addEventListener('click',backupProducts);$('pk3-import')?.addEventListener('click',()=>$('pk3-import-file')?.click());$('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));document.addEventListener('click',e=>{if(e.target.closest('[data-pk3-close]'))closeEdit()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()})}
   window.__initProdukKasir=function(){bind();load();render()};
 })();
 </script>
@@ -5959,11 +5990,6 @@ onAuthStateChanged(auth,async u=>{
     box.innerHTML=matches.map((p,i)=>`<button type="button" data-kasir-suggest="${esc(p.id)}" data-kasir-suggest-index="${i}" style="display:block;width:100%;text-align:left;border:0;background:#fff;padding:8px 9px;border-radius:6px;cursor:pointer"><strong style="display:block;font-size:11px;color:#334155">${esc(p.name)}</strong><span style="display:block;font-size:9px;color:#94a3b8;margin-top:2px">${rupiah(p.price)}${p.barcode?' • '+esc(p.barcode):''}</span></button>`).join('');
     box.style.display='block';
   }
-
-  document.addEventListener('input',e=>{
-    if(e.target.id==='kasir-search'){kasirLastAddedProductId=null;renderKasirProducts();renderKasirSuggestions()}
-    if(e.target.id==='kasir-popup-paid'||e.target.id==='kasir-popup-discount'){e.target.value=e.target.value.replace(/[^0-9]/g,'');updateKasirPaymentPopup();renderKasirReceiptPreview();}
-  });
 
   updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
 
