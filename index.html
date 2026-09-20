@@ -6243,6 +6243,102 @@ onAuthStateChanged(auth,async u=>{
   }
 }
 </style>
-
-\n<style id="rekapinyu-activity-filter-final">\n/* FINAL: filter Aktifitas sticky sendiri tepat di bawah header/main. */\n#rekapinyu-activity-filter-host{\n  width:100%;\n  max-width:900px;\n  margin:0 auto 16px;\n  position:sticky;\n  top:0;\n  z-index:40;\n  box-sizing:border-box;\n}\n#rekapinyu-activity-filter-host .rk-activity-filter-card{\n  width:100%;\n  box-sizing:border-box;\n}\n@media(max-width:767px){\n  #rekapinyu-activity-filter-host{\n    max-width:100%;\n  }\n}\n</style>\n<script id="rekapinyu-activity-filter-final-script">\n(function(){\n  'use strict';\n  const state={search:'',date:'',month:'',year:''};\n\n  function esc(v){\n    return String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));\n  }\n  function data(){\n    try{\n      const user=window.currentSessionUser||(typeof currentSessionUser!=='undefined'?currentSessionUser:null);\n      const phone=user&&user.phone?user.phone:'';\n      const key=phone?`finance_activity_desktop_${phone}`:'finance_activity_guest';\n      const value=JSON.parse(localStorage.getItem(key)||'[]');\n      return Array.isArray(value)?value:[];\n    }catch(e){return []}\n  }\n  function info(item){\n    const d=new Date(item?.timestamp||item?.dateTime||Date.now());\n    if(Number.isNaN(d.getTime()))return {day:'',month:'',year:''};\n    return {\n      day:String(d.getDate()),\n      month:String(d.getMonth()+1).padStart(2,'0'),\n      year:String(d.getFullYear())\n    };\n  }\n  function host(){\n    const main=document.querySelector('main.flex-1.overflow-y-auto');\n    if(!main)return null;\n    let h=document.getElementById('rekapinyu-activity-filter-host');\n    if(!h){\n      h=document.createElement('div');\n      h.id='rekapinyu-activity-filter-host';\n      h.innerHTML=`\n        <div class="rk-activity-filter-card bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">\n          <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;align-items:center">\n            <div style="grid-column:span 4;position:relative">\n              <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px"></i>\n              <input id="rk-activity-search" type="text" placeholder="Search" style="width:100%;height:40px;padding:0 10px 0 34px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;box-sizing:border-box">\n            </div>\n            <div style="grid-column:span 2">\n              <select id="rk-activity-date" aria-label="Tanggal" style="width:100%;height:40px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;padding:0 10px;box-sizing:border-box"><option value="">Tgl</option></select>\n            </div>\n            <div style="grid-column:span 3">\n              <select id="rk-activity-month" aria-label="Bulan" style="width:100%;height:40px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;padding:0 10px;box-sizing:border-box"><option value="">Bulan</option></select>\n            </div>\n            <div style="grid-column:span 3">\n              <select id="rk-activity-year" aria-label="Tahun" style="width:100%;height:40px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;padding:0 10px;box-sizing:border-box"><option value="">Tahun</option></select>\n            </div>\n          </div>\n        </div>`;\n      main.insertBefore(h,main.firstElementChild);\n    }\n    return h;\n  }\n  function visible(){\n    const v=document.getElementById('view-activity');\n    return !!(v&&!v.classList.contains('hidden'));\n  }\n  function render(){\n    const h=host();\n    if(!h)return;\n    h.style.display=visible()?'block':'none';\n    if(!visible())return;\n    const items=data();\n    const years=[...new Set(items.map(info).map(x=>x.year).filter(Boolean))].sort((a,b)=>b.localeCompare(a));\n    const date=h.querySelector('#rk-activity-date');\n    const month=h.querySelector('#rk-activity-month');\n    const year=h.querySelector('#rk-activity-year');\n    const search=h.querySelector('#rk-activity-search');\n    if(!date||!month||!year||!search)return;\n    date.innerHTML='<option value="">Tgl</option>'+Array.from({length:30},(_,i)=>{const v=String(i+1);return `<option value="${v}">${v}</option>`}).join('');\n    month.innerHTML='<option value="">Bulan</option>'+Array.from({length:12},(_,i)=>{const v=String(i+1).padStart(2,'0');return `<option value="${v}">${new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'})}</option>`}).join('');\n    year.innerHTML='<option value="">Tahun</option>'+years.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');\n    search.value=state.search;\n    date.value=state.date;\n    month.value=state.month;\n    year.value=state.year;\n  }\n  function bind(){\n    const h=host();\n    if(!h||h.dataset.bound==='1')return;\n    h.dataset.bound='1';\n    h.addEventListener('input',e=>{\n      if(e.target.id==='rk-activity-search'){state.search=e.target.value||'';window.__rekapinyuRefreshActivities?.();}\n    });\n    h.addEventListener('change',e=>{\n      if(e.target.id==='rk-activity-date')state.date=e.target.value||'';\n      if(e.target.id==='rk-activity-month')state.month=e.target.value||'';\n      if(e.target.id==='rk-activity-year')state.year=e.target.value||'';\n      window.__rekapinyuRefreshActivities?.();\n    });\n  }\n  window.__rekapinyuActivityFilterState=state;\n  function init(){render();bind();}\n  document.addEventListener('DOMContentLoaded',init,{once:true});\n  setTimeout(init,500);\n  setInterval(()=>{render();bind();},1000);\n})();\n</script>\n</body>
+<style id="rekapinyu-activity-filter-final">
+/* FILTER AKTIFITAS FINAL: berada di dalam area main, tepat setelah header. */
+#view-activity > .rk-activity-filter{
+  width:100%!important;
+  max-width:1100px!important;
+  margin:0 auto 16px!important;
+  position:sticky!important;
+  top:0!important;
+  z-index:5!important;
+  align-self:center!important;
+  box-sizing:border-box!important;
+}
+#view-activity > .rk-activity-filter > div{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:767px){
+  #view-activity > .rk-activity-filter{
+    max-width:100%!important;
+  }
+}
+</style>
+<script id="rekapinyu-activity-filter-final-script">
+(function(){
+'use strict';
+const state={search:'',date:'',month:'',year:''};
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function data(){
+  try{
+    const u=window.currentSessionUser||(typeof currentSessionUser!=='undefined'?currentSessionUser:null);
+    const phone=u&&u.phone?u.phone:'';
+    const x=JSON.parse(localStorage.getItem(phone?`finance_activity_desktop_${phone}`:'finance_activity_guest')||'[]');
+    return Array.isArray(x)?x:[];
+  }catch(e){return []}
+}
+function info(a){
+  const d=new Date(a?.timestamp||a?.dateTime||Date.now());
+  if(Number.isNaN(d.getTime()))return {day:'',month:'',year:''};
+  return {day:String(d.getDate()),month:String(d.getMonth()+1).padStart(2,'0'),year:String(d.getFullYear())};
+}
+function host(){
+  const v=document.getElementById('view-activity');
+  if(!v)return null;
+  let h=v.querySelector(':scope > .rk-activity-filter');
+  if(h)return h;
+  h=document.createElement('div');
+  h.className='rk-activity-filter';
+  h.innerHTML=`
+    <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;align-items:center">
+        <div style="grid-column:span 5;position:relative">
+          <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px"></i>
+          <input id="rk-activity-search" type="text" placeholder="Search" style="width:100%;height:40px;padding:0 10px 0 34px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;box-sizing:border-box">
+        </div>
+        <div style="grid-column:span 2">
+          <select id="rk-activity-date" style="width:100%;height:40px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;padding:0 10px;box-sizing:border-box"><option value="">Tgl</option>${Array.from({length:30},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select>
+        </div>
+        <div style="grid-column:span 2">
+          <select id="rk-activity-month" style="width:100%;height:40px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;padding:0 10px"><option value="">Bulan</option>${Array.from({length:12},(_,i)=>{const n=String(i+1).padStart(2,'0');return `<option value="${n}">${new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'})}</option>`}).join('')}</select>
+        </div>
+        <div style="grid-column:span 3">
+          <select id="rk-activity-year" style="width:100%;height:40px;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;padding:0 10px"><option value="">Tahun</option></select>
+        </div>
+      </div>
+    </div>`;
+  v.insertBefore(h,v.firstElementChild);
+  return h;
+}
+function render(){
+  const h=host();if(!h)return;
+  const years=[...new Set(data().map(a=>info(a).year).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  const year=h.querySelector('#rk-activity-year');
+  if(!year)return;
+  year.innerHTML='<option value="">Tahun</option>'+years.map(y=>`<option value="${esc(y)}">${esc(y)}</option>`).join('');
+  h.querySelector('#rk-activity-search').value=state.search;
+  h.querySelector('#rk-activity-date').value=state.date;
+  h.querySelector('#rk-activity-month').value=state.month;
+  year.value=state.year;
+}
+function bind(){
+  const h=host();if(!h||h.dataset.bound==='1')return;
+  h.dataset.bound='1';
+  h.addEventListener('input',e=>{
+    if(e.target.id==='rk-activity-search'){state.search=e.target.value||'';window.__rekapinyuRefreshActivities?.();}
+  });
+  h.addEventListener('change',e=>{
+    if(e.target.id==='rk-activity-date')state.date=e.target.value||'';
+    if(e.target.id==='rk-activity-month')state.month=e.target.value||'';
+    if(e.target.id==='rk-activity-year')state.year=e.target.value||'';
+    window.__rekapinyuRefreshActivities?.();
+  });
+}
+window.__rekapinyuIndependentStickyInit=function(){host();render();bind();};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',window.__rekapinyuIndependentStickyInit,{once:true});else window.__rekapinyuIndependentStickyInit();
+setInterval(()=>{const v=document.getElementById('view-activity');if(v&&!v.classList.contains('hidden')){render();bind();}},1500);
+})();
+</script>
+</body>
 </html>
