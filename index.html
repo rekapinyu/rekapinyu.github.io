@@ -566,20 +566,6 @@
         #view-input > div > div:first-child{width:100%!important;max-width:none!important;}
       }
     </style>
-<style id="rekapinyu-boot-guard">
-  html.rk-session-boot #auth-container{visibility:hidden!important}
-</style>
-<script id="rekapinyu-boot-guard-script">
-(function(){
-  try{
-    var raw=localStorage.getItem('finance_active_session');
-    if(raw){
-      var u=JSON.parse(raw);
-      if(u && (u.uid || u.phone)) document.documentElement.classList.add('rk-session-boot');
-    }
-  }catch(e){}
-})();
-</script>
 <!-- PATCH MOBILE TERAKHIR: hanya perbaikan tampilan mobile.
      Tidak mengubah HTML, JavaScript, Firebase, event, data, atau tampilan desktop. -->
 <style id="rekapinyu-mobile-only-final-fix">
@@ -4422,11 +4408,6 @@ onAuthStateChanged(auth,async u=>{
   if(!u){
     if(dataUnsub)dataUnsub();
     if(userUnsub)userUnsub();
-    /*
-     * RELOAD STABILIZER: jangan mengubah tampilan/sesi lokal hanya karena
-     * callback Firebase awal masih bernilai null. Sesi lokal hanya boleh
-     * dihapus oleh proses logout yang memang disengaja.
-     */
     window.__rekapinyuLandingHandoffActive=false;
     checkAuth();
     return
@@ -4436,8 +4417,7 @@ onAuthStateChanged(auth,async u=>{
     realtime(u);
     window.__rekapinyuLandingHandoffActive=false;
     checkAuth();
-    redraw();
-    window.__rekapinyuRestoreReloadView?.();
+    redraw()
   }catch(e){
     console.error("Firebase hydrate:",e);
     window.__rekapinyuLandingHandoffActive=false;
@@ -6128,35 +6108,6 @@ onAuthStateChanged(auth,async u=>{
   document.addEventListener('DOMContentLoaded',function(){document.getElementById('rw-close')?.addEventListener('click',closePopup);document.getElementById(popupId)?.addEventListener('click',e=>{if(e.target.id===popupId)closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});check();setInterval(check,300)})
 })();
 </script>
-<script id="rekapinyu-reload-view-stabilizer">
-(function(){
-  const TAB_KEY=()=>{try{const p=typeof currentSessionUser!=="undefined"&&currentSessionUser?.phone;return p?`finance_active_tab_${p}`:"finance_active_tab_guest"}catch(e){return "finance_active_tab_guest"}};
-  const VALID=['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings'];
-  let restoring=false;
-  function saveTab(tab){if(!VALID.includes(tab)||restoring)return;try{localStorage.setItem(TAB_KEY(),tab)}catch(e){}}
-  function restoreTab(){
-    if(!currentSessionUser||typeof window.switchTab!=="function")return;
-    let tab="input";
-    try{const saved=localStorage.getItem(TAB_KEY());if(VALID.includes(saved))tab=saved}catch(e){}
-    restoring=true;
-    try{window.switchTab(tab)}catch(e){}
-    restoring=false;
-  }
-  const original=window.switchTab;
-  if(typeof original==='function'&&!original.__rekapinyuReloadStable){
-    const wrapped=function(tab){saveTab(tab);return original.apply(this,arguments)};
-    wrapped.__rekapinyuReloadStable=true;
-    window.switchTab=wrapped;
-  }
-  function boot(){
-    if(!currentSessionUser)return;
-    requestAnimationFrame(()=>requestAnimationFrame(restoreTab));
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
-  else boot();
-  window.__rekapinyuRestoreReloadView=restoreTab;
-})();
-</script>
 <style id="rekapinyu-activity-style">
 #view-activity #activity-history-list{width:100%;font-size:18px;line-height:2;font-weight:800;word-break:break-word}
 #view-activity .activity-item{display:flex;align-items:center;gap:11px;padding:9px 0;margin:0;background:transparent;border:0;border-radius:0;box-shadow:none}
@@ -6216,6 +6167,50 @@ function installAutoBackupHook(){const fn=window.triggerDailyAutoBackup;if(typeo
 function refresh(){if(document.getElementById('view-activity')&&!document.getElementById('view-activity').classList.contains('hidden'))window.__rekapinyuRefreshActivities?.()}
 document.addEventListener('DOMContentLoaded',()=>{window.__rekapinyuRefreshActivities?.();bind();installAutoBackupHook();setInterval(refresh,1000);setInterval(installAutoBackupHook,1500)});
 render();
+})();
+</script>
+<script id="rekapinyu-reload-state">
+(function(){
+  const VALID=new Set(['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings']);
+  const key=()=>{try{const p=currentSessionUser?.phone;return p?`finance_active_tab_${p}`:'finance_active_tab_guest'}catch(e){return 'finance_active_tab_guest'}};
+  let installed=false,restored=false,originalSwitch=null;
+  function read(){try{const v=localStorage.getItem(key());return VALID.has(v)?v:null}catch(e){return null}}
+  function save(tab){if(restored||!VALID.has(tab))return;try{localStorage.setItem(key(),tab)}catch(e){}}
+  function install(){
+    if(installed)return true;
+    if(typeof window.switchTab!=='function')return false;
+    originalSwitch=window.switchTab;
+    const wrapped=function(tab){save(tab);return originalSwitch.apply(this,arguments)};
+    wrapped.__rekapinyuReloadState=true;
+    window.switchTab=wrapped;
+    installed=true;
+    return true;
+  }
+  function restore(){
+    if(restored||!currentSessionUser||typeof window.switchTab!=='function')return;
+    const tab=read();
+    if(!tab){restored=true;return}
+    restored=true;
+    try{window.switchTab(tab)}catch(e){restored=false}
+  }
+  function boot(){
+    install();
+    if(!currentSessionUser){return}
+    if(!read()){restored=true;return}
+    let tries=0;
+    const wait=()=>{
+      tries++;
+      if(!currentSessionUser){return}
+      if(!installed)install();
+      if(window.RekapinyuFirebase?.ready){requestAnimationFrame(()=>requestAnimationFrame(restore));return}
+      if(tries<120)setTimeout(wait,100);
+    };
+    wait();
+  }
+  function watchInstall(){if(!installed)install();if(installed)clearInterval(timer)}
+  const timer=setInterval(watchInstall,100);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
 })();
 </script>
 </body>
