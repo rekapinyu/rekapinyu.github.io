@@ -5442,25 +5442,66 @@ onAuthStateChanged(auth,async u=>{
     }
   }
 
+  function kasirReceiptInvoiceKey(){
+    const phone=(typeof currentSessionUser!=='undefined' && currentSessionUser && currentSessionUser.phone) ? currentSessionUser.phone : 'guest';
+    return 'finance_kasir_invoice_counter_'+phone;
+  }
+  function getKasirReceiptInvoiceId(){
+    const current=Number(localStorage.getItem(kasirReceiptInvoiceKey())||'0')||0;
+    return `INV${String(current+1).padStart(2,'0')}`;
+  }
+  function commitKasirReceiptInvoiceId(){
+    const current=Number(localStorage.getItem(kasirReceiptInvoiceKey())||'0')||0;
+    localStorage.setItem(kasirReceiptInvoiceKey(),String(current+1));
+  }
+  function getKasirReceiptStoreInfo(){
+    const user=(typeof currentSessionUser!=='undefined' && currentSessionUser) ? currentSessionUser : {};
+    const name=String(user.shopName||user.storeName||user.tokoName||user.name||'').trim();
+    const address=String(user.shopAddress||user.address||user.alamat||'').trim();
+    const phone=String(user.phone||'').trim();
+    return {name:name||'TOKO',address:address||'-',phone:phone||'-'};
+  }
+  function getKasirReceiptDate(){
+    const now=new Date();
+    const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const date=`${days[now.getDay()]}, ${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    return `${date}, ${time}`;
+  }
   function buildKasirEscPosReceipt(){
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
     const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0;
     const finalTotal=Math.max(0,total-discount);
     const change=Math.max(0,paid-finalTotal);
+    const info=getKasirReceiptStoreInfo();
+    const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
     const clean=v=>String(v??'').replace(/[^\x20-\x7E\n]/g,'');
     const line=(left,right,width=32)=>{left=clean(left);right=clean(right);const spaces=Math.max(1,width-left.length-right.length);return left+' '.repeat(spaces)+right};
+    const separator='--------------------------------\n';
     let out='\x1B\x40';
-    out+='\x1B\x61\x01REKAPINYU\nSTRUK PEMBAYARAN\n\x1B\x61\x00';
-    out+='--------------------------------\n';
-    kasirCart.forEach(x=>{out+=clean(x.name).slice(0,32)+'\n';out+=line(`${x.qty} x ${rupiah(x.price)}`,rupiah(x.qty*x.price),32)+'\n'});
-    out+='--------------------------------\n';
-    out+=line('Subtotal',rupiah(total),32)+'\n';
-    out+=line('Diskon','- '+rupiah(discount),32)+'\n';
-    out+=line('TOTAL',rupiah(finalTotal),32)+'\n';
-    out+=line('Bayar',rupiah(paid),32)+'\n';
+    out+='\x1B\x61\x01';
+    out+='\x1B\x45\x01'+clean(info.name).toUpperCase()+'\x1B\x45\x00\n';
+    out+=clean(info.address).toLowerCase()+'\n';
+    out+=clean(info.phone).toLowerCase()+'\n';
+    out+='\x1B\x61\x00';
+    out+=separator;
+    out+=`ID Struk : ${invoiceId}\n`;
+    out+=`${getKasirReceiptDate()}\n`;
+    out+=separator;
+    kasirCart.forEach(x=>{
+      out+=clean(x.name).slice(0,32)+'\n';
+      out+=line(`${x.qty} x ${rupiah(x.price)}`,rupiah(x.qty*x.price),32)+'\n';
+    });
+    out+=separator;
+    out+=line('Total',rupiah(finalTotal),32)+'\n';
+    out+=line('Uang Diterima',rupiah(paid),32)+'\n';
+    out+=line('Diskon',rupiah(discount),32)+'\n';
     out+=line('Kembalian',rupiah(change),32)+'\n';
-    out+='\nTerima kasih\n\n\n';
+    out+=separator;
+    out+='Keterangan\n';
+    out+='\n\n';
     return new TextEncoder().encode(out+'\x1D\x56\x00');
   }
 
@@ -5493,16 +5534,21 @@ onAuthStateChanged(auth,async u=>{
     const finalTotal=Math.max(0,total-discount);
     const preview=document.getElementById('kasir-receipt-preview');
     if(!preview)return;
-    preview.innerHTML=`<div class="r-center"><strong>REKAPINYU</strong><br>STRUK PEMBAYARAN</div>
+    const info=getKasirReceiptStoreInfo();
+    const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+    preview.innerHTML=`<div class="r-center"><strong>${esc(info.name).toUpperCase()}</strong><br><span>${esc(info.address).toLowerCase()}</span><br><span>${esc(info.phone).toLowerCase()}</span></div>
+      <div style="border-top:1px dashed #111;margin:6px 0"></div>
+      <div>ID Struk : ${esc(invoiceId)}</div>
+      <div>${esc(getKasirReceiptDate())}</div>
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
       ${kasirCart.map(x=>`<div style="margin-bottom:4px"><div>${esc(x.name)}</div><div class="r-row"><span>${x.qty} x ${rupiah(x.price)}</span><span>${rupiah(x.qty*x.price)}</span></div></div>`).join('')}
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
-      <div class="r-row"><span>Subtotal</span><span>${rupiah(total)}</span></div>
-      <div class="r-row"><span>Diskon</span><span>- ${rupiah(discount)}</span></div>
-      <div class="r-row"><strong>TOTAL</strong><strong>${rupiah(finalTotal)}</strong></div>
-      <div class="r-row"><span>Bayar</span><span>${rupiah(paid)}</span></div>
+      <div class="r-row"><strong>Total</strong><strong>${rupiah(finalTotal)}</strong></div>
+      <div class="r-row"><span>Uang Diterima</span><span>${rupiah(paid)}</span></div>
+      <div class="r-row"><span>Diskon</span><span>${rupiah(discount)}</span></div>
       <div class="r-row"><span>Kembalian</span><span>${rupiah(Math.max(0,paid-finalTotal))}</span></div>
-      <div style="margin-top:5px">Terima kasih</div>`;
+      <div style="border-top:1px dashed #111;margin:6px 0"></div>
+      <div>Keterangan</div>`;
   }
   function openKasirPaymentPopup(){
     if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return}
@@ -5511,6 +5557,7 @@ onAuthStateChanged(auth,async u=>{
     const discount=document.getElementById('kasir-popup-discount');
     if(paid)paid.value='';
     if(discount)discount.value='';
+    window.__kasirCurrentInvoiceId=getKasirReceiptInvoiceId();
     renderKasirReceiptPreview();
     updateKasirPaymentPopup();
     popup?.classList.add('is-open');
@@ -5547,8 +5594,10 @@ onAuthStateChanged(auth,async u=>{
       showModal('Cetak Gagal',err?.message||'Struk tidak dapat dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-rose-600');
       return;
     }
+    commitKasirReceiptInvoiceId();
     const saved=saveKasirTransaction({paid,discount});
     if(!saved)return;
+    window.__kasirCurrentInvoiceId=null;
     closeKasirPaymentPopup();
     showModal('Berhasil','Transaksi berhasil disimpan dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
   }
