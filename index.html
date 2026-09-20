@@ -920,7 +920,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 @media (max-width:760px){#kasir-payment-popup .kasir-payment-dialog{width:96vw;height:94vh;max-height:94vh}#kasir-payment-popup .kasir-payment-grid{grid-template-columns:1fr;overflow:auto}#kasir-payment-popup .kasir-payment-left{border-right:0;border-bottom:1px solid #cbd5e1;min-height:300px}#kasir-payment-popup .kasir-receipt-paper{width:min(88mm,94vw);max-height:50vh}}
 @media print{body.kasir-printing>*{display:none!important}body.kasir-printing #kasir-print-area{display:block!important}#kasir-print-area{width:58mm!important;margin:0!important;padding:0!important;background:#fff!important;color:#111!important}}
 </style>
-
 <style id="kasir-bluetooth-unified-css">
 /* KASIR BLUETOOTH: satu implementasi status + koneksi + cetak. */
 #kasir-refresh-btn{position:relative!important;color:#dc2626!important;transition:color .18s ease,background .18s ease,border-color .18s ease}
@@ -932,7 +931,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #kasir-payment-popup .kasir-bluetooth-status i{font-size:14px}
 </style>
 <style id="rekapinyu-setting-filter-hide">body:has(#view-settings:not(.hidden)) body:has(#view-activity:not(.hidden)) {display:none!important}</style>
-
 <style id="rekapinyu-activity-filter-single">
 /* SATU IMPLEMENTASI FILTER AKTIFITAS: berada di awal area MAIN, tepat di bawah HEADER. */
 #rekapinyu-activity-filter{
@@ -985,26 +983,86 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   #rekapinyu-activity-filter input, #rekapinyu-activity-filter select{font-size:11px;height:38px;}
 }
 </style>
-</head>
+<style id="rekapinyu-pengeluaran-single-implementation">
+/* PENGELUARAN — SATU IMPLEMENTASI BARU: sticky dan kotak hasil sama lebar, berurutan langsung di MAIN. */
+#pengeluaran-sticky-container{
+  width:100%!important;
+  max-width:1100px!important;
+  margin:0 auto 16px!important;
+  padding:0!important;
+  position:sticky!important;
+  top:0!important;
+  z-index:5!important;
+  align-self:center!important;
+  box-sizing:border-box!important;
+}
+#pengeluaran-sticky-container .rk-pengeluaran-sticky-box{
+  width:100%!important;
+  max-width:1100px!important;
+  margin:0!important;
+  padding:12px 16px!important;
+  background:rgba(255,255,255,.97)!important;
+  border:1px solid var(--rk-border)!important;
+  border-radius:18px!important;
+  box-shadow:0 10px 30px rgba(15,23,42,.065)!important;
+  box-sizing:border-box!important;
+}
+#view-pengeluaran{
+  display:block;
+  width:100%!important;
+  max-width:1100px!important;
+  margin:0 auto 16px!important;
+  padding:0!important;
+  box-sizing:border-box!important;
+  flex:0 0 auto!important;
+  align-self:center!important;
+}
+#view-pengeluaran.hidden{display:none!important;}
+#view-pengeluaran #pengeluaran-grid{
+  display:grid;
+  width:100%!important;
+  max-width:1100px!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+}
+#view-pengeluaran #pengeluaran-grid > div{
+  width:100%!important;
+  max-width:1100px!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:767px){
+  #pengeluaran-sticky-container,
+  #view-pengeluaran{
+    max-width:calc(100vw - 24px)!important;
+  }
+  #pengeluaran-sticky-container .rk-pengeluaran-sticky-box{
+    max-width:100%!important;
+    padding:10px!important;
+  }
+  #view-pengeluaran #pengeluaran-grid,
+  #view-pengeluaran #pengeluaran-grid > div{
+    max-width:100%!important;
+  }
+}
+</style></head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
-<div id="kasir-payment-popup" aria-hidden="true">
-  <div class="kasir-payment-dialog" role="dialog" aria-modal="true" aria-labelledby="kasir-payment-popup-title">
-    <div class="kasir-payment-title"><h3 id="kasir-payment-popup-title">PEMBAYARAN</h3><button class="kasir-payment-close" id="kasir-payment-close" type="button" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="kasir-payment-grid">
-      <div class="kasir-payment-left">
-        <div class="kasir-payment-total"><span>TOTAL SETELAH DISKON</span><strong id="kasir-popup-total">Rp 0</strong></div>
-        <label>UANG DITERIMA<input id="kasir-popup-paid" inputmode="numeric" autocomplete="off" placeholder="Rp 0" type="text"></label>
-        <label>DISKON (RUPIAH)<input id="kasir-popup-discount" inputmode="numeric" autocomplete="off" placeholder="Rp 0" type="text"></label>
-        <div class="kasir-payment-change"><span>KEMBALIAN</span><strong id="kasir-popup-change">Rp 0</strong></div>
-        <div class="kasir-payment-actions"><div><button id="kasir-save-print-btn" type="button"><i class="fa-solid fa-floppy-disk"></i> Simpan dan Cetak</button><div class="kasir-bluetooth-status" id="kasir-payment-bluetooth-status"><i class="fa-brands fa-bluetooth-b"></i><span>Printer Bluetooth belum tersambung</span></div></div></div>
-      </div>
-      <div class="kasir-receipt-wrap"><div class="kasir-receipt-label">PREVIEW STRUK 58MM</div><div class="kasir-receipt-paper" id="kasir-receipt-preview"></div></div>
-    </div>
-  </div>
+<div aria-hidden="true" id="kasir-payment-popup">
+<div aria-labelledby="kasir-payment-popup-title" aria-modal="true" class="kasir-payment-dialog" role="dialog">
+<div class="kasir-payment-title"><h3 id="kasir-payment-popup-title">PEMBAYARAN</h3><button aria-label="Tutup" class="kasir-payment-close" id="kasir-payment-close" type="button"><i class="fa-solid fa-xmark"></i></button></div>
+<div class="kasir-payment-grid">
+<div class="kasir-payment-left">
+<div class="kasir-payment-total"><span>TOTAL SETELAH DISKON</span><strong id="kasir-popup-total">Rp 0</strong></div>
+<label>UANG DITERIMA<input autocomplete="off" id="kasir-popup-paid" inputmode="numeric" placeholder="Rp 0" type="text"/></label>
+<label>DISKON (RUPIAH)<input autocomplete="off" id="kasir-popup-discount" inputmode="numeric" placeholder="Rp 0" type="text"/></label>
+<div class="kasir-payment-change"><span>KEMBALIAN</span><strong id="kasir-popup-change">Rp 0</strong></div>
+<div class="kasir-payment-actions"><div><button id="kasir-save-print-btn" type="button"><i class="fa-solid fa-floppy-disk"></i> Simpan dan Cetak</button><div class="kasir-bluetooth-status" id="kasir-payment-bluetooth-status"><i class="fa-brands fa-bluetooth-b"></i><span>Printer Bluetooth belum tersambung</span></div></div></div>
+</div>
+<div class="kasir-receipt-wrap"><div class="kasir-receipt-label">PREVIEW STRUK 58MM</div><div class="kasir-receipt-paper" id="kasir-receipt-preview"></div></div>
+</div>
+</div>
 </div>
 <div id="kasir-print-area" style="display:none"></div>
-
-
 <!-- AUTHENTICATION OVERLAY / PAGES -->
 <div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
 <!-- CARD LOGIN -->
@@ -1020,8 +1078,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
 <i class="fa-solid fa-phone"></i>
 </span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-phone" inputmode="numeric" pattern="[0-9]*" placeholder="" required="" type="text"/>
-</div>
+<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-phone" inputmode="numeric" pattern="[0-9]*" placeholder="" required="" type="text">
+</input></div>
 </div>
 <div>
 <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
@@ -1029,8 +1087,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
 <i class="fa-solid fa-lock"></i>
 </span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-password" placeholder="" required="" type="password"/>
-</div>
+<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-password" placeholder="" required="" type="password">
+</input></div>
 </div>
 <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm" type="submit">
                     Masuk ke Aplikasi
@@ -1126,7 +1184,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <!-- Navigation Menu Items -->
 <nav class="flex-1 overflow-y-auto">
-<div class="sidebar-menu-placeholder" aria-hidden="true">KASIR</div>
+<div aria-hidden="true" class="sidebar-menu-placeholder">KASIR</div>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-kasir" onclick="switchTab('kasir')" title="Kasir">
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-kasir"><i aria-hidden="true" class="fa-solid fa-cash-register"></i><i aria-hidden="true" class="fa-solid fa-cash-register"></i></span>
 <span class="sidebar-text truncate">Kasir</span>
@@ -1143,9 +1201,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-activity"><i aria-hidden="true" class="fa-solid fa-list-check"></i><i aria-hidden="true" class="fa-solid fa-list-check"></i></span>
 <span class="sidebar-text truncate">Aktifitas</span>
 </button>
-
-<div class="sidebar-menu-placeholder" aria-hidden="true">REKAP</div>
-
+<div aria-hidden="true" class="sidebar-menu-placeholder">REKAP</div>
 <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white group relative" id="nav-input" onclick="switchTab('input')" title="Input Data">
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-input"><i aria-hidden="true" class="fa-solid fa-pen-to-square"></i><i aria-hidden="true" class="fa-solid fa-pen-to-square"></i></span>
 <span class="sidebar-text truncate">Input Data</span>
@@ -1170,42 +1226,25 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-backup"><i aria-hidden="true" class="fa-solid fa-cloud-arrow-up"></i><i aria-hidden="true" class="fa-solid fa-cloud-arrow-up"></i></span>
 <span class="sidebar-text truncate">Backup Otomatis</span>
 </button>
-
-<div class="sidebar-menu-placeholder" aria-hidden="true">SETING</div>
+<div aria-hidden="true" class="sidebar-menu-placeholder">SETING</div>
 <button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-settings" onclick="switchTab('settings')" title="Seting">
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-settings"><i aria-hidden="true" class="fa-solid fa-gear"></i><i aria-hidden="true" class="fa-solid fa-gear"></i></span>
 <span class="sidebar-text truncate">Seting</span>
 </button>
-
 </nav>
 <!-- Kotak ikon sosial + tombol Refresh & Logout -->
 <div class="sidebar-social-box">
 <div aria-label="Media sosial dan website" class="sidebar-social-row">
-        <button
-  aria-label="WhatsApp"
-  class="sidebar-social-btn sidebar-social-whatsapp"
-  title="WhatsApp"
-  type="button"
-  onclick="window.location.href='https://wa.me/message/FCDFMUUH7KDWC1'">
-  <i class="fa-brands fa-whatsapp"></i>
+<button aria-label="WhatsApp" class="sidebar-social-btn sidebar-social-whatsapp" onclick="window.location.href='https://wa.me/message/FCDFMUUH7KDWC1'" title="WhatsApp" type="button">
+<i class="fa-brands fa-whatsapp"></i>
 </button>
-           <button
-  aria-label="TikTok"
-  class="sidebar-social-btn sidebar-social-tiktok"
-  title="TikTok"
-  type="button"
-  onclick="window.location.href='https://www.tiktok.com/@cekotsekarang?_r=1&_t=ZS-99qHREakIpY'">
-  <i class="fa-brands fa-tiktok"></i>
+<button aria-label="TikTok" class="sidebar-social-btn sidebar-social-tiktok" onclick="window.location.href='https://www.tiktok.com/@cekotsekarang?_r=1&amp;_t=ZS-99qHREakIpY'" title="TikTok" type="button">
+<i class="fa-brands fa-tiktok"></i>
 </button>
 <button aria-label="Facebook" class="sidebar-social-btn sidebar-social-facebook" title="Facebook" type="button"><i class="fa-brands fa-facebook-f"></i></button>
 <button aria-label="Instagram" class="sidebar-social-btn sidebar-social-instagram" title="Instagram" type="button"><i class="fa-brands fa-instagram"></i></button>
-<button
-  aria-label="Website"
-  class="sidebar-social-btn sidebar-social-website"
-  title="Website"
-  type="button"
-  onclick="window.location.href='https://rekapinyu.github.io/page/'">
-  <i class="fa-solid fa-globe"></i>
+<button aria-label="Website" class="sidebar-social-btn sidebar-social-website" onclick="window.location.href='https://rekapinyu.github.io/page/'" title="Website" type="button">
+<i class="fa-solid fa-globe"></i>
 </button>
 </div>
 </div>
@@ -1339,43 +1378,43 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </header>
 <!-- Scrollable Main View Area -->
 <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
-<div id="rekapinyu-activity-filter" class="hidden" aria-label="Filter Aktifitas">
-  <div class="rk-activity-filter-box">
-    <div class="rk-activity-filter-grid">
-      <div class="rk-activity-search-wrap">
-        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-        <input id="rk-activity-search" type="text" placeholder="Search" autocomplete="off">
-      </div>
-      <select id="rk-activity-date" aria-label="Tanggal"><option value="">Tgl</option></select>
-      <select id="rk-activity-month" aria-label="Bulan"><option value="">Bulan</option></select>
-      <select id="rk-activity-year" aria-label="Tahun"><option value="">Tahun</option></select>
-    </div>
-  </div>
+<div aria-label="Filter Aktifitas" class="hidden" id="rekapinyu-activity-filter">
+<div class="rk-activity-filter-box">
+<div class="rk-activity-filter-grid">
+<div class="rk-activity-search-wrap">
+<i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i>
+<input autocomplete="off" id="rk-activity-search" placeholder="Search" type="text"/>
+</div>
+<select aria-label="Tanggal" id="rk-activity-date"><option value="">Tgl</option></select>
+<select aria-label="Bulan" id="rk-activity-month"><option value="">Bulan</option></select>
+<select aria-label="Tahun" id="rk-activity-year"><option value="">Tahun</option></select>
+</div>
+</div>
 </div>
 <!-- PENGELUARAN STICKY — satu implementasi, langsung di bawah header -->
-<div class="hidden" id="pengeluaran-sticky-container" aria-label="Input Pengeluaran">
-  <div class="rk-pengeluaran-sticky-box">
-    <form class="grid grid-cols-12 gap-2 items-center" id="pengeluaran-form">
-      <div class="col-span-5 relative">
-        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
-          <i class="fa-solid fa-receipt"></i>
-        </span>
-        <input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nama" placeholder="Nama Pengeluaran" required="" type="text"/>
-      </div>
-      <div class="col-span-4 relative">
-        <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
-        <input class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nominal" inputmode="numeric" placeholder="Nominal" required="" type="text"/>
-      </div>
-      <div class="col-span-3">
-        <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs" type="submit">
-          <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
-        </button>
-      </div>
-    </form>
-  </div>
+<div aria-label="Input Pengeluaran" class="hidden" id="pengeluaran-sticky-container">
+<div class="rk-pengeluaran-sticky-box">
+<form class="grid grid-cols-12 gap-2 items-center" id="pengeluaran-form">
+<div class="col-span-5 relative">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+<i class="fa-solid fa-receipt"></i>
+</span>
+<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nama" placeholder="Nama Pengeluaran" required="" type="text">
+</input></div>
+<div class="col-span-4 relative">
+<span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
+<input class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nominal" inputmode="numeric" placeholder="Nominal" required="" type="text"/>
 </div>
-
-
+<div class="col-span-3">
+<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs" type="submit">
+<i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
+</button>
+</div>
+</form>
+</div>
+</div><section class="hidden" id="view-pengeluaran">
+<div class="grid grid-cols-1 gap-4" id="pengeluaran-grid"></div>
+</section>
 <!-- KASBON STICKY -->
 <div class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-30" id="kasbon-sticky-container">
 <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
@@ -1522,110 +1561,107 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 </section>
 <!-- VIEW NEW: PENGELUARAN -->
-<section class="hidden" id="view-pengeluaran">
-<div class="grid grid-cols-1 gap-4" id="pengeluaran-grid"></div>
-</section>
+
 <!-- VIEW NEW: KASBON -->
 <section class="hidden space-y-6" id="view-kasbon">
 <div class="grid grid-cols-1 gap-4" id="kasbon-grid"></div>
 </section>
 <!-- VIEW SETTING STRUK -->
 <section class="hidden" id="view-activity">
-
 <div id="activity-history-list"></div>
-<div id="activity-detail-popup" class="activity-detail-popup hidden" aria-hidden="true">
-  <div class="activity-detail-backdrop" data-activity-close="1"></div>
-  <div class="activity-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
-    <div class="activity-detail-header">
-      <div>
-        <div class="activity-detail-kicker">Detail Aktifitas</div>
-        <h3 id="activity-detail-title">Aktifitas</h3>
-      </div>
-      <button type="button" class="activity-detail-close" aria-label="Tutup" data-activity-close="1">
-        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-      </button>
-    </div>
-    <div id="activity-detail-list" class="activity-detail-list"></div>
-  </div>
+<div aria-hidden="true" class="activity-detail-popup hidden" id="activity-detail-popup">
+<div class="activity-detail-backdrop" data-activity-close="1"></div>
+<div aria-labelledby="activity-detail-title" aria-modal="true" class="activity-detail-dialog" role="dialog">
+<div class="activity-detail-header">
+<div>
+<div class="activity-detail-kicker">Detail Aktifitas</div>
+<h3 id="activity-detail-title">Aktifitas</h3>
+</div>
+<button aria-label="Tutup" class="activity-detail-close" data-activity-close="1" type="button">
+<i aria-hidden="true" class="fa-solid fa-xmark"></i>
+</button>
+</div>
+<div class="activity-detail-list" id="activity-detail-list"></div>
+</div>
 </div>
 </section>
 <section class="hidden receipt-settings-view" id="view-settings">
-  <div class="receipt-settings-card">
-    <div class="receipt-settings-heading">
-      <div>
-        <h3>Input Mengatur Struk</h3>
-        <p>Atur informasi toko dan keterangan footer yang tampil pada struk kasir.</p>
-      </div>
-      <i class="fa-solid fa-gear" aria-hidden="true"></i>
-    </div>
-    <form id="receipt-settings-form" class="receipt-settings-form" autocomplete="off">
-      <div class="receipt-settings-field">
-        <label for="receipt-setting-store-name">Nama Toko</label>
-        <input id="receipt-setting-store-name" type="text" placeholder="Nama Toko">
-      </div>
-      <div class="receipt-settings-field">
-        <label for="receipt-setting-store-address">Alamat Toko</label>
-        <input id="receipt-setting-store-address" type="text" placeholder="Alamat Toko">
-      </div>
-      <div class="receipt-settings-field">
-        <label for="receipt-setting-store-phone">Nomor Handphone</label>
-        <input id="receipt-setting-store-phone" type="text" inputmode="tel" placeholder="Nomor Handphone">
-      </div>
-      <div class="receipt-settings-field">
-        <label for="receipt-setting-footer">Ganti Keterangan Footer Di Struk</label>
-        <textarea id="receipt-setting-footer" rows="4" placeholder="Keterangan Footer Di Struk"></textarea>
-      </div>
-      <button id="receipt-settings-save" class="receipt-settings-save" type="submit">
-        <i class="fa-solid fa-floppy-disk"></i><span>Simpan</span>
-      </button>
-    </form>
-  </div>
+<div class="receipt-settings-card">
+<div class="receipt-settings-heading">
+<div>
+<h3>Input Mengatur Struk</h3>
+<p>Atur informasi toko dan keterangan footer yang tampil pada struk kasir.</p>
+</div>
+<i aria-hidden="true" class="fa-solid fa-gear"></i>
+</div>
+<form autocomplete="off" class="receipt-settings-form" id="receipt-settings-form">
+<div class="receipt-settings-field">
+<label for="receipt-setting-store-name">Nama Toko</label>
+<input id="receipt-setting-store-name" placeholder="Nama Toko" type="text"/>
+</div>
+<div class="receipt-settings-field">
+<label for="receipt-setting-store-address">Alamat Toko</label>
+<input id="receipt-setting-store-address" placeholder="Alamat Toko" type="text"/>
+</div>
+<div class="receipt-settings-field">
+<label for="receipt-setting-store-phone">Nomor Handphone</label>
+<input id="receipt-setting-store-phone" inputmode="tel" placeholder="Nomor Handphone" type="text"/>
+</div>
+<div class="receipt-settings-field">
+<label for="receipt-setting-footer">Ganti Keterangan Footer Di Struk</label>
+<textarea id="receipt-setting-footer" placeholder="Keterangan Footer Di Struk" rows="4"></textarea>
+</div>
+<button class="receipt-settings-save" id="receipt-settings-save" type="submit">
+<i class="fa-solid fa-floppy-disk"></i><span>Simpan</span>
+</button>
+</form>
+</div>
 </section>
 </div>
 <!-- VIEW PRODUK KASIR -->
 <section class="hidden pk3-view" id="view-produk-kasir">
-  <div class="pk3-form-card">
-    <div class="pk3-heading">
-      <div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
-      <span id="pk3-count">0 produk</span>
-    </div>
-    <form id="pk3-form" class="pk3-form" autocomplete="off">
-      <div class="pk3-field pk3-name"><label for="pk3-name">Nama Produk</label><input id="pk3-name" type="text" placeholder="Contoh: Kopi Susu" required></div>
-      <div class="pk3-field"><label for="pk3-category">Kategori</label><input id="pk3-category" type="text" placeholder="Umum"></div>
-      <div class="pk3-field"><label for="pk3-barcode">Barcode</label><input id="pk3-barcode" type="text" placeholder="Opsional"></div>
-      <div class="pk3-field"><label for="pk3-cost">HPP / Grosir</label><input id="pk3-cost" type="text" inputmode="numeric" placeholder="0"></div>
-      <div class="pk3-field"><label for="pk3-price">Harga Jual</label><input id="pk3-price" type="text" inputmode="numeric" placeholder="0" required></div>
-      <div class="pk3-field"><label for="pk3-stock">Stok</label><input id="pk3-stock" type="text" inputmode="numeric" placeholder="0" required></div>
-      <div class="pk3-photo-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-photo"><i class="fa-solid fa-camera"></i><span id="pk3-photo-name">Pilih foto</span></label><input id="pk3-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
-      <button id="pk3-submit" class="pk3-add" type="submit"><i class="fa-solid fa-plus"></i><span>Tambah Produk</span></button>
-    </form>
-  </div>
-  <div class="pk3-list-card">
-    <div class="pk3-toolbar"><div><h3>Daftar Produk</h3><p>Setiap produk memiliki kotak/grid sendiri.</p></div><div class="pk3-search"><i class="fa-solid fa-magnifying-glass"></i><input id="pk3-search" type="text" placeholder="Cari produk..." autocomplete="off"></div></div>
-    <div id="pk3-grid" class="pk3-grid"></div>
-  </div>
-  <div id="pk3-edit-modal" class="pk3-modal" hidden aria-hidden="true">
-    <div class="pk3-modal-backdrop" data-pk3-close></div>
-    <div class="pk3-modal-card" role="dialog" aria-modal="true" aria-labelledby="pk3-modal-title">
-      <div class="pk3-modal-head"><div><h3 id="pk3-modal-title">Edit Produk</h3><p>Perbarui data produk.</p></div><button type="button" class="pk3-modal-close" data-pk3-close aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
-      <form id="pk3-edit-form" class="pk3-edit-form" autocomplete="off">
-        <div class="pk3-field"><label for="pk3-edit-name">Nama Produk</label><input id="pk3-edit-name" required></div>
-        <div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-category">Kategori</label><input id="pk3-edit-category"></div><div class="pk3-field"><label for="pk3-edit-barcode">Barcode</label><input id="pk3-edit-barcode"></div></div>
-        <div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-cost">HPP / Grosir</label><input id="pk3-edit-cost" inputmode="numeric"></div><div class="pk3-field"><label for="pk3-edit-price">Harga Jual</label><input id="pk3-edit-price" inputmode="numeric" required></div><div class="pk3-field"><label for="pk3-edit-stock">Stok</label><input id="pk3-edit-stock" inputmode="numeric" required></div></div>
-        <div class="pk3-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-edit-photo"><i class="fa-solid fa-camera"></i><span id="pk3-edit-photo-name">Pertahankan foto</span></label><input id="pk3-edit-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
-        <div class="pk3-modal-actions"><button type="button" class="pk3-cancel" data-pk3-close>Batal</button><button type="submit" class="pk3-save"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div>
-      </form>
-    </div>
-  </div>
-  <div id="pk3-data-tools" class="pk3-data-tools hidden" aria-label="Backup dan Import Produk">
-    <button id="pk3-backup" class="pk3-data-tool pk3-backup" type="button" title="Backup semua produk" aria-label="Backup semua produk">
-      <i class="fa-solid fa-download"></i>
-    </button>
-    <button id="pk3-import" class="pk3-data-tool pk3-import" type="button" title="Import daftar produk" aria-label="Import daftar produk">
-      <i class="fa-solid fa-upload"></i>
-    </button>
-    <input id="pk3-import-file" type="file" accept=".json,application/json" hidden>
-  </div>
+<div class="pk3-form-card">
+<div class="pk3-heading">
+<div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
+<span id="pk3-count">0 produk</span>
+</div>
+<form autocomplete="off" class="pk3-form" id="pk3-form">
+<div class="pk3-field pk3-name"><label for="pk3-name">Nama Produk</label><input id="pk3-name" placeholder="Contoh: Kopi Susu" required="" type="text"/></div>
+<div class="pk3-field"><label for="pk3-category">Kategori</label><input id="pk3-category" placeholder="Umum" type="text"/></div>
+<div class="pk3-field"><label for="pk3-barcode">Barcode</label><input id="pk3-barcode" placeholder="Opsional" type="text"/></div>
+<div class="pk3-field"><label for="pk3-cost">HPP / Grosir</label><input id="pk3-cost" inputmode="numeric" placeholder="0" type="text"/></div>
+<div class="pk3-field"><label for="pk3-price">Harga Jual</label><input id="pk3-price" inputmode="numeric" placeholder="0" required="" type="text"/></div>
+<div class="pk3-field"><label for="pk3-stock">Stok</label><input id="pk3-stock" inputmode="numeric" placeholder="0" required="" type="text"/></div>
+<div class="pk3-photo-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-photo"><i class="fa-solid fa-camera"></i><span id="pk3-photo-name">Pilih foto</span></label><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-photo" type="file"/></div>
+<button class="pk3-add" id="pk3-submit" type="submit"><i class="fa-solid fa-plus"></i><span>Tambah Produk</span></button>
+</form>
+</div>
+<div class="pk3-list-card">
+<div class="pk3-toolbar"><div><h3>Daftar Produk</h3><p>Setiap produk memiliki kotak/grid sendiri.</p></div><div class="pk3-search"><i class="fa-solid fa-magnifying-glass"></i><input autocomplete="off" id="pk3-search" placeholder="Cari produk..." type="text"/></div></div>
+<div class="pk3-grid" id="pk3-grid"></div>
+</div>
+<div aria-hidden="true" class="pk3-modal" hidden="" id="pk3-edit-modal">
+<div class="pk3-modal-backdrop" data-pk3-close=""></div>
+<div aria-labelledby="pk3-modal-title" aria-modal="true" class="pk3-modal-card" role="dialog">
+<div class="pk3-modal-head"><div><h3 id="pk3-modal-title">Edit Produk</h3><p>Perbarui data produk.</p></div><button aria-label="Tutup" class="pk3-modal-close" data-pk3-close="" type="button"><i class="fa-solid fa-xmark"></i></button></div>
+<form autocomplete="off" class="pk3-edit-form" id="pk3-edit-form">
+<div class="pk3-field"><label for="pk3-edit-name">Nama Produk</label><input id="pk3-edit-name" required=""/></div>
+<div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-category">Kategori</label><input id="pk3-edit-category"/></div><div class="pk3-field"><label for="pk3-edit-barcode">Barcode</label><input id="pk3-edit-barcode"/></div></div>
+<div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-cost">HPP / Grosir</label><input id="pk3-edit-cost" inputmode="numeric"/></div><div class="pk3-field"><label for="pk3-edit-price">Harga Jual</label><input id="pk3-edit-price" inputmode="numeric" required=""/></div><div class="pk3-field"><label for="pk3-edit-stock">Stok</label><input id="pk3-edit-stock" inputmode="numeric" required=""/></div></div>
+<div class="pk3-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-edit-photo"><i class="fa-solid fa-camera"></i><span id="pk3-edit-photo-name">Pertahankan foto</span></label><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-edit-photo" type="file"/></div>
+<div class="pk3-modal-actions"><button class="pk3-cancel" data-pk3-close="" type="button">Batal</button><button class="pk3-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div>
+</form>
+</div>
+</div>
+<div aria-label="Backup dan Import Produk" class="pk3-data-tools hidden" id="pk3-data-tools">
+<button aria-label="Backup semua produk" class="pk3-data-tool pk3-backup" id="pk3-backup" title="Backup semua produk" type="button">
+<i class="fa-solid fa-download"></i>
+</button>
+<button aria-label="Import daftar produk" class="pk3-data-tool pk3-import" id="pk3-import" title="Import daftar produk" type="button">
+<i class="fa-solid fa-upload"></i>
+</button>
+<input accept=".json,application/json" hidden="" id="pk3-import-file" type="file"/>
+</div>
 </section>
 <!-- VIEW KASIR -->
 <section class="hidden kasir-view space-y-4" id="view-kasir">
@@ -1634,9 +1670,9 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <div class="kasir-toolbar">
 <div class="kasir-search-wrap">
 <i class="fa-solid fa-magnifying-glass"></i>
-<input autocomplete="off" id="kasir-search" placeholder="Scan / ketik barcode" type="text"/>
-</div>
-<button class="kasir-tool-btn" id="kasir-refresh-btn" title="Hubungkan printer Bluetooth" type="button" aria-label="Hubungkan printer Bluetooth"><i class="fa-brands fa-bluetooth-b"></i></button>
+<input autocomplete="off" id="kasir-search" placeholder="Scan / ketik barcode" type="text">
+</input></div>
+<button aria-label="Hubungkan printer Bluetooth" class="kasir-tool-btn" id="kasir-refresh-btn" title="Hubungkan printer Bluetooth" type="button"><i class="fa-brands fa-bluetooth-b"></i></button>
 <button class="kasir-tool-btn" id="kasir-manual-btn" type="button"><i class="fa-solid fa-keyboard"></i> Manual</button>
 <button class="kasir-tool-btn" id="kasir-barcode-btn" type="button"><i class="fa-solid fa-barcode"></i> Barcode</button>
 </div>
@@ -3783,24 +3819,24 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 }
 </style>
 <div aria-label="Filter, Import dan Backup History" id="history-io-floating">
-  <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
-  <button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
-  <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
+<button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
+<button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
+<button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
 </div>
 <div aria-hidden="true" id="history-filter-popup">
-  <div class="history-filter-title">
-    <strong><i class="fa-solid fa-filter mr-1 text-emerald-600"></i> Filter History</strong>
-    <button aria-label="Tutup Filter History" class="history-filter-close" id="history-filter-close" type="button"><i class="fa-solid fa-xmark"></i></button>
-  </div>
-  <div class="history-filter-grid">
-    <input id="history-filter-search" oninput="renderHistory()" placeholder="Cari History..." type="text">
-    <select id="history-filter-date" onchange="renderHistory()"><option value="">Semua Tgl</option></select>
-    <select id="history-filter-month" onchange="renderHistory()"><option value="">Semua Bln</option></select>
-    <select id="history-filter-year" onchange="renderHistory()"><option value="">Semua Thn</option></select>
-  </div>
-  <button class="history-filter-reset" id="history-filter-reset" type="button"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter</button>
+<div class="history-filter-title">
+<strong><i class="fa-solid fa-filter mr-1 text-emerald-600"></i> Filter History</strong>
+<button aria-label="Tutup Filter History" class="history-filter-close" id="history-filter-close" type="button"><i class="fa-solid fa-xmark"></i></button>
 </div>
-<input accept=".json,application/json" hidden="" id="history-io-file" type="file"/>
+<div class="history-filter-grid">
+<input id="history-filter-search" oninput="renderHistory()" placeholder="Cari History..." type="text"/>
+<select id="history-filter-date" onchange="renderHistory()"><option value="">Semua Tgl</option></select>
+<select id="history-filter-month" onchange="renderHistory()"><option value="">Semua Bln</option></select>
+<select id="history-filter-year" onchange="renderHistory()"><option value="">Semua Thn</option></select>
+</div>
+<button class="history-filter-reset" id="history-filter-reset" type="button"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter</button>
+</div>
+<input accept=".json,application/json" hidden="" id="history-io-file" type="file">
 <script>
 (function(){
   'use strict';
@@ -6175,32 +6211,32 @@ onAuthStateChanged(auth,async u=>{
 #rekapinyu-welcome-popup .rw-close{position:absolute;right:12px;top:12px;width:34px;height:34px;border:0;border-radius:9px;background:#fff;color:#334155;box-shadow:0 4px 14px rgba(15,23,42,.12);cursor:pointer;font-size:18px;z-index:2}
 @media(max-width:760px){#rekapinyu-welcome-popup{padding:10px}#rekapinyu-welcome-popup .rw-dialog{width:96vw;height:94vh;grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 220px}#rekapinyu-welcome-popup .rw-left{border-right:0;border-bottom:1px solid #cbd5e1;padding:20px}#rekapinyu-welcome-popup .rw-right{padding:12px}#rekapinyu-welcome-popup .rw-photo-wrap{min-height:190px}#rekapinyu-welcome-popup .rw-brand{font-size:23px}}
 </style>
-<div id="rekapinyu-welcome-popup" aria-hidden="true">
-  <div class="rw-dialog" role="dialog" aria-modal="true" aria-labelledby="rw-title">
-    <button type="button" class="rw-close" id="rw-close" aria-label="Tutup">&times;</button>
-    <div class="rw-left">
-      <h3 id="rw-title" class="rw-brand">REKAPINYU</h3>
-      <p class="rw-guide">Panduan Lengkap Aplikasi Rekapinyu</p>
-      <section class="rw-section"><h4>MENU KASIR</h4><ol>
-        <li>➤ Tombol Keyboard, Sebelum Angka 1 (Untuk Isi/Input Produk)</li>
-        <li>➤ Enter Untuk Memasukan Produk Ke Keranjang, Atau Klik dengan Mouse di produk)</li>
-        <li>➤ Tombol Atas ↑ & Bawah ￬ (Untuk Memilih Produk DiKeranjang)</li>
-        <li>➤ Tombol Kanan → & Kiri ← Pada Produk (Untuk Menambah dan Mengurangi Total Produk), Atau Manual Menggunakan Mouse.</li>
-        <li>➤ Icon Bluetooth >ᛒ Untuk Menghubungkan dengan Printer Bluetooth (Jika icon Bluetooth Berwarna Merah artinya Bluetooth belum tersambung, Jika Berwarna Hijau Artinya Bluetooth tersambung dengan printer Bluetooth)</li>
-        <li>➤ Tekan Enter ➥ Untuk Menyimpan/Mencetak Transaksi.</li>
-      </ol></section>
-      <section class="rw-section"><h4>MENU PRODUK KASIR</h4><ol>
-        <li>➤ Icon Backup Warna Biru di pojok kanan bawah (Untuk Membackup Data Produk) Disarankan Rutin Membackup data Produk, Jika Menambahkan Produk baru.</li>
-        <li>➤ Buat Folder Dikomputer Anda Beri Nama Backup Produk (File yg Sudah Dibackup Pindahkan Ke Folder Backup Tersebut, buat jaga Jaga)</li>
-        <li>➤ Icon Import Warna Hijau di pojok Kanan Bawah (Untuk Mengimport/Memasukan Kembali Data yang sudah di Backup di Folder backup Produk)</li>
-        <li>➤ Usahakan Rajin / Rutin Membackup Data ketika Menambahkan Produk Baru.</li>
-        <li>➤ Kehilangan data bukan Tanggung Jawab Developer, Developer Sudah Menghimbau.</li>
-      </ol></section>
-      <section class="rw-section"><h4>MENU SETING</h4><ol><li>➤ Atur Nama Toko, Alamat Toko, Nomor Handpone (Untuk Dicetak Di Struk)</li></ol></section>
-      <div class="rw-sign">Hormat Kami,<br><strong>DEVELOPER REKAPINYU.</strong></div>
-    </div>
-    <div class="rw-right"><div class="rw-photo-wrap" id="rw-photo-wrap"><img class="rw-photo" src="rekapinyu-popup.jpg" alt="Foto Popup Rekapinyu"></div></div>
-  </div>
+<div aria-hidden="true" id="rekapinyu-welcome-popup">
+<div aria-labelledby="rw-title" aria-modal="true" class="rw-dialog" role="dialog">
+<button aria-label="Tutup" class="rw-close" id="rw-close" type="button">×</button>
+<div class="rw-left">
+<h3 class="rw-brand" id="rw-title">REKAPINYU</h3>
+<p class="rw-guide">Panduan Lengkap Aplikasi Rekapinyu</p>
+<section class="rw-section"><h4>MENU KASIR</h4><ol>
+<li>➤ Tombol Keyboard, Sebelum Angka 1 (Untuk Isi/Input Produk)</li>
+<li>➤ Enter Untuk Memasukan Produk Ke Keranjang, Atau Klik dengan Mouse di produk)</li>
+<li>➤ Tombol Atas ↑ &amp; Bawah ￬ (Untuk Memilih Produk DiKeranjang)</li>
+<li>➤ Tombol Kanan → &amp; Kiri ← Pada Produk (Untuk Menambah dan Mengurangi Total Produk), Atau Manual Menggunakan Mouse.</li>
+<li>➤ Icon Bluetooth &gt;ᛒ Untuk Menghubungkan dengan Printer Bluetooth (Jika icon Bluetooth Berwarna Merah artinya Bluetooth belum tersambung, Jika Berwarna Hijau Artinya Bluetooth tersambung dengan printer Bluetooth)</li>
+<li>➤ Tekan Enter ➥ Untuk Menyimpan/Mencetak Transaksi.</li>
+</ol></section>
+<section class="rw-section"><h4>MENU PRODUK KASIR</h4><ol>
+<li>➤ Icon Backup Warna Biru di pojok kanan bawah (Untuk Membackup Data Produk) Disarankan Rutin Membackup data Produk, Jika Menambahkan Produk baru.</li>
+<li>➤ Buat Folder Dikomputer Anda Beri Nama Backup Produk (File yg Sudah Dibackup Pindahkan Ke Folder Backup Tersebut, buat jaga Jaga)</li>
+<li>➤ Icon Import Warna Hijau di pojok Kanan Bawah (Untuk Mengimport/Memasukan Kembali Data yang sudah di Backup di Folder backup Produk)</li>
+<li>➤ Usahakan Rajin / Rutin Membackup Data ketika Menambahkan Produk Baru.</li>
+<li>➤ Kehilangan data bukan Tanggung Jawab Developer, Developer Sudah Menghimbau.</li>
+</ol></section>
+<section class="rw-section"><h4>MENU SETING</h4><ol><li>➤ Atur Nama Toko, Alamat Toko, Nomor Handpone (Untuk Dicetak Di Struk)</li></ol></section>
+<div class="rw-sign">Hormat Kami,<br/><strong>DEVELOPER REKAPINYU.</strong></div>
+</div>
+<div class="rw-right"><div class="rw-photo-wrap" id="rw-photo-wrap"><img alt="Foto Popup Rekapinyu" class="rw-photo" src="rekapinyu-popup.jpg"/></div></div>
+</div>
 </div>
 <script id="rekapinyu-welcome-popup-js">
 (function(){
@@ -6213,8 +6249,6 @@ onAuthStateChanged(auth,async u=>{
   document.addEventListener('DOMContentLoaded',function(){document.getElementById('rw-close')?.addEventListener('click',closePopup);document.getElementById(popupId)?.addEventListener('click',e=>{if(e.target.id===popupId)closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});check();setInterval(check,300)})
 })();
 </script>
-
-
 <script id="rekapinyu-reload-state">
 (function(){
   const VALID=new Set(['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings']);
@@ -6259,64 +6293,6 @@ onAuthStateChanged(auth,async u=>{
   else boot();
 })();
 </script>
-
-
-
-
-<style id="rekapinyu-pengeluaran-sticky-single">
-/* PENGELUARAN: satu implementasi baru, berada di awal area main tepat di bawah header. */
-#pengeluaran-sticky-container{
-  width:100%!important;
-  max-width:1100px!important;
-  margin:0 auto 16px!important;
-  padding:0!important;
-  position:sticky!important;
-  top:0!important;
-  z-index:5!important;
-  align-self:center!important;
-  box-sizing:border-box!important;
-}
-#pengeluaran-sticky-container .rk-pengeluaran-sticky-box{
-  width:100%!important;
-  max-width:1100px!important;
-  margin:0!important;
-  padding:12px 16px!important;
-  background:rgba(255,255,255,.97)!important;
-  border:1px solid var(--rk-border)!important;
-  border-radius:18px!important;
-  box-shadow:0 10px 30px rgba(15,23,42,.065)!important;
-  box-sizing:border-box!important;
-}
-#view-pengeluaran{
-  width:100%!important;
-  max-width:1100px!important;
-  margin:0 auto!important;
-  padding:0!important;
-  box-sizing:border-box!important;
-}
-#view-pengeluaran #pengeluaran-grid{
-  width:100%!important;
-  max-width:1100px!important;
-  margin:0!important;
-  box-sizing:border-box!important;
-}
-#view-pengeluaran #pengeluaran-grid > div{
-  width:100%!important;
-  max-width:1100px!important;
-  margin:0!important;
-  box-sizing:border-box!important;
-}
-@media(max-width:767px){
-  #pengeluaran-sticky-container,
-  #view-pengeluaran{
-    max-width:calc(100vw - 24px)!important;
-  }
-  #pengeluaran-sticky-container .rk-pengeluaran-sticky-box{
-    max-width:100%!important;
-    padding:10px!important;
-  }
-}
-</style>
 
 <script id="rekapinyu-activity-filter-single-script">
 (function(){
@@ -6373,5 +6349,5 @@ onAuthStateChanged(auth,async u=>{
   setInterval(()=>{if(!view.classList.contains('hidden'))refreshYears();},1500);
 })();
 </script>
-</body>
+</input></body>
 </html>
