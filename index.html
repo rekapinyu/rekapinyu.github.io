@@ -971,7 +971,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #kasir-payment-popup .kasir-bluetooth-status.is-connecting{color:#2563eb}
 #kasir-payment-popup .kasir-bluetooth-status i{font-size:14px}
 </style>
-<style id="rekapinyu-setting-filter-hide">body:has(#view-settings:not(.hidden)) #sticky-filter-container{display:none!important}</style>
+<style id="rekapinyu-setting-filter-hide">body:has(#view-settings:not(.hidden)) #sticky-filter-container,body:has(#view-activity:not(.hidden)) #sticky-filter-container{display:none!important}</style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 <div id="kasir-payment-popup" aria-hidden="true">
@@ -6133,23 +6133,27 @@ onAuthStateChanged(auth,async u=>{
 })();
 </script>
 <style id="rekapinyu-activity-style">
-#view-activity #activity-history-list{width:100%;font-size:12px;line-height:1.7;font-weight:700;word-break:break-word}
-#view-activity .activity-item{display:block;padding:6px 0;margin:0;background:transparent;border:0;border-radius:0;box-shadow:none}
-#view-activity .activity-empty{padding:24px 0;text-align:left;font-size:12px;font-weight:600;color:#94a3b8}
+#view-activity #activity-history-list{width:100%;font-size:16px;line-height:1.9;font-weight:800;word-break:break-word}
+#view-activity .activity-item{display:flex;align-items:center;gap:10px;padding:8px 0;margin:0;background:transparent;border:0;border-radius:0;box-shadow:none}
+#view-activity .activity-item .activity-live-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:22px;height:22px;font-size:15px;animation:rekapinyuActivityPulse 1s ease-in-out infinite}
+#view-activity .activity-empty{padding:24px 0;text-align:left;font-size:16px;font-weight:700;color:#94a3b8}
+@keyframes rekapinyuActivityPulse{0%,100%{transform:scale(1) rotate(0deg);opacity:.65}50%{transform:scale(1.2) rotate(12deg);opacity:1}}
 </style>
 <script id="rekapinyu-activity-script">
 (function(){
 const key=()=>{try{return currentSessionUser&&currentSessionUser.phone?`finance_activity_desktop_${currentSessionUser.phone}`:'finance_activity_guest'}catch(e){return 'finance_activity_guest'}};
+const colorKey=()=>`${key()}_color_index`;
 let activities=[];
 const text=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const colors=['#16a085','#2563eb','#7c3aed','#db2777','#ea580c','#0891b2','#65a30d','#ca8a04','#dc2626','#4f46e5'];
-function color(){return colors[Math.floor(Math.random()*colors.length)]}
-function render(){const b=document.getElementById('activity-history-list');if(!b)return;if(!activities.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}b.innerHTML=activities.map(a=>`<div class="activity-item" style="color:${color()}">${text(a.dateTime)} — ${text(a.menu)} — ${text(a.activity)}</div>`).join('')}
+const colors=['#16a085','#2563eb','#ea580c'];
+function nextColor(){let i=0;try{i=Number(localStorage.getItem(colorKey())||0);if(!Number.isFinite(i)||i<0)i=0}catch(e){};const c=colors[i%colors.length];try{localStorage.setItem(colorKey(),String((i+1)%colors.length))}catch(e){}return c}
+function ensureColors(){let changed=false;activities=activities.map((a,i)=>{if(a&&a.color)return a;changed=true;return {...a,color:colors[i%colors.length]}});if(changed){try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}}}
+function render(){const b=document.getElementById('activity-history-list');if(!b)return;ensureColors();if(!activities.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}b.innerHTML=activities.map(a=>`<div class="activity-item" style="color:${text(a.color||colors[0])}"><span class="activity-live-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span><span>${text(a.dateTime)} — ${text(a.menu)} — ${text(a.activity)}</span></div>`).join('')}
 function save(){window.__rekapinyuActivityData=activities.slice();try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}render()}
-function record(menu,activity){const n=new Date();activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity});activities=activities.slice(0,300);save()}
+function record(menu,activity){const n=new Date();activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity,color:nextColor()});activities=activities.slice(0,300);save()}
 window.__rekapinyuRecordActivity=record;
 window.__rekapinyuRefreshActivities=function(){try{const x=JSON.parse(localStorage.getItem(key())||'[]');activities=Array.isArray(x)?x:[];window.__rekapinyuActivityData=activities;render()}catch(e){activities=[];render()}};
-window.__rekapinyuSetActivityData=function(data){activities=Array.isArray(data)?data:[];window.__rekapinyuActivityData=activities;render()};
+window.__rekapinyuSetActivityData=function(data){activities=Array.isArray(data)?data:[];ensureColors();window.__rekapinyuActivityData=activities;render()};
 const wrap=(name,menu,activity,check)=>{const fn=window[name];if(typeof fn!=='function'||fn.__rkActivity)return;const w=function(){const r=fn.apply(this,arguments);const done=v=>{if(check(v))record(menu,activity);return v};return r&&typeof r.then==='function'?r.then(done):done(r)};w.__rkActivity=true;window[name]=w};
 function install(){wrap('saveKasirTransaction','Kasir','Aktifitas transaksi baru',v=>v!==false);wrap('add','Produk Kasir','Menambah Produk',v=>v!==false);wrap('remove','Produk Kasir','Mengapus Produk',v=>v!==false);wrap('saveEdit','Produk Kasir','Mengedit Produk',v=>v!==false);wrap('backupProducts','Produk Kasir','Melakukan Proses backup',()=>true);wrap('importProducts','Produk Kasir','Melakukan Proses Import',()=>true);wrap('deleteHistoryItem','History','Menghapus data History',v=>v!==false);wrap('backupAllHistoryToExcel','History','Melakukan proses backup di menu History',()=>true);wrap('importBackupExcel','History','Melakukan import di menu History',()=>true);wrap('restoreHistoryFromBackup','Backup Otomatis','Melakukan proses backup di menu Backup Otomatis',v=>v!==false);wrap('editBackupDate','Backup Otomatis','Mengedit hari tanggal bulan tahun di Backup Otomatis',v=>v!==false)}
 setTimeout(install,0);setTimeout(install,1500);setTimeout(install,3500);
