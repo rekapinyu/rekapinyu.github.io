@@ -1465,6 +1465,21 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <!-- VIEW SETTING STRUK -->
 <section class="hidden" id="view-activity">
 <div id="activity-history-list"></div>
+<div id="activity-detail-popup" class="activity-detail-popup hidden" aria-hidden="true">
+  <div class="activity-detail-backdrop" data-activity-close="1"></div>
+  <div class="activity-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
+    <div class="activity-detail-header">
+      <div>
+        <div class="activity-detail-kicker">Detail Aktifitas</div>
+        <h3 id="activity-detail-title">Aktifitas</h3>
+      </div>
+      <button type="button" class="activity-detail-close" aria-label="Tutup" data-activity-close="1">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div id="activity-detail-list" class="activity-detail-list"></div>
+  </div>
+</div>
 </section>
 <section class="hidden receipt-settings-view" id="view-settings">
   <div class="receipt-settings-card">
@@ -6131,11 +6146,31 @@ onAuthStateChanged(auth,async u=>{
 })();
 </script>
 <style id="rekapinyu-activity-style">
-#view-activity #activity-history-list{width:100%;font-size:18px;line-height:2;font-weight:800;word-break:break-word}
-#view-activity .activity-item{display:flex;align-items:center;gap:11px;padding:9px 0;margin:0;background:transparent;border:0;border-radius:0;box-shadow:none}
-#view-activity .activity-item .activity-live-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:24px;height:24px;font-size:17px;animation:rekapinyuActivityPulse 1s ease-in-out infinite}
-#view-activity .activity-empty{padding:24px 0;text-align:left;font-size:17px;font-weight:700;color:#94a3b8}
-@keyframes rekapinyuActivityPulse{0%,100%{transform:scale(1) rotate(0deg);opacity:.55}50%{transform:scale(1.25) rotate(12deg);opacity:1}}
+#view-activity #activity-history-list{width:100%}
+#view-activity .activity-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;width:100%}
+#view-activity .activity-day-card{min-width:0;min-height:88px;padding:9px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,.08);display:flex;flex-direction:column;justify-content:space-between}
+#view-activity .activity-day-title{font-size:12px;line-height:1.35;font-weight:800;word-break:break-word}
+#view-activity .activity-day-count{font-size:10px;line-height:1.3;font-weight:700;color:#64748b;margin-top:4px}
+#view-activity .activity-day-eye{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;align-self:flex-end;border:0;background:transparent;border-radius:4px;cursor:pointer;font-size:15px}
+#view-activity .activity-day-eye:hover{background:#f1f5f9}
+#view-activity .activity-empty{padding:24px 0;text-align:center;font-size:15px;font-weight:700;color:#94a3b8}
+#activity-detail-popup{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px}
+#activity-detail-popup.hidden{display:none}
+#activity-detail-popup .activity-detail-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.45)}
+#activity-detail-popup .activity-detail-dialog{position:relative;width:min(620px,100%);max-height:min(80vh,700px);overflow:hidden;background:#fff;border-radius:10px;box-shadow:0 18px 50px rgba(15,23,42,.25);display:flex;flex-direction:column}
+#activity-detail-popup .activity-detail-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #e5e7eb}
+#activity-detail-popup .activity-detail-kicker{font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
+#activity-detail-popup .activity-detail-header h3{margin:2px 0 0;font-size:18px;line-height:1.35;font-weight:900}
+#activity-detail-popup .activity-detail-close{width:34px;height:34px;border:0;background:transparent;border-radius:5px;cursor:pointer;font-size:19px}
+#activity-detail-popup .activity-detail-close:hover{background:#f1f5f9}
+#activity-detail-popup .activity-detail-list{padding:16px 18px;overflow:auto}
+#activity-detail-popup .activity-detail-date{padding:10px 12px;margin-bottom:10px;border:1px solid #dbe3ea;border-radius:6px;font-size:14px;line-height:1.4;font-weight:900;background:#f8fafc}
+#activity-detail-popup .activity-detail-item{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:9px 10px;border:1px solid #e5e7eb;border-radius:5px;margin-bottom:7px;font-size:13px;line-height:1.45}
+#activity-detail-popup .activity-detail-time{font-weight:900}
+#activity-detail-popup .activity-detail-text{font-weight:700;word-break:break-word}
+@media (max-width:1100px){#view-activity .activity-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media (max-width:800px){#view-activity .activity-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}}
+@media (max-width:520px){#view-activity .activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-day-card{min-height:84px}}
 </style>
 <script id="rekapinyu-activity-script">
 (function(){
@@ -6146,7 +6181,64 @@ const colors=['#16a085','#2563eb','#ea580c'];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function nextColor(){let i=0;try{i=Number(localStorage.getItem(colorKey())||0);if(!Number.isFinite(i)||i<0)i=0}catch(e){}const c=colors[i%colors.length];try{localStorage.setItem(colorKey(),String((i+1)%colors.length))}catch(e){}return c}
 function ensureColors(){let changed=false;activities=activities.map((a,i)=>{if(a&&a.color)return a;changed=true;return {...a,color:colors[i%colors.length]}});if(changed)try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}}
-function render(){const b=document.getElementById('activity-history-list');if(!b)return;ensureColors();if(!activities.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}b.innerHTML=activities.map(a=>`<div class="activity-item" style="color:${esc(a.color||colors[0])}"><span class="activity-live-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span><span>${esc(a.dateTime)} — ${esc(a.menu)} — ${esc(a.activity)}</span></div>`).join('')}
+function dateInfo(a){
+  const d=new Date(a?.timestamp||a?.dateTime||Date.now());
+  if(Number.isNaN(d.getTime())) return {key:String(a?.dateTime||'Tanpa tanggal'),label:String(a?.dateTime||'Tanpa tanggal'),time:''};
+  const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const label=d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const time=d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return {key,label,time};
+}
+function grouped(){
+  const map=new Map();
+  activities.forEach(a=>{
+    const info=dateInfo(a);
+    if(!map.has(info.key))map.set(info.key,{key:info.key,label:info.label,items:[]});
+    map.get(info.key).items.push({...a,__time:info.time});
+  });
+  return [...map.values()].sort((a,b)=>b.key.localeCompare(a.key)).map(g=>{
+    g.items.sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||'')));
+    return g;
+  });
+}
+function render(){
+  const b=document.getElementById('activity-history-list');
+  if(!b)return;
+  ensureColors();
+  const groups=grouped();
+  if(!groups.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}
+  b.innerHTML='<div class="activity-grid">'+groups.map((g,i)=>`
+    <div class="activity-day-card">
+      <div>
+        <div class="activity-day-title">Aktifitas ${esc(g.label)}</div>
+        <div class="activity-day-count">${g.items.length} aktifitas</div>
+      </div>
+      <button type="button" class="activity-day-eye" title="Lihat detail aktifitas" aria-label="Lihat detail aktifitas ${esc(g.label)}" data-activity-day="${esc(g.key)}">
+        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+      </button>
+    </div>`).join('')+'</div>';
+}
+function openDetail(dayKey){
+  const popup=document.getElementById('activity-detail-popup');
+  const list=document.getElementById('activity-detail-list');
+  const title=document.getElementById('activity-detail-title');
+  const g=grouped().find(x=>x.key===dayKey);
+  if(!popup||!list||!g)return;
+  title.textContent=`Aktifitas ${g.label}`;
+  list.innerHTML=`<div class="activity-detail-date">${esc(g.label)}</div>`+g.items.map(a=>`
+    <div class="activity-detail-item">
+      <div class="activity-detail-time">${esc(a.__time)}</div>
+      <div class="activity-detail-text">${esc(a.activity||'Aktifitas')} di Menu ${esc(a.menu||'Aplikasi')}</div>
+    </div>`).join('');
+  popup.classList.remove('hidden');
+  popup.setAttribute('aria-hidden','false');
+}
+function closeDetail(){
+  const popup=document.getElementById('activity-detail-popup');
+  if(!popup)return;
+  popup.classList.add('hidden');
+  popup.setAttribute('aria-hidden','true');
+}
 function save(){window.__rekapinyuActivityData=activities.slice();try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}render()}
 function record(menu,activity){if(!menu||!activity||!currentSessionUser)return;const n=new Date();activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity,color:nextColor()});activities=activities.slice(0,300);save()}
 window.__rekapinyuRecordActivity=record;
@@ -6155,18 +6247,10 @@ window.__rekapinyuSetActivityData=function(data){activities=Array.isArray(data)?
 function later(fn,ms=500){setTimeout(()=>{try{fn()}catch(e){}},ms)}
 function modalTitle(){return document.getElementById('edit-modal-title')?.innerText||''}
 function bind(){
-  document.addEventListener('submit',e=>{
-    const id=e.target?.id;
-    if(id==='finance-form') later(()=>record('Input Data','Menginput data Harian'));
-    if(id==='kasbon-form') later(()=>record('Kasbon','Menambahkan Kasbon'));
-    if(id==='pk3-form') later(()=>record('Produk Kasir','Menambah Produk'));
-    if(id==='pk3-edit-form') later(()=>record('Produk Kasir','Mengedit Produk'));
-  },true);
-  document.addEventListener('change',e=>{
-    if(e.target?.id==='pk3-import-file'&&e.target.files?.length) later(()=>record('Produk Kasir','Melakukan Proses Import'),100);
-    if(e.target?.id==='history-io-file'&&e.target.files?.length) later(()=>record('History','Melakukan import di menu History'),100);
-  },true);
   document.addEventListener('click',e=>{
+    const eye=e.target?.closest?.('[data-activity-day]');
+    if(eye){openDetail(eye.getAttribute('data-activity-day'));return}
+    if(e.target?.closest?.('[data-activity-close]')){closeDetail();return}
     const t=e.target?.closest?.('button,[role="button"]');
     if(!t)return;
     if(t.id==='pk3-backup') later(()=>record('Produk Kasir','Melakukan Proses backup'),100);
@@ -6183,7 +6267,21 @@ function bind(){
       else if(label.includes('pulihkan'))later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);
     }
   },true);
-  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('kasir-payment-popup')?.classList.contains('is-open'))later(()=>{const title=document.getElementById('modal-title')?.innerText||'';if(!/Gagal|Error/i.test(title))record('Kasir','Aktifitas transaksi baru')},900)},true);
+  document.addEventListener('submit',e=>{
+    const id=e.target?.id;
+    if(id==='finance-form') later(()=>record('Input Data','Menginput data Harian'));
+    if(id==='kasbon-form') later(()=>record('Kasbon','Menambahkan Kasbon'));
+    if(id==='pk3-form') later(()=>record('Produk Kasir','Menambah Produk'));
+    if(id==='pk3-edit-form') later(()=>record('Produk Kasir','Mengedit Produk'));
+  },true);
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='pk3-import-file'&&e.target.files?.length) later(()=>record('Produk Kasir','Melakukan Proses Import'),100);
+    if(e.target?.id==='history-io-file'&&e.target.files?.length) later(()=>record('History','Melakukan import di menu History'),100);
+  },true);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')closeDetail();
+    if(e.key==='Enter'&&document.getElementById('kasir-payment-popup')?.classList.contains('is-open'))later(()=>{const title=document.getElementById('modal-title')?.innerText||'';if(!/Gagal|Error/i.test(title))record('Kasir','Aktifitas transaksi baru')},900)
+  },true);
 }
 function installAutoBackupHook(){const fn=window.triggerDailyAutoBackup;if(typeof fn!=='function'||fn.__rkActivityBackup)return;const w=function(){const r=fn.apply(this,arguments);later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);return r};w.__rkActivityBackup=true;window.triggerDailyAutoBackup=w}
 function refresh(){if(document.getElementById('view-activity')&&!document.getElementById('view-activity').classList.contains('hidden'))window.__rekapinyuRefreshActivities?.()}
