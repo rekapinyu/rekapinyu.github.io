@@ -17,8 +17,7 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         /* Sticky input/filter selalu berada di atas isi saat halaman discroll. */
-        #kasbon-sticky-container,
-        #pengeluaran-sticky-container {
+        #kasbon-sticky-container {
             position: sticky;
             top: 0;
             z-index: 30;
@@ -255,7 +254,6 @@
       }
 
       /* Panel sticky lain tetap memakai bahasa visual referensi. */
-      #pengeluaran-sticky-container > div,
       #kasbon-sticky-container > div,
       #backup-sticky-container > div{
         background:rgba(255,255,255,.97)!important;
@@ -263,7 +261,6 @@
         box-shadow:0 10px 30px rgba(15,23,42,.065)!important;
         border-radius:18px!important;
       }
-      #pengeluaran-sticky-container input,
       #kasbon-sticky-container input,
       #backup-sticky-container input,
       #backup-sticky-container select{
@@ -439,7 +436,6 @@
         #view-input input{
           min-height:46px;
         }
-        #pengeluaran-sticky-container > div,
         #kasbon-sticky-container > div,
         #backup-sticky-container > div{
           border-radius:16px!important;
@@ -738,7 +734,6 @@
   }
 
   /* Filter/sticky di mobile tidak boleh menutupi dock bawah. */
-  #pengeluaran-sticky-container > div,
   #kasbon-sticky-container > div,
   #backup-sticky-container > div{
     max-width:calc(100vw - 24px)!important;
@@ -1357,6 +1352,29 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     </div>
   </div>
 </div>
+<!-- PENGELUARAN STICKY — satu implementasi, langsung di bawah header -->
+<div class="hidden" id="pengeluaran-sticky-container" aria-label="Input Pengeluaran">
+  <div class="rk-pengeluaran-sticky-box">
+    <form class="grid grid-cols-12 gap-2 items-center" id="pengeluaran-form">
+      <div class="col-span-5 relative">
+        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+          <i class="fa-solid fa-receipt"></i>
+        </span>
+        <input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nama" placeholder="Nama Pengeluaran" required="" type="text"/>
+      </div>
+      <div class="col-span-4 relative">
+        <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
+        <input class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nominal" inputmode="numeric" placeholder="Nominal" required="" type="text"/>
+      </div>
+      <div class="col-span-3">
+        <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs" type="submit">
+          <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 
 <!-- KASBON STICKY -->
 <div class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-30" id="kasbon-sticky-container">
@@ -1505,28 +1523,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </section>
 <!-- VIEW NEW: PENGELUARAN -->
 <section class="hidden" id="view-pengeluaran">
-<!-- PENGELUARAN STICKY -->
-<div class="w-full max-w-4xl mx-auto hidden sticky top-0 z-30" id="pengeluaran-sticky-container">
-<div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
-<form class="grid grid-cols-12 gap-2 items-center" id="pengeluaran-form">
-<div class="col-span-5 relative">
-<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
-<i class="fa-solid fa-receipt"></i>
-</span>
-<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nama" placeholder="Nama Pengeluaran" required="" type="text"/>
-</div>
-<div class="col-span-4 relative">
-<span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold text-[10px] md:text-xs">Rp</span>
-<input class="w-full pl-7 md:pl-9 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="pengeluaran-nominal" inputmode="numeric" placeholder="Nominal" required="" type="text"/>
-</div>
-<div class="col-span-3">
-<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-2 md:px-4 rounded-full shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 text-[11px] md:text-xs" type="submit">
-<i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span><span class="sm:hidden">Simpan</span>
-</button>
-</div>
-</form>
-</div>
-</div>
 <div class="grid grid-cols-1 gap-4" id="pengeluaran-grid"></div>
 </section>
 <!-- VIEW NEW: KASBON -->
@@ -6263,54 +6259,44 @@ onAuthStateChanged(auth,async u=>{
   else boot();
 })();
 </script>
-<style id="rekapinyu-pengeluaran-final-implementation">
-/* FINAL: Pengeluaran input/filter and data card are one vertical block. */
-#view-pengeluaran{
-  width:100%!important;
-  margin:0!important;
-  padding:0!important;
-}
-#view-pengeluaran #pengeluaran-sticky-container{
+
+
+
+
+<style id="rekapinyu-pengeluaran-sticky-single">
+/* PENGELUARAN: satu implementasi baru, berada di awal area main tepat di bawah header. */
+#pengeluaran-sticky-container{
   width:100%!important;
   max-width:900px!important;
-  margin:0 auto!important;
+  margin:0 auto 16px!important;
   padding:0!important;
   position:sticky!important;
   top:0!important;
-  z-index:30!important;
+  z-index:5!important;
+  align-self:center!important;
   box-sizing:border-box!important;
 }
-#view-pengeluaran #pengeluaran-sticky-container > div{
+#pengeluaran-sticky-container .rk-pengeluaran-sticky-box{
   width:100%!important;
   max-width:900px!important;
   margin:0!important;
-  box-sizing:border-box!important;
-}
-#view-pengeluaran #pengeluaran-grid{
-  width:100%!important;
-  max-width:900px!important;
-  margin:0 auto!important;
-  padding:0!important;
-  box-sizing:border-box!important;
-}
-#view-pengeluaran #pengeluaran-grid > div{
-  width:100%!important;
-  max-width:900px!important;
-  margin:0 auto!important;
+  padding:12px 16px!important;
+  background:rgba(255,255,255,.97)!important;
+  border:1px solid var(--rk-border)!important;
+  border-radius:18px!important;
+  box-shadow:0 10px 30px rgba(15,23,42,.065)!important;
   box-sizing:border-box!important;
 }
 @media(max-width:767px){
-  #view-pengeluaran #pengeluaran-sticky-container,
-  #view-pengeluaran #pengeluaran-grid{
+  #pengeluaran-sticky-container{
     max-width:calc(100vw - 24px)!important;
   }
-  #view-pengeluaran #pengeluaran-sticky-container > div,
-  #view-pengeluaran #pengeluaran-grid > div{
+  #pengeluaran-sticky-container .rk-pengeluaran-sticky-box{
     max-width:100%!important;
+    padding:10px!important;
   }
 }
 </style>
-
 
 <script id="rekapinyu-activity-filter-single-script">
 (function(){
