@@ -1468,6 +1468,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </section>
 <!-- VIEW SETTING STRUK -->
 <section class="hidden" id="view-activity">
+<div id="activity-sticky-filter-host"></div>
 <div id="activity-history-list"></div>
 <div id="activity-detail-popup" class="activity-detail-popup hidden" aria-hidden="true">
   <div class="activity-detail-backdrop" data-activity-close="1"></div>
@@ -6151,6 +6152,10 @@ onAuthStateChanged(auth,async u=>{
 </script>
 <style id="rekapinyu-activity-style">
 #view-activity #activity-history-list{width:100%}
+#view-activity .activity-sticky-filter{position:sticky;top:0;z-index:30;background:inherit;padding:0 0 10px;margin-bottom:10px}
+#view-activity .activity-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,.08)}
+#view-activity .activity-filter-select{height:34px;min-width:170px;padding:0 10px;border:1px solid #dbe3ea;border-radius:4px;background:#fff;font-size:12px;font-weight:700;outline:none}
+#view-activity .activity-filter-date{height:34px;padding:0 10px;border:1px solid #dbe3ea;border-radius:4px;background:#fff;font-size:12px;font-weight:700;outline:none}
 #view-activity .activity-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;width:100%}
 #view-activity .activity-day-card{min-width:0;min-height:88px;padding:9px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,.08);display:flex;flex-direction:column;justify-content:space-between}
 #view-activity .activity-day-title{font-size:12px;line-height:1.35;font-weight:800;word-break:break-word}
@@ -6174,13 +6179,15 @@ onAuthStateChanged(auth,async u=>{
 #activity-detail-popup .activity-detail-text{font-weight:700;word-break:break-word}
 @media (max-width:1100px){#view-activity .activity-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media (max-width:800px){#view-activity .activity-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}}
-@media (max-width:520px){#view-activity .activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-day-card{min-height:84px}}
+@media (max-width:520px){#view-activity .activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <script id="rekapinyu-activity-script">
 (function(){
 const key=()=>{try{return currentSessionUser&&currentSessionUser.phone?`finance_activity_desktop_${currentSessionUser.phone}`:'finance_activity_guest'}catch(e){return 'finance_activity_guest'}};
 const colorKey=()=>`${key()}_color_index`;
 let activities=[];
+let activityFilter='all';
+let activityDate='';
 const colors=['#16a085','#2563eb','#ea580c'];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function nextColor(){let i=0;try{i=Number(localStorage.getItem(colorKey())||0);if(!Number.isFinite(i)||i<0)i=0}catch(e){}const c=colors[i%colors.length];try{localStorage.setItem(colorKey(),String((i+1)%colors.length))}catch(e){}return c}
@@ -6188,14 +6195,21 @@ function ensureColors(){let changed=false;activities=activities.map((a,i)=>{if(a
 function dateInfo(a){
   const d=new Date(a?.timestamp||a?.dateTime||Date.now());
   if(Number.isNaN(d.getTime())) return {key:String(a?.dateTime||'Tanpa tanggal'),label:String(a?.dateTime||'Tanpa tanggal'),time:''};
-  const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const label=d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
   const time=d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',hour12:false});
-  return {key,label,time};
+  return {key:k,label,time};
+}
+function filteredActivities(){
+  return activities.filter(a=>{
+    const info=dateInfo(a);
+    const menu=String(a?.menu||'').trim();
+    return (activityFilter==='all'||menu===activityFilter) && (!activityDate||info.key===activityDate);
+  });
 }
 function grouped(){
   const map=new Map();
-  activities.forEach(a=>{
+  filteredActivities().forEach(a=>{
     const info=dateInfo(a);
     if(!map.has(info.key))map.set(info.key,{key:info.key,label:info.label,items:[]});
     map.get(info.key).items.push({...a,__time:info.time});
@@ -6205,13 +6219,29 @@ function grouped(){
     return g;
   });
 }
+function renderFilter(){
+  const host=document.getElementById('activity-sticky-filter-host');
+  if(!host)return;
+  const menus=[...new Set(activities.map(a=>String(a?.menu||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id'));
+  host.innerHTML=`<div class="activity-sticky-filter">
+    <div class="activity-filter-bar">
+      <select id="activity-menu-filter" class="activity-filter-select" aria-label="Filter menu aktifitas">
+        <option value="all">Semua Menu</option>
+        ${menus.map(m=>`<option value="${esc(m)}"${activityFilter===m?' selected':''}>${esc(m)}</option>`).join('')}
+      </select>
+      <input id="activity-date-filter" class="activity-filter-date" type="date" value="${esc(activityDate)}" aria-label="Filter tanggal aktifitas">
+      <button type="button" id="activity-reset-filter" class="activity-filter-select" style="min-width:100px;cursor:pointer">Reset</button>
+    </div>
+  </div>`;
+}
 function render(){
   const b=document.getElementById('activity-history-list');
   if(!b)return;
   ensureColors();
+  renderFilter();
   const groups=grouped();
-  if(!groups.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas.</div>';return}
-  b.innerHTML='<div class="activity-grid">'+groups.map((g,i)=>`
+  if(!groups.length){b.innerHTML='<div class="activity-empty">Belum ada history aktifitas untuk filter ini.</div>';return}
+  b.innerHTML='<div class="activity-grid">'+groups.map(g=>`
     <div class="activity-day-card">
       <div>
         <div class="activity-day-title">Aktifitas ${esc(g.label)}</div>
@@ -6244,22 +6274,42 @@ function closeDetail(){
   popup.setAttribute('aria-hidden','true');
 }
 function save(){window.__rekapinyuActivityData=activities.slice();try{localStorage.setItem(key(),JSON.stringify(activities))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}render()}
-function record(menu,activity){if(!menu||!activity||!currentSessionUser)return;const n=new Date();activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity,color:nextColor()});activities=activities.slice(0,300);save()}
+function record(menu,activity){
+  if(!menu||!activity||!currentSessionUser)return;
+  const n=new Date();
+  activities.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),timestamp:n.toISOString(),dateTime:n.toLocaleString('id-ID'),menu,activity,color:nextColor()});
+  activities=activities.slice(0,500);
+  save();
+}
 window.__rekapinyuRecordActivity=record;
-window.__rekapinyuRefreshActivities=function(){try{const x=JSON.parse(localStorage.getItem(key())||'[]');activities=Array.isArray(x)?x:[];window.__rekapinyuActivityData=activities;render()}catch(e){activities=[];render()}};
+window.__rekapinyuRefreshActivities=function(){
+  try{const x=JSON.parse(localStorage.getItem(key())||'[]');activities=Array.isArray(x)?x:[];window.__rekapinyuActivityData=activities;render()}
+  catch(e){activities=[];render()}
+};
 window.__rekapinyuSetActivityData=function(data){activities=Array.isArray(data)?data:[];ensureColors();window.__rekapinyuActivityData=activities;render()};
 function later(fn,ms=500){setTimeout(()=>{try{fn()}catch(e){}},ms)}
 function modalTitle(){return document.getElementById('edit-modal-title')?.innerText||''}
+function recordMenuClick(t){
+  const id=t.id||'', text=(t.innerText||t.title||t.getAttribute('aria-label')||'').trim();
+  const menu=document.querySelector(`#${CSS.escape(id)}`)?.closest('[data-menu]')?.getAttribute('data-menu')||'';
+  if(menu&&text)record(menu,`Akses ${text}`);
+}
 function bind(){
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='activity-menu-filter'){activityFilter=e.target.value||'all';render()}
+    if(e.target?.id==='activity-date-filter'){activityDate=e.target.value||'';render()}
+  },true);
   document.addEventListener('click',e=>{
     const eye=e.target?.closest?.('[data-activity-day]');
     if(eye){openDetail(eye.getAttribute('data-activity-day'));return}
     if(e.target?.closest?.('[data-activity-close]')){closeDetail();return}
-    const t=e.target?.closest?.('button,[role="button"]');
+    if(e.target?.id==='activity-reset-filter'){activityFilter='all';activityDate='';render();return}
+    const t=e.target?.closest?.('button,[role="button"],a');
     if(!t)return;
+
+    // Specific existing actions.
     if(t.id==='pk3-backup') later(()=>record('Produk Kasir','Melakukan Proses backup'),100);
-    if(t.dataset?.action==='delete') later(()=>record('Produk Kasir','Mengapus Produk'));
-    if(t.dataset?.action==='edit') return;
+    if(t.dataset?.action==='delete') later(()=>record('Produk Kasir','Menghapus Produk'),100);
     if(t.id==='history-io-export') later(()=>record('History','Melakukan proses backup di menu History'),100);
     if(t.id==='kasir-save-print-btn') later(()=>{const title=document.getElementById('modal-title')?.innerText||'';if(!/Gagal|Error/i.test(title))record('Kasir','Aktifitas transaksi baru')},900);
     if(t.id==='save-profile-btn') later(()=>{const title=document.getElementById('profile-modal-title')?.innerText||'';if(/Nama Profil/i.test(title))record('Setting','Mengganti nama toko');else if(/Foto Profil/i.test(title))record('Setting','Mengganti foto profi toko');else if(/Kata Sandi/i.test(title))record('Setting','Mengganti pasword toko')},100);
@@ -6270,26 +6320,62 @@ function bind(){
       if(label.includes('hapus'))later(()=>record('Backup Otomatis','Menghapus data di menu Backup Otomatis'),100);
       else if(label.includes('pulihkan'))later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);
     }
+
+    // Generic sidebar activity: every sidebar navigation click is recorded.
+    const sidebarButton=t.closest('#sidebar button,[id^="nav-"]');
+    if(sidebarButton){
+      const sid=sidebarButton.id||'';
+      const names={
+        'nav-input':'Input Data','nav-history':'History','nav-report':'Laporan Bulanan',
+        'nav-backup':'Backup Otomatis','nav-kasbon':'Kasbon','nav-pengeluaran':'Pengeluaran',
+        'nav-settings':'Seting','nav-activity':'Aktifitas','nav-perbaikan':'Perbaikan',
+        'nav-produk-kasir':'Produk Kasir','nav-kasir':'Kasir'
+      };
+      const mn=names[sid]||sidebarButton.querySelector('.sidebar-text')?.textContent?.trim()||'Menu';
+      if(sid!=='nav-activity')later(()=>record(mn,`Membuka Menu ${mn}`),50);
+    }
   },true);
+
+  // Capture successful form submissions across the app, so every sidebar module
+  // can produce realtime activity without altering its original handlers.
   document.addEventListener('submit',e=>{
-    const id=e.target?.id;
-    if(id==='finance-form') later(()=>record('Input Data','Menginput data Harian'));
-    if(id==='kasbon-form') later(()=>record('Kasbon','Menambahkan Kasbon'));
-    if(id==='pk3-form') later(()=>record('Produk Kasir','Menambah Produk'));
-    if(id==='pk3-edit-form') later(()=>record('Produk Kasir','Mengedit Produk'));
+    const id=e.target?.id||'';
+    const map={
+      'finance-form':['Input Data','Menginput Data baru'],
+      'kasbon-form':['Kasbon','Menambahkan Kasbon'],
+      'pengeluaran-form':['Pengeluaran','Menambahkan Pengeluaran'],
+      'pk3-form':['Produk Kasir','Menambah Produk'],
+      'pk3-edit-form':['Produk Kasir','Mengedit Produk']
+    };
+    if(map[id])later(()=>record(map[id][0],map[id][1]));
   },true);
+
   document.addEventListener('change',e=>{
-    if(e.target?.id==='pk3-import-file'&&e.target.files?.length) later(()=>record('Produk Kasir','Melakukan Proses Import'),100);
-    if(e.target?.id==='history-io-file'&&e.target.files?.length) later(()=>record('History','Melakukan import di menu History'),100);
+    if(e.target?.id==='pk3-import-file'&&e.target.files?.length)later(()=>record('Produk Kasir','Melakukan Proses Import'),100);
+    if(e.target?.id==='history-io-file'&&e.target.files?.length)later(()=>record('History','Melakukan import di menu History'),100);
   },true);
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape')closeDetail();
     if(e.key==='Enter'&&document.getElementById('kasir-payment-popup')?.classList.contains('is-open'))later(()=>{const title=document.getElementById('modal-title')?.innerText||'';if(!/Gagal|Error/i.test(title))record('Kasir','Aktifitas transaksi baru')},900)
   },true);
 }
-function installAutoBackupHook(){const fn=window.triggerDailyAutoBackup;if(typeof fn!=='function'||fn.__rkActivityBackup)return;const w=function(){const r=fn.apply(this,arguments);later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);return r};w.__rkActivityBackup=true;window.triggerDailyAutoBackup=w}
-function refresh(){if(document.getElementById('view-activity')&&!document.getElementById('view-activity').classList.contains('hidden'))window.__rekapinyuRefreshActivities?.()}
-document.addEventListener('DOMContentLoaded',()=>{window.__rekapinyuRefreshActivities?.();bind();installAutoBackupHook();setInterval(refresh,1000);setInterval(installAutoBackupHook,1500)});
+function installAutoBackupHook(){
+  const fn=window.triggerDailyAutoBackup;
+  if(typeof fn!=='function'||fn.__rkActivityBackup)return;
+  const w=function(){const r=fn.apply(this,arguments);later(()=>record('Backup Otomatis','Melakukan proses backup di menu Backup Otomatis'),100);return r};
+  w.__rkActivityBackup=true;window.triggerDailyAutoBackup=w
+}
+function refresh(){
+  const v=document.getElementById('view-activity');
+  if(v&&!v.classList.contains('hidden'))window.__rekapinyuRefreshActivities?.()
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const v=document.getElementById('view-activity');
+  if(v&&!document.getElementById('activity-sticky-filter-host')){
+    const h=document.createElement('div');h.id='activity-sticky-filter-host';v.insertBefore(h,v.firstElementChild);
+  }
+  window.__rekapinyuRefreshActivities?.();bind();installAutoBackupHook();setInterval(refresh,1000);setInterval(installAutoBackupHook,1500);
+});
 render();
 })();
 </script>
