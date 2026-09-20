@@ -328,14 +328,6 @@
         box-shadow:0 12px 30px rgba(15,23,42,.075)!important;
       }
 
-      /* History: setiap kotak dipusatkan tanpa mengubah layout menu lain. */
-      #history-grid > div{
-        width:100%;
-        max-width:1100px;
-        margin-left:auto!important;
-        margin-right:auto!important;
-      }
-
       /* Sub-card di dalam laporan/backup/filter. */
       #report-grid [class*="bg-slate-50"],
       #backup-grid [class*="bg-slate-50"],
@@ -735,7 +727,6 @@
   /* Kartu Pengeluaran/Kasbon/History/Laporan/Backup tidak memotong isi. */
   #pengeluaran-grid > div,
   #kasbon-grid > div,
-  #history-grid > div,
   #report-grid > div,
   #backup-grid > div{
     width:100%!important;
@@ -1587,8 +1578,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <section class="hidden laporan-kasir-view" id="view-laporan-kasir">
 <div class="laporan-kasir-grid" id="laporan-kasir-grid"></div>
 </section>
-<section class="hidden space-y-4" id="view-history">
-<div class="grid grid-cols-1 gap-4" id="history-grid"></div>
+<section class="hidden space-y-4 w-full" id="view-history">
+<div class="flex flex-col items-center gap-4 w-full" id="history-grid"></div>
 </section>
 <!-- VIEW 3: LAPORAN BULANAN -->
 <section class="hidden space-y-4" id="view-report">
@@ -3113,11 +3104,9 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 return matchSearch && matchDate && matchMonth && matchYear;
             });
 
-            // History selalu menampilkan hasil input terbaru paling atas.
-            // ID dibuat dari Date.now() saat input disimpan, sehingga menjadi penanda waktu input.
-            filtered.sort((a, b) => {
-                return (Number(b.id) || 0) - (Number(a.id) || 0);
-            });
+            // Satu-satunya aturan urutan History: input terbaru selalu di posisi paling atas.
+            // Data baru disimpan dengan ID Date.now(), sehingga ID terbesar adalah input terbaru.
+            filtered.sort((a, b) => Number(b.id) - Number(a.id));
 
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -3130,7 +3119,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 
             container.innerHTML = filtered.map(item => {
                 return `
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/85 space-y-4 relative">
+                    <div class="w-full max-w-[1100px] bg-white p-6 rounded-2xl shadow-lg border border-slate-200/85 space-y-4 relative">
                         <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">ID: #${item.id.toString().slice(-4)} • Pukul ${item.time}</span>
@@ -3546,14 +3535,32 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
     function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
     })();
     </script>
+<!-- HISTORY LAYOUT: satu implementasi posisi, selalu di tengah area main -->
+<style id="history-layout-single">
+#view-history{
+  width:100%!important;
+  max-width:100%!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+#history-grid{
+  width:100%!important;
+  max-width:100%!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  align-items:center!important;
+}
+#history-grid > div{
+  width:100%!important;
+  max-width:1100px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
+</style>
 <!-- REKAPIN HISTORY FILTER + IMPORT/EXPORT FLOATING -->
 <style id="history-filter-popup-css">
 @media (min-width:768px){
-  #history-grid > div{
-    width:calc(100% - 92px)!important;
-    max-width:calc(100% - 92px)!important;
-    margin-right:92px!important;
-  }
 }
 #history-io-floating{
   position:fixed;
