@@ -328,6 +328,14 @@
         box-shadow:0 12px 30px rgba(15,23,42,.075)!important;
       }
 
+      /* History: setiap kotak dipusatkan tanpa mengubah layout menu lain. */
+      #history-grid > div{
+        width:100%;
+        max-width:1100px;
+        margin-left:auto!important;
+        margin-right:auto!important;
+      }
+
       /* Sub-card di dalam laporan/backup/filter. */
       #report-grid [class*="bg-slate-50"],
       #backup-grid [class*="bg-slate-50"],
@@ -3105,22 +3113,10 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 return matchSearch && matchDate && matchMonth && matchYear;
             });
 
-            // History selalu diurutkan: bulan/tahun terbaru berada paling atas,
-            // bulan sebelumnya di bawahnya. Di dalam bulan yang sama, input terbaru di atas.
+            // History selalu menampilkan hasil input terbaru paling atas.
+            // ID dibuat dari Date.now() saat input disimpan, sehingga menjadi penanda waktu input.
             filtered.sort((a, b) => {
-                const monthNamesSort = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-                const aMonth = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : monthNamesSort.indexOf(a.month);
-                const bMonth = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : monthNamesSort.indexOf(b.month);
-                const aKey = (Number(a.year)||0) * 12 + (aMonth >= 0 ? aMonth : 0);
-                const bKey = (Number(b.year)||0) * 12 + (bMonth >= 0 ? bMonth : 0);
-                if (bKey !== aKey) return bKey - aKey;
-                const aDate = Number(a.date)||0;
-                const bDate = Number(b.date)||0;
-                if (bDate !== aDate) return bDate - aDate;
-                const aTime = String(a.time||'00:00');
-                const bTime = String(b.time||'00:00');
-                if (bTime !== aTime) return bTime.localeCompare(aTime);
-                return (Number(b.id)||0) - (Number(a.id)||0);
+                return (Number(b.id) || 0) - (Number(a.id) || 0);
             });
 
             if (filtered.length === 0) {
