@@ -939,6 +939,9 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #kasir-payment-popup .kasir-receipt-wrap{padding:18px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;min-width:0;min-height:0;background:#f8fafc}
 #kasir-payment-popup .kasir-receipt-label{width:100%;max-width:100%;text-align:center;font-size:11px;font-weight:800;letter-spacing:.04em;margin:0 auto 8px;color:#475569}
 #kasir-payment-popup .kasir-receipt-paper{width:min(100%,88mm);max-width:100%;max-height:72vh;overflow-y:auto;overflow-x:hidden;margin:0 auto;background:#fff;color:#111;padding:10px;font-family:monospace;font-size:10px;line-height:1.35;box-sizing:border-box;border:1px solid #e2e8f0;box-shadow:0 4px 14px rgba(15,23,42,.06)}
+#kasir-payment-popup .kasir-receipt-paper .kasir-receipt-header{text-align:center;font-size:12px;line-height:1.5;width:100%;margin:0 auto;}
+#kasir-payment-popup .kasir-receipt-paper .kasir-receipt-header strong{display:inline-block;font-size:16px;font-weight:900;line-height:1.35;text-align:center;}
+#kasir-payment-popup .kasir-receipt-paper .kasir-receipt-header span{display:inline-block;font-size:12px;font-weight:400;line-height:1.45;text-align:center;}
 @media (max-width:760px){#kasir-payment-popup .kasir-payment-dialog{width:96vw;height:94vh;max-height:94vh}#kasir-payment-popup .kasir-payment-grid{grid-template-columns:1fr;overflow:auto}#kasir-payment-popup .kasir-payment-left{border-right:0;border-bottom:1px solid #cbd5e1;min-height:300px}#kasir-payment-popup .kasir-receipt-paper{width:min(88mm,94vw);max-height:50vh}}
 @media print{body.kasir-printing>*{display:none!important}body.kasir-printing #kasir-print-area{display:block!important}#kasir-print-area{width:58mm!important;margin:0!important;padding:0!important;background:#fff!important;color:#111!important}}
 </style>
@@ -5482,9 +5485,9 @@ onAuthStateChanged(auth,async u=>{
     const separator='--------------------------------\n';
     let out='\x1B\x40';
     out+='\x1B\x61\x01';
-    out+='\x1B\x45\x01'+clean(info.name).toUpperCase()+'\x1B\x45\x00\n';
-    out+=clean(info.address).toLowerCase()+'\n';
-    out+=clean(info.phone).toLowerCase()+'\n';
+    out+='\x1B\x21\x18'+clean(info.name).toUpperCase()+'\x1B\x21\x00\n';
+    out+='\x1B\x21\x10'+clean(info.address).toLowerCase()+'\x1B\x21\x00\n';
+    out+='\x1B\x21\x10'+clean(info.phone).toLowerCase()+'\x1B\x21\x00\n';
     out+='\x1B\x61\x00';
     out+=separator;
     out+=`ID Struk : ${invoiceId}\n`;
@@ -5536,7 +5539,7 @@ onAuthStateChanged(auth,async u=>{
     if(!preview)return;
     const info=getKasirReceiptStoreInfo();
     const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
-    preview.innerHTML=`<div class="r-center"><strong>${esc(info.name).toUpperCase()}</strong><br><span>${esc(info.address).toLowerCase()}</span><br><span>${esc(info.phone).toLowerCase()}</span></div>
+    preview.innerHTML=`<div class="kasir-receipt-header"><strong>${esc(info.name).toUpperCase()}</strong><br><span>${esc(info.address).toLowerCase()}</span><br><span>${esc(info.phone).toLowerCase()}</span></div>
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
       <div>ID Struk : ${esc(invoiceId)}</div>
       <div>${esc(getKasirReceiptDate())}</div>
