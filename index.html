@@ -1269,45 +1269,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
 </button>
 </div>
-<style id="sidebar-reload-stable-single">
-/* SIDEBAR RELOAD STABLE — satu implementasi. Tidak membuat reload berulang/overlay. */
-#sidebar-refresh-btn{
-  position:relative!important;
-  isolation:isolate!important;
-}
-#sidebar-refresh-btn.rk-refresh-busy{
-  pointer-events:none!important;
-  opacity:.72!important;
-}
-</style>
-<script id="sidebar-reload-stable-single">
-(function(){
-  'use strict';
-  const refreshButton=document.getElementById('sidebar-refresh-btn');
-  const staleStateKey='rekapinyu_refresh_loading_state';
-
-  // Bersihkan state implementasi reload lama agar tidak memicu reload berulang saat halaman dibuka kembali.
-  try{ sessionStorage.removeItem(staleStateKey); }catch(e){}
-
-  if(!refreshButton) return;
-
-  refreshButton.addEventListener('click',function(event){
-    event.preventDefault();
-    event.stopPropagation();
-    if(refreshButton.classList.contains('rk-refresh-busy')) return;
-
-    refreshButton.classList.add('rk-refresh-busy');
-    refreshButton.setAttribute('aria-busy','true');
-    refreshButton.disabled=true;
-
-    // Satu kali reload saja. Tidak ada interval, overlay, atau reload berulang.
-    window.setTimeout(function(){
-      try{ sessionStorage.removeItem(staleStateKey); }catch(e){}
-      window.location.reload();
-    },80);
-  },false);
-})();
-</script>
 </aside>
 <!-- Main Content Wrapper -->
 <div class="flex-1 flex flex-col h-screen overflow-hidden">
@@ -6215,51 +6176,6 @@ onAuthStateChanged(auth,async u=>{
   document.addEventListener('DOMContentLoaded',function(){document.getElementById('rw-close')?.addEventListener('click',closePopup);document.getElementById(popupId)?.addEventListener('click',e=>{if(e.target.id===popupId)closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});check();setInterval(check,300)})
 })();
 </script>
-<script id="rekapinyu-reload-state">
-(function(){
-  const VALID=new Set(['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings']);
-  const key=()=>{try{const p=currentSessionUser?.phone;return p?`finance_active_tab_${p}`:'finance_active_tab_guest'}catch(e){return 'finance_active_tab_guest'}};
-  let installed=false,restored=false,originalSwitch=null;
-  function read(){try{const v=localStorage.getItem(key());return VALID.has(v)?v:null}catch(e){return null}}
-  function save(tab){if(restored||!VALID.has(tab))return;try{localStorage.setItem(key(),tab)}catch(e){}}
-  function install(){
-    if(installed)return true;
-    if(typeof window.switchTab!=='function')return false;
-    originalSwitch=window.switchTab;
-    const wrapped=function(tab){save(tab);return originalSwitch.apply(this,arguments)};
-    wrapped.__rekapinyuReloadState=true;
-    window.switchTab=wrapped;
-    installed=true;
-    return true;
-  }
-  function restore(){
-    if(restored||!currentSessionUser||typeof window.switchTab!=='function')return;
-    const tab=read();
-    if(!tab){restored=true;return}
-    restored=true;
-    try{window.switchTab(tab)}catch(e){restored=false}
-  }
-  function boot(){
-    install();
-    if(!currentSessionUser){return}
-    if(!read()){restored=true;return}
-    let tries=0;
-    const wait=()=>{
-      tries++;
-      if(!currentSessionUser){return}
-      if(!installed)install();
-      if(window.RekapinyuFirebase?.ready){requestAnimationFrame(()=>requestAnimationFrame(restore));return}
-      if(tries<120)setTimeout(wait,100);
-    };
-    wait();
-  }
-  function watchInstall(){if(!installed)install();if(installed)clearInterval(timer)}
-  const timer=setInterval(watchInstall,100);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
-  else boot();
-})();
-</script>
-
 <script id="rekapinyu-activity-filter-single-script">
 (function(){
   'use strict';
@@ -6315,5 +6231,22 @@ onAuthStateChanged(auth,async u=>{
   setInterval(()=>{if(!view.classList.contains('hidden'))refreshYears();},1500);
 })();
 </script>
-</input></body>
+</input>
+<!-- RELOAD STABILITY — SATU IMPLEMENTASI: native reload tanpa overlay, interval, wrapper, atau manipulasi sidebar -->
+<script id="rekapinyu-reload-stability-single">
+(function(){
+  'use strict';
+  // Reload halaman menggunakan mekanisme browser asli saja.
+  // Tidak menyimpan/memulihkan tab, tidak membungkus switchTab, dan tidak mengubah DOM sidebar.
+  const btn=document.getElementById('sidebar-refresh-btn');
+  if(!btn || btn.dataset.reloadStabilityBound==='1') return;
+  btn.dataset.reloadStabilityBound='1';
+  btn.addEventListener('click',function(e){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.location.reload();
+  },true);
+})();
+</script>
+</body>
 </html>
