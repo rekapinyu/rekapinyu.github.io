@@ -446,7 +446,9 @@
         }
         #pengeluaran-sticky-container > div,
         #kasbon-sticky-container > div,
-        #backup-sticky-container > div,
+        #backup-sticky-container > div{
+          border-radius:16px!important;
+        }
       }
     </style>
 <style id="patch-logo-header-footer-center">
@@ -744,7 +746,13 @@
   /* Filter/sticky di mobile tidak boleh menutupi dock bawah. */
   #pengeluaran-sticky-container > div,
   #kasbon-sticky-container > div,
-  #backup-sticky-container > div,
+  #backup-sticky-container > div{
+    max-width:calc(100vw - 24px)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    box-sizing:border-box!important;
+    border-radius:14px!important;
+  }
 
   /* Modal mengikuti lebar layar tanpa horizontal overflow. */
   #custom-modal > div,
@@ -1355,9 +1363,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </select>
 </div>
 </div>
-</div>
-</div>
-
 </div>
 </div>
 <div class="max-w-4xl mx-auto w-full my-auto">
@@ -3706,6 +3711,203 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
     function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
     })();
     </script>
+<!-- REKAPIN HISTORY FILTER + IMPORT/EXPORT FLOATING -->
+<style id="history-filter-popup-css">
+@media (min-width:768px){
+  #history-grid > div{
+    width:calc(100% - 92px)!important;
+    max-width:calc(100% - 92px)!important;
+    margin-right:92px!important;
+  }
+}
+#history-io-floating{
+  position:fixed;
+  right:18px;
+  bottom:78px;
+  z-index:45;
+  display:none;
+  flex-direction:column;
+  gap:10px;
+  align-items:center;
+}
+#history-io-floating.history-io-visible{display:flex!important}
+#history-io-floating.history-io-hidden{display:none!important}
+#history-io-floating button{
+  width:54px;
+  height:54px;
+  flex:0 0 54px;
+  border-radius:9999px;
+  border:1px solid #e2e8f0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 8px 20px rgba(15,23,42,.18);
+  cursor:pointer;
+  transition:transform .18s,box-shadow .18s;
+}
+#history-io-floating button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 24px rgba(15,23,42,.22);
+}
+#history-filter-button{
+  background:#f0fdf4;
+  color:#16a34a;
+  border-color:#bbf7d0!important;
+}
+#history-io-import{
+  background:#eff6ff;
+  color:#2563eb;
+  border-color:#bfdbfe;
+}
+#history-io-export{
+  background:#fff;
+  color:#0d235a;
+}
+#history-filter-popup{
+  position:fixed;
+  right:18px;
+  bottom:266px;
+  z-index:46;
+  width:min(330px,calc(100vw - 36px));
+  padding:14px;
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  box-shadow:0 18px 45px rgba(15,23,42,.20);
+  display:none;
+}
+#history-filter-popup.is-open{display:block}
+#history-filter-popup .history-filter-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+#history-filter-popup .history-filter-title strong{
+  color:#334155;
+  font-size:12px;
+  font-weight:800;
+}
+#history-filter-popup .history-filter-close{
+  width:28px;
+  height:28px;
+  border:0;
+  border-radius:9999px;
+  background:#f1f5f9;
+  color:#64748b;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+#history-filter-popup .history-filter-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+#history-filter-popup input,
+#history-filter-popup select{
+  width:100%;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:9px 11px;
+  color:#334155;
+  font-size:11px;
+  font-weight:600;
+  outline:none;
+}
+#history-filter-popup input:focus,
+#history-filter-popup select:focus{
+  border-color:#10b981;
+  box-shadow:0 0 0 3px rgba(16,185,129,.10);
+}
+#history-filter-popup .history-filter-reset{
+  width:100%;
+  margin-top:8px;
+  padding:9px 11px;
+  border:0;
+  border-radius:12px;
+  background:#f1f5f9;
+  color:#475569;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+@media (max-width:767px){
+  #history-io-floating{right:14px;bottom:76px}
+  #history-io-floating button{width:50px;height:50px;flex-basis:50px}
+  #history-filter-popup{
+    right:14px;
+    bottom:256px;
+    width:min(320px,calc(100vw - 28px));
+  }
+}
+</style>
+<div aria-label="Filter, Import dan Backup History" id="history-io-floating">
+  <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
+  <button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
+  <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
+</div>
+<div aria-hidden="true" id="history-filter-popup">
+  <div class="history-filter-title">
+    <strong><i class="fa-solid fa-filter mr-1 text-emerald-600"></i> Filter History</strong>
+    <button aria-label="Tutup Filter History" class="history-filter-close" id="history-filter-close" type="button"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="history-filter-grid">
+    <input id="history-filter-search" oninput="renderHistory()" placeholder="Cari History..." type="text">
+    <select id="history-filter-date" onchange="renderHistory()"><option value="">Semua Tgl</option></select>
+    <select id="history-filter-month" onchange="renderHistory()"><option value="">Semua Bln</option></select>
+    <select id="history-filter-year" onchange="renderHistory()"><option value="">Semua Thn</option></select>
+  </div>
+  <button class="history-filter-reset" id="history-filter-reset" type="button"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter</button>
+</div>
+<input accept=".json,application/json" hidden="" id="history-io-file" type="file"/>
+<script>
+(function(){
+  'use strict';
+
+  let xlsxLoading=null;
+
+  function ensureXLSX(){
+    if(typeof window.XLSX!=='undefined') return Promise.resolve(window.XLSX);
+    if(xlsxLoading) return xlsxLoading;
+    const urls=[
+      'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
+      'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+      'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+    ];
+    xlsxLoading=new Promise((resolve,reject)=>{
+      let i=0;
+      const load=()=>{
+        if(typeof window.XLSX!=='undefined'){resolve(window.XLSX);return}
+        if(i>=urls.length){reject(new Error('Library Excel tidak dapat dimuat. Pastikan koneksi internet aktif.'));return}
+        const sc=document.createElement('script');
+        sc.src=urls[i++];
+        sc.async=true;
+        sc.onload=()=>typeof window.XLSX!=='undefined'?resolve(window.XLSX):load();
+        sc.onerror=load;
+        document.head.appendChild(sc);
+      };
+      load();
+    }).catch(err=>{xlsxLoading=null;throw err});
+    return xlsxLoading;
+  }
+
+  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history');if(!panel||!history)return;panel.style.display=history.classList.contains('hidden')?'none':'flex'}
+  function initHistoryIO(){
+    updateFloating();
+    if(typeof window.switchTab==='function'&&!window.switchTab.__historyIOWrapped){
+      const originalSwitch=window.switchTab;
+      function sw(tab){const r=originalSwitch.apply(this,arguments);setTimeout(updateFloating,0);return r}
+      sw.__historyIOWrapped=true;window.switchTab=sw;
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initHistoryIO);else initHistoryIO();
+  setInterval(()=>{init();updateFloating()},700);
+})();
+</script>
 <script>
 (function(){
     const originalLoadUserData = window.loadUserData;
@@ -4515,185 +4717,10 @@ onAuthStateChanged(auth,async u=>{
 })();
 </script>
 <!-- PATCH FINAL: filter Kasbon dan Import/Export History berbentuk tombol bulat. -->
-<style id="history-filter-popup-css">
-/* HISTORY: panel data diberi ruang agar tidak menimpa tombol floating di kanan. */
-@media (min-width:768px){
-    #history-grid > div{
-        width:calc(100% - 92px)!important;
-        max-width:calc(100% - 92px)!important;
-        margin-right:92px!important;
-    }
-}
-
-/* HISTORY: satu tombol filter bulat di atas tombol Import. */
-#history-io-floating{
-    position:fixed;
-    right:18px;
-    bottom:78px;
-    z-index:45;
-    display:none;
-    flex-direction:column;
-    gap:10px;
-    align-items:center;
-}
-#history-io-floating.history-io-visible{display:flex!important}
-#history-io-floating.history-io-hidden{display:none!important}
-#history-io-floating button{
-    width:54px;
-    height:54px;
-    flex:0 0 54px;
-    border-radius:9999px;
-    border:1px solid #e2e8f0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    box-shadow:0 8px 20px rgba(15,23,42,.18);
-    cursor:pointer;
-    transition:transform .18s,box-shadow .18s;
-}
-#history-io-floating button:hover{
-    transform:translateY(-1px);
-    box-shadow:0 10px 24px rgba(15,23,42,.22);
-}
-#history-filter-button{
-    background:#f0fdf4;
-    color:#16a34a;
-    border-color:#bbf7d0!important;
-}
-#history-io-import{
-    background:#eff6ff;
-    color:#2563eb;
-    border-color:#bfdbfe;
-}
-#history-io-export{
-    background:#fff;
-    color:#0d235a;
-}
-#history-filter-popup{
-    position:fixed;
-    right:18px;
-    bottom:266px;
-    z-index:46;
-    width:min(330px,calc(100vw - 36px));
-    padding:14px;
-    background:#fff;
-    border:1px solid #e2e8f0;
-    border-radius:18px;
-    box-shadow:0 18px 45px rgba(15,23,42,.20);
-    display:none;
-}
-#history-filter-popup.is-open{display:block}
-#history-filter-popup .history-filter-title{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:10px;
-}
-#history-filter-popup .history-filter-title strong{
-    color:#334155;
-    font-size:12px;
-    font-weight:800;
-}
-#history-filter-popup .history-filter-close{
-    width:28px;
-    height:28px;
-    border:0;
-    border-radius:9999px;
-    background:#f1f5f9;
-    color:#64748b;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-}
-#history-filter-popup .history-filter-grid{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:8px;
-}
-#history-filter-popup input,
-#history-filter-popup select{
-    width:100%;
-    background:#f8fafc;
-    border:1px solid #e2e8f0;
-    border-radius:12px;
-    padding:9px 11px;
-    color:#334155;
-    font-size:11px;
-    font-weight:600;
-    outline:none;
-}
-#history-filter-popup input:focus,
-#history-filter-popup select:focus{
-    border-color:#10b981;
-    box-shadow:0 0 0 3px rgba(16,185,129,.10);
-}
-#history-filter-popup .history-filter-reset{
-    width:100%;
-    margin-top:8px;
-    padding:9px 11px;
-    border:0;
-    border-radius:12px;
-    background:#f1f5f9;
-    color:#475569;
-    font-size:11px;
-    font-weight:800;
-    cursor:pointer;
-}
-#history-filter-popup .history-filter-reset:hover{background:#e2e8f0}
-@media (max-width:767px){
-    #history-io-floating{
-        right:14px;
-        bottom:76px;
-    }
-    #history-io-floating button{
-        width:50px;
-        height:50px;
-        flex-basis:50px;
-    }
-    #history-filter-popup{
-        right:14px;
-        bottom:256px;
-        width:min(320px,calc(100vw - 28px));
-    }
-}
-</style>
-<div aria-label="Filter, Import dan Backup History" id="history-io-floating">
-    <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button">
-        <i class="fa-solid fa-filter"></i>
-    </button>
-    <button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button">
-        <i class="fa-solid fa-file-import"></i>
-    </button>
-    <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button">
-        <i class="fa-solid fa-database"></i>
-    </button>
-</div>
-<div aria-hidden="true" id="history-filter-popup">
-    <div class="history-filter-title">
-        <strong><i class="fa-solid fa-filter mr-1 text-emerald-600"></i> Filter History</strong>
-        <button aria-label="Tutup Filter History" class="history-filter-close" id="history-filter-close" type="button">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-    </div>
-    <div class="history-filter-grid">
-        <input id="history-filter-search" oninput="renderHistory()" placeholder="Cari History..." type="text">
-        <select id="history-filter-date" onchange="renderHistory()">
-            <option value="">Semua Tgl</option>
-        </select>
-        <select id="history-filter-month" onchange="renderHistory()">
-            <option value="">Semua Bln</option>
-        </select>
-        <select id="history-filter-year" onchange="renderHistory()">
-            <option value="">Semua Thn</option>
-        </select>
-    </div>
-    <button class="history-filter-reset" id="history-filter-reset" type="button">
-        <i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter
-    </button>
-</div>
-<input accept=".json,application/json" hidden="" id="history-io-file" type="file"/>
+<style>
+    #history-io-export { order: 1 !important; }
+    #history-io-floating.history-io-visible { display: flex !important; }
+    #history-io-floating.history-io-hidden { display: none !important; }
     #rekapinyu-kasbon-filter-wrap {
         position: fixed;
         right: 18px;
@@ -4970,9 +4997,7 @@ onAuthStateChanged(auth,async u=>{
             popup.setAttribute('aria-hidden', open ? 'false' : 'true');
             button.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
-
         close?.addEventListener('click', closeHistoryFilter);
-
         reset?.addEventListener('click', () => {
             ['history-filter-search','history-filter-date','history-filter-month','history-filter-year'].forEach(id => {
                 const el = document.getElementById(id);
@@ -4980,7 +5005,6 @@ onAuthStateChanged(auth,async u=>{
             });
             renderHistory();
         });
-
         popup.addEventListener('click', event => event.stopPropagation());
         document.addEventListener('click', event => {
             if (!event.target.closest('#history-filter-popup') && !event.target.closest('#history-filter-button')) {
