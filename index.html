@@ -258,8 +258,7 @@
       #sticky-filter-container > div,
       #pengeluaran-sticky-container > div,
       #kasbon-sticky-container > div,
-      #backup-sticky-container > div,
-      #history-sticky-container > div{
+      #backup-sticky-container > div{
         background:rgba(255,255,255,.97)!important;
         border:1px solid var(--rk-border)!important;
         box-shadow:0 10px 30px rgba(15,23,42,.065)!important;
@@ -270,9 +269,7 @@
       #pengeluaran-sticky-container input,
       #kasbon-sticky-container input,
       #backup-sticky-container input,
-      #backup-sticky-container select,
-      #history-sticky-container input,
-      #history-sticky-container select{
+      #backup-sticky-container select{
         background:#f7f9fb!important;
         border-color:#e3e8ee!important;
         border-radius:12px!important;
@@ -450,20 +447,7 @@
         #pengeluaran-sticky-container > div,
         #kasbon-sticky-container > div,
         #backup-sticky-container > div,
-        #history-sticky-container > div{
-          border-radius:16px!important;
-        }
       }
-    </style>
-<!-- PATCH HISTORY STICKY: pindahkan filter History ke posisi atas seperti Kasbon. Hanya CSS, tanpa mengubah fungsi/logika. -->
-<style>
-        @media (min-width: 768px) {
-            body:has(#view-history:not(.hidden)) #sticky-filter-container {
-                top: 4rem !important;
-                bottom: auto !important;
-                z-index: 30 !important;
-            }
-        }
     </style>
 <style id="patch-logo-header-footer-center">
   @media (min-width:768px){
@@ -761,13 +745,6 @@
   #pengeluaran-sticky-container > div,
   #kasbon-sticky-container > div,
   #backup-sticky-container > div,
-  #history-sticky-container > div{
-    max-width:calc(100vw - 24px)!important;
-    margin-left:auto!important;
-    margin-right:auto!important;
-    box-sizing:border-box!important;
-    border-radius:14px!important;
-  }
 
   /* Modal mengikuti lebar layar tanpa horizontal overflow. */
   #custom-modal > div,
@@ -1380,32 +1357,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 </div>
 </div>
-<!-- HISTORY STICKY FILTER MOBILE -->
-<div class="w-full max-w-4xl mx-auto hidden md:hidden mb-6 sticky top-0 z-30" id="history-sticky-container">
-<div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
-<div class="grid grid-cols-12 gap-2 items-center">
-<div class="col-span-4 relative">
-<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
-<i class="fa-solid fa-magnifying-glass"></i>
-</span>
-<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-history-mobile-search" oninput="renderHistory()" placeholder="Search" type="text"/>
-</div>
-<div class="col-span-2">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-history-mobile-date" onchange="renderHistory()">
-<option value="">Tgl</option>
-</select>
-</div>
-<div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-history-mobile-month" onchange="renderHistory()">
-<option value="">Bulan</option>
-</select>
-</div>
-<div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-history-mobile-year" onchange="renderHistory()">
-<option value="">Tahun</option>
-</select>
-</div>
-</div>
+
 </div>
 </div>
 <div class="max-w-4xl mx-auto w-full my-auto">
@@ -2370,7 +2322,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
             const kasbonStickyContainer = document.getElementById('kasbon-sticky-container');
             const backupStickyContainer = document.getElementById('backup-sticky-container');
-            const historyStickyContainer = document.getElementById('history-sticky-container');
             const produkKasirDataTools = document.getElementById('pk3-data-tools');
 
             views.forEach(v => {
@@ -2439,7 +2390,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             if (kasbonStickyContainer) kasbonStickyContainer.classList.add('hidden');
             if (produkKasirDataTools) produkKasirDataTools.classList.add('hidden');
             if (backupStickyContainer) backupStickyContainer.classList.add('hidden');
-            if (historyStickyContainer) historyStickyContainer.classList.add('hidden');
             // Kasir tidak menggunakan sticky filter umum.
             if (stickyFilterContainer && tab === 'kasir') {
                 stickyFilterContainer.classList.add('hidden');
@@ -2463,9 +2413,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 if (kasbonStickyContainer) kasbonStickyContainer.classList.remove('hidden');
             } else if (tab === 'backup') {
                 if (backupStickyContainer) backupStickyContainer.classList.remove('hidden');
-            } else if (tab === 'history' && window.matchMedia('(max-width:767px)').matches) {
-                if (historyStickyContainer) historyStickyContainer.classList.remove('hidden');
-            }
 
             if (tab === 'input' || tab === 'backup' || tab === 'laporan-kasir' || tab === 'settings') {
                 stickyFilterContainer.classList.add('hidden');
@@ -2497,7 +2444,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                         stickyFilterContainer.classList.remove('hidden');
                     }
                 } else if (tab === 'history') {
-                    renderStickyFilterHistory();
                     populateHistoryFilters();
                     renderHistory();
                 } else if (tab === 'report') {
@@ -2684,29 +2630,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 </div>
                 <div>
                     <input type="text" id="filter-kasbon-nama" oninput="renderKasbonGrid()" placeholder="Cari Nama Pelanggan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                </div>
-            `;
-        }
-
-        function renderStickyFilterHistory() {
-            const wrapper = document.getElementById('filter-inputs-wrapper');
-            if (window.matchMedia('(max-width:767px)').matches) return;
-            wrapper.className = "flex-1 grid grid-cols-3 gap-1.5 min-w-[260px]";
-            wrapper.innerHTML = `
-                <div>
-                    <select id="filter-history-date" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Tgl</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-history-month" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Bln</option>
-                    </select>
-                </div>
-                <div>
-                    <select id="filter-history-year" onchange="renderHistory()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700">
-                        <option value="">Semua Thn</option>
-                    </select>
                 </div>
             `;
         }
@@ -3263,10 +3186,9 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
         });
 
         function populateHistoryFilters() {
-            const mobile = window.matchMedia('(max-width:767px)').matches;
-            const dateSelect = document.getElementById(mobile ? 'filter-history-mobile-date' : 'filter-history-date');
-            const monthSelect = document.getElementById(mobile ? 'filter-history-mobile-month' : 'filter-history-month');
-            const yearSelect = document.getElementById(mobile ? 'filter-history-mobile-year' : 'filter-history-year');
+            const dateSelect = document.getElementById('history-filter-date');
+            const monthSelect = document.getElementById('history-filter-month');
+            const yearSelect = document.getElementById('history-filter-year');
             
             if(!dateSelect || !monthSelect || !yearSelect) return;
 
@@ -3305,11 +3227,10 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             const container = document.getElementById('history-grid');
             if (!container) return;
 
-            const mobile = window.matchMedia('(max-width:767px)').matches;
-            const searchEl = document.getElementById(mobile ? 'filter-history-mobile-search' : 'filter-history-search');
-            const fDateEl = document.getElementById(mobile ? 'filter-history-mobile-date' : 'filter-history-date');
-            const fMonthEl = document.getElementById(mobile ? 'filter-history-mobile-month' : 'filter-history-month');
-            const fYearEl = document.getElementById(mobile ? 'filter-history-mobile-year' : 'filter-history-year');
+            const searchEl = document.getElementById('history-filter-search');
+            const fDateEl = document.getElementById('history-filter-date');
+            const fMonthEl = document.getElementById('history-filter-month');
+            const fYearEl = document.getElementById('history-filter-year');
 
             const fSearch = searchEl ? searchEl.value.trim().toLowerCase() : "";
             const fDate = fDateEl ? fDateEl.value : "";
@@ -3738,7 +3659,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
       .mobile-admin-card-icon{width:27px;height:27px;margin:0 auto 5px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px}
       .mobile-admin-card-label{font-size:8.5px;line-height:1.2;font-weight:700;min-height:20px;display:flex;align-items:center;justify-content:center}
       .mobile-admin-card-value{font-size:10px;line-height:1.2;font-weight:900;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      #history-io-filter-mobile{display:none!important}
       #history-io-floating{display:none!important}
     }
     @media (max-width:370px){.mobile-home-grid{gap:8px}.mobile-home-card{min-height:116px;border-radius:17px;padding-left:5px;padding-right:5px}.mobile-home-card-content>span{font-size:10.5px}.mobile-home-icon{width:37px;height:37px;font-size:16px}.mobile-home-watermark{font-size:62px}}
@@ -3780,74 +3700,12 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
       window.renderMobileAdminSummary=renderMobileAdminSummary;
       const originalSwitchTab=window.switchTab;
       function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-    function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','history-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
+    function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container','sticky-filter-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
       window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
     document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
     function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
     })();
     </script>
-<!-- REKAPIN HISTORY IMPORT EXPORT FLOATING -->
-<style>
-#history-io-floating{position:fixed;right:18px;bottom:82px;z-index:45;display:none;flex-direction:column;gap:10px;align-items:center}
-#history-io-floating button{width:54px;height:54px;border-radius:9999px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(15,23,42,.18);cursor:pointer;transition:transform .18s,box-shadow .18s}
-#history-io-floating button:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.22)}
-#history-io-import{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
-#history-io-export{background:#fff;color:#0d235a}
-@media (max-width:767px){#history-io-floating{right:14px;bottom:76px}#history-io-floating button{width:50px;height:50px}#history-io-filter-mobile{display:none!important}}
-@media (max-width:767px){#sticky-filter-container{display:none!important;bottom:120px!important;z-index:35!important}.mobile-history-filter-open{display:block!important}}
-@media (min-width:768px){#history-io-filter-mobile{display:none!important}}
-</style>
-<div aria-label="Backup History ke Excel" id="history-io-floating">
-<button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
-<button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
-</div>
-<input accept=".json,application/json" hidden="" id="history-io-file" type="file"/>
-<script>
-(function(){
-  'use strict';
-
-  let xlsxLoading=null;
-
-  function ensureXLSX(){
-    if(typeof window.XLSX!=='undefined') return Promise.resolve(window.XLSX);
-    if(xlsxLoading) return xlsxLoading;
-    const urls=[
-      'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
-      'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-      'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
-    ];
-    xlsxLoading=new Promise((resolve,reject)=>{
-      let i=0;
-      const load=()=>{
-        if(typeof window.XLSX!=='undefined'){resolve(window.XLSX);return}
-        if(i>=urls.length){reject(new Error('Library Excel tidak dapat dimuat. Pastikan koneksi internet aktif.'));return}
-        const sc=document.createElement('script');
-        sc.src=urls[i++];
-        sc.async=true;
-        sc.onload=()=>typeof window.XLSX!=='undefined'?resolve(window.XLSX):load();
-        sc.onerror=load;
-        document.head.appendChild(sc);
-      };
-      load();
-    }).catch(err=>{xlsxLoading=null;throw err});
-    return xlsxLoading;
-  }
-
-  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history');if(!panel||!history)return;panel.style.display=history.classList.contains('hidden')?'none':'flex'}
-  function initHistoryIO(){
-    const filterBtn=document.getElementById('history-io-filter-mobile');
-    if(filterBtn&&!filterBtn.__bound){filterBtn.__bound=true;filterBtn.addEventListener('click',()=>{const filter=document.getElementById('sticky-filter-container');if(!filter)return;const isOpen=filter.classList.toggle('mobile-history-filter-open');filter.style.display=isOpen?'block':'none';filterBtn.classList.toggle('active',isOpen)});}
-    updateFloating();
-    if(typeof window.switchTab==='function'&&!window.switchTab.__historyIOWrapped){
-      const originalSwitch=window.switchTab;
-      function sw(tab){const r=originalSwitch.apply(this,arguments);setTimeout(updateFloating,0);return r}
-      sw.__historyIOWrapped=true;window.switchTab=sw;
-    }
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initHistoryIO);else initHistoryIO();
-  setInterval(()=>{init();updateFloating()},700);
-})();
-</script>
 <script>
 (function(){
     const originalLoadUserData = window.loadUserData;
@@ -4657,10 +4515,185 @@ onAuthStateChanged(auth,async u=>{
 })();
 </script>
 <!-- PATCH FINAL: filter Kasbon dan Import/Export History berbentuk tombol bulat. -->
-<style>
-    #history-io-export { order: 1 !important; }
-    #history-io-floating.history-io-visible { display: flex !important; }
-    #history-io-floating.history-io-hidden { display: none !important; }
+<style id="history-filter-popup-css">
+/* HISTORY: panel data diberi ruang agar tidak menimpa tombol floating di kanan. */
+@media (min-width:768px){
+    #history-grid > div{
+        width:calc(100% - 92px)!important;
+        max-width:calc(100% - 92px)!important;
+        margin-right:92px!important;
+    }
+}
+
+/* HISTORY: satu tombol filter bulat di atas tombol Import. */
+#history-io-floating{
+    position:fixed;
+    right:18px;
+    bottom:78px;
+    z-index:45;
+    display:none;
+    flex-direction:column;
+    gap:10px;
+    align-items:center;
+}
+#history-io-floating.history-io-visible{display:flex!important}
+#history-io-floating.history-io-hidden{display:none!important}
+#history-io-floating button{
+    width:54px;
+    height:54px;
+    flex:0 0 54px;
+    border-radius:9999px;
+    border:1px solid #e2e8f0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 8px 20px rgba(15,23,42,.18);
+    cursor:pointer;
+    transition:transform .18s,box-shadow .18s;
+}
+#history-io-floating button:hover{
+    transform:translateY(-1px);
+    box-shadow:0 10px 24px rgba(15,23,42,.22);
+}
+#history-filter-button{
+    background:#f0fdf4;
+    color:#16a34a;
+    border-color:#bbf7d0!important;
+}
+#history-io-import{
+    background:#eff6ff;
+    color:#2563eb;
+    border-color:#bfdbfe;
+}
+#history-io-export{
+    background:#fff;
+    color:#0d235a;
+}
+#history-filter-popup{
+    position:fixed;
+    right:18px;
+    bottom:266px;
+    z-index:46;
+    width:min(330px,calc(100vw - 36px));
+    padding:14px;
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    box-shadow:0 18px 45px rgba(15,23,42,.20);
+    display:none;
+}
+#history-filter-popup.is-open{display:block}
+#history-filter-popup .history-filter-title{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+}
+#history-filter-popup .history-filter-title strong{
+    color:#334155;
+    font-size:12px;
+    font-weight:800;
+}
+#history-filter-popup .history-filter-close{
+    width:28px;
+    height:28px;
+    border:0;
+    border-radius:9999px;
+    background:#f1f5f9;
+    color:#64748b;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+}
+#history-filter-popup .history-filter-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+}
+#history-filter-popup input,
+#history-filter-popup select{
+    width:100%;
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    padding:9px 11px;
+    color:#334155;
+    font-size:11px;
+    font-weight:600;
+    outline:none;
+}
+#history-filter-popup input:focus,
+#history-filter-popup select:focus{
+    border-color:#10b981;
+    box-shadow:0 0 0 3px rgba(16,185,129,.10);
+}
+#history-filter-popup .history-filter-reset{
+    width:100%;
+    margin-top:8px;
+    padding:9px 11px;
+    border:0;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#475569;
+    font-size:11px;
+    font-weight:800;
+    cursor:pointer;
+}
+#history-filter-popup .history-filter-reset:hover{background:#e2e8f0}
+@media (max-width:767px){
+    #history-io-floating{
+        right:14px;
+        bottom:76px;
+    }
+    #history-io-floating button{
+        width:50px;
+        height:50px;
+        flex-basis:50px;
+    }
+    #history-filter-popup{
+        right:14px;
+        bottom:256px;
+        width:min(320px,calc(100vw - 28px));
+    }
+}
+</style>
+<div aria-label="Filter, Import dan Backup History" id="history-io-floating">
+    <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button">
+        <i class="fa-solid fa-filter"></i>
+    </button>
+    <button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button">
+        <i class="fa-solid fa-file-import"></i>
+    </button>
+    <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button">
+        <i class="fa-solid fa-database"></i>
+    </button>
+</div>
+<div aria-hidden="true" id="history-filter-popup">
+    <div class="history-filter-title">
+        <strong><i class="fa-solid fa-filter mr-1 text-emerald-600"></i> Filter History</strong>
+        <button aria-label="Tutup Filter History" class="history-filter-close" id="history-filter-close" type="button">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    <div class="history-filter-grid">
+        <input id="history-filter-search" oninput="renderHistory()" placeholder="Cari History..." type="text">
+        <select id="history-filter-date" onchange="renderHistory()">
+            <option value="">Semua Tgl</option>
+        </select>
+        <select id="history-filter-month" onchange="renderHistory()">
+            <option value="">Semua Bln</option>
+        </select>
+        <select id="history-filter-year" onchange="renderHistory()">
+            <option value="">Semua Thn</option>
+        </select>
+    </div>
+    <button class="history-filter-reset" id="history-filter-reset" type="button">
+        <i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter
+    </button>
+</div>
+<input accept=".json,application/json" hidden="" id="history-io-file" type="file"/>
     #rekapinyu-kasbon-filter-wrap {
         position: fixed;
         right: 18px;
@@ -4873,6 +4906,7 @@ onAuthStateChanged(auth,async u=>{
     }
 
     function bindHistoryIo() {
+        bindHistoryFilter();
         const importButton = document.getElementById('history-io-import');
         const fileInput = document.getElementById('history-io-file');
         const exportButton = document.getElementById('history-io-export');
@@ -4908,6 +4942,51 @@ onAuthStateChanged(auth,async u=>{
         const visible = !view.classList.contains('hidden');
         panel.classList.toggle('history-io-visible', visible);
         panel.classList.toggle('history-io-hidden', !visible);
+        if (!visible) closeHistoryFilter();
+    }
+
+    function closeHistoryFilter() {
+        const popup = document.getElementById('history-filter-popup');
+        const button = document.getElementById('history-filter-button');
+        if (!popup) return;
+        popup.classList.remove('is-open');
+        popup.setAttribute('aria-hidden','true');
+        if (button) button.setAttribute('aria-expanded','false');
+    }
+
+    function bindHistoryFilter() {
+        const button = document.getElementById('history-filter-button');
+        const popup = document.getElementById('history-filter-popup');
+        const close = document.getElementById('history-filter-close');
+        const reset = document.getElementById('history-filter-reset');
+        if (!button || !popup || button.dataset.bound) return;
+        button.dataset.bound = '1';
+        button.setAttribute('aria-expanded','false');
+
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const open = !popup.classList.contains('is-open');
+            popup.classList.toggle('is-open', open);
+            popup.setAttribute('aria-hidden', open ? 'false' : 'true');
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+
+        close?.addEventListener('click', closeHistoryFilter);
+
+        reset?.addEventListener('click', () => {
+            ['history-filter-search','history-filter-date','history-filter-month','history-filter-year'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            renderHistory();
+        });
+
+        popup.addEventListener('click', event => event.stopPropagation());
+        document.addEventListener('click', event => {
+            if (!event.target.closest('#history-filter-popup') && !event.target.closest('#history-filter-button')) {
+                closeHistoryFilter();
+            }
+        });
     }
 
     function bindKasbonFilter() {
