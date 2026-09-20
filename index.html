@@ -5330,8 +5330,11 @@ onAuthStateChanged(auth,async u=>{
 
   const kasirBluetoothServiceUUIDs=[
     '0000ffe0-0000-1000-8000-00805f9b34fb',
+    '0000ffe5-0000-1000-8000-00805f9b34fb',
+    '0000fff0-0000-1000-8000-00805f9b34fb',
     '000018f0-0000-1000-8000-00805f9b34fb',
     '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+    '49535343-8841-43f4-a8d4-ecbe34729bb3',
     '0000ae30-0000-1000-8000-00805f9b34fb'
   ];
 
@@ -5362,21 +5365,20 @@ onAuthStateChanged(auth,async u=>{
 
   async function findKasirBluetoothWriteCharacteristic(device){
     const services=[];
+    try{
+      const all=await device.gatt.getPrimaryServices();
+      all.forEach(service=>{if(!services.some(x=>x.uuid===service.uuid))services.push(service)});
+    }catch(e){}
     for(const uuid of kasirBluetoothServiceUUIDs){
-      try{const service=await device.gatt.getPrimaryService(uuid);services.push(service)}catch(e){}
+      try{
+        const service=await device.gatt.getPrimaryService(uuid);
+        if(!services.some(x=>x.uuid===service.uuid))services.push(service);
+      }catch(e){}
     }
     for(const service of services){
       try{
         const chars=await service.getCharacteristics();
         const writable=chars.find(c=>c.properties?.writeWithoutResponse||c.properties?.write);
-        if(writable)return writable;
-      }catch(e){}
-    }
-    // Some printers expose a writable characteristic under another service.
-    for(const service of services){
-      try{
-        const chars=await service.getCharacteristics();
-        const writable=chars.find(c=>c.properties?.write||c.properties?.writeWithoutResponse);
         if(writable)return writable;
       }catch(e){}
     }
@@ -5397,7 +5399,7 @@ onAuthStateChanged(auth,async u=>{
       kasirBluetoothDevice=device;
       device.addEventListener('gattserverdisconnected',()=>{
         kasirBluetoothCharacteristic=null;
-        setKasirBluetoothStatus(false,'Printer Bluetooth terputus');
+        setKasirBluetoothStatus(false,'Koneksi Bluetooth terputus');
       });
       const server=await device.gatt.connect();
       const characteristic=await findKasirBluetoothWriteCharacteristic(server);
@@ -5409,8 +5411,8 @@ onAuthStateChanged(auth,async u=>{
       kasirBluetoothCharacteristic=null;
       if(kasirBluetoothDevice?.gatt?.connected){try{kasirBluetoothDevice.gatt.disconnect()}catch(e){}}
       kasirBluetoothDevice=null;
-      if(err?.name==='NotFoundError')setKasirBluetoothStatus(false,'Pencarian printer dibatalkan');
-      else setKasirBluetoothStatus(false,'Printer Bluetooth belum tersambung');
+      if(err?.name==='NotFoundError')setKasirBluetoothStatus(false,'Koneksi Bluetooth terputus');
+      else setKasirBluetoothStatus(false,'Koneksi Bluetooth terputus');
       if(err?.name!=='NotFoundError')showModal('Bluetooth Gagal',err?.message||'Printer Bluetooth tidak dapat disambungkan.','fa-brands fa-bluetooth-b text-rose-600');
     }finally{kasirBluetoothConnecting=false}
   }
@@ -5480,7 +5482,7 @@ onAuthStateChanged(auth,async u=>{
     updateKasirPaymentPopup();
     popup?.classList.add('is-open');
     popup?.setAttribute('aria-hidden','false');
-    setKasirBluetoothStatus(!!kasirBluetoothDevice?.gatt?.connected,'Printer Bluetooth tersambung');
+    setKasirBluetoothStatus(!!kasirBluetoothDevice?.gatt?.connected,kasirBluetoothDevice?.gatt?.connected?'Printer Bluetooth tersambung':'Koneksi Bluetooth terputus');
     setTimeout(()=>paid?.focus(),50);
   }
   function closeKasirPaymentPopup(){
@@ -5501,14 +5503,14 @@ onAuthStateChanged(auth,async u=>{
     }
     if(!kasirBluetoothDevice?.gatt?.connected||!kasirBluetoothCharacteristic){
       showModal('Printer Belum Tersambung','Sambungkan printer Bluetooth terlebih dahulu sebelum menekan Simpan dan Cetak.','fa-brands fa-bluetooth-b text-rose-600');
-      setKasirBluetoothStatus(false,'Printer Bluetooth belum tersambung');
+      setKasirBluetoothStatus(false,'Koneksi Bluetooth terputus');
       return;
     }
     renderKasirReceiptPreview();
     try{
       await printKasirReceiptBluetooth();
     }catch(err){
-      setKasirBluetoothStatus(false,'Printer Bluetooth terputus');
+      setKasirBluetoothStatus(false,'Koneksi Bluetooth terputus');
       showModal('Cetak Gagal',err?.message||'Struk tidak dapat dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-rose-600');
       return;
     }
@@ -5554,7 +5556,7 @@ onAuthStateChanged(auth,async u=>{
     if(e.target.id==='kasir-popup-paid'||e.target.id==='kasir-popup-discount'){e.target.value=e.target.value.replace(/[^0-9]/g,'');updateKasirPaymentPopup();renderKasirReceiptPreview();}
   });
 
-  setKasirBluetoothStatus(false,'Printer Bluetooth belum tersambung');
+  setKasirBluetoothStatus(false,'Koneksi Bluetooth terputus');
 
   document.addEventListener('click',e=>{
     const suggestion=e.target.closest('[data-kasir-suggest]');
