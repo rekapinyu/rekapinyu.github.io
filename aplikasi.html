@@ -1810,19 +1810,14 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </section>
 <!-- VIEW SETTING STRUK -->
 <section class="hidden" id="view-activity">
-<div id="activity-history-list"></div>
+<div class="activity-latest-wrap">
+<div class="activity-latest-heading"><div><div class="activity-latest-kicker">AKTIFITAS</div><h3>Aktifitas Terbaru</h3></div><span id="activity-latest-count">0 aktifitas</span></div>
+<div class="activity-grid" id="activity-history-list"></div>
+</div>
 <div aria-hidden="true" class="activity-detail-popup hidden" id="activity-detail-popup">
 <div class="activity-detail-backdrop" data-activity-close="1"></div>
 <div aria-labelledby="activity-detail-title" aria-modal="true" class="activity-detail-dialog" role="dialog">
-<div class="activity-detail-header">
-<div>
-<div class="activity-detail-kicker">Detail Aktifitas</div>
-<h3 id="activity-detail-title">Aktifitas</h3>
-</div>
-<button aria-label="Tutup" class="activity-detail-close" data-activity-close="1" type="button">
-<i aria-hidden="true" class="fa-solid fa-xmark"></i>
-</button>
-</div>
+<div class="activity-detail-header"><div><div class="activity-detail-kicker">Detail Aktifitas</div><h3 id="activity-detail-title">Aktifitas</h3></div><button aria-label="Tutup" class="activity-detail-close" data-activity-close="1" type="button"><i aria-hidden="true" class="fa-solid fa-xmark"></i></button></div>
 <div class="activity-detail-list" id="activity-detail-list"></div>
 </div>
 </div>
@@ -6357,59 +6352,180 @@ function initKasirViews(){
   document.addEventListener('DOMContentLoaded',function(){document.getElementById('rw-close')?.addEventListener('click',closePopup);document.getElementById(popupId)?.addEventListener('click',e=>{if(e.target.id===popupId)closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});check();setInterval(check,300)})
 })();
 </script>
+<style id="rekapinyu-activity-grid-single-css">
+#view-activity{width:100%;min-height:0;box-sizing:border-box;}
+#view-activity .activity-latest-wrap{width:100%;box-sizing:border-box;}
+.activity-latest-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;padding:0 2px;}
+.activity-latest-heading h3{margin:2px 0 0;font-size:16px;line-height:1.2;font-weight:900;color:#0f172a;}
+.activity-latest-heading span{font-size:10px;font-weight:800;color:#94a3b8;white-space:nowrap;}
+.activity-latest-kicker{font-size:9px;line-height:1;font-weight:900;letter-spacing:.08em;color:#64748b;}
+.activity-grid{width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;}
+.activity-grid-card{position:relative;min-width:0;min-height:116px;padding:11px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 14px rgba(15,23,42,.045);overflow:hidden;display:flex;flex-direction:column;}
+.activity-grid-card:hover{border-color:#cbd5e1;box-shadow:0 8px 20px rgba(15,23,42,.08);}
+.activity-grid-date{padding-right:34px;font-size:11px;line-height:1.35;font-weight:900;color:#334155;}
+.activity-grid-preview{margin-top:7px;font-size:9px;line-height:1.45;color:#64748b;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.activity-grid-count{margin-top:auto;padding-top:8px;font-size:9px;font-weight:800;color:#94a3b8;}
+.activity-grid-eye{position:absolute;right:8px;top:8px;width:29px;height:29px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.activity-grid-eye:hover{background:#dbeafe;color:#1d4ed8;}
+.activity-grid-empty{grid-column:1/-1;min-height:150px;display:flex;align-items:center;justify-content:center;text-align:center;padding:25px;color:#94a3b8;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;font-size:11px;}
+.activity-detail-popup{position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
+.activity-detail-popup.hidden{display:none;}
+.activity-detail-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.58);}
+.activity-detail-dialog{position:relative;width:min(620px,96vw);max-height:88vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;display:flex;flex-direction:column;}
+.activity-detail-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#fff;}
+.activity-detail-kicker{font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8;}
+.activity-detail-header h3{margin:2px 0 0;font-size:14px;font-weight:900;color:#0f172a;}
+.activity-detail-close{width:31px;height:31px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer;}
+.activity-detail-list{padding:12px 14px 16px;overflow:auto;}
+.activity-day-group{margin:0 0 14px;}
+.activity-day-title{position:sticky;top:0;z-index:1;margin:0 0 7px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;font-size:11px;font-weight:900;color:#334155;}
+.activity-log-row{display:grid;grid-template-columns:45px minmax(0,1fr);gap:8px;padding:7px 8px;border-bottom:1px solid #eef2f7;}
+.activity-log-time{font-size:10px;font-weight:900;color:#64748b;}
+.activity-log-text{font-size:10px;line-height:1.45;font-weight:700;color:#334155;}
+.activity-log-menu{display:block;margin-top:2px;font-size:8px;font-weight:700;color:#94a3b8;}
+@media(max-width:1100px){.activity-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:850px){.activity-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(max-width:600px){.activity-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.activity-grid-card{min-height:108px;padding:10px;}.activity-grid-date{font-size:10px;}.activity-grid-preview{font-size:8px;}.activity-detail-popup{padding:10px;}.activity-detail-dialog{width:96vw;max-height:90vh;}}
+</style>
 <script id="rekapinyu-activity-filter-single-script">
 (function(){
   'use strict';
   const filter=document.getElementById('rekapinyu-activity-filter');
   const view=document.getElementById('view-activity');
-  if(!filter||!view)return;
+  const grid=document.getElementById('activity-history-list');
+  const popup=document.getElementById('activity-detail-popup');
+  const detailList=document.getElementById('activity-detail-list');
+  const detailTitle=document.getElementById('activity-detail-title');
+  const countEl=document.getElementById('activity-latest-count');
   const search=document.getElementById('rk-activity-search');
   const date=document.getElementById('rk-activity-date');
   const month=document.getElementById('rk-activity-month');
   const year=document.getElementById('rk-activity-year');
+  if(!filter||!view||!grid||!popup||!detailList)return;
   const state={search:'',date:'',month:'',year:''};
-  for(let i=1;i<=30;i++)date.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);
-  for(let i=0;i<12;i++){const n=String(i+1).padStart(2,'0');month.insertAdjacentHTML('beforeend',`<option value="${n}">${new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'})}</option>`);}
-  function readData(){
-    try{
-      const u=window.currentSessionUser;
-      const phone=u&&u.phone?String(u.phone).replace(/\D/g,''):'';
-      const raw=localStorage.getItem(phone?`finance_activity_desktop_${phone}`:'finance_activity_guest');
-      const data=raw?JSON.parse(raw):[];
-      return Array.isArray(data)?data:[];
-    }catch(e){return [];}
-  }
-  function activityInfo(item){
-    const d=new Date(item?.timestamp||item?.dateTime||Date.now());
+  const menuNames={
+    kasir:'Kasir', 'produk-kasir':'Produk Kasir','laporan-kasir':'Laporan Kasir',input:'Input Data',history:'History',report:'Laporan Bulanan',kasbon:'Kasbon',pengeluaran:'Pengeluaran',backup:'Backup Otomatis',settings:'Seting',activity:'Aktifitas'
+  };
+  const escapeHtml=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+  function phone(){try{return currentSessionUser&&currentSessionUser.phone?String(currentSessionUser.phone).replace(/\D/g,''):''}catch(e){return ''}}
+  function key(){const p=phone();return p?`finance_activity_desktop_${p}`:'finance_activity_guest'}
+  function read(){try{const raw=localStorage.getItem(key());const a=raw?JSON.parse(raw):[];return Array.isArray(a)?a:[]}catch(e){return []}}
+  function normalize(item){
+    const t=Number(item?.timestamp);
+    const d=new Date(Number.isFinite(t)&&t>0?t:(item?.dateTime||item?.createdAt||Date.now()));
     if(Number.isNaN(d.getTime()))return null;
-    return {day:String(d.getDate()),month:String(d.getMonth()+1).padStart(2,'0'),year:String(d.getFullYear())};
+    return {id:String(item?.id||`${d.getTime()}-${Math.random()}`),timestamp:d.getTime(),menu:String(item?.menu||''),action:String(item?.action||item?.text||'Aktifitas')};
   }
-  function refreshYears(){
-    const values=[...new Set(readData().map(activityInfo).filter(Boolean).map(x=>x.year))].sort((a,b)=>b.localeCompare(a));
+  function save(data){
+    try{window.__rekapinyuActivityData=data;localStorage.setItem(key(),JSON.stringify(data));window.__rekapinyuSaveCloudData?.();}catch(e){}
+  }
+  function loadState(){window.__rekapinyuActivityData=read().map(normalize).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp)}
+  function dateInfo(ts){
+    const d=new Date(ts);
+    return {d,day:String(d.getDate()),month:String(d.getMonth()+1).padStart(2,'0'),year:String(d.getFullYear()),dateKey:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,label:d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})};
+  }
+  function ensureFilters(){
+    if(!date||!month||!year)return;
+    if(date.options.length<=1)for(let i=1;i<=31;i++)date.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);
+    if(month.options.length<=1)for(let i=0;i<12;i++){const n=String(i+1).padStart(2,'0');month.insertAdjacentHTML('beforeend',`<option value="${n}">${new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'})}</option>`)}
+    const years=[...new Set(read().map(x=>normalize(x)).filter(Boolean).map(x=>String(new Date(x.timestamp).getFullYear())))].sort((a,b)=>b.localeCompare(a));
     const current=state.year;
-    year.innerHTML='<option value="">Tahun</option>'+values.map(v=>`<option value="${v}">${v}</option>`).join('');
-    year.value=values.includes(current)?current:'';
-    state.year=year.value;
+    year.innerHTML='<option value="">Tahun</option>'+years.map(v=>`<option value="${v}">${v}</option>`).join('');
+    year.value=years.includes(current)?current:'';state.year=year.value;
   }
-  function refresh(){
+  function filtered(){
+    const data=(window.__rekapinyuActivityData||read().map(normalize).filter(Boolean)).slice().sort((a,b)=>b.timestamp-a.timestamp);
+    const q=state.search.trim().toLowerCase();
+    return data.filter(x=>{const info=dateInfo(x.timestamp);const text=`${x.action} ${x.menu}`.toLowerCase();return (!q||text.includes(q))&&(!state.date||info.day===state.date)&&(!state.month||info.month===state.month)&&(!state.year||info.year===state.year)});
+  }
+  function groupByDay(data){const groups=new Map();data.forEach(x=>{const info=dateInfo(x.timestamp);if(!groups.has(info.dateKey))groups.set(info.dateKey,{label:info.label,items:[]});groups.get(info.dateKey).items.push(x)});return [...groups.values()]}
+  function render(){
+    if(view.classList.contains('hidden'))return;
+    loadState();
+    ensureFilters();
+    const groups=groupByDay(filtered());
+    const total=groups.reduce((n,g)=>n+g.items.length,0);
+    if(countEl)countEl.textContent=`${total} aktifitas`;
+    if(!groups.length){grid.innerHTML='<div class="activity-grid-empty">Belum ada aktifitas yang tercatat.</div>';return;}
+    grid.innerHTML=groups.slice(0,25).map(g=>{
+      const preview=g.items.slice(0,3).map(x=>escapeHtml(x.action)).join(' · ');
+      return `<article class="activity-grid-card"><div class="activity-grid-date">${escapeHtml(g.label)}</div><div class="activity-grid-preview">${preview}</div><div class="activity-grid-count">${g.items.length} aktifitas</div><button type="button" class="activity-grid-eye" data-activity-day="${g.label.replace(/\"/g,'&quot;')}" title="Lihat aktifitas" aria-label="Lihat aktifitas"><i class="fa-solid fa-eye"></i></button></article>`;
+    }).join('');
+  }
+  function openDay(label){
+    const groups=groupByDay(filtered());const group=groups.find(g=>g.label===label);if(!group)return;
+    detailTitle.textContent=group.label;
+    detailList.innerHTML=`<div class="activity-day-group"><div class="activity-day-title">${escapeHtml(group.label)}</div>${group.items.map(x=>{const d=new Date(x.timestamp);const tm=d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});return `<div class="activity-log-row"><span class="activity-log-time">${tm}</span><div class="activity-log-text">${escapeHtml(x.action)}<span class="activity-log-menu">Menu ${escapeHtml(x.menu)}</span></div></div>`}).join('')}</div>`;
+    popup.classList.remove('hidden');popup.setAttribute('aria-hidden','false');
+  }
+  function closeDay(){popup.classList.add('hidden');popup.setAttribute('aria-hidden','true')}
+  function record(action,menu){
+    if(!action||!menu||menu==='Aktifitas')return;
+    const now=Date.now();
+    const data=(window.__rekapinyuActivityData||read().map(normalize).filter(Boolean));
+    data.unshift({id:`${now}-${Math.random().toString(36).slice(2,8)}`,timestamp:now,menu:menu,action:action});
+    const trimmed=data.slice(0,1000);window.__rekapinyuActivityData=trimmed;
+    try{localStorage.setItem(key(),JSON.stringify(trimmed));}catch(e){}
+    try{window.__rekapinyuSaveCloudData?.()}catch(e){}
+    if(!view.classList.contains('hidden'))render();
+  }
+  function labelForTab(tab){return menuNames[tab]||tab}
+  function inferMenu(el){
+    const v=el?.closest?.('[id^="view-"]');
+    if(v)return menuNames[v.id.slice(5)]||v.id.slice(5);
+    const id=String(el?.id||'').toLowerCase();
+    if(id.includes('history'))return 'History';if(id.includes('pengeluaran'))return 'Pengeluaran';if(id.includes('kasbon'))return 'Kasbon';if(id.includes('backup'))return 'Backup Otomatis';if(id.includes('produk-kasir')||id.includes('pk3'))return 'Produk Kasir';if(id.includes('laporan-kasir'))return 'Laporan Kasir';if(id.includes('kasir'))return 'Kasir';if(id.includes('report'))return 'Laporan Bulanan';if(id.includes('setting')||id.includes('receipt'))return 'Seting';return menuNames[window.__rekapinyuCurrentTab||'']||'';
+  }
+  function inferClick(el){
+    const text=(el.innerText||el.getAttribute('aria-label')||el.title||'').trim().replace(/\s+/g,' ');
+    const id=String(el.id||'').toLowerCase();
+    const menu=inferMenu(el);
+    if(!menu||menu==='Aktifitas')return;
+    if(/hapus|delete/i.test(text)||id.includes('delete')||id.includes('hapus'))return `Menghapus data di menu ${menu}`;
+    if(/edit|ubah|nominal/i.test(text)||id.includes('edit'))return menu==='History'?'Mengubah Nominal di menu History':`Mengubah data di menu ${menu}`;
+    if(/import/i.test(text)||id.includes('import'))return `Mengimport data di menu ${menu}`;
+    if(/backup|export/i.test(text)||id.includes('export'))return `Membackup data di menu ${menu}`;
+    if(/simpan|save|tambah|input|submit/i.test(text)||id.includes('save')||id.includes('submit')||id.includes('add'))return `Menyimpan perubahan di menu ${menu}`;
+  }
+  const oldSwitch=window.switchTab;
+  if(typeof oldSwitch==='function'&&!oldSwitch.__activityGridWrapped){
+    const wrapped=function(tab){window.__rekapinyuCurrentTab=tab;const result=oldSwitch.apply(this,arguments);record(`Membuka menu ${labelForTab(tab)}`,labelForTab(tab));setTimeout(render,0);return result};
+    wrapped.__activityGridWrapped=true;window.switchTab=wrapped;
+  }
+  document.addEventListener('submit',e=>{
+    const form=e.target;if(!form||form.id==='activity-detail-popup')return;
+    const menu=inferMenu(form);if(!menu||menu==='Aktifitas')return;
+    const map={'finance-form':'Menginput data baru di menu Input Data','pengeluaran-form':'Menginput data baru di menu Pengeluaran','pk3-form':'Menambahkan produk baru di menu Produk Kasir','pk3-edit-form':'Mengubah data produk di menu Produk Kasir','receipt-settings-form':'Menyimpan pengaturan di menu Seting'};
+    record(map[form.id]||`Menyimpan data di menu ${menu}`,menu);
+  },true);
+  document.addEventListener('click',e=>{
+    const eye=e.target.closest('[data-activity-day]');if(eye){e.preventDefault();e.stopPropagation();openDay(eye.dataset.activityDay);return;}
+    if(e.target.closest('[data-activity-close]')){e.preventDefault();closeDay();return;}
+    if(e.target.closest('#activity-detail-popup'))return;
+    const el=e.target.closest('button,[role="button"]');if(!el)return;
+    if(el.type==='submit')return;
+    const action=inferClick(el);if(action)record(action,inferMenu(el));
+  },true);
+  search?.addEventListener('input',()=>{state.search=search.value||'';window.__rekapinyuActivityFilterState={...state};render()});
+  date?.addEventListener('change',()=>{state.date=date.value||'';window.__rekapinyuActivityFilterState={...state};render()});
+  month?.addEventListener('change',()=>{state.month=month.value||'';window.__rekapinyuActivityFilterState={...state};render()});
+  year?.addEventListener('change',()=>{state.year=year.value||'';window.__rekapinyuActivityFilterState={...state};render()});
+  const observer=new MutationObserver(()=>{
     const active=!view.classList.contains('hidden');
-    filter.classList.toggle('hidden',!active);
-    filter.classList.toggle('rk-activity-filter-visible',active);
-    if(!active)return;
-    refreshYears();
-  }
-  function notifyActivityRenderer(){
-    window.__rekapinyuActivityFilterState={...state};
-    if(typeof window.__rekapinyuRefreshActivities==='function')window.__rekapinyuRefreshActivities();
-  }
-  search.addEventListener('input',()=>{state.search=search.value||'';notifyActivityRenderer();});
-  date.addEventListener('change',()=>{state.date=date.value||'';notifyActivityRenderer();});
-  month.addEventListener('change',()=>{state.month=month.value||'';notifyActivityRenderer();});
-  year.addEventListener('change',()=>{state.year=year.value||'';notifyActivityRenderer();});
-  const observer=new MutationObserver(refresh);
+    filter.classList.toggle('hidden',!active);filter.classList.toggle('rk-activity-filter-visible',active);
+    if(active){ensureFilters();render();}
+  });
   observer.observe(view,{attributes:true,attributeFilter:['class']});
-  refresh();
-  setInterval(()=>{if(!view.classList.contains('hidden'))refreshYears();},1500);
+  window.__rekapinyuRefreshActivities=render;
+  window.__rekapinyuSetActivityData=function(data){
+    if(!Array.isArray(data))return;window.__rekapinyuActivityData=data.map(normalize).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);if(!view.classList.contains('hidden'))render();
+  };
+  window.__rekapinyuRecordActivity=record;
+  window.__rekapinyuActivityFilterState=state;
+  loadState();
+  const active=!view.classList.contains('hidden');filter.classList.toggle('hidden',!active);filter.classList.toggle('rk-activity-filter-visible',active);
+  if(active)render();
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!popup.classList.contains('hidden'))closeDay()});
 })();
 </script>
 </input>
