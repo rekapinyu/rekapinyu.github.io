@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>REKAPINYU — Kelola Keuangan Toko Lebih Mudah</title>
+<meta name="description" content="REKAPINYU membantu mencatat pendapatan, belanja, pengeluaran, kasbon, history dan laporan toko dengan cepat.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<!-- Firebase SDK JS -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:Inter,system-ui,sans-serif;color:#10233f;background:#f8fbff;overflow-x:hidden}.container{width:min(1160px,92%);margin:auto}header{position:sticky;top:0;z-index:1000;background:#ffffffee;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #e2eaf2;box-shadow:0 4px 20px #17385e0b}.nav{height:78px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;text-decoration:none}.brand-logo{display:block;width:250px;height:auto;max-height:58px;object-fit:contain}.navlinks{display:flex;gap:28px;align-items:center}.navlinks a{color:#52647d;text-decoration:none;font-size:14px;font-weight:600}.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px 20px;border-radius:13px;text-decoration:none;font-weight:800;font-size:14px;transition:.25s;border:1px solid transparent}.btn-primary{color:#fff!important;background:linear-gradient(135deg,#0f766e,#2563eb);box-shadow:0 12px 30px #2563eb30}.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 35px #2563eb45}.btn-light{background:#fff;color:#17385e;border-color:#dbe7f3}.hero{position:relative;padding:75px 0 95px;background:radial-gradient(circle at 85% 15%,#dbeafe 0,transparent 30%),radial-gradient(circle at 10% 70%,#ccfbf1 0,transparent 27%)}.hero-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:60px;align-items:center}.eyebrow{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:#e8f7f5;color:#0f766e;font-size:12px;font-weight:800;margin-bottom:22px}.hero h1{font-size:clamp(42px,6vw,72px);line-height:1.02;letter-spacing:-3px;margin-bottom:22px}.gradient{background:linear-gradient(90deg,#0f766e,#2563eb,#7c3aed,#0f766e);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:gradient 6s ease infinite}.hero p{font-size:18px;line-height:1.75;color:#60718a;max-width:610px}.hero-actions{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}.typing{display:inline-block;border-right:3px solid #2563eb;white-space:nowrap;overflow:hidden;animation:typing 3.8s steps(30,end),blink .8s infinite;vertical-align:bottom}.hero-visual{position:relative}.photo-card{position:relative;border-radius:30px;overflow:hidden;box-shadow:0 35px 80px #163c6c25;border:10px solid #fff;background:#fff;transform:rotate(1deg);animation:float 5s ease-in-out infinite}.photo-card img{width:100%;height:420px;object-fit:cover;display:block}.glass{position:absolute;right:-18px;bottom:30px;background:#ffffffd9;backdrop-filter:blur(14px);padding:18px;border-radius:18px;box-shadow:0 18px 40px #17385e22;min-width:190px}.glass strong{display:block;font-size:25px}.glass span{font-size:12px;color:#6b7b91}.orb{position:absolute;width:170px;height:170px;border-radius:50%;background:#2563eb18;filter:blur(1px);top:-45px;right:-35px;animation:pulse 4s infinite}.section{padding:92px 0}.section-head{text-align:center;max-width:700px;margin:0 auto 45px}.section-head h2{font-size:40px;letter-spacing:-1.5px;margin-bottom:12px}.section-head p{color:#6b7b91;line-height:1.7}.features{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}.feature{background:#fff;border:1px solid #e5edf5;border-radius:22px;padding:24px;box-shadow:0 12px 35px #1b426d0b;transition:.25s}.feature:hover{transform:translateY(-7px);box-shadow:0 20px 40px #1b426d18}.icon{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;font-size:19px;margin-bottom:18px}.feature h3{font-size:16px;margin-bottom:9px}.feature p{font-size:13px;line-height:1.65;color:#718198}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.step{padding:28px;border-radius:24px;background:#10233f;color:#fff;position:relative;overflow:hidden}.step:after{content:'';position:absolute;width:130px;height:130px;border-radius:50%;right:-50px;bottom:-60px;background:#ffffff0d}.num{font-size:12px;font-weight:900;color:#67e8f9;margin-bottom:20px}.step h3{font-size:20px;margin-bottom:10px}.step p{color:#b7c4d5;line-height:1.7;font-size:14px}.cta{padding:70px 0}.cta-box{border-radius:30px;padding:55px;text-align:center;background:linear-gradient(135deg,#0f766e,#2563eb 55%,#4338ca);color:#fff;box-shadow:0 30px 70px #2563eb30}.cta-box h2{font-size:42px;letter-spacing:-1.5px;margin-bottom:14px}.cta-box p{color:#dbeafe;max-width:650px;margin:0 auto 25px;line-height:1.7}.cta-box .btn-light{border:0}.footer{padding:28px 0 40px;color:#718198;font-size:13px}.footer-inner{display:flex;justify-content:space-between;gap:20px;border-top:1px solid #e2eaf2;padding-top:25px}.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}.reveal.show{opacity:1;transform:none}@keyframes gradient{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}@keyframes float{0%,100%{transform:rotate(1deg) translateY(0)}50%{transform:rotate(1deg) translateY(-10px)}}@keyframes pulse{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.12);opacity:1}}@keyframes typing{from{width:0}to{width:100%}}@keyframes blink{50%{border-color:transparent}}@media(max-width:900px){.hero-grid{grid-template-columns:1fr}.hero{padding-top:45px}.hero-visual{max-width:650px;margin:auto}.features{grid-template-columns:repeat(2,1fr)}.navlinks a{display:none}.steps{grid-template-columns:1fr}.section{padding:70px 0}}@media(max-width:560px){.brand-logo{width:175px;height:auto;max-height:41px}.hero h1{font-size:43px;letter-spacing:-2px}.hero p{font-size:16px}.photo-card img{height:300px}.glass{right:10px;bottom:15px}.features{grid-template-columns:1fr}.cta-box{padding:38px 22px}.cta-box h2{font-size:31px}.footer-inner{flex-direction:column}}
+.pricing{padding:0 0 92px;background:#ffffff}.pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.price-card{position:relative;background:#fff;border:1px solid #dfeaf5;border-radius:24px;padding:28px 24px;box-shadow:0 14px 35px #1b426d0b;transition:.25s;display:flex;flex-direction:column;align-items:center;min-height:220px}.price-card:hover{transform:translateY(-7px);box-shadow:0 22px 45px #1b426d18}.price-card.best{border:2px solid #2563eb;box-shadow:0 18px 45px #2563eb20}.price-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;padding:7px 15px;border-radius:999px;font-size:11px;font-weight:900;white-space:nowrap}.price-card h3{font-size:19px;margin-bottom:20px;color:#10233f;text-align:center}.price-card ul{list-style:none;margin-bottom:20px;width:100%}.price-card li{font-size:14px;color:#52647d;line-height:1.6}.price-card li:before{content:"✓";color:#0f766e;font-weight:900;margin-right:8px}.price{font-size:25px;font-weight:900;color:#12345b;margin-top:auto;margin-bottom:0px;text-align:center}.price small{font-size:12px;color:#718198;font-weight:600}.price-btn{width:auto;padding:10px 24px;font-size:13px;cursor:pointer;border:none}
+
+.checkout-section{display:none;padding:60px 0 92px;background:#eef6ff}.checkout-section.show{display:block}.checkout-card{background:#fff;border-radius:24px;border:1px solid #dfeaf5;box-shadow:0 20px 50px #10233f15;padding:36px;margin-top:20px}.checkout-header{margin-bottom:25px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eef2f7;padding-bottom:15px}.checkout-header h3{font-size:24px;color:#10233f}.btn-back{background:#f1f5f9;color:#475569;border:0;padding:8px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.2s}.btn-back:hover{background:#e2e8f0}.checkout-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}.checkout-left{display:grid;gap:14px}.checkout-left label{font-size:12px;font-weight:800;color:#52647d}.checkout-left input,.checkout-left select{width:100%;padding:12px 13px;border:1px solid #d8e3ee;border-radius:12px;outline:none;font:inherit}.checkout-left input:focus,.checkout-left select:focus{border-color:#2563eb;box-shadow:0 0 0 3px #2563eb14}.checkout-left select:disabled{background:#f1f5f9;color:#64748b;cursor:not-allowed}.checkout-right{background:#f8fafc;border:1px solid #e2e8f0;border-radius:20px;padding:24px;text-align:center}.qris-note{margin:10px 0;padding:14px;border-radius:16px;background:#f0fdf9;color:#315b55;font-size:13px;line-height:1.6;text-align:left}.qris-placeholder{width:min(260px,100%);min-height:180px;margin:12px auto;border:2px dashed #cbd5e1;border-radius:16px;display:grid;place-items:center;color:#64748b;font-size:12px;padding:15px;background:#fff}.qris-placeholder img{max-width:100%;max-height:280px;border-radius:12px}.buy-submit{width:100%;border:0;cursor:pointer;margin-top:10px}@media(max-width:900px){.pricing-grid{grid-template-columns:repeat(2,1fr)}.checkout-grid{grid-template-columns:1fr}}@media(max-width:560px){.pricing{padding-bottom:70px}.pricing-grid{grid-template-columns:1fr}.price-card{min-height:200px}.checkout-card{padding:20px}}
+
+.status-modal-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.75);backdrop-filter:blur(8px);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.status-modal-overlay.show{display:flex}.status-modal-box{background:#fff;border-radius:24px;padding:40px 30px;max-width:440px;width:100%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.3);animation:popupIn 0.3s ease-out}.spinner-ring{width:60px;height:60px;border:5px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;margin:0 auto 20px;animation:spin 1s linear infinite}.status-active-icon{width:70px;height:70px;border-radius:50%;background:#dcfce7;color:#16a34a;display:grid;place-items:center;font-size:32px;margin:0 auto 20px}.status-reject-icon{width:70px;height:70px;border-radius:50%;background:#fee2e2;color:#dc2626;display:grid;place-items:center;font-size:32px;margin:0 auto 20px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes popupIn{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* Styling Form Terintegrasi Firebase & Perpanjang Paket */
+.forms-container{margin-top:40px;display:grid;gap:35px}
+.form-card{background:#fff;border-radius:24px;border:1px solid #dfeaf5;padding:32px;box-shadow:0 15px 40px #10233f0d}
+.form-card h3{font-size:22px;color:#10233f;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.form-card p.subtitle{font-size:13px;color:#64748b;margin-bottom:24px}
+.form-grid-single{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{display:grid;gap:6px;margin-bottom:14px}
+.form-group label{font-size:12px;font-weight:800;color:#52647d}
+.form-group input,.form-group select{width:100%;padding:12px 13px;border:1px solid #d8e3ee;border-radius:12px;outline:none;font:inherit}
+.form-group input:focus,.form-group select:focus{border-color:#2563eb;box-shadow:0 0 0 3px #2563eb14}
+
+/* CSS Tambahan Dari LoginApp */
+.auth-container {
+  display: flex;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #dfeaf5;
+  overflow: hidden;
+}
+.auth-col {
+  flex: 1;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+}
+.auth-col form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.auth-col form button {
+  margin-top: auto;
+}
+.auth-col.login-section {
+  border-right: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+.auth-col.register-section {
+  background-color: #ffffff;
+}
+.auth-col h2 {
+  font-size: 20px;
+  margin-bottom: 6px;
+  color: #10233f;
+}
+.btn-login {
+  background-color: #007bff;
+}
+.btn-register {
+  background-color: #28a745;
+}
+@media(max-width:768px){
+  .form-grid-single{grid-template-columns:1fr}
+  .auth-container { flex-direction: column; }
+  .auth-col.login-section { border-right: none; border-bottom: 1px solid #e0e0e0; }
+}
+</style>
+<style>
+@media(max-width:560px){
+  header .nav{width:92%;height:68px}
+  header .navlinks{margin-left:auto;gap:0}
+  header .navlinks>a:not(.btn-primary){display:none}
+  header .navlinks>.btn-primary{display:inline-flex;padding:10px 12px;font-size:12px;white-space:nowrap}
+}
+</style>
+<style>
+@media(max-width:560px){
+  .features,.steps,.pricing-grid{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:16px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    justify-content:flex-start!important;
+    scroll-snap-type:x mandatory;
+    scroll-padding-inline:4%;
+    padding:8px 4% 18px!important;
+    margin-inline:-4%;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .features::-webkit-scrollbar,.steps::-webkit-scrollbar,.pricing-grid::-webkit-scrollbar{display:none}
+  .features>.feature,.steps>.step,.pricing-grid>.price-card{
+    flex:0 0 84%!important;
+    min-width:84%!important;
+    scroll-snap-align:start;
+  }
+  .features>.feature{min-height:230px}
+  .steps>.step{min-height:220px}
+  .pricing-grid>.price-card{min-height:220px}
+}
+</style>
+<style>
+@media(max-width:768px){
+  html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}
+}
+</style>
+<style>
+header{background:#fff;border-bottom-color:#e6edf5;box-shadow:0 4px 24px #17385e0a}
+.nav{height:78px}
+.brand-mark{background:linear-gradient(135deg,#0f766e,#2563eb);box-shadow:0 10px 25px #2563eb30}
+.navlinks{gap:30px}
+.navlinks a{color:#425575}
+.navlinks .btn-primary{padding:14px 22px;border-radius:13px}
+.hero{padding:78px 0 104px;background-color:#fff;background-image:radial-gradient(#dbe5f0 1px,transparent 1px),linear-gradient(135deg,#fff 0%,#f7fbff 58%,#eefbf9 100%);background-size:22px 22px,100% 100%;position:relative}
+.hero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#ffffffee 0%,#ffffffd8 44%,#ffffff66 100%);pointer-events:none}
+.hero-grid{position:relative;z-index:1;grid-template-columns:1.05fr .95fr;gap:72px}
+.eyebrow{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;letter-spacing:.08em;text-transform:uppercase}
+.hero h1{max-width:660px;color:#172f68;font-size:clamp(44px,6vw,76px);letter-spacing:-3.5px}
+.gradient{background:none;color:#2563eb;-webkit-text-fill-color:#2563eb;animation:none}
+.hero h1{color:#2563eb}
+.hero p{color:#5a6f8b;max-width:590px}
+.hero-actions .btn-primary{background:linear-gradient(135deg,#0f766e,#2563eb);border-radius:12px}
+.hero-actions .btn-light{background:#fff;border-color:#cbdced;border-radius:12px}
+.photo-card{border-radius:28px;border-width:9px;box-shadow:0 28px 65px #17385e25;transform:rotate(1.2deg)}
+.person-stage{height:500px;position:relative;display:flex;align-items:flex-end;justify-content:center;isolation:isolate}
+.person-backdrop{position:absolute;width:390px;height:390px;right:5%;top:45px;border-radius:50%;background:linear-gradient(145deg,#0ea5e9,#2563eb);z-index:-1;box-shadow:0 25px 70px #2563eb30}
+.person-backdrop:after{content:"";position:absolute;inset:22px;border:1px solid #ffffff45;border-radius:50%}
+.person-photo{height:470px;width:min(100%,430px);object-fit:cover;object-position:center top;display:block;align-self:flex-end;mix-blend-mode:multiply;filter:contrast(1.04) saturate(.94);border-radius:48% 48% 0 0;mask-image:linear-gradient(to bottom,#000 0 88%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,#000 0 88%,transparent 100%)}
+.person-stat{position:absolute;background:#fff;border:1px solid #e5edf5;border-radius:15px;padding:13px 16px;box-shadow:0 16px 35px #17385e1c;color:#10233f;z-index:2}
+.person-stat span{display:block;color:#718198;font-size:11px;margin-bottom:4px}
+.person-stat strong{display:block;font-size:20px}
+.person-stat-top{top:52px;left:0}
+.person-stage .glass{right:-18px;bottom:58px}
+.hero-visual:after{content:"";position:absolute;width:165px;height:165px;border-radius:50%;right:-45px;top:-42px;background:#2563eb18;z-index:-1}
+.person-backdrop,.hero-visual:after{display:none}
+.typing{animation:none;border-right:0}
+.orb{background:#f59e0b20;top:auto;right:auto;left:-55px;bottom:-45px}
+@media(max-width:560px){
+  .hero{padding:52px 0 78px}
+  .hero-grid{gap:42px}
+  .hero-visual{width:100%;overflow:visible}
+  .person-stage{width:100%;height:clamp(300px,105vw,390px);overflow:visible}
+  .person-backdrop{width:290px;height:290px;top:30px;right:3%}
+  .person-photo{width:min(82vw,310px);height:auto;max-height:100%;object-fit:contain;object-position:center bottom;margin:0 auto}
+  .person-stat-top{top:28px;left:0}
+  .person-stage .glass{right:0;bottom:20px}
+}
+</style>
+</head>
+<body>
+<header><div class="container nav"><a class="brand" href="#"><img class="brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/LogoRekpinyuBiru.jpg?raw=true" alt="REKAPINYU"></a><nav class="navlinks"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara Kerja</a><a href="#tentang">Tentang</a><a class="btn btn-primary" href="https://rekapinyu.github.io/"><i class="fa-solid fa-right-to-bracket"></i> Masuk / Daftar</a></nav></div></header>
+<main id="mainContent">
+<section class="hero"><div class="container hero-grid"><div class="reveal"><div class="eyebrow"><i class="fa-solid fa-sparkles"></i> Aplikasi Keuangan Toko</div><h1>Kelola keuangan toko jadi <span class="gradient">lebih rapi.</span></h1><p>Catat pendapatan, belanja, pengeluaran, kasbon, dan history harian dalam satu tempat. <span class="typing">Cepat. Akurat. Praktis.</span></p><div class="hero-actions"><a class="btn btn-primary" href="https://rekapinyu.github.io/">Mulai Gunakan REKAPINYU <i class="fa-solid fa-arrow-up-right-from-square"></i></a><a class="btn btn-light" href="#fitur">Lihat Fitur</a></div></div><div class="hero-visual reveal"><div class="orb"></div><div class="person-stage"><div class="person-backdrop"></div><img class="person-photo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/FotoBanerLogin.jpg?raw=true" alt="Pemilik toko menggunakan REKAPINYU"><div class="person-stat person-stat-top"><span>Catatan tersimpan</span><strong>10K+</strong></div><div class="glass"><span>Total pencatatan</span><strong>Lebih teratur</strong><span><i class="fa-solid fa-circle-check" style="color:#16a34a"></i> Semua dalam satu aplikasi</span></div></div></div></div></section>
+<section id="fitur" class="section"><div class="container"><div class="section-head reveal"><h2>Satu aplikasi untuk kebutuhan toko</h2><p>REKAPINYU dirancang agar pencatatan harian terasa sederhana, sementara data tetap mudah ditinjau kembali.</p></div><div class="features"><div class="feature reveal"><div class="icon"><i class="fa-solid fa-pen-to-square"></i></div><h3>Input Harian</h3><p>Catat pendapatan, belanja, pengeluaran, dan persentase profit dengan cepat.</p></div><div class="feature reveal"><div class="icon"><i class="fa-solid fa-clock-rotate-left"></i></div><h3>History</h3><p>Lihat kembali data harian dan kelola pencatatan yang sudah tersimpan.</p></div><div class="feature reveal"><div class="icon"><i class="fa-solid fa-wallet"></i></div><h3>Kasbon</h3><p>Bantu mencatat dan mengamankan akses data kasbon toko.</p></div><div class="feature reveal"><div class="icon"><i class="fa-solid fa-chart-pie"></i></div><h3>Laporan</h3><p>Ringkas data keuangan bulanan berdasarkan history harian.</p></div><div class="feature reveal"><div class="icon"><i class="fa-solid fa-cloud-arrow-up"></i></div><h3>Backup</h3><p>Manfaatkan backup otomatis agar data history lebih mudah dipulihkan.</p></div></div></div></section>
+<section id="cara-kerja" class="section" style="background:#eef6ff"><div class="container"><div class="section-head reveal"><h2>Mulai dalam 3 langkah</h2><p>Tidak perlu alur yang rumit. Masuk, catat, lalu pantau.</p></div><div class="steps"><div class="step reveal"><div class="num">01 — DAFTAR / MASUK</div><h3>Buat akun</h3><p>Gunakan nomor HP dan kata sandi untuk masuk ke aplikasi REKAPINYU.</p></div><div class="step reveal"><div class="num">02 — CATAT</div><h3>Input data harian</h3><p>Masukkan pendapatan, belanja, pengeluaran, dan profit sesuai kebutuhan toko.</p></div><div class="step reveal"><div class="num">03 — PANTAU</div><h3>Cek history & laporan</h3><p>Tinjau kembali pencatatan dan gunakan laporan bulanan untuk membantu evaluasi.</p></div></div></div></section>
+
+<section class="pricing" id="paket">
+  <div class="container">
+    <div class="forms-container reveal">
+      
+      <!-- DUKUNGAN INDEX LOGIN UNTUK PAGE (LOGIN & PENDAFTARAN) -->
+      <div class="auth-container">
+        <!-- Kiri: Form Login -->
+        <div class="auth-col login-section">
+          <h2>Masuk Akun</h2>
+          <p class="subtitle">Silakan login jika sudah memiliki akun</p>
+          
+          <form id="form-login">
+            <div class="form-group">
+              <label for="login-phone">Nomor WhatsApp / HP</label>
+              <input type="tel" id="login-phone" placeholder="Contoh: 08123456789" required>
+            </div>
+            <div class="form-group">
+              <label for="login-password">Kata Sandi</label>
+              <input type="password" id="login-password" placeholder="Masukkan kata sandi" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-login">Masuk ke Aplikasi</button>
+          </form>
+        </div>
+
+        <!-- Kanan: Form Pendaftaran -->
+        <div class="auth-col register-section">
+          <h2>Daftar Baru</h2>
+          <p class="subtitle">Buat akun baru untuk mulai mencatat keuangan</p>
+          
+          <form id="form-register">
+            <div class="form-group">
+              <label for="reg-name">Nama Lengkap</label>
+              <input type="text" id="reg-name" placeholder="Nama Toko" required>
+            </div>
+            <div class="form-group">
+              <label for="reg-phone">Nomor WhatsApp / HP</label>
+              <input type="tel" id="reg-phone" placeholder="Contoh: 082180004401" required>
+            </div>
+            <div class="form-group">
+              <label for="reg-password">Kata Sandi</label>
+              <input type="password" id="reg-password" placeholder="Buat kata sandi" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-register">Daftar Akun Baru</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+</main>
+
+<section class="checkout-section" id="checkoutSection">
+  <div class="container">
+    <div class="checkout-card">
+      <div class="checkout-header">
+        <div>
+          <h3 id="buyTitle">Pembelian Paket</h3>
+          <p id="buySubtitle" style="font-size:13px;color:#64748b;margin-top:4px;">Silakan lengkapi data berikut.</p>
+        </div>
+        <button class="btn-back" type="button" onclick="closeBuyModal()"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+      </div>
+      <form class="buy-form" onsubmit="submitBuy(event)">
+        <div class="checkout-grid">
+          <div class="checkout-left">
+            <div><label for="storeName">Nama Toko</label><input id="storeName" name="storeName" type="text" placeholder="Masukkan nama toko" required></div>
+            <div><label for="ownerName">Nama Pemilik Toko</label><input id="ownerName" name="ownerName" type="text" placeholder="Masukkan nama pemilik toko" required></div>
+            <div><label for="packageName">Jenis Paket yang Dibeli</label><select id="packageName" name="packageName" disabled required><option value="">Pilih paket</option><option>Paket Gratis</option><option>Paket Reguler</option><option>Paket Best Seller</option><option>Paket Bisnis</option></select></div>
+            <div><label for="packageDuration">Durasi Paket yang Dibeli</label><input id="packageDuration" name="packageDuration" type="text" readonly></div>
+          </div>
+          <div class="checkout-right">
+            <label for="paymentInfo">Cara Bayar / Perpanjang</label>
+            <div class="qris-note">1. Transfer Di QRIS Bawah | 2. Klik Konfirmasi Pembayaran untuk memproses verifikasi oleh Superadmin.</div>
+            <div class="qris-placeholder"><img src="https://github.com/rekapinyu/rekapinyupage/blob/main/QRREKAPINYU.jpeg?raw=true" alt="QRIS Pembayaran"></div>
+            <div id="paymentAmount" class="qris-note"></div>
+            <button class="btn btn-primary buy-submit" type="submit">Konfirmasi Pembayaran</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<div class="status-modal-overlay" id="statusModalOverlay">
+  <div class="status-modal-box" id="statusModalBox">
+    <div class="spinner-ring" id="statusSpinner"></div>
+    <div class="status-active-icon" id="statusActiveIcon" style="display:none;"><i class="fa-solid fa-check"></i></div>
+    <div class="status-reject-icon" id="statusRejectIcon" style="display:none;"><i class="fa-solid fa-xmark"></i></div>
+    <h3 id="statusTitle" style="font-size:20px;color:#0f172a;margin-bottom:8px;">Mohon menunggu paket anda Sedang Diproses</h3>
+    <p id="statusDesc" style="font-size:13px;color:#64748b;line-height:1.6;">Verifikasi sedang dilakukan oleh Superadmin. Mohon jangan menutup halaman ini.</p>
+    <div id="statusActionArea" style="margin-top:20px;display:none;">
+      <a href="https://rekapinyu.github.io/" class="btn btn-primary" style="width:100%;">Masuk Aplikasi REKAPINYU <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <div id="statusRejectActionArea" style="margin-top:20px;display:none;">
+      <button onclick="closeStatusModal()" class="btn btn-primary" style="width:100%;background:#ef4444;">Tutup &amp; Coba Lagi</button>
+    </div>
+  </div>
+</div>
+
+<section id="tentang" class="cta"><div class="container"><div class="cta-box reveal"><h2>Siap bikin pencatatan lebih rapi?</h2><p>Gunakan REKAPINYU untuk membantu mengelola catatan keuangan toko dari input harian sampai laporan.</p><a class="btn btn-light" href="https://rekapinyu.github.io/"><i class="fa-solid fa-rocket"></i> Buka REKAPINYU</a></div></div></section>
+
+<footer class="footer"><div class="container footer-inner"><span>© 2026 REKAPINYU — Keuangan Toko</span><span>Dibuat untuk pencatatan toko yang lebih praktis.</span></div></footer>
+
+<script>
+document.addEventListener('keydown',function(event){
+  if(event.ctrlKey&&event.key.toLowerCase()==='u'){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+});
+
+// KONFIGURASI FIREBASE REALTIME DATABASE REKAPINYU
+const firebaseConfig = {
+  databaseURL: "https://rekapinyu-default-rtdb.firebaseio.com"
+};
+
+// Inisialisasi Firebase jika belum diinisialisasi
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
+
+
+
+// Otomatis menampilkan Durasi Waktu Paket pada Form Perpanjang Paket
+function updateRenewDuration() {
+  const select = document.getElementById('renewPackageSelect');
+  const selectedOption = select.options[select.selectedIndex];
+  const duration = selectedOption.getAttribute('data-duration') || '';
+  const price = selectedOption.getAttribute('data-price') || '-';
+
+  document.getElementById('renewDuration').value = duration;
+  document.getElementById('renewAmountNote').textContent = 'Total: ' + price;
+}
+
+// Handler Submit Form Perpanjang Paket ke Superadmin
+function handleRenewSubmit(e) {
+  e.preventDefault();
+
+  const storeName = document.getElementById('renewStoreName').value;
+  const ownerName = document.getElementById('renewOwnerName').value;
+  const packageName = document.getElementById('renewPackageSelect').value;
+  const duration = document.getElementById('renewDuration').value;
+  const amountText = document.getElementById('renewAmountNote').textContent;
+
+  currentTxId = 'TX-' + Date.now();
+
+  const newTransaction = {
+    id: currentTxId,
+    storeName: storeName,
+    ownerName: ownerName,
+    packageName: packageName,
+    duration: duration,
+    amount: amountText,
+    status: 'MENUNGGU',
+    timestamp: new Date().toISOString()
+  };
+
+  let list = JSON.parse(localStorage.getItem('rekapinyu_transactions') || '[]');
+  list.unshift(newTransaction);
+  localStorage.setItem('rekapinyu_transactions', JSON.stringify(list));
+
+  if(channel){
+    channel.postMessage({ type: 'NEW_PAYMENT', data: newTransaction });
+  }
+
+  document.getElementById('statusSpinner').style.display = 'block';
+  document.getElementById('statusActiveIcon').style.display = 'none';
+  document.getElementById('statusRejectIcon').style.display = 'none';
+  document.getElementById('statusTitle').textContent = 'Mohon menunggu paket anda Sedang Diproses';
+  document.getElementById('statusDesc').textContent = 'Verifikasi sedang dilakukan oleh Superadmin. Mohon jangan menutup halaman ini.';
+  document.getElementById('statusActionArea').style.display = 'none';
+  document.getElementById('statusRejectActionArea').style.display = 'none';
+
+  document.getElementById('statusModalOverlay').classList.add('show');
+}
+
+const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('rekapinyu_payment_channel') : null;
+let currentTxId = null;
+
+const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('show')}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+function openBuyModal(packageName,duration,amount,action){
+  document.getElementById('mainContent').style.display = 'none';
+  const checkoutSection = document.getElementById('checkoutSection');
+  document.getElementById('packageName').value=packageName;
+  document.getElementById('packageDuration').value=duration;
+  document.getElementById('paymentAmount').textContent='Total pembayaran: '+amount;
+  document.getElementById('buySubtitle').textContent=action==='Coba Gratis'?'Silakan lengkapi data untuk mencoba paket gratis.':'Silakan lengkapi data dan lakukan pembayaran melalui QRIS.';
+  checkoutSection.classList.add('show');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function closeBuyModal(){
+  document.getElementById('checkoutSection').classList.remove('show');
+  document.getElementById('mainContent').style.display = 'block';
+  const paketSection = document.getElementById('paket');
+  if(paketSection) paketSection.scrollIntoView({behavior:'smooth'});
+}
+
+function submitBuy(e){
+  e.preventDefault();
+
+  const storeName = document.getElementById('storeName').value;
+  const ownerName = document.getElementById('ownerName').value;
+  const packageName = document.getElementById('packageName').value;
+  const duration = document.getElementById('packageDuration').value;
+  const amountText = document.getElementById('paymentAmount').textContent;
+
+  currentTxId = 'TX-' + Date.now();
+
+  const newTransaction = {
+    id: currentTxId,
+    storeName: storeName,
+    ownerName: ownerName,
+    packageName: packageName,
+    duration: duration,
+    amount: amountText,
+    status: 'MENUNGGU',
+    timestamp: new Date().toISOString()
+  };
+
+  let list = JSON.parse(localStorage.getItem('rekapinyu_transactions') || '[]');
+  list.unshift(newTransaction);
+  localStorage.setItem('rekapinyu_transactions', JSON.stringify(list));
+
+  if(channel){
+    channel.postMessage({ type: 'NEW_PAYMENT', data: newTransaction });
+  }
+
+  // Reset tampilan modal ke kondisi awal (menunggu)
+  document.getElementById('statusSpinner').style.display = 'block';
+  document.getElementById('statusActiveIcon').style.display = 'none';
+  document.getElementById('statusRejectIcon').style.display = 'none';
+  document.getElementById('statusTitle').textContent = 'Mohon menunggu paket anda Sedang Diproses';
+  document.getElementById('statusDesc').textContent = 'Verifikasi sedang dilakukan oleh Superadmin. Mohon jangan menutup halaman ini.';
+  document.getElementById('statusActionArea').style.display = 'none';
+  document.getElementById('statusRejectActionArea').style.display = 'none';
+
+  document.getElementById('statusModalOverlay').classList.add('show');
+}
+
+function closeStatusModal(){
+  document.getElementById('statusModalOverlay').classList.remove('show');
+}
+
+function handleStatusUpdate(id, status){
+  if(id === currentTxId){
+    if(status === 'DIKONFIRMASI'){
+      document.getElementById('statusSpinner').style.display = 'none';
+      document.getElementById('statusRejectIcon').style.display = 'none';
+      document.getElementById('statusActiveIcon').style.display = 'grid';
+      document.getElementById('statusTitle').textContent = 'Paket sudah aktif';
+      document.getElementById('statusDesc').textContent = 'Selamat! Paket Anda telah berhasil diaktifkan. Silakan masuk ke aplikasi.';
+      document.getElementById('statusActionArea').style.display = 'block';
+      document.getElementById('statusRejectActionArea').style.display = 'none';
+    } else if(status === 'DITOLAK'){
+      document.getElementById('statusSpinner').style.display = 'none';
+      document.getElementById('statusActiveIcon').style.display = 'none';
+      document.getElementById('statusRejectIcon').style.display = 'grid';
+      document.getElementById('statusTitle').textContent = 'Paket dibatalkan';
+      document.getElementById('statusDesc').textContent = 'Silahkan Melakukan Pembayaran Dulu, Baru Klik Konfirmasi Pembayaran';
+      document.getElementById('statusActionArea').style.display = 'none';
+      document.getElementById('statusRejectActionArea').style.display = 'block';
+    }
+  }
+}
+
+if(channel){
+  channel.onmessage = function(e){
+    if(e.data && e.data.type === 'STATUS_UPDATE'){
+      handleStatusUpdate(e.data.id, e.data.status);
+    }
+  };
+}
+
+window.addEventListener('storage', function(e){
+  if(e.key === 'rekapinyu_status_update' && e.newValue){
+    const data = JSON.parse(e.newValue);
+    handleStatusUpdate(data.id, data.status);
+  }
+});
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
+const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
+const USERS="rekapinyu_users", DATA="rekapinyu_data", appUrl="https://rekapinyu.github.io/";
+const phoneOf=v=>String(v||"").replace(/\D/g,"");
+const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
+function encodeHandoff(data){const bytes=new TextEncoder().encode(JSON.stringify(data));let bin="";bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
+function goToApp(phone,password){window.location.replace(`${appUrl}#rekapinyu_login=${encodeHandoff({phone:phoneOf(phone),password})}`);}
+function firebaseMessage(err){if(err?.code==="auth/invalid-credential"||err?.code==="auth/invalid-login-credentials")return "Nomor HP atau kata sandi tidak cocok.";if(err?.code==="auth/email-already-in-use")return "Nomor HP tersebut sudah terdaftar. Silakan gunakan form login.";if(err?.code==="auth/weak-password")return "Kata sandi minimal 6 karakter.";if(err?.code==="auth/invalid-email")return "Nomor HP tidak valid.";if(err?.code==="auth/operation-not-allowed")return "Login Email/Password belum diaktifkan di Firebase Console.";return err?.message||"Terjadi kesalahan. Silakan coba lagi.";}
+const formLogin=document.getElementById('form-login'),formRegister=document.getElementById('form-register');
+if(formLogin)formLogin.addEventListener('submit',async e=>{e.preventDefault();const phone=phoneOf(document.getElementById('login-phone')?.value),password=document.getElementById('login-password')?.value||"";if(!phone||!password){alert("Nomor HP dan kata sandi wajib diisi.");return;}const btn=formLogin.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent="Memproses...";}try{await signInWithEmailAndPassword(auth,emailOf(phone),password);goToApp(phone,password);}catch(err){console.error("Rekapinyu landing login:",err);alert(firebaseMessage(err));if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||"Masuk";}}});
+if(formRegister)formRegister.addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('reg-name')?.value.trim()||"",phone=phoneOf(document.getElementById('reg-phone')?.value),password=document.getElementById('reg-password')?.value||"";if(!name){alert("Nama wajib diisi.");return;}if(!phone){alert("Nomor HP wajib diisi.");return;}if(password.length<6){alert("Kata sandi minimal 6 karakter.");return;}const btn=formRegister.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent="Membuat akun...";}try{const c=await createUserWithEmailAndPassword(auth,emailOf(phone),password);await updateProfile(c.user,{displayName:name});const userData={uid:c.user.uid,name,phone,email:c.user.email,photo:""};try{await setDoc(doc(db,USERS,c.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});await setDoc(doc(db,DATA,c.user.uid),{historyData:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],kasbonPass:"",shopCover:"",updatedAt:serverTimestamp()});}catch(firestoreErr){console.warn("Rekapinyu landing: profil/data Firestore belum dapat disimpan.",firestoreErr);}goToApp(phone,password);}catch(err){console.error("Rekapinyu landing registration:",err);alert(firebaseMessage(err));if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||"Daftar";}}});
+</script>
+</body>
+</html>

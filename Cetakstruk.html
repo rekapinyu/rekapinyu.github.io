@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rekapinyu - Cetak Struk Gratis</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font (Plus Jakarta Sans & Space Mono) -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 58mm Thermal Paper Simulation */
+        .thermal-receipt {
+            width: 100%;
+            max-width: 290px;
+            background-color: #ffffff;
+            color: #111827;
+            font-family: 'Space Mono', 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.35;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.12);
+            position: relative;
+            margin: 0 auto;
+            padding: 18px 14px;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 0);
+            background-size: 10px 10px;
+            border-radius: 4px;
+        }
+
+        /* Paper Tear/Jagged Top and Bottom Effect */
+        .thermal-receipt::before, .thermal-receipt::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background-size: 12px 6px;
+        }
+
+        .thermal-receipt::before {
+            top: -6px;
+            background-image: linear-gradient(-135deg, #ffffff 3px, transparent 0), linear-gradient(135deg, #ffffff 3px, transparent 0);
+        }
+
+        .thermal-receipt::after {
+            bottom: -6px;
+            background-image: linear-gradient(-45deg, #ffffff 3px, transparent 0), linear-gradient(45deg, #ffffff 3px, transparent 0);
+        }
+
+        /* Custom Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 6px;
+        }
+
+        /* Print media query for thermal printers */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-receipt-area, #printable-receipt-area * {
+                visibility: visible;
+            }
+            #printable-receipt-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 58mm;
+                padding: 0;
+                margin: 0;
+                box-shadow: none;
+                background: white;
+                color: black;
+            }
+            @page {
+                size: 58mm auto;
+                margin: 0mm;
+            }
+        }
+    </style>
+
+<style id="rk-header-logo-only">
+/* PATCH KHUSUS LOGO HEADER — bagian lain tetap original */
+.rk-logo-green{
+    filter: brightness(0) saturate(100%) invert(42%) sepia(43%) saturate(807%)
+            hue-rotate(128deg) brightness(88%) contrast(91%);
+}
+.rk-text-green{
+    color:#0d9488 !important;
+}
+</style>
+
+</head>
+<body class="bg-slate-100 text-slate-800 flex justify-center min-h-screen">
+
+    <!-- Main Mobile Container (Modern Light Theme) -->
+    <div id="app" class="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-xl border-x border-slate-200/80 pb-20">
+        
+        <!-- Header Bar -->
+        <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 p-4 sticky top-0 z-30 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 flex items-center justify-center overflow-hidden">
+<img class="brand-logo" src="https://github.com/rekapinyu/strukasir/blob/main/Logo%20Rekapinyu%2040x40.jpg?raw=true" alt="REKAPINYU"></div>
+                <div>
+                    <h1 class="font-extrabold text-base tracking-tight leading-none rk-text-green">REKAPINYU</h1>
+                   
+                </div>
+            </div>
+            
+            <!-- Bluetooth Connection Status Badge -->
+            <button id="bt-status-btn" onclick="openBluetoothModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200/80 active:scale-95">
+                <span id="bt-indicator" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <i class="fa-bluetooth fab text-sm text-slate-500"></i>
+                <span id="bt-status-text">Putus</span>
+            </button>
+        </header>
+
+        <!-- Tab Content Area -->
+        <main class="flex-1 p-4 overflow-y-auto space-y-4">
+
+            <!-- TAB 1: KASIR & INPUT PRODUK -->
+            <section id="tab-kasir" class="tab-content space-y-4">
+                
+                <!-- Action Row: Tambah Manual / Quick Catalog -->
+                <div class="flex gap-2">
+                    <button onclick="openCatalogModal()" class="flex-1 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-2xl py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm">
+                        <i class="fa-solid fa-layer-group text-sm text-emerald-600"></i> Pilih dari Katalog
+                    </button>
+                    <button onclick="resetCart()" class="bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-2xl px-4 py-3 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                </div>
+
+                <!-- Input Nama Pelanggan -->
+                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2">
+                    <label for="input-customer-name" class="text-xs font-semibold text-slate-600 block">Nama Pelanggan</label>
+                    <input type="text" id="input-customer-name" oninput="updateReceiptPreview()" placeholder="Masukkan nama pelanggan (opsional)"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
+                </div>
+
+                <!-- Form Quick Add Product Item -->
+                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-slate-700"><i class="fa-solid fa-circle-plus text-emerald-500"></i> Tambah Item Produk</span>
+                        <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-medium">Input Manual</span>
+                    </div>
+                    <form id="add-item-form" onsubmit="handleAddItem(event)" class="space-y-3">
+                        <div>
+                            <input type="text" id="input-item-name" placeholder="Nama Produk (mis: Es Teh Manis)" required
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
+                        </div>
+                        <div class="grid grid-cols-12 gap-2">
+                            <div class="col-span-4">
+                                <input type="number" id="input-item-qty" placeholder="Qty" min="1" value="1" required
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition text-center">
+                            </div>
+                            <div class="col-span-8">
+                                <div class="relative">
+                                    <span class="absolute left-3.5 top-2.5 text-xs text-slate-400 font-bold">Rp</span>
+                                    <input type="number" id="input-item-price" placeholder="Harga Satuan" min="0" step="500" required
+                                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition">
+                            <i class="fa-solid fa-plus text-sm"></i> Tambahkan ke Struk
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Shopping List (Keranjang) -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500 px-1">
+                        <span>Daftar Item (<span id="cart-count">0</span>)</span>
+                        <span id="cart-total-badge" class="text-emerald-600 font-bold">Rp 0</span>
+                    </div>
+
+                    <div id="cart-items-container" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+                        <!-- Dynamic items inserted here -->
+                        <div class="text-center py-7 border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs">
+                            <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300 block"></i>
+                            Keranjang kosong. Tambahkan item di atas.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment & Change Calculator Section -->
+                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-calculator text-emerald-600"></i> Pembayaran & Kembalian</span>
+                        <span class="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Tunai / Cash</span>
+                    </div>
+
+                    <!-- Total Tagihan Display -->
+                    <div class="flex justify-between items-center bg-slate-50 rounded-xl p-3.5 border border-slate-200/60">
+                        <span class="text-xs font-medium text-slate-500">Total Tagihan:</span>
+                        <span id="display-total-amount" class="text-lg font-extrabold text-emerald-600">Rp 0</span>
+                    </div>
+
+                    <!-- Input Cash Paid -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-slate-600 block">Uang Diterima (Bayar):</label>
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-2.5 text-sm font-extrabold text-slate-400">Rp</span>
+                            <input type="number" id="input-cash-paid" oninput="calculateChange()" placeholder="0" min="0" step="1000"
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-base font-extrabold text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
+                        </div>
+
+                        <!-- Quick Nominal Buttons -->
+                        <div class="grid grid-cols-4 gap-1.5 pt-1">
+                            <button onclick="setQuickCash('exact')" class="bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2 rounded-xl text-[11px] font-bold transition active:scale-95">Uang Pas</button>
+                            <button onclick="setQuickCash(10000)" class="bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2 rounded-xl text-[11px] font-bold transition active:scale-95">10rb</button>
+                            <button onclick="setQuickCash(20000)" class="bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2 rounded-xl text-[11px] font-bold transition active:scale-95">20rb</button>
+                            <button onclick="setQuickCash(50000)" class="bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2 rounded-xl text-[11px] font-bold transition active:scale-95">50rb</button>
+                            <button onclick="setQuickCash(100000)" class="bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2 rounded-xl text-[11px] font-bold transition active:scale-95 col-span-2">100rb</button>
+                            <button onclick="setQuickCash('round')" class="bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2 rounded-xl text-[11px] font-bold transition active:scale-95 col-span-2">Bulatkan</button>
+                        </div>
+                    </div>
+
+                    <!-- Calculated Change Display -->
+                    <div id="change-status-box" class="flex justify-between items-center rounded-xl p-3.5 border transition bg-slate-50 border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-500">Kembalian:</span>
+                        <span id="display-change-amount" class="text-base font-bold text-slate-700">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Live Preview Struk 58mm Header & Trigger Modal/Print -->
+                <div class="pt-2">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-eye text-emerald-600"></i> Preview Struk 58mm
+                        </span>
+                        <span class="text-[10px] bg-slate-100 border border-slate-200 text-slate-600 px-2.5 py-0.5 rounded-full font-mono font-medium">58mm</span>
+                    </div>
+
+                    <!-- Thermal Paper Simulation Container -->
+                    <div class="p-4 bg-slate-100 rounded-2xl border border-slate-200/80 overflow-hidden shadow-inner">
+                        <div id="printable-receipt-area" class="thermal-receipt">
+                            <!-- Live receipt rendered via JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Print Action Buttons -->
+                    <div class="grid grid-cols-2 gap-2 mt-4">
+                        <button onclick="printViaBluetooth()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-2xl py-3 px-3 text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition active:scale-95">
+                            <i class="fa-bluetooth fab text-sm"></i> Cetak Bluetooth
+                        </button>
+                        <button onclick="printViaBrowser()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl py-3 px-3 text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-slate-900/10">
+                            <i class="fa-solid fa-print text-sm"></i> Cetak System
+                        </button>
+                    </div>
+                    <button onclick="saveAndFinishTransaction()" class="w-full mt-2 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-700 font-bold rounded-2xl py-2.5 text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-circle-check text-emerald-600"></i> Simpan Transaksi & Selesai
+                    </button>
+                </div>
+
+            </section>
+
+            <!-- TAB 2: KATALOG PRODUK -->
+            <section id="tab-katalog" class="tab-content hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-stacked text-emerald-600"></i> Katalog Produk
+                    </h2>
+                    <button onclick="openAddCatalogModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
+                        <i class="fa-solid fa-plus"></i> Tambah Produk
+                    </button>
+                </div>
+
+                <!-- Catalog Item List -->
+                <div id="catalog-list" class="space-y-2">
+                    <!-- Dynamic catalog items -->
+                </div>
+            </section>
+
+            <!-- TAB 3: RIWAYAT TRANSAKSI -->
+            <section id="tab-riwayat" class="tab-content hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Riwayat Transaksi
+                    </h2>
+                    <button onclick="clearHistory()" class="text-xs font-semibold text-rose-500 hover:underline">Hapus Semua</button>
+                </div>
+
+                <!-- Summary Card -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase">Total Struk</span>
+                        <span id="summary-total-count" class="text-lg font-extrabold text-slate-800">0</span>
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase">Total Omset</span>
+                        <span id="summary-total-sales" class="text-lg font-extrabold text-emerald-600">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- History List -->
+                <div id="history-list" class="space-y-2">
+                    <!-- Dynamic history items -->
+                </div>
+            </section>
+
+            <!-- TAB 4: PENGATURAN TOKO -->
+            <section id="tab-pengaturan" class="tab-content hidden space-y-4">
+                <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-store text-emerald-600"></i> Profil Toko & Header Struk
+                </h2>
+
+                <form id="store-settings-form" onsubmit="saveStoreSettings(event)" class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 block mb-1">Nama Toko / Usaha</label>
+                        <input type="text" id="setting-store-name" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 block mb-1">Alamat Toko</label>
+                        <input type="text" id="setting-store-address" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 block mb-1">Nomor Telepon / WA</label>
+                        <input type="text" id="setting-store-phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 block mb-1">Pesan Footer Struk (Terima Kasih)</label>
+                        <textarea id="setting-store-footer" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl py-2.5 text-xs shadow-md shadow-emerald-600/20">
+                        Simpan Pengaturan
+                    </button>
+                </form>
+
+                <!-- Bluetooth Device Info Box -->
+                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2">
+                    <h3 class="text-xs font-bold text-slate-800">Status Bluetooth Thermal</h3>
+                    <p id="bt-detail-text" class="text-xs text-slate-500">Tidak ada perangkat tersambung.</p>
+                    <button onclick="openBluetoothModal()" class="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-emerald-700 font-bold rounded-xl py-2.5 text-xs flex items-center justify-center gap-2">
+                        <i class="fa-bluetooth fab text-emerald-600"></i> Kelola Perangkat Bluetooth
+                    </button>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Mobile Navigation Bar -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-slate-200/80 grid grid-cols-4 z-40 shadow-lg">
+            <button onclick="switchTab('kasir')" id="nav-kasir" class="nav-btn active flex flex-col items-center justify-center py-2.5 text-emerald-600 transition">
+                <i class="fa-solid fa-cash-register text-base mb-0.5"></i>
+                <span class="text-[10px] font-bold">Kasir</span>
+            </button>
+            <button onclick="switchTab('katalog')" id="nav-katalog" class="nav-btn flex flex-col items-center justify-center py-2.5 text-slate-400 transition">
+                <i class="fa-solid fa-boxes-stacked text-base mb-0.5"></i>
+                <span class="text-[10px] font-bold">Katalog</span>
+            </button>
+            <button onclick="switchTab('riwayat')" id="nav-riwayat" class="nav-btn flex flex-col items-center justify-center py-2.5 text-slate-400 transition">
+                <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i>
+                <span class="text-[10px] font-bold">Riwayat</span>
+            </button>
+            <button onclick="switchTab('pengaturan')" id="nav-pengaturan" class="nav-btn flex flex-col items-center justify-center py-2.5 text-slate-400 transition">
+                <i class="fa-solid fa-gear text-base mb-0.5"></i>
+                <span class="text-[10px] font-bold">Pengaturan</span>
+            </button>
+        </nav>
+
+        <!-- MODAL: Bluetooth Connection Manager -->
+        <div id="bt-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white border border-slate-200 w-full max-w-xs rounded-3xl p-5 space-y-4 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-bluetooth fab text-emerald-600"></i> Printer Bluetooth
+                    </h3>
+                    <button onclick="closeBluetoothModal()" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                
+                <p class="text-xs text-slate-500">Sambungkan ke printer thermal 58mm (ESC/POS) langsung dari browser yang mendukung Web Bluetooth.</p>
+
+                <div class="space-y-2">
+                    <button id="bt-connect-btn" onclick="connectBluetoothDevice()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl py-2.5 text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                        <i class="fa-solid fa-magnifying-glass"></i> Cari & Sambungkan
+                    </button>
+                    <button id="bt-disconnect-btn" onclick="disconnectBluetoothDevice()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold rounded-xl py-2 text-xs flex items-center justify-center gap-2 hidden">
+                        <i class="fa-solid fa-plug-circle-xmark"></i> Putuskan Koneksi
+                    </button>
+                </div>
+
+                <div id="bt-device-info" class="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-2xl border border-slate-200/80 space-y-1">
+                    <div>Perangkat: <span id="bt-name-display" class="font-bold text-slate-800">Belum Ada</span></div>
+                    <div>Status: <span id="bt-state-display" class="font-bold text-amber-500">Terputus</span></div>
+                </div>
+
+                <div class="text-[10px] text-slate-400 leading-tight">
+                    *Pastikan Bluetooth HP & Printer Thermal sudah menyala.
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Pick Product from Catalog -->
+        <div id="catalog-picker-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white border border-slate-200 w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-emerald-600"></i> Pilih dari Katalog
+                    </h3>
+                    <button onclick="closeCatalogModal()" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div id="catalog-picker-items" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Add Catalog Product -->
+        <div id="add-catalog-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white border border-slate-200 w-full max-w-xs rounded-3xl p-5 space-y-3 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <h3 class="text-sm font-bold text-slate-800">Tambah ke Katalog</h3>
+                    <button onclick="closeAddCatalogModal()" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <form id="add-catalog-form" onsubmit="handleSaveCatalog(event)" class="space-y-3">
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-600 block mb-1">Nama Produk</label>
+                        <input type="text" id="cat-item-name" required placeholder="mis: Kopi Hitam" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-600 block mb-1">Harga (Rp)</label>
+                        <input type="number" id="cat-item-price" required placeholder="10000" min="0" step="500" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500">
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl py-2.5 text-xs shadow-md shadow-emerald-600/20">
+                        Simpan ke Katalog
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Notification Toast Container -->
+        <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-2">
+            <i id="toast-icon" class="fa-solid fa-circle-info text-emerald-400"></i>
+            <span id="toast-message">Pesan notifikasi</span>
+        </div>
+
+    </div>
+
+    <script>
+        /* Global Application State */
+        const APP_STATE = {
+            store: {
+                name: "",
+                address: "",
+                phone: "",
+                footer: ""
+            },
+            cart: [
+                { id: '1', name: 'Kopi Susu Gula Aren', qty: 2, price: 18000 },
+                { id: '2', name: 'Roti Bakar Cokelat', qty: 1, price: 15000 }
+            ],
+            cashPaid: 50000,
+            customerName: '',
+            catalog: [
+                { id: 'c1', name: 'Kopi Susu Gula Aren', price: 18000 },
+                { id: 'c2', name: 'Roti Bakar Cokelat', price: 15000 },
+                { id: 'c3', name: 'Es Teh Manis', price: 5000 },
+                { id: 'c4', name: 'Nasi Goreng Spesial', price: 25000 }
+            ],
+            history: [],
+            bluetoothDevice: null,
+            bluetoothCharacteristic: null,
+            isConnectedBT: false
+        };
+
+        /* Initialize App on Load */
+        window.onload = function() {
+            loadLocalStorage();
+            renderCart();
+            renderCatalog();
+            renderHistory();
+            updateReceiptPreview();
+            populateStoreForm();
+        };
+
+        /* Save & Load LocalStorage */
+        function saveData() {
+            localStorage.setItem('strukfast_store', JSON.stringify(APP_STATE.store));
+            localStorage.setItem('strukfast_catalog', JSON.stringify(APP_STATE.catalog));
+            localStorage.setItem('strukfast_history', JSON.stringify(APP_STATE.history));
+        }
+
+        function loadLocalStorage() {
+            const savedStore = localStorage.getItem('strukfast_store');
+            if (savedStore) APP_STATE.store = JSON.parse(savedStore);
+
+            const savedCatalog = localStorage.getItem('strukfast_catalog');
+            if (savedCatalog) APP_STATE.catalog = JSON.parse(savedCatalog);
+
+            const savedHistory = localStorage.getItem('strukfast_history');
+            if (savedHistory) APP_STATE.history = JSON.parse(savedHistory);
+        }
+
+        /* Format Currency Rupiah */
+        function formatRp(num) {
+            return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+        }
+
+        /* Navigation Tab Switcher */
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('text-emerald-600');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabName}`);
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-400');
+                activeNav.classList.add('text-emerald-600');
+            }
+        }
+
+        /* Cart & Item Operations */
+        function handleAddItem(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('input-item-name');
+            const qtyInput = document.getElementById('input-item-qty');
+            const priceInput = document.getElementById('input-item-price');
+
+            const name = nameInput.value.trim();
+            const qty = parseInt(qtyInput.value) || 1;
+            const price = parseFloat(priceInput.value) || 0;
+
+            if (!name || price <= 0) {
+                showToast("Nama & harga produk harus valid!", "error");
+                return;
+            }
+
+            // Check if item already exists in cart
+            const existingIndex = APP_STATE.cart.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+            if (existingIndex > -1) {
+                APP_STATE.cart[existingIndex].qty += qty;
+            } else {
+                APP_STATE.cart.push({
+                    id: Date.now().toString(),
+                    name: name,
+                    qty: qty,
+                    price: price
+                });
+            }
+
+            // Reset Form inputs
+            nameInput.value = '';
+            qtyInput.value = '1';
+            priceInput.value = '';
+
+            renderCart();
+            updateReceiptPreview();
+            showToast("Item berhasil ditambahkan!");
+        }
+
+        function updateQty(id, delta) {
+            const item = APP_STATE.cart.find(i => i.id === id);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    APP_STATE.cart = APP_STATE.cart.filter(i => i.id !== id);
+                }
+                renderCart();
+                updateReceiptPreview();
+            }
+        }
+
+        function removeCartItem(id) {
+            APP_STATE.cart = APP_STATE.cart.filter(i => i.id !== id);
+            renderCart();
+            updateReceiptPreview();
+            showToast("Item dihapus.");
+        }
+
+        function resetCart() {
+            APP_STATE.cart = [];
+            APP_STATE.cashPaid = 0;
+            APP_STATE.customerName = '';
+            document.getElementById('input-cash-paid').value = '';
+            const customerInput = document.getElementById('input-customer-name');
+            if (customerInput) customerInput.value = '';
+            renderCart();
+            updateReceiptPreview();
+            showToast("Keranjang dibersihkan.");
+        }
+
+        function getCartTotal() {
+            return APP_STATE.cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            const cartCountEl = document.getElementById('cart-count');
+            const cartTotalBadge = document.getElementById('cart-total-badge');
+            const displayTotalAmount = document.getElementById('display-total-amount');
+
+            const total = getCartTotal();
+            cartCountEl.textContent = APP_STATE.cart.length;
+            cartTotalBadge.textContent = formatRp(total);
+            displayTotalAmount.textContent = formatRp(total);
+
+            if (APP_STATE.cart.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-7 border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs">
+                        <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300 block"></i>
+                        Keranjang kosong. Tambahkan item di atas.
+                    </div>
+                `;
+                calculateChange();
+                return;
+            }
+
+            container.innerHTML = APP_STATE.cart.map(item => `
+                <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between text-xs shadow-sm">
+                    <div class="flex-1 pr-2">
+                        <div class="font-bold text-slate-800 line-clamp-1">${escapeHtml(item.name)}</div>
+                        <div class="text-[11px] text-slate-500 font-medium">
+                            ${item.qty} x ${formatRp(item.price)} = <span class="font-bold text-emerald-600">${formatRp(item.qty * item.price)}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="updateQty('${item.id}', -1)" class="w-7 h-7 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm shadow-sm">-</button>
+                        <span class="w-5 text-center font-bold text-slate-800 text-xs">${item.qty}</span>
+                        <button onclick="updateQty('${item.id}', 1)" class="w-7 h-7 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm shadow-sm">+</button>
+                        <button onclick="removeCartItem('${item.id}')" class="w-7 h-7 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 ml-1 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            calculateChange();
+        }
+
+        /* Payment & Kembalian Calculation */
+        function calculateChange() {
+            const cashInput = document.getElementById('input-cash-paid');
+            const changeDisplay = document.getElementById('display-change-amount');
+            const changeBox = document.getElementById('change-status-box');
+
+            const total = getCartTotal();
+            const cashPaid = parseFloat(cashInput.value) || 0;
+            APP_STATE.cashPaid = cashPaid;
+
+            const change = cashPaid - total;
+
+            if (cashPaid === 0) {
+                changeDisplay.textContent = 'Rp 0';
+                changeDisplay.className = 'text-base font-bold text-slate-500';
+                changeBox.className = 'flex justify-between items-center rounded-xl p-3.5 border transition bg-slate-50 border-slate-200/60';
+            } else if (change >= 0) {
+                changeDisplay.textContent = formatRp(change);
+                changeDisplay.className = 'text-base font-extrabold text-emerald-600';
+                changeBox.className = 'flex justify-between items-center rounded-xl p-3.5 border transition bg-emerald-50 border-emerald-200';
+            } else {
+                changeDisplay.textContent = `Kurang ${formatRp(Math.abs(change))}`;
+                changeDisplay.className = 'text-base font-bold text-rose-600';
+                changeBox.className = 'flex justify-between items-center rounded-xl p-3.5 border transition bg-rose-50 border-rose-200';
+            }
+
+            updateReceiptPreview();
+        }
+
+        function setQuickCash(type) {
+            const total = getCartTotal();
+            const cashInput = document.getElementById('input-cash-paid');
+
+            if (type === 'exact') {
+                cashInput.value = total;
+            } else if (type === 'round') {
+                if (total === 0) cashInput.value = 0;
+                else if (total <= 10000) cashInput.value = 10000;
+                else if (total <= 20000) cashInput.value = 20000;
+                else if (total <= 50000) cashInput.value = 50000;
+                else cashInput.value = Math.ceil(total / 50000) * 50000;
+            } else if (typeof type === 'number') {
+                cashInput.value = type;
+            }
+
+            calculateChange();
+        }
+
+        /* Generate Monospace 58mm Thermal Receipt Text & Live Preview */
+        function updateReceiptPreview() {
+            const receiptContainer = document.getElementById('printable-receipt-area');
+            const total = getCartTotal();
+            const cashPaid = APP_STATE.cashPaid || 0;
+            const change = cashPaid - total;
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const receiptNo = 'INV-' + now.valueOf().toString().slice(-6);
+            const customerName = (document.getElementById('input-customer-name')?.value || APP_STATE.customerName || '').trim();
+            APP_STATE.customerName = customerName;
+
+            let itemsHTML = '';
+            if (APP_STATE.cart.length === 0) {
+                itemsHTML = `<div class="text-center italic py-2 text-slate-400">(Belum ada produk)</div>`;
+            } else {
+                itemsHTML = APP_STATE.cart.map(item => {
+                    const itemTotalFormatted = formatRp(item.qty * item.price).replace('Rp ', '');
+                    return `
+                        <div class="mb-1">
+                            <div class="font-bold text-slate-900 break-words">${escapeHtml(item.name)}</div>
+                            <div class="flex justify-between text-[10px] text-slate-700">
+                                <span>${item.qty} x ${item.price.toLocaleString('id-ID')}</span>
+                                <span class="font-semibold">${itemTotalFormatted}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const html = `
+                <div class="text-center font-bold text-sm tracking-tight border-b border-dashed border-slate-300 pb-1.5 mb-1.5 text-slate-900">
+                    ${escapeHtml(APP_STATE.store.name)}
+                </div>
+                <div class="text-center text-[10px] text-slate-600 mb-1 leading-tight">
+                    ${escapeHtml(APP_STATE.store.address)}<br>
+                    Telp: ${escapeHtml(APP_STATE.store.phone)}
+                </div>
+
+                <div class="text-[9px] text-slate-600 border-t border-b border-dashed border-slate-300 py-1 my-1.5 flex justify-between">
+                    <span>${dateStr} ${timeStr}</span>
+                    <span class="font-bold">${receiptNo}</span>
+                </div>
+
+                <div class="text-[10px] text-slate-700 border-b border-dashed border-slate-300 pb-1.5 mb-1.5">
+                    <span class="font-bold">Pelanggan:</span> ${escapeHtml(customerName || '-')}
+                </div>
+
+                <!-- Item List -->
+                <div class="my-2 space-y-1">
+                    ${itemsHTML}
+                </div>
+
+                <div class="border-t border-dashed border-slate-300 pt-1 mt-2 space-y-0.5 text-[11px]">
+                    <div class="flex justify-between font-bold text-xs text-slate-900">
+                        <span>TOTAL</span>
+                        <span>${formatRp(total)}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-700">
+                        <span>BAYAR (TUNAI)</span>
+                        <span>${formatRp(cashPaid)}</span>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-bold border-t border-dotted border-slate-300 pt-0.5 mt-0.5 text-slate-900">
+                        <span>KEMBALIAN</span>
+                        <span>${change >= 0 ? formatRp(change) : 'Rp 0'}</span>
+                    </div>
+                </div>
+
+                <div class="text-center text-[9px] text-slate-500 border-t border-dashed border-slate-300 pt-2 mt-3 space-y-0.5 whitespace-pre-line">
+                    ${escapeHtml(APP_STATE.store.footer)}
+                </div>
+            `;
+
+            receiptContainer.innerHTML = html;
+        }
+
+        /* Convert Receipt Data to ESC/POS Raw Commands for Bluetooth Printer */
+        function generateEscPosBytes() {
+            const total = getCartTotal();
+            const cashPaid = APP_STATE.cashPaid || 0;
+            const change = Math.max(0, cashPaid - total);
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const receiptNo = 'INV-' + now.valueOf().toString().slice(-6);
+
+            const encoder = new TextEncoder();
+            let bytes = [];
+
+            const push = (...cmds) => bytes.push(...cmds);
+            const pushText = (str) => {
+                const encoded = encoder.encode(str + '\n');
+                encoded.forEach(b => bytes.push(b));
+            };
+
+            // ESC/POS Initialization
+            push(0x1B, 0x40); 
+            push(0x1B, 0x74, 0x00); 
+
+            // Header
+            push(0x1B, 0x61, 0x01); 
+            push(0x1D, 0x21, 0x11); 
+            pushText(APP_STATE.store.name);
+            push(0x1D, 0x21, 0x00); 
+            pushText(APP_STATE.store.address);
+            pushText('Telp: ' + APP_STATE.store.phone);
+            pushText('--------------------------------');
+
+            // Metadata
+            push(0x1B, 0x61, 0x00); 
+            pushText(`Tgl : ${dateStr}`);
+            pushText(`No. : ${receiptNo}`);
+            pushText('--------------------------------');
+            pushText('Pelanggan: ' + (APP_STATE.customerName || '-'));
+            pushText('--------------------------------');
+
+            // Items List
+            APP_STATE.cart.forEach(item => {
+                pushText(item.name.substring(0, 32));
+                const priceStr = `${item.qty}x${item.price.toLocaleString('id-ID')}`;
+                const totalStr = (item.qty * item.price).toLocaleString('id-ID');
+                const spaces = 32 - priceStr.length - totalStr.length;
+                const line = priceStr + ' '.repeat(Math.max(1, spaces)) + totalStr;
+                pushText(line);
+            });
+
+            pushText('--------------------------------');
+
+            const padLine = (label, value) => {
+                const spaces = 32 - label.length - value.length;
+                return label + ' '.repeat(Math.max(1, spaces)) + value;
+            };
+
+            pushText(padLine('TOTAL', 'Rp ' + total.toLocaleString('id-ID')));
+            pushText(padLine('BAYAR TUNAI', 'Rp ' + cashPaid.toLocaleString('id-ID')));
+            pushText(padLine('KEMBALIAN', 'Rp ' + change.toLocaleString('id-ID')));
+            pushText('--------------------------------');
+
+            // Footer
+            push(0x1B, 0x61, 0x01); 
+            APP_STATE.store.footer.split('\n').forEach(line => {
+                if (line.trim()) pushText(line.trim());
+            });
+
+            // Feed & Cut Paper
+            pushText('\n\n\n');
+            push(0x1B, 0x64, 0x04); 
+
+            return new Uint8Array(bytes);
+        }
+
+        /* Web Bluetooth API Connection */
+        async function connectBluetoothDevice() {
+            if (!navigator.bluetooth || typeof navigator.bluetooth.requestDevice !== 'function') {
+                showToast("Browser ini tidak menyediakan Web Bluetooth. Bluetooth printer langsung dari halaman web hanya bisa digunakan pada browser yang mendukung Web Bluetooth.", "error");
+                return;
+            }
+
+            try {
+                showToast("Mencari printer bluetooth...");
+
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '000018f0-0000-1000-8000-00805f9b34fb',
+                        '00001101-0000-0000-0000-00805f9b34fb',
+                        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+                        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                        '0000ffe0-0000-1000-8000-00805f9b34fb',
+                        '0000ff00-0000-1000-8000-00805f9b34fb'
+                    ]
+                });
+
+                document.getElementById('bt-state-display').textContent = 'Menghubungkan...';
+                document.getElementById('bt-state-display').className = 'font-bold text-amber-500';
+
+                if (!device.gatt) throw new Error("Perangkat Bluetooth tidak mendukung koneksi GATT.");
+
+                const server = device.gatt.connected ? device.gatt : await device.gatt.connect();
+                APP_STATE.bluetoothDevice = device;
+
+                device.addEventListener('gattserverdisconnected', onBTDisconnected);
+
+                let writeChar = null;
+                const services = await server.getPrimaryServices();
+
+                // Cari karakteristik yang memang dapat menerima data cetak.
+                for (const service of services) {
+                    const characteristics = await service.getCharacteristics();
+                    for (const char of characteristics) {
+                        if (char.properties && (char.properties.writeWithoutResponse || char.properties.write)) {
+                            // Utamakan writeWithoutResponse karena banyak printer thermal menggunakannya.
+                            if (char.properties.writeWithoutResponse) {
+                                writeChar = char;
+                                break;
+                            }
+                            if (!writeChar && char.properties.write) writeChar = char;
+                        }
+                    }
+                    if (writeChar && writeChar.properties.writeWithoutResponse) break;
+                }
+
+                if (!writeChar) {
+                    throw new Error("Karakteristik Bluetooth untuk menerima data cetak tidak ditemukan.");
+                }
+
+                APP_STATE.bluetoothCharacteristic = writeChar;
+                APP_STATE.isConnectedBT = true;
+
+                updateBTUI();
+                showToast(`Printer tersambung: ${device.name || 'Thermal 58mm'}`);
+                closeBluetoothModal();
+
+            } catch (error) {
+                console.error("BT Error:", error);
+                APP_STATE.bluetoothDevice = null;
+                APP_STATE.bluetoothCharacteristic = null;
+                APP_STATE.isConnectedBT = false;
+                updateBTUI();
+                showToast(`Gagal connect: ${error.message || 'Dibatalkan'}`, "error");
+            }
+        }
+
+        function disconnectBluetoothDevice() {
+            if (APP_STATE.bluetoothDevice && APP_STATE.bluetoothDevice.gatt.connected) {
+                APP_STATE.bluetoothDevice.gatt.disconnect();
+            }
+            onBTDisconnected();
+            showToast("Bluetooth terputus.");
+        }
+
+        function onBTDisconnected() {
+            APP_STATE.bluetoothDevice = null;
+            APP_STATE.bluetoothCharacteristic = null;
+            APP_STATE.isConnectedBT = false;
+            updateBTUI();
+        }
+
+        function updateBTUI() {
+            const indicator = document.getElementById('bt-indicator');
+            const statusText = document.getElementById('bt-status-text');
+            const statusBtn = document.getElementById('bt-status-btn');
+            const detailText = document.getElementById('bt-detail-text');
+            const nameDisplay = document.getElementById('bt-name-display');
+            const stateDisplay = document.getElementById('bt-state-display');
+            const connBtn = document.getElementById('bt-connect-btn');
+            const disconnBtn = document.getElementById('bt-disconnect-btn');
+
+            if (APP_STATE.isConnectedBT) {
+                indicator.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                statusText.textContent = 'Konek';
+                statusBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition bg-emerald-50 text-emerald-700 border border-emerald-200';
+                
+                const devName = APP_STATE.bluetoothDevice ? APP_STATE.bluetoothDevice.name || 'Thermal Printer' : 'Tersambung';
+                nameDisplay.textContent = devName;
+                stateDisplay.textContent = 'Tersambung (Siap Cetak)';
+                stateDisplay.className = 'font-bold text-emerald-600';
+                detailText.textContent = `Tersambung ke ${devName}`;
+
+                connBtn.classList.add('hidden');
+                disconnBtn.classList.remove('hidden');
+            } else {
+                indicator.className = 'w-2 h-2 rounded-full bg-slate-400';
+                statusText.textContent = 'Putus';
+                statusBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200/80';
+
+                nameDisplay.textContent = 'Belum Ada';
+                stateDisplay.textContent = 'Terputus';
+                stateDisplay.className = 'font-bold text-amber-500';
+                detailText.textContent = 'Tidak ada perangkat tersambung.';
+
+                connBtn.classList.remove('hidden');
+                disconnBtn.classList.add('hidden');
+            }
+        }
+
+        /* Print Actions */
+        async function printViaBluetooth() {
+            if (APP_STATE.cart.length === 0) {
+                showToast("Keranjang belanja masih kosong!", "error");
+                return;
+            }
+
+            if (!APP_STATE.isConnectedBT || !APP_STATE.bluetoothCharacteristic) {
+                showToast("Printer Bluetooth belum tersambung!", "error");
+                openBluetoothModal();
+                return;
+            }
+
+            try {
+                showToast("Mengirim data ke printer...");
+                const bytes = generateEscPosBytes();
+
+                const chunkSize = 100;
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    const chunk = bytes.slice(i, i + chunkSize);
+                    const characteristic = APP_STATE.bluetoothCharacteristic;
+                    if (characteristic.properties.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
+                        await characteristic.writeValueWithoutResponse(chunk);
+                    } else if (characteristic.properties.write && typeof characteristic.writeValue === 'function') {
+                        await characteristic.writeValue(chunk);
+                    } else {
+                        throw new Error("Browser atau printer tidak menyediakan metode pengiriman data Bluetooth yang kompatibel.");
+                    }
+                }
+
+                showToast("Struk berhasil dicetak!");
+                saveAndFinishTransaction(false);
+
+            } catch (err) {
+                console.error("Print Error:", err);
+                showToast(`Gagal mencetak: ${err.message}`, "error");
+            }
+        }
+
+        function printViaBrowser() {
+            if (APP_STATE.cart.length === 0) {
+                showToast("Keranjang belanja masih kosong!", "error");
+                return;
+            }
+            window.print();
+            saveAndFinishTransaction(false);
+        }
+
+        /* Save Transaction History */
+        function saveAndFinishTransaction(notify = true) {
+            if (APP_STATE.cart.length === 0) return;
+
+            const total = getCartTotal();
+            const cashPaid = APP_STATE.cashPaid || 0;
+            const change = Math.max(0, cashPaid - total);
+
+            const tx = {
+                id: 'INV-' + Date.now().toString().slice(-6),
+                date: new Date().toISOString(),
+                items: [...APP_STATE.cart],
+                customerName: APP_STATE.customerName || (document.getElementById('input-customer-name')?.value || '').trim(),
+                total: total,
+                cashPaid: cashPaid,
+                change: change
+            };
+
+            APP_STATE.history.unshift(tx);
+            saveData();
+            renderHistory();
+
+            if (notify) {
+                showToast("Transaksi disimpan ke riwayat.");
+            }
+        }
+
+        /* Catalog Operations */
+        function renderCatalog() {
+            const list = document.getElementById('catalog-list');
+            if (APP_STATE.catalog.length === 0) {
+                list.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Belum ada produk di katalog.</div>`;
+                return;
+            }
+
+            list.innerHTML = APP_STATE.catalog.map(item => `
+                <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 flex items-center justify-between text-xs shadow-sm">
+                    <div>
+                        <div class="font-bold text-slate-800">${escapeHtml(item.name)}</div>
+                        <div class="text-emerald-600 font-bold mt-0.5">${formatRp(item.price)}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="addCatalogToCart('${item.id}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-bold transition active:scale-95 flex items-center gap-1">
+                            <i class="fa-solid fa-plus text-[10px]"></i> Ke Struk
+                        </button>
+                        <button onclick="deleteCatalogItem('${item.id}')" class="text-slate-400 hover:text-rose-500 p-1.5">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addCatalogToCart(catId) {
+            const item = APP_STATE.catalog.find(c => c.id === catId);
+            if (!item) return;
+
+            const existing = APP_STATE.cart.find(i => i.name === item.name);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                APP_STATE.cart.push({
+                    id: Date.now().toString(),
+                    name: item.name,
+                    qty: 1,
+                    price: item.price
+                });
+            }
+
+            renderCart();
+            updateReceiptPreview();
+            showToast(`${item.name} ditambahkan!`);
+            closeCatalogModal();
+        }
+
+        function deleteCatalogItem(catId) {
+            APP_STATE.catalog = APP_STATE.catalog.filter(c => c.id !== catId);
+            saveData();
+            renderCatalog();
+            showToast("Produk dihapus dari katalog.");
+        }
+
+        function openCatalogModal() {
+            const container = document.getElementById('catalog-picker-items');
+            if (APP_STATE.catalog.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Katalog kosong. Buat katalog di menu Toko/Katalog.</div>`;
+            } else {
+                container.innerHTML = APP_STATE.catalog.map(item => `
+                    <div onclick="addCatalogToCart('${item.id}')" class="bg-slate-50 hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-200 rounded-2xl p-3.5 flex justify-between items-center cursor-pointer transition">
+                        <div>
+                            <div class="font-bold text-xs text-slate-800">${escapeHtml(item.name)}</div>
+                            <div class="text-[11px] text-emerald-600 font-bold">${formatRp(item.price)}</div>
+                        </div>
+                        <i class="fa-solid fa-circle-plus text-emerald-600 text-base"></i>
+                    </div>
+                `).join('');
+            }
+            document.getElementById('catalog-picker-modal').classList.remove('hidden');
+        }
+
+        function closeCatalogModal() {
+            document.getElementById('catalog-picker-modal').classList.add('hidden');
+        }
+
+        function openAddCatalogModal() {
+            document.getElementById('add-catalog-modal').classList.remove('hidden');
+        }
+
+        function closeAddCatalogModal() {
+            document.getElementById('add-catalog-modal').classList.add('hidden');
+        }
+
+        function handleSaveCatalog(e) {
+            e.preventDefault();
+            const name = document.getElementById('cat-item-name').value.trim();
+            const price = parseFloat(document.getElementById('cat-item-price').value) || 0;
+
+            if (!name || price <= 0) return;
+
+            APP_STATE.catalog.push({
+                id: 'c' + Date.now(),
+                name: name,
+                price: price
+            });
+
+            saveData();
+            renderCatalog();
+            closeAddCatalogModal();
+            document.getElementById('add-catalog-form').reset();
+            showToast("Produk berhasil disimpan ke katalog.");
+        }
+
+        /* History Rendering */
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            const countEl = document.getElementById('summary-total-count');
+            const salesEl = document.getElementById('summary-total-sales');
+
+            const totalSales = APP_STATE.history.reduce((sum, h) => sum + h.total, 0);
+            countEl.textContent = APP_STATE.history.length;
+            salesEl.textContent = formatRp(totalSales);
+
+            if (APP_STATE.history.length === 0) {
+                list.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Belum ada riwayat transaksi.</div>`;
+                return;
+            }
+
+            list.innerHTML = APP_STATE.history.map(tx => {
+                const dt = new Date(tx.date);
+                const timeStr = dt.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) + ' ' + dt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-xs shadow-sm">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span class="font-bold text-slate-800">${tx.id}</span>
+                            <span class="text-[10px] text-slate-400 font-medium">${timeStr}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-600 space-y-1">
+                            ${tx.items.map(i => `<div class="flex justify-between"><span>${i.qty}x ${escapeHtml(i.name)}</span> <span class="font-semibold text-slate-700">${formatRp(i.qty * i.price)}</span></div>`).join('')}
+                        </div>
+                        <div class="border-t border-slate-100 pt-2 flex justify-between items-center text-xs">
+                            <span class="text-slate-500 font-medium">Total: <b class="text-emerald-600 font-extrabold">${formatRp(tx.total)}</b></span>
+                            <span class="text-[10px] text-slate-400 font-medium">Kembalian: ${formatRp(tx.change)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearHistory() {
+            APP_STATE.history = [];
+            saveData();
+            renderHistory();
+            showToast("Riwayat dihapus.");
+        }
+
+        /* Store Settings Handlers */
+        function populateStoreForm() {
+            document.getElementById('setting-store-name').value = APP_STATE.store.name;
+            document.getElementById('setting-store-address').value = APP_STATE.store.address;
+            document.getElementById('setting-store-phone').value = APP_STATE.store.phone;
+            document.getElementById('setting-store-footer').value = APP_STATE.store.footer;
+            const storeSubtitle = document.getElementById('store-subtitle');
+            if (storeSubtitle) storeSubtitle.textContent = APP_STATE.store.name;
+        }
+
+        function saveStoreSettings(e) {
+            e.preventDefault();
+            APP_STATE.store.name = document.getElementById('setting-store-name').value.trim();
+            APP_STATE.store.address = document.getElementById('setting-store-address').value.trim();
+            APP_STATE.store.phone = document.getElementById('setting-store-phone').value.trim();
+            APP_STATE.store.footer = document.getElementById('setting-store-footer').value;
+
+            const storeSubtitle = document.getElementById('store-subtitle');
+            if (storeSubtitle) storeSubtitle.textContent = APP_STATE.store.name;
+            saveData();
+            updateReceiptPreview();
+            showToast("Pengaturan toko disimpan!");
+        }
+
+        /* Bluetooth Modal Control */
+        function openBluetoothModal() {
+            document.getElementById('bt-modal').classList.remove('hidden');
+        }
+
+        function closeBluetoothModal() {
+            document.getElementById('bt-modal').classList.add('hidden');
+        }
+
+        /* Custom Toast Notification */
+        function showToast(message, type = "info") {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+
+            msgEl.textContent = message;
+            if (type === "error") {
+                iconEl.className = "fa-solid fa-circle-exclamation text-rose-400";
+            } else {
+                iconEl.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2500);
+        }
+
+        /* Utility Helper */
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
