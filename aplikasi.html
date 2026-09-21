@@ -6058,12 +6058,18 @@ function initKasirViews(){
   kasirBarcodeDot?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();startKasirBarcodeScanner()});
   kasirBarcodeDot?.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();startKasirBarcodeScanner()}});
   document.getElementById('kasir-barcode')?.addEventListener('click',()=>{startKasirBarcodeScanner()});
-  document.getElementById('kasir-barcode')?.addEventListener('input',()=>{
-    const value=String(document.getElementById('kasir-barcode')?.value||'').trim();
-    if(value){
-      const p=findKasirProductByBarcode(value);
-      if(p){addKasirProductToCart(p);resetKasirSearchAndSelectCart(p.id);}
-    }
+  document.getElementById('kasir-barcode')?.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    e.preventDefault();
+    e.stopPropagation();
+    const input=e.currentTarget;
+    const value=String(input?.value||'').trim();
+    if(!value)return;
+    const p=findKasirProductByBarcode(value);
+    if(!p)return;
+    const search=document.getElementById('kasir-search');
+    if(search)search.value=String(p.name||'');
+    renderKasirProducts();
   });
   document.getElementById('kasir-search')?.addEventListener('input',()=>{
     kasirLastAddedProductId=null;
