@@ -1810,14 +1810,19 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </section>
 <!-- VIEW SETTING STRUK -->
 <section class="hidden" id="view-activity">
-<div class="activity-latest-wrap">
-<div class="activity-latest-heading"><div><div class="activity-latest-kicker">AKTIFITAS</div><h3>Aktifitas Terbaru</h3></div><span id="activity-latest-count">0 aktifitas</span></div>
-<div class="activity-grid" id="activity-history-list"></div>
-</div>
+<div id="activity-history-list"></div>
 <div aria-hidden="true" class="activity-detail-popup hidden" id="activity-detail-popup">
 <div class="activity-detail-backdrop" data-activity-close="1"></div>
 <div aria-labelledby="activity-detail-title" aria-modal="true" class="activity-detail-dialog" role="dialog">
-<div class="activity-detail-header"><div><div class="activity-detail-kicker">Detail Aktifitas</div><h3 id="activity-detail-title">Aktifitas</h3></div><button aria-label="Tutup" class="activity-detail-close" data-activity-close="1" type="button"><i aria-hidden="true" class="fa-solid fa-xmark"></i></button></div>
+<div class="activity-detail-header">
+<div>
+<div class="activity-detail-kicker">Detail Aktifitas</div>
+<h3 id="activity-detail-title">Aktifitas</h3>
+</div>
+<button aria-label="Tutup" class="activity-detail-close" data-activity-close="1" type="button">
+<i aria-hidden="true" class="fa-solid fa-xmark"></i>
+</button>
+</div>
 <div class="activity-detail-list" id="activity-detail-list"></div>
 </div>
 </div>
@@ -1933,7 +1938,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </section>
 <!-- VIEW LAPORAN KASIR -->
 <section class="hidden laporan-kasir-view" id="view-laporan-kasir">
-  <div class="laporan-kasir-shell" id="laporan-kasir-grid"></div>
+<div class="laporan-kasir-grid" id="laporan-kasir-grid"></div>
 </section>
 <section class="hidden space-y-4 w-full" id="view-history">
 <div class="flex flex-col items-center gap-4 w-full" id="history-grid"></div>
@@ -6145,153 +6150,64 @@ function initKasirViews(){
   window.__initKasirViews=initKasirViews;
 })();
 </script>
-<style id="laporan-kasir-v5-css">
-/* LAPORAN KASIR — SATU IMPLEMENTASI TUNGGAL. CSS lama pada area ini diganti seluruhnya. */
-#view-laporan-kasir{width:100%;height:100%;min-height:0;box-sizing:border-box;overflow:auto;padding:14px;background:#f6f8fb}
-#view-laporan-kasir .laporan-kasir-shell{width:100%;max-width:1400px;margin:0 auto;box-sizing:border-box}
-.laporan-kasir-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
-.laporan-kasir-card{min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-sizing:border-box;box-shadow:0 6px 18px rgba(15,23,42,.05)}
-.laporan-kasir-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.laporan-kasir-card-label{font-size:10px;line-height:1.3;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
-.laporan-kasir-card-icon{font-size:17px;color:#64748b;flex:0 0 auto}
-.laporan-kasir-card-value{display:block;margin-top:7px;font-size:20px;line-height:1.2;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.laporan-kasir-history{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-sizing:border-box;box-shadow:0 6px 18px rgba(15,23,42,.04)}
-.laporan-kasir-history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.laporan-kasir-history-title{font-size:13px;font-weight:900;color:#0f172a}
-.laporan-kasir-history-count{font-size:10px;font-weight:700;color:#94a3b8;white-space:nowrap}
-.laporan-kasir-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-height:calc(100vh - 250px);overflow:auto;padding:2px}
-.laporan-kasir-item{position:relative;min-width:0;min-height:142px;display:flex;flex-direction:column;box-sizing:border-box;padding:12px;background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;overflow:hidden}
-.laporan-kasir-item-date{padding-right:34px;font-size:11px;line-height:1.45;font-weight:800;color:#334155;overflow-wrap:anywhere}
-.laporan-kasir-item-meta{margin-top:6px;font-size:10px;line-height:1.45;color:#64748b}
-.laporan-kasir-item-total{margin-top:auto;padding-top:10px;font-size:12px;line-height:1.3;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.laporan-kasir-view{position:absolute;right:8px;top:8px;width:30px;height:30px;border:0;border-radius:8px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.laporan-kasir-view:hover{background:#dbeafe;color:#2563eb}
-.laporan-kasir-empty{grid-column:1/-1;min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#94a3b8;font-size:11px;border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc}
-.laporan-kasir-modal{position:fixed;inset:0;z-index:100001;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62);box-sizing:border-box}
-.laporan-kasir-modal.is-open{display:flex}
-.laporan-kasir-dialog{width:min(560px,96vw);max-height:88vh;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(15,23,42,.28)}
-.laporan-kasir-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid #e2e8f0}
-.laporan-kasir-dialog-head strong{font-size:14px;font-weight:900;color:#0f172a}
-.laporan-kasir-close{width:32px;height:32px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer}
-.laporan-kasir-dialog-body{padding:14px;overflow:auto}
-.laporan-kasir-detail-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.laporan-kasir-detail-box{min-width:0;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px}
-.laporan-kasir-detail-box span{display:block;font-size:9px;font-weight:700;color:#94a3b8}
-.laporan-kasir-detail-box strong{display:block;margin-top:4px;font-size:11px;font-weight:900;color:#0f172a;overflow-wrap:anywhere}
-.laporan-kasir-products{display:flex;flex-direction:column;gap:8px}
-.laporan-kasir-product{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;background:#fff}
-.laporan-kasir-product-photo{width:48px;height:48px;border-radius:8px;background:#f1f5f9;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#94a3b8}
-.laporan-kasir-product-photo img{display:block;width:100%;height:100%;object-fit:cover}
+<style id="laporan-kasir-v4-css">
+/* Laporan Kasir: kartu ringkasan normal + history transaksi 4 kolom. */
+#view-laporan-kasir{width:100%;min-height:100%;padding:14px;box-sizing:border-box;overflow:auto;background:#f6f8fb}
+.laporan-kasir-sticky-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.laporan-kasir-sticky-card{min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-shadow:0 7px 20px rgba(15,23,42,.06);overflow:hidden}
+.laporan-kasir-sticky-card .laporan-kasir-kicker{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.laporan-kasir-sticky-card .laporan-kasir-value{margin-top:7px;font-size:20px;line-height:1.15;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.laporan-kasir-sticky-card i{float:right;font-size:18px;color:#64748b;opacity:.8}
+.laporan-kasir-history-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-shadow:0 7px 20px rgba(15,23,42,.05)}
+.laporan-kasir-history-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.laporan-kasir-history-title strong{font-size:13px;font-weight:900;color:#0f172a}
+.laporan-kasir-history-title span{font-size:10px;color:#94a3b8;font-weight:700}
+.laporan-kasir-history-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-height:calc(100vh - 250px);min-height:160px;overflow-y:auto;padding:2px}
+.laporan-kasir-history-row{position:relative;display:flex;flex-direction:column;justify-content:flex-start;gap:8px;aspect-ratio:1/1;padding:12px 12px 12px 12px;background:#f8fafc;border:1px solid #eef2f7;border-radius:14px;min-width:0;box-sizing:border-box;overflow:hidden}
+.laporan-kasir-history-main{min-width:0;display:flex;flex-direction:column;gap:6px;padding-right:26px}
+.laporan-kasir-history-date{font-size:11px;font-weight:800;color:#334155;line-height:1.4;overflow-wrap:anywhere}
+.laporan-kasir-history-count{font-size:10px;color:#64748b;line-height:1.4}
+.laporan-kasir-history-total{margin-top:auto;font-size:12px;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.laporan-kasir-view-btn{position:absolute;right:9px;top:9px;width:30px;height:30px;border:0;border-radius:9px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.laporan-kasir-view-btn:hover{background:#dbeafe;color:#2563eb}
+.laporan-kasir-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:160px;padding:24px;text-align:center;color:#94a3b8;font-size:11px}
+.laporan-kasir-preview-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.62)}
+.laporan-kasir-preview-modal.is-open{display:flex}
+.laporan-kasir-preview-dialog{width:min(520px,96vw);max-height:88vh;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;display:flex;flex-direction:column}
+.laporan-kasir-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0}
+.laporan-kasir-preview-head strong{font-size:14px;font-weight:900;color:#0f172a}
+.laporan-kasir-preview-close{width:34px;height:34px;border:0;border-radius:9px;background:#f1f5f9;color:#475569;cursor:pointer}
+.laporan-kasir-preview-body{padding:14px;overflow:auto}
+.laporan-kasir-preview-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.laporan-kasir-preview-summary>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:11px;padding:10px}
+.laporan-kasir-preview-summary span{display:block;font-size:9px;color:#94a3b8;font-weight:700}
+.laporan-kasir-preview-summary strong{display:block;margin-top:4px;font-size:12px;color:#0f172a;font-weight:900}
+.laporan-kasir-product-list{display:flex;flex-direction:column;gap:8px}
+.laporan-kasir-product-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.laporan-kasir-product-photo{width:52px;height:52px;border-radius:10px;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8}
+.laporan-kasir-product-photo img{width:100%;height:100%;object-fit:cover;display:block}
 .laporan-kasir-product-info{min-width:0}
-.laporan-kasir-product-name{display:block;font-size:11px;font-weight:800;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.laporan-kasir-product-meta{display:block;margin-top:3px;font-size:9px;line-height:1.4;color:#64748b}
-.laporan-kasir-product-total{font-size:10px;font-weight:900;color:#0f172a;white-space:nowrap}
-@media(max-width:900px){.laporan-kasir-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:700px){#view-laporan-kasir{padding:10px}.laporan-kasir-summary{gap:8px}.laporan-kasir-card{padding:11px;border-radius:12px}.laporan-kasir-card-value{font-size:15px}.laporan-kasir-history{padding:11px;border-radius:12px}.laporan-kasir-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:calc(100vh - 220px)}}
-@media(max-width:430px){.laporan-kasir-card-label{font-size:8px}.laporan-kasir-card-value{font-size:13px}.laporan-kasir-card-icon{display:none}.laporan-kasir-item{min-height:128px;padding:10px}.laporan-kasir-item-date{font-size:10px}.laporan-kasir-item-meta{font-size:9px}.laporan-kasir-item-total{font-size:11px}.laporan-kasir-view{width:28px;height:28px;right:7px;top:7px}}
+.laporan-kasir-product-info strong{display:block;font-size:11px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.laporan-kasir-product-info span{display:block;margin-top:3px;font-size:10px;color:#64748b;line-height:1.4}
+.laporan-kasir-product-total{font-size:11px;font-weight:900;color:#0f172a;white-space:nowrap}
+@media(max-width:900px){.laporan-kasir-history-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){#view-laporan-kasir{padding:10px}.laporan-kasir-sticky-grid{gap:8px}.laporan-kasir-sticky-card{padding:11px;border-radius:13px}.laporan-kasir-sticky-card .laporan-kasir-value{font-size:15px}.laporan-kasir-sticky-card i{font-size:15px}.laporan-kasir-history-card{padding:11px;border-radius:13px}.laporan-kasir-history-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:calc(100vh - 220px)}}
+@media(max-width:430px){.laporan-kasir-sticky-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.laporan-kasir-sticky-card .laporan-kasir-kicker{font-size:8px}.laporan-kasir-sticky-card .laporan-kasir-value{font-size:13px}.laporan-kasir-sticky-card i{display:none}.laporan-kasir-history-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.laporan-kasir-history-row{padding:10px;border-radius:12px}.laporan-kasir-history-date{font-size:10px}.laporan-kasir-history-count{font-size:9px}.laporan-kasir-view-btn{width:28px;height:28px;right:7px;top:7px}}
 </style>
-<script id="laporan-kasir-v5-js">
+<script id="laporan-kasir-v4-js">
 (function(){
-  'use strict';
-
-  function getPhone(){
-    try{return currentSessionUser&&currentSessionUser.phone?String(currentSessionUser.phone):''}catch(e){return ''}
-  }
-  function storageKey(){return 'finance_kasir_transactions_'+(getPhone()||'guest')}
-  function readTransactions(){
-    try{
-      const raw=localStorage.getItem(storageKey());
-      const data=raw?JSON.parse(raw):[];
-      return Array.isArray(data)?data:[];
-    }catch(e){return []}
-  }
-  function money(value){return 'Rp '+(Number(value)||0).toLocaleString('id-ID')}
-  function esc(value){return String(value??'').replace(/[&<>\'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]})}
-  function transactionDate(tx){
-    const id=Number(tx&&tx.id);
-    if(Number.isFinite(id)&&id>0){const d=new Date(id);if(!Number.isNaN(d.getTime()))return d}
-    const text=String(tx&&tx.date||'').trim();
-    const m=text.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
-    if(m){let y=Number(m[3]);if(y<100)y+=2000;const d=new Date(y,Number(m[2])-1,Number(m[1]));if(!Number.isNaN(d.getTime()))return d}
-    return new Date(0)
-  }
-  function dateText(tx){
-    const d=transactionDate(tx);
-    if(d.getTime()===0)return String(tx&&tx.date||'Tanggal tidak diketahui');
-    return d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})
-  }
-  function itemsOf(tx){
-    if(Array.isArray(tx&&tx.itemsDetail))return tx.itemsDetail.map(function(x){return {id:String(x&&x.id||''),name:String(x&&x.name||'Produk'),photo:String(x&&x.photo||''),qty:Number(x&&x.qty)||0,price:Number(x&&x.price)||0,cost:Number((x&&x.cost)??(x&&x.hpp)??(x&&x.grosir))||0}})
-    if(Array.isArray(tx&&tx.cart))return tx.cart.map(function(x){return {id:String(x&&x.id||''),name:String(x&&x.name||'Produk'),photo:String(x&&x.photo||''),qty:Number(x&&x.qty)||0,price:Number(x&&x.price)||0,cost:Number((x&&x.cost)??(x&&x.hpp)??(x&&x.grosir))||0}})
-    return []
-  }
-  function itemCount(tx){return itemsOf(tx).reduce(function(a,x){return a+(Number(x.qty)||0)},0)||Number(tx&&tx.items)||0}
-  function profitOf(tx){
-    return itemsOf(tx).reduce(function(total,x){return total+((Number(x.price)||0)-(Number(x.cost)||0))*(Number(x.qty)||0)},0)
-  }
-  function sortedTransactions(){return readTransactions().slice().sort(function(a,b){return transactionDate(b).getTime()-transactionDate(a).getTime()})}
-
-  function ensureModal(){
-    let modal=document.getElementById('laporan-kasir-preview-modal');
-    if(modal)return modal;
-    modal=document.createElement('div');
-    modal.id='laporan-kasir-preview-modal';
-    modal.className='laporan-kasir-modal';
-    modal.innerHTML='<div class="laporan-kasir-dialog" role="dialog" aria-modal="true" aria-labelledby="laporan-kasir-detail-title"><div class="laporan-kasir-dialog-head"><strong id="laporan-kasir-detail-title">Detail Transaksi</strong><button type="button" class="laporan-kasir-close" data-laporan-close aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div><div class="laporan-kasir-dialog-body" id="laporan-kasir-detail-body"></div></div>';
-    document.body.appendChild(modal);
-    modal.addEventListener('click',function(e){if(e.target===modal||e.target.closest('[data-laporan-close]'))closeModal()});
-    return modal
-  }
-  function closeModal(){const m=document.getElementById('laporan-kasir-preview-modal');if(m)m.classList.remove('is-open')}
-  function openDetail(id){
-    const tx=readTransactions().find(function(x){return String(x&&x.id)===String(id)});
-    if(!tx)return;
-    const modal=ensureModal();
-    const body=document.getElementById('laporan-kasir-detail-body');
-    if(!body)return;
-    const items=itemsOf(tx);
-    const qty=itemCount(tx);
-    body.innerHTML='<div class="laporan-kasir-detail-summary">'+
-      '<div class="laporan-kasir-detail-box"><span>Hari, Tanggal</span><strong>'+esc(dateText(tx))+'</strong></div>'+
-      '<div class="laporan-kasir-detail-box"><span>Total Transaksi</span><strong>'+money(tx.total)+'</strong></div>'+
-      '<div class="laporan-kasir-detail-box"><span>Produk</span><strong>'+items.length+' produk</strong></div>'+
-      '<div class="laporan-kasir-detail-box"><span>Total Item</span><strong>'+qty+' item</strong></div>'+
-      '</div><div class="laporan-kasir-products">'+(items.length?items.map(function(x){
-        const total=(Number(x.qty)||0)*(Number(x.price)||0);
-        return '<div class="laporan-kasir-product"><div class="laporan-kasir-product-photo">'+(x.photo?'<img src="'+esc(x.photo)+'" alt="'+esc(x.name)+'">':'<i class="fa-solid fa-image"></i>')+'</div><div class="laporan-kasir-product-info"><span class="laporan-kasir-product-name">'+esc(x.name)+'</span><span class="laporan-kasir-product-meta">Jumlah: '+(Number(x.qty)||0)+' · Harga: '+money(x.price)+'</span></div><div class="laporan-kasir-product-total">'+money(total)+'</div></div>'
-      }).join(''):'<div class="laporan-kasir-empty">Detail produk transaksi ini tidak tersedia.</div>')+'</div>';
-    modal.classList.add('is-open');
-  }
-
-  function render(){
-    const root=document.getElementById('laporan-kasir-grid');
-    if(!root)return;
-    const tx=sortedTransactions();
-    const omzet=tx.reduce(function(a,x){return a+(Number(x&&x.total)||0)},0);
-    const profit=tx.reduce(function(a,x){return a+profitOf(x)},0);
-    root.innerHTML='<div class="laporan-kasir-summary">'+
-      '<article class="laporan-kasir-card"><div class="laporan-kasir-card-head"><span class="laporan-kasir-card-label">Total Omset</span><i class="fa-solid fa-chart-line laporan-kasir-card-icon"></i></div><strong class="laporan-kasir-card-value">'+money(omzet)+'</strong></article>'+
-      '<article class="laporan-kasir-card"><div class="laporan-kasir-card-head"><span class="laporan-kasir-card-label">Total Profit</span><i class="fa-solid fa-coins laporan-kasir-card-icon"></i></div><strong class="laporan-kasir-card-value">'+money(profit)+'</strong></article>'+
-      '<article class="laporan-kasir-card"><div class="laporan-kasir-card-head"><span class="laporan-kasir-card-label">Total Transaksi</span><i class="fa-solid fa-receipt laporan-kasir-card-icon"></i></div><strong class="laporan-kasir-card-value">'+tx.length+'</strong></article>'+
-      '</div><div class="laporan-kasir-history"><div class="laporan-kasir-history-head"><strong class="laporan-kasir-history-title">History Transaksi Terbaru</strong><span class="laporan-kasir-history-count">'+tx.length+' transaksi</span></div><div class="laporan-kasir-list">'+
-      (tx.length?tx.map(function(x){return '<article class="laporan-kasir-item"><span class="laporan-kasir-item-date">'+esc(dateText(x))+'</span><span class="laporan-kasir-item-meta">'+itemCount(x)+' item dibeli · '+(itemsOf(x).length||Number(x&&x.items)||0)+' produk</span><strong class="laporan-kasir-item-total">'+money(x.total)+'</strong><button type="button" class="laporan-kasir-view" data-laporan-view="'+esc(x&&x.id)+'" title="Lihat detail" aria-label="Lihat detail"><i class="fa-solid fa-eye"></i></button></article>'}).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>')+
-      '</div></div>';
-    ensureModal();
-  }
-
-  document.addEventListener('click',function(e){const btn=e.target.closest('[data-laporan-view]');if(btn){e.preventDefault();openDetail(btn.dataset.laporanView)}});
-  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
-  window.__renderLaporanKasir=render;
-  function refreshAfterSessionReady(){
-    try{ if(getPhone()) render(); }catch(e){}
-  }
-  window.addEventListener('storage',function(e){
-    if(e.key===storageKey()) render();
-  });
-  window.addEventListener('focus',refreshAfterSessionReady);
-  setTimeout(refreshAfterSessionReady,300);
-  setTimeout(refreshAfterSessionReady,1000);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',render);else render();
+  function laporanKasirKey(){const p=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return 'finance_kasir_transactions_'+p}
+  function laporanKasirData(){try{const v=JSON.parse(localStorage.getItem(laporanKasirKey())||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
+  function laporanKasirRupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
+  function laporanKasirEscape(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+  function laporanKasirDate(t){const n=Number(t?.id);if(Number.isFinite(n)&&n>0){const d=new Date(n);if(!Number.isNaN(d.getTime()))return d}const text=String(t?.date||'').trim();const m=text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);if(m){let y=Number(m[3]);if(y<100)y+=2000;const d=new Date(y,Number(m[2])-1,Number(m[1]));if(!Number.isNaN(d.getTime()))return d}return new Date(0)}
+  function laporanKasirDateText(t){const d=laporanKasirDate(t);if(d.getTime()===0)return String(t?.date||'Tanggal tidak diketahui');return d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
+  function laporanKasirItems(t){if(Array.isArray(t?.itemsDetail)&&t.itemsDetail.length)return t.itemsDetail.map(x=>({id:String(x?.id||''),name:String(x?.name||'Produk'),photo:String(x?.photo||''),qty:Number(x?.qty)||0,price:Number(x?.price)||0,hpp:Number(x?.hpp??x.cost??x.grosir)||0}));return []}
+  function laporanKasirProfit(t){const items=laporanKasirItems(t);if(!items.length)return 0;return items.reduce((total,item)=>{const hargaJual=Number(item.price)||0;const hargaHpp=Number(item.hpp)||0;const jumlah=Number(item.qty)||0;return total+((hargaJual-hargaHpp)*jumlah)},0)}
+  function ensurePreviewModal(){if(document.getElementById('laporan-kasir-preview-modal'))return;const modal=document.createElement('div');modal.id='laporan-kasir-preview-modal';modal.className='laporan-kasir-preview-modal';modal.innerHTML='<div class="laporan-kasir-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="laporan-kasir-preview-title"><div class="laporan-kasir-preview-head"><strong id="laporan-kasir-preview-title">Preview Transaksi</strong><button type="button" class="laporan-kasir-preview-close" data-laporan-close title="Tutup"><i class="fa-solid fa-xmark"></i></button></div><div class="laporan-kasir-preview-body" id="laporan-kasir-preview-body"></div></div>';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal||e.target.closest('[data-laporan-close]'))modal.classList.remove('is-open')})}
+  function openPreview(id){const tx=laporanKasirData().find(t=>String(t?.id)===String(id));if(!tx)return;ensurePreviewModal();const body=document.getElementById('laporan-kasir-preview-body');if(!body)return;const items=laporanKasirItems(tx);const totalQty=items.reduce((a,x)=>a+(Number(x.qty)||0),0);body.innerHTML=`<div class="laporan-kasir-preview-summary"><div><span>Hari, Tanggal</span><strong>${laporanKasirEscape(laporanKasirDateText(tx))}</strong></div><div><span>Total Transaksi</span><strong>${laporanKasirRupiah(tx.total)}</strong></div><div><span>Jumlah Produk</span><strong>${items.length} produk</strong></div><div><span>Total Item Dibeli</span><strong>${totalQty} item</strong></div></div><div class="laporan-kasir-product-list">${items.length?items.map(x=>`<div class="laporan-kasir-product-row"><div class="laporan-kasir-product-photo">${x.photo?`<img src="${laporanKasirEscape(x.photo)}" alt="${laporanKasirEscape(x.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="laporan-kasir-product-info"><strong>${laporanKasirEscape(x.name)}</strong><span>Jumlah item dibeli: ${Number(x.qty)||0} · Total item: ${Number(x.qty)||0}</span></div><div class="laporan-kasir-product-total">${laporanKasirRupiah((Number(x.qty)||0)*(Number(x.price)||0))}</div></div>`).join(''):'<div class="laporan-kasir-empty">Detail produk transaksi lama tidak tersedia.</div>'}</div>`;document.getElementById('laporan-kasir-preview-modal')?.classList.add('is-open')}
+  function renderLaporanKasir(){const g=document.getElementById('laporan-kasir-grid');if(!g)return;const tx=laporanKasirData().sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);const profit=tx.reduce((a,t)=>a+laporanKasirProfit(t),0);g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${tx.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${tx.length} transaksi</span></div><div class="laporan-kasir-history-list">${tx.length?tx.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).length} produk · ${laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>'}</div></div>`;ensurePreviewModal()}
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-laporan-view]');if(b){e.preventDefault();openPreview(b.dataset.laporanView)}});window.__renderLaporanKasir=renderLaporanKasir;document.addEventListener('DOMContentLoaded',renderLaporanKasir);
 })();
 </script>
 <style id="rekapinyu-welcome-popup-css">
@@ -6352,180 +6268,59 @@ function initKasirViews(){
   document.addEventListener('DOMContentLoaded',function(){document.getElementById('rw-close')?.addEventListener('click',closePopup);document.getElementById(popupId)?.addEventListener('click',e=>{if(e.target.id===popupId)closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});check();setInterval(check,300)})
 })();
 </script>
-<style id="rekapinyu-activity-grid-single-css">
-#view-activity{width:100%;min-height:0;box-sizing:border-box;}
-#view-activity .activity-latest-wrap{width:100%;box-sizing:border-box;}
-.activity-latest-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;padding:0 2px;}
-.activity-latest-heading h3{margin:2px 0 0;font-size:16px;line-height:1.2;font-weight:900;color:#0f172a;}
-.activity-latest-heading span{font-size:10px;font-weight:800;color:#94a3b8;white-space:nowrap;}
-.activity-latest-kicker{font-size:9px;line-height:1;font-weight:900;letter-spacing:.08em;color:#64748b;}
-.activity-grid{width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;}
-.activity-grid-card{position:relative;min-width:0;min-height:116px;padding:11px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 14px rgba(15,23,42,.045);overflow:hidden;display:flex;flex-direction:column;}
-.activity-grid-card:hover{border-color:#cbd5e1;box-shadow:0 8px 20px rgba(15,23,42,.08);}
-.activity-grid-date{padding-right:34px;font-size:11px;line-height:1.35;font-weight:900;color:#334155;}
-.activity-grid-preview{margin-top:7px;font-size:9px;line-height:1.45;color:#64748b;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
-.activity-grid-count{margin-top:auto;padding-top:8px;font-size:9px;font-weight:800;color:#94a3b8;}
-.activity-grid-eye{position:absolute;right:8px;top:8px;width:29px;height:29px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-.activity-grid-eye:hover{background:#dbeafe;color:#1d4ed8;}
-.activity-grid-empty{grid-column:1/-1;min-height:150px;display:flex;align-items:center;justify-content:center;text-align:center;padding:25px;color:#94a3b8;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;font-size:11px;}
-.activity-detail-popup{position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
-.activity-detail-popup.hidden{display:none;}
-.activity-detail-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.58);}
-.activity-detail-dialog{position:relative;width:min(620px,96vw);max-height:88vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;display:flex;flex-direction:column;}
-.activity-detail-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#fff;}
-.activity-detail-kicker{font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8;}
-.activity-detail-header h3{margin:2px 0 0;font-size:14px;font-weight:900;color:#0f172a;}
-.activity-detail-close{width:31px;height:31px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer;}
-.activity-detail-list{padding:12px 14px 16px;overflow:auto;}
-.activity-day-group{margin:0 0 14px;}
-.activity-day-title{position:sticky;top:0;z-index:1;margin:0 0 7px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;font-size:11px;font-weight:900;color:#334155;}
-.activity-log-row{display:grid;grid-template-columns:45px minmax(0,1fr);gap:8px;padding:7px 8px;border-bottom:1px solid #eef2f7;}
-.activity-log-time{font-size:10px;font-weight:900;color:#64748b;}
-.activity-log-text{font-size:10px;line-height:1.45;font-weight:700;color:#334155;}
-.activity-log-menu{display:block;margin-top:2px;font-size:8px;font-weight:700;color:#94a3b8;}
-@media(max-width:1100px){.activity-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
-@media(max-width:850px){.activity-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
-@media(max-width:600px){.activity-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.activity-grid-card{min-height:108px;padding:10px;}.activity-grid-date{font-size:10px;}.activity-grid-preview{font-size:8px;}.activity-detail-popup{padding:10px;}.activity-detail-dialog{width:96vw;max-height:90vh;}}
-</style>
 <script id="rekapinyu-activity-filter-single-script">
 (function(){
   'use strict';
   const filter=document.getElementById('rekapinyu-activity-filter');
   const view=document.getElementById('view-activity');
-  const grid=document.getElementById('activity-history-list');
-  const popup=document.getElementById('activity-detail-popup');
-  const detailList=document.getElementById('activity-detail-list');
-  const detailTitle=document.getElementById('activity-detail-title');
-  const countEl=document.getElementById('activity-latest-count');
+  if(!filter||!view)return;
   const search=document.getElementById('rk-activity-search');
   const date=document.getElementById('rk-activity-date');
   const month=document.getElementById('rk-activity-month');
   const year=document.getElementById('rk-activity-year');
-  if(!filter||!view||!grid||!popup||!detailList)return;
   const state={search:'',date:'',month:'',year:''};
-  const menuNames={
-    kasir:'Kasir', 'produk-kasir':'Produk Kasir','laporan-kasir':'Laporan Kasir',input:'Input Data',history:'History',report:'Laporan Bulanan',kasbon:'Kasbon',pengeluaran:'Pengeluaran',backup:'Backup Otomatis',settings:'Seting',activity:'Aktifitas'
-  };
-  const escapeHtml=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
-  function phone(){try{return currentSessionUser&&currentSessionUser.phone?String(currentSessionUser.phone).replace(/\D/g,''):''}catch(e){return ''}}
-  function key(){const p=phone();return p?`finance_activity_desktop_${p}`:'finance_activity_guest'}
-  function read(){try{const raw=localStorage.getItem(key());const a=raw?JSON.parse(raw):[];return Array.isArray(a)?a:[]}catch(e){return []}}
-  function normalize(item){
-    const t=Number(item?.timestamp);
-    const d=new Date(Number.isFinite(t)&&t>0?t:(item?.dateTime||item?.createdAt||Date.now()));
+  for(let i=1;i<=30;i++)date.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);
+  for(let i=0;i<12;i++){const n=String(i+1).padStart(2,'0');month.insertAdjacentHTML('beforeend',`<option value="${n}">${new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'})}</option>`);}
+  function readData(){
+    try{
+      const u=window.currentSessionUser;
+      const phone=u&&u.phone?String(u.phone).replace(/\D/g,''):'';
+      const raw=localStorage.getItem(phone?`finance_activity_desktop_${phone}`:'finance_activity_guest');
+      const data=raw?JSON.parse(raw):[];
+      return Array.isArray(data)?data:[];
+    }catch(e){return [];}
+  }
+  function activityInfo(item){
+    const d=new Date(item?.timestamp||item?.dateTime||Date.now());
     if(Number.isNaN(d.getTime()))return null;
-    return {id:String(item?.id||`${d.getTime()}-${Math.random()}`),timestamp:d.getTime(),menu:String(item?.menu||''),action:String(item?.action||item?.text||'Aktifitas')};
+    return {day:String(d.getDate()),month:String(d.getMonth()+1).padStart(2,'0'),year:String(d.getFullYear())};
   }
-  function save(data){
-    try{window.__rekapinyuActivityData=data;localStorage.setItem(key(),JSON.stringify(data));window.__rekapinyuSaveCloudData?.();}catch(e){}
-  }
-  function loadState(){window.__rekapinyuActivityData=read().map(normalize).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp)}
-  function dateInfo(ts){
-    const d=new Date(ts);
-    return {d,day:String(d.getDate()),month:String(d.getMonth()+1).padStart(2,'0'),year:String(d.getFullYear()),dateKey:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,label:d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})};
-  }
-  function ensureFilters(){
-    if(!date||!month||!year)return;
-    if(date.options.length<=1)for(let i=1;i<=31;i++)date.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);
-    if(month.options.length<=1)for(let i=0;i<12;i++){const n=String(i+1).padStart(2,'0');month.insertAdjacentHTML('beforeend',`<option value="${n}">${new Date(2000,i,1).toLocaleDateString('id-ID',{month:'long'})}</option>`)}
-    const years=[...new Set(read().map(x=>normalize(x)).filter(Boolean).map(x=>String(new Date(x.timestamp).getFullYear())))].sort((a,b)=>b.localeCompare(a));
+  function refreshYears(){
+    const values=[...new Set(readData().map(activityInfo).filter(Boolean).map(x=>x.year))].sort((a,b)=>b.localeCompare(a));
     const current=state.year;
-    year.innerHTML='<option value="">Tahun</option>'+years.map(v=>`<option value="${v}">${v}</option>`).join('');
-    year.value=years.includes(current)?current:'';state.year=year.value;
+    year.innerHTML='<option value="">Tahun</option>'+values.map(v=>`<option value="${v}">${v}</option>`).join('');
+    year.value=values.includes(current)?current:'';
+    state.year=year.value;
   }
-  function filtered(){
-    const data=(window.__rekapinyuActivityData||read().map(normalize).filter(Boolean)).slice().sort((a,b)=>b.timestamp-a.timestamp);
-    const q=state.search.trim().toLowerCase();
-    return data.filter(x=>{const info=dateInfo(x.timestamp);const text=`${x.action} ${x.menu}`.toLowerCase();return (!q||text.includes(q))&&(!state.date||info.day===state.date)&&(!state.month||info.month===state.month)&&(!state.year||info.year===state.year)});
-  }
-  function groupByDay(data){const groups=new Map();data.forEach(x=>{const info=dateInfo(x.timestamp);if(!groups.has(info.dateKey))groups.set(info.dateKey,{label:info.label,items:[]});groups.get(info.dateKey).items.push(x)});return [...groups.values()]}
-  function render(){
-    if(view.classList.contains('hidden'))return;
-    loadState();
-    ensureFilters();
-    const groups=groupByDay(filtered());
-    const total=groups.reduce((n,g)=>n+g.items.length,0);
-    if(countEl)countEl.textContent=`${total} aktifitas`;
-    if(!groups.length){grid.innerHTML='<div class="activity-grid-empty">Belum ada aktifitas yang tercatat.</div>';return;}
-    grid.innerHTML=groups.slice(0,25).map(g=>{
-      const preview=g.items.slice(0,3).map(x=>escapeHtml(x.action)).join(' · ');
-      return `<article class="activity-grid-card"><div class="activity-grid-date">${escapeHtml(g.label)}</div><div class="activity-grid-preview">${preview}</div><div class="activity-grid-count">${g.items.length} aktifitas</div><button type="button" class="activity-grid-eye" data-activity-day="${g.label.replace(/\"/g,'&quot;')}" title="Lihat aktifitas" aria-label="Lihat aktifitas"><i class="fa-solid fa-eye"></i></button></article>`;
-    }).join('');
-  }
-  function openDay(label){
-    const groups=groupByDay(filtered());const group=groups.find(g=>g.label===label);if(!group)return;
-    detailTitle.textContent=group.label;
-    detailList.innerHTML=`<div class="activity-day-group"><div class="activity-day-title">${escapeHtml(group.label)}</div>${group.items.map(x=>{const d=new Date(x.timestamp);const tm=d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});return `<div class="activity-log-row"><span class="activity-log-time">${tm}</span><div class="activity-log-text">${escapeHtml(x.action)}<span class="activity-log-menu">Menu ${escapeHtml(x.menu)}</span></div></div>`}).join('')}</div>`;
-    popup.classList.remove('hidden');popup.setAttribute('aria-hidden','false');
-  }
-  function closeDay(){popup.classList.add('hidden');popup.setAttribute('aria-hidden','true')}
-  function record(action,menu){
-    if(!action||!menu||menu==='Aktifitas')return;
-    const now=Date.now();
-    const data=(window.__rekapinyuActivityData||read().map(normalize).filter(Boolean));
-    data.unshift({id:`${now}-${Math.random().toString(36).slice(2,8)}`,timestamp:now,menu:menu,action:action});
-    const trimmed=data.slice(0,1000);window.__rekapinyuActivityData=trimmed;
-    try{localStorage.setItem(key(),JSON.stringify(trimmed));}catch(e){}
-    try{window.__rekapinyuSaveCloudData?.()}catch(e){}
-    if(!view.classList.contains('hidden'))render();
-  }
-  function labelForTab(tab){return menuNames[tab]||tab}
-  function inferMenu(el){
-    const v=el?.closest?.('[id^="view-"]');
-    if(v)return menuNames[v.id.slice(5)]||v.id.slice(5);
-    const id=String(el?.id||'').toLowerCase();
-    if(id.includes('history'))return 'History';if(id.includes('pengeluaran'))return 'Pengeluaran';if(id.includes('kasbon'))return 'Kasbon';if(id.includes('backup'))return 'Backup Otomatis';if(id.includes('produk-kasir')||id.includes('pk3'))return 'Produk Kasir';if(id.includes('laporan-kasir'))return 'Laporan Kasir';if(id.includes('kasir'))return 'Kasir';if(id.includes('report'))return 'Laporan Bulanan';if(id.includes('setting')||id.includes('receipt'))return 'Seting';return menuNames[window.__rekapinyuCurrentTab||'']||'';
-  }
-  function inferClick(el){
-    const text=(el.innerText||el.getAttribute('aria-label')||el.title||'').trim().replace(/\s+/g,' ');
-    const id=String(el.id||'').toLowerCase();
-    const menu=inferMenu(el);
-    if(!menu||menu==='Aktifitas')return;
-    if(/hapus|delete/i.test(text)||id.includes('delete')||id.includes('hapus'))return `Menghapus data di menu ${menu}`;
-    if(/edit|ubah|nominal/i.test(text)||id.includes('edit'))return menu==='History'?'Mengubah Nominal di menu History':`Mengubah data di menu ${menu}`;
-    if(/import/i.test(text)||id.includes('import'))return `Mengimport data di menu ${menu}`;
-    if(/backup|export/i.test(text)||id.includes('export'))return `Membackup data di menu ${menu}`;
-    if(/simpan|save|tambah|input|submit/i.test(text)||id.includes('save')||id.includes('submit')||id.includes('add'))return `Menyimpan perubahan di menu ${menu}`;
-  }
-  const oldSwitch=window.switchTab;
-  if(typeof oldSwitch==='function'&&!oldSwitch.__activityGridWrapped){
-    const wrapped=function(tab){window.__rekapinyuCurrentTab=tab;const result=oldSwitch.apply(this,arguments);record(`Membuka menu ${labelForTab(tab)}`,labelForTab(tab));setTimeout(render,0);return result};
-    wrapped.__activityGridWrapped=true;window.switchTab=wrapped;
-  }
-  document.addEventListener('submit',e=>{
-    const form=e.target;if(!form||form.id==='activity-detail-popup')return;
-    const menu=inferMenu(form);if(!menu||menu==='Aktifitas')return;
-    const map={'finance-form':'Menginput data baru di menu Input Data','pengeluaran-form':'Menginput data baru di menu Pengeluaran','pk3-form':'Menambahkan produk baru di menu Produk Kasir','pk3-edit-form':'Mengubah data produk di menu Produk Kasir','receipt-settings-form':'Menyimpan pengaturan di menu Seting'};
-    record(map[form.id]||`Menyimpan data di menu ${menu}`,menu);
-  },true);
-  document.addEventListener('click',e=>{
-    const eye=e.target.closest('[data-activity-day]');if(eye){e.preventDefault();e.stopPropagation();openDay(eye.dataset.activityDay);return;}
-    if(e.target.closest('[data-activity-close]')){e.preventDefault();closeDay();return;}
-    if(e.target.closest('#activity-detail-popup'))return;
-    const el=e.target.closest('button,[role="button"]');if(!el)return;
-    if(el.type==='submit')return;
-    const action=inferClick(el);if(action)record(action,inferMenu(el));
-  },true);
-  search?.addEventListener('input',()=>{state.search=search.value||'';window.__rekapinyuActivityFilterState={...state};render()});
-  date?.addEventListener('change',()=>{state.date=date.value||'';window.__rekapinyuActivityFilterState={...state};render()});
-  month?.addEventListener('change',()=>{state.month=month.value||'';window.__rekapinyuActivityFilterState={...state};render()});
-  year?.addEventListener('change',()=>{state.year=year.value||'';window.__rekapinyuActivityFilterState={...state};render()});
-  const observer=new MutationObserver(()=>{
+  function refresh(){
     const active=!view.classList.contains('hidden');
-    filter.classList.toggle('hidden',!active);filter.classList.toggle('rk-activity-filter-visible',active);
-    if(active){ensureFilters();render();}
-  });
+    filter.classList.toggle('hidden',!active);
+    filter.classList.toggle('rk-activity-filter-visible',active);
+    if(!active)return;
+    refreshYears();
+  }
+  function notifyActivityRenderer(){
+    window.__rekapinyuActivityFilterState={...state};
+    if(typeof window.__rekapinyuRefreshActivities==='function')window.__rekapinyuRefreshActivities();
+  }
+  search.addEventListener('input',()=>{state.search=search.value||'';notifyActivityRenderer();});
+  date.addEventListener('change',()=>{state.date=date.value||'';notifyActivityRenderer();});
+  month.addEventListener('change',()=>{state.month=month.value||'';notifyActivityRenderer();});
+  year.addEventListener('change',()=>{state.year=year.value||'';notifyActivityRenderer();});
+  const observer=new MutationObserver(refresh);
   observer.observe(view,{attributes:true,attributeFilter:['class']});
-  window.__rekapinyuRefreshActivities=render;
-  window.__rekapinyuSetActivityData=function(data){
-    if(!Array.isArray(data))return;window.__rekapinyuActivityData=data.map(normalize).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);if(!view.classList.contains('hidden'))render();
-  };
-  window.__rekapinyuRecordActivity=record;
-  window.__rekapinyuActivityFilterState=state;
-  loadState();
-  const active=!view.classList.contains('hidden');filter.classList.toggle('hidden',!active);filter.classList.toggle('rk-activity-filter-visible',active);
-  if(active)render();
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!popup.classList.contains('hidden'))closeDay()});
+  refresh();
+  setInterval(()=>{if(!view.classList.contains('hidden'))refreshYears();},1500);
 })();
 </script>
 </input>
