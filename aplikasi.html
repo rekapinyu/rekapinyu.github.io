@@ -1646,7 +1646,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 const monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const view=document.getElementById('activity-main-container'),grid=document.getElementById('activity-history-list'),filter=document.querySelector('#activity-main-container .rk-activity-final-filter'),search=document.getElementById('rk-activity-search'),dateSelect=document.getElementById('rk-activity-date'),monthSelect=document.getElementById('rk-activity-month'),yearSelect=document.getElementById('rk-activity-year'),popup=document.getElementById('activity-detail-popup'),detailList=document.getElementById('activity-detail-list'),detailTitle=document.getElementById('activity-detail-title');
-if(!view||!grid||!filter||!search||!dateSelect||!monthSelect||!yearSelect||!popup||!detailList)return;
+if(!view||!grid||!filter||!search||!dateSelect||!monthSelect||!yearSelect||!popup||!detailList||!detailTitle)return;
 let activityData=[],currentPhone='',baseline={},bound=false,realtimeTimer=null;
 function phone(){try{const raw=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'';return String(raw).replace(/\D/g,'')}catch(e){return''}}
 function key(){const p=phone();return p?`finance_activity_desktop_${p}`:'finance_activity_guest'}
@@ -1662,51 +1662,49 @@ function load(){const p=phone();if(p!==currentPhone){currentPhone=p;const local=
 function addActivity(action,menu){if(!phone())return;const now=new Date(),item={id:`${now.getTime()}_${Math.random().toString(36).slice(2,8)}`,timestamp:now.getTime(),dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas')};activityData=[item,...activityData].slice(0,2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}}
 window.__rekapinyuLogActivity=addActivity;
 function getJSON(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
-function snapshot(){const p=phone();if(!p)return{};return{history:getJSON(`finance_history_desktop_${p}`)||[],pengeluaran:getJSON(`finance_pengeluaran_desktop_${p}`)||[],kasbon:getJSON(`finance_kasbon_desktop_${p}`)||[],backup:getJSON(`finance_backup_desktop_${p}`)||[],products:getJSON(`finance_kasir_products_${p}`)||[],transactions:getJSON(`finance_kasir_transactions_${p}`)||[],receipt:getJSON(`finance_kasir_receipt_settings_${p}`)||{},profile:getJSON(`finance_active_session`)||{},settings:getJSON(`finance_settings_${p}`)||{}}}
+function snapshot(){const p=phone();if(!p)return{};return{history:getJSON(`finance_history_desktop_${p}`)||[],pengeluaran:getJSON(`finance_pengeluaran_desktop_${p}`)||[],kasbon:getJSON(`finance_kasbon_desktop_${p}`)||[],backup:getJSON(`finance_backup_desktop_${p}`)||[],products:getJSON(`finance_kasir_products_${p}`)||[],transactions:getJSON(`finance_kasir_transactions_${p}`)||[],receipt:getJSON(`finance_kasir_receipt_settings_${p}`)||{}}}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b)}
 function byId(list){const m=new Map();(Array.isArray(list)?list:[]).forEach(x=>m.set(String(x?.id),x));return m}
-function detectArray(oldList,newList,type){
-const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu),added=neu.filter(x=>!om.has(String(x?.id))),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
-if(!added.length&&!removed.length&&!changed.length)return;
-if(type==='history'){
-if(added.length)addActivity('Menambahkan data di menu History','History');
-if(removed.length)addActivity('Menghapus data di menu History','History');
-changed.forEach(n=>{const o=om.get(String(n?.id))||{},fields=[];if(Number(n?.income)!==Number(o?.income))fields.push('pendapatan');if(Number(n?.expense)!==Number(o?.expense))fields.push('total belanja');if(Number(n?.cashout)!==Number(o?.cashout))fields.push('pengeluaran');if(Number(n?.profitPercentage)!==Number(o?.profitPercentage)||Number(n?.profit)!==Number(o?.profit))fields.push('profit');if(Number(n?.date)!==Number(o?.date)||String(n?.month)!==String(o?.month)||Number(n?.year)!==Number(o?.year)||Number(n?.monthIndex)!==Number(o?.monthIndex))fields.push('tanggal');if(String(n?.time||'')!==String(o?.time||''))fields.push('waktu');if(!fields.length){const changedKeys=Object.keys(n).filter(k=>k!=='id'&&JSON.stringify(n[k])!==JSON.stringify(o[k]));if(changedKeys.length)fields.push('data lainnya')}addActivity(`Mengubah ${fields.join(', ')} di menu History`,'History')})
-}else if(type==='pengeluaran'){
-if(added.length)addActivity('Menambahkan pengeluaran di menu Pengeluaran','Pengeluaran');
-if(removed.length)addActivity('Menghapus pengeluaran di menu Pengeluaran','Pengeluaran');
-if(changed.length)addActivity('Mengubah data di menu Pengeluaran','Pengeluaran');
-}else if(type==='kasbon'){
-if(added.length)addActivity('Menambahkan data kasbon di menu Kasbon','Kasbon');
-if(removed.length)addActivity('Menghapus data kasbon di menu Kasbon','Kasbon');
-if(changed.length)addActivity('Mengubah data kasbon di menu Kasbon','Kasbon');
-}else if(type==='backup'){
-if(added.length)addActivity('Membuat backup otomatis','Backup');
-if(removed.length)addActivity('Menghapus backup otomatis','Backup');
-if(changed.length)addActivity('Memperbarui backup otomatis','Backup');
-}else if(type==='products'){
-if(added.length)addActivity('Menambahkan Produk di menu Produk Kasir','Produk Kasir');
-if(removed.length)addActivity('Menghapus Produk di menu Produk Kasir','Produk Kasir');
-changed.forEach(n=>{const o=om.get(String(n?.id))||{},priceChanged=Number(n?.price)!==Number(o?.price)||Number(n?.cost??n?.grosir)!==Number(o?.cost??o?.grosir),nameChanged=String(n?.name||'')!==String(o?.name||''),stockChanged=Number(n?.stock)!==Number(o?.stock),barcodeChanged=JSON.stringify(n?.barcodes||[])!==JSON.stringify(o?.barcodes||[]),photoChanged=String(n?.photo||'')!==String(o?.photo||'');if(priceChanged)addActivity('Mengubah Harga di menu Produk Kasir','Produk Kasir');else if(nameChanged)addActivity('Mengubah Nama Produk di menu Produk Kasir','Produk Kasir');else if(barcodeChanged)addActivity('Mengubah Barcode Produk di menu Produk Kasir','Produk Kasir');else if(stockChanged)addActivity('Mengubah Stok Produk di menu Produk Kasir','Produk Kasir');else if(photoChanged)addActivity('Mengubah Foto Produk di menu Produk Kasir','Produk Kasir');else addActivity('Mengubah Produk di menu Produk Kasir','Produk Kasir')})
-}else if(type==='transactions'){
-if(added.length)addActivity('Menambahkan transaksi di menu Kasir','Kasir');
-if(removed.length)addActivity('Menghapus transaksi di menu Kasir','Kasir');
-if(changed.length)addActivity('Mengubah transaksi di menu Kasir','Kasir');
-}}
+function detectHistory(oldList,newList){
+ const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu);
+ const added=neu.filter(x=>!om.has(String(x?.id))),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
+ if(added.length){if(window.__rekapinyuActivityInputPending){added.forEach(()=>addActivity('Menginput Data Baru di menu Input Data','Input Data'));window.__rekapinyuActivityInputPending=false}}
+ if(removed.length)removed.forEach(()=>addActivity('Menghapus Data di menu History','History'));
+ changed.forEach(n=>{const o=om.get(String(n?.id))||{};const nominal=Number(n?.income)!==Number(o?.income)||Number(n?.expense)!==Number(o?.expense)||Number(n?.cashout)!==Number(o?.cashout)||Number(n?.profitPercentage)!==Number(o?.profitPercentage)||Number(n?.profit)!==Number(o?.profit);const tanggal=Number(n?.date)!==Number(o?.date)||String(n?.month||'')!==String(o?.month||'')||Number(n?.year)!==Number(o?.year)||Number(n?.monthIndex)!==Number(o?.monthIndex);if(nominal)addActivity('Mengubah Nominal di Menu History','History');if(tanggal)addActivity('Merubah Tanggal Bulan tahun di menu History','History')});
+}
+function detectKasbon(oldList,newList){
+ const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu),added=neu.filter(x=>!om.has(String(x?.id))),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
+ if(added.length)added.forEach(()=>addActivity('Menambah Kasbon Pelanggan di menu Kasbon','Kasbon'));
+ changed.forEach(n=>{const o=om.get(String(n?.id))||{};if(String(n?.namaPelanggan||'')!==String(o?.namaPelanggan||''))addActivity('Mengganti Nama Pelanggan di menu Kasbon','Kasbon');if(Boolean(n?.isLunas)!==Boolean(o?.isLunas)&&Boolean(n?.isLunas))addActivity('Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Kasbon')});
+}
+function detectBackup(oldList,newList){
+ const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
+ removed.forEach(()=>addActivity('Menghapus Data Backup di menu Backup Otomatis','Backup Otomatis'));
+ changed.forEach(n=>{const o=om.get(String(n?.id))||{};const dateChanged=Number(n?.date)!==Number(o?.date)||String(n?.month||'')!==String(o?.month||'')||Number(n?.year)!==Number(o?.year)||Number(n?.monthIndex)!==Number(o?.monthIndex)||String(n?.day||'')!==String(o?.day||'');if(dateChanged)addActivity('Merubah Tanggal bulan tahun di Menu Backup Otomatis','Backup Otomatis')});
+}
+function detectProducts(oldList,newList){
+ const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu),added=neu.filter(x=>!om.has(String(x?.id))),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
+ if(added.length)added.forEach(()=>addActivity('Menambahkan Produk di Menu Produk Kasir','Produk Kasir'));
+ changed.forEach(n=>{const o=om.get(String(n?.id))||{};if(String(n?.name||'')!==String(o?.name||''))addActivity('Merubah Nama Produk di menu Produk Kasir','Produk Kasir');if(Number(n?.cost??n?.grosir)!==Number(o?.cost??o?.grosir))addActivity('Merubah Harga HPP / Grosir di menu Produk Kasir','Produk Kasir');if(Number(n?.price)!==Number(o?.price))addActivity('Merubah Harga Jual di menu Produk Kasir','Produk Kasir');if(Number(n?.stock)!==Number(o?.stock))addActivity('Merubah Stok di menu Produk Kasir','Produk Kasir');if(String(n?.photo||'')!==String(o?.photo||''))addActivity('Merubah Foto Produk di menu Produk Kasir','Produk Kasir')});
+}
+function detectTransactions(oldList,newList){
+ const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),added=neu.filter(x=>!om.has(String(x?.id)));if(added.length)added.forEach(()=>addActivity('Melakukan transaksi di menu KASIR','KASIR'));
+}
 function watchSnapshot(){return snapshot()}
-function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p;baseline=watchSnapshot();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectArray(baseline.history,next.history,'history');detectArray(baseline.pengeluaran,next.pengeluaran,'pengeluaran');detectArray(baseline.kasbon,next.kasbon,'kasbon');detectArray(baseline.backup,next.backup,'backup');detectArray(baseline.products,next.products,'products');detectArray(baseline.transactions,next.transactions,'transactions');if(!same(baseline.receipt,next.receipt))addActivity('Mengubah pengaturan struk di menu Setting','Setting');if(!same(baseline.profile,next.profile))addActivity('Mengubah data profil pengguna','Profil');if(!same(baseline.settings,next.settings))addActivity('Mengubah Pengaturan aplikasi','Pengaturan');baseline=next}
+function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p;baseline=watchSnapshot();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectHistory(baseline.history,next.history);detectKasbon(baseline.kasbon,next.kasbon);detectBackup(baseline.backup,next.backup);detectProducts(baseline.products,next.products);detectTransactions(baseline.transactions,next.transactions);if(!same(baseline.receipt,next.receipt))addActivity('Mengubah Tampilan Struk di menu Seting','Seting');baseline=next}
 function filtered(){const q=String(search.value||'').trim().toLowerCase(),fd=String(dateSelect.value||''),fm=String(monthSelect.value||''),fy=String(yearSelect.value||'');return activityData.filter(item=>{const d=activityDate(item);if(fd&&String(d.getDate())!==fd)return false;if(fm&&String(d.getMonth()+1).padStart(2,'0')!==fm)return false;if(fy&&String(d.getFullYear())!==fy)return false;if(q){const hay=`${item.action||''} ${item.menu||''} ${dateText(d)}`.toLowerCase();if(!hay.includes(q))return false}return true})}
 function refreshFilterYears(){const old=String(yearSelect.value||''),years=[...new Set(activityData.map(x=>activityDate(x).getFullYear()))].sort((a,b)=>b-a);yearSelect.innerHTML='<option value="">Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');yearSelect.value=years.includes(Number(old))?old:''}
+function formatAction(item){const action=String(item.action||'Aktifitas'),menu=String(item.menu||'');const safeAction=esc(action);if(!menu)return safeAction;const safeMenu=esc(menu);return safeAction.replace(safeMenu,`<strong>${safeMenu}</strong>`)}
 function render(){if(view.classList.contains('hidden'))return;refreshFilterYears();const rows=filtered(),groups={};rows.forEach(item=>{const d=activityDate(item),k=dayKey(d);if(!groups[k])groups[k]={date:d,items:[]};groups[k].items.push(item)});const today=new Date(),todayKey=dayKey(today);if(!Object.keys(groups).length&&!search.value&&!dateSelect.value&&!monthSelect.value&&!yearSelect.value)groups[todayKey]={date:today,items:[]};const ordered=Object.values(groups).sort((a,b)=>b.date-a.date);grid.innerHTML=ordered.length?ordered.map(g=>{g.items.sort((a,b)=>activityDate(b)-activityDate(a));const first=g.items[0],preview=first?`${timeText(activityDate(first))} ${first.action}`:'Belum ada aktifitas tersimpan';return `<article class="rk-activity-day-card"><div class="rk-activity-day-head"><div style="min-width:0"><div class="rk-activity-day-date">${esc(dateText(g.date))}</div><div class="rk-activity-day-meta">${g.items.length} aktifitas dalam 24 jam</div></div><button type="button" class="rk-activity-view-btn" data-activity-day="${esc(dayKey(g.date))}" title="Lihat list aktifitas" aria-label="Lihat list aktifitas"><i class="fa-solid fa-eye"></i></button></div><div class="rk-activity-preview">${esc(preview)}</div></article>`}).join(''):'<div class="rk-activity-empty">Tidak ada aktifitas sesuai filter.</div>'}
-function openDay(day){const d=new Date(`${day}T12:00:00`),items=activityData.filter(x=>dayKey(activityDate(x))===day).sort((a,b)=>activityDate(b)-activityDate(a));detailTitle.textContent=dateText(d);detailList.innerHTML=items.length?items.map(item=>{const ad=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(ad))}</div><div><div class="rk-activity-action">${esc(item.action||'Aktifitas')}</div><div class="rk-activity-menu">${esc(item.menu||'Aplikasi')}</div></div></div>`}).join(''):'<div class="rk-activity-list-empty">Belum ada aktifitas pada tanggal ini.</div>';popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')}
+function openDay(day){const d=new Date(`${day}T12:00:00`),items=activityData.filter(x=>dayKey(activityDate(x))===day).sort((a,b)=>activityDate(b)-activityDate(a));detailTitle.textContent=dateText(d);detailList.innerHTML=items.length?items.map(item=>{const ad=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(ad))}</div><div><div class="rk-activity-action">${formatAction(item)}</div></div></div>`}).join(''):'<div class="rk-activity-list-empty">Belum ada aktifitas pada tanggal ini.</div>';popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')}
 function closePopup(){popup.classList.remove('is-open');popup.setAttribute('aria-hidden','true')}
 function bind(){if(bound)return;bound=true;
-function trackMenuNavigation(){
-const menuNames={input:'Form Input Keuangan Harian',pengeluaran:'Pengeluaran',kasbon:'Kasbon',kasir:'Kasir','produk-kasir':'Produk Kasir','laporan-kasir':'Laporan Kasir',history:'History',report:'Laporan',backup:'Backup',settings:'Pengaturan'};
-document.addEventListener('click',e=>{const btn=e.target.closest('[id^=nav-],[id^=nav-mobile-]');if(!btn)return;const raw=String(btn.id||'').replace(/^nav-mobile-/,'').replace(/^nav-/,'');if(!menuNames[raw]||raw==='activity')return;addActivity(`Membuka menu ${menuNames[raw]}`,menuNames[raw])},{capture:true});
-}
-trackMenuNavigation();
-search.addEventListener('input',render);dateSelect.addEventListener('change',render);monthSelect.addEventListener('change',render);yearSelect.addEventListener('change',render);for(let i=1;i<=31;i++)dateSelect.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);for(let i=0;i<12;i++)monthSelect.insertAdjacentHTML('beforeend',`<option value="${String(i+1).padStart(2,'0')}">${monthNames[i]}</option>`);grid.addEventListener('click',e=>{const btn=e.target.closest('[data-activity-day]');if(btn)openDay(btn.dataset.activityDay)});popup.addEventListener('click',e=>{if(e.target===popup||e.target.closest('[data-activity-close]'))closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});const mo=new MutationObserver(()=>{if(!view.classList.contains('hidden')){load();render();startRealtime()}});mo.observe(view,{attributes:true,attributeFilter:['class']});window.addEventListener('storage',e=>{if(e.key===key()){setData(readLocal(),false);baseline=watchSnapshot()}});document.addEventListener('rekapinyu-activity-realtime-updated',render);startRealtime();load()}
+ document.addEventListener('submit',e=>{if(e.target?.id==='finance-form')window.__rekapinyuActivityInputPending=true},{capture:true});
+ document.addEventListener('click',e=>{
+  if(e.target.closest('#pdf-modal button[onclick*="window.print"]')){addActivity('Mencetak Laporan Bulanan di Menu Laporan Bulanan','Laporan Bulanan');return}
+  if(e.target.closest('[onclick*="restoreHistoryFromBackup("]')){addActivity('Memulihkan Data Backup di menu Backup Otomatis','Backup Otomatis');return}
+ });
+ search.addEventListener('input',render);dateSelect.addEventListener('change',render);monthSelect.addEventListener('change',render);yearSelect.addEventListener('change',render);for(let i=1;i<=31;i++)dateSelect.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);for(let i=0;i<12;i++)monthSelect.insertAdjacentHTML('beforeend',`<option value="${String(i+1).padStart(2,'0')}">${monthNames[i]}</option>`);grid.addEventListener('click',e=>{const btn=e.target.closest('[data-activity-day]');if(btn)openDay(btn.dataset.activityDay)});popup.addEventListener('click',e=>{if(e.target===popup||e.target.closest('[data-activity-close]'))closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});const mo=new MutationObserver(()=>{if(!view.classList.contains('hidden')){load();render();startRealtime()}});mo.observe(view,{attributes:true,attributeFilter:['class']});window.addEventListener('storage',e=>{if(e.key===key()){setData(readLocal(),false);baseline=watchSnapshot()}});document.addEventListener('rekapinyu-activity-realtime-updated',render);startRealtime();load()}
 function startRealtime(){if(realtimeTimer)return;realtimeTimer=setInterval(()=>{if(document.visibilityState!=='hidden')compare()},250)}
 bind();
 })();
@@ -4315,11 +4313,6 @@ function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e
 window.__markDataPending=(key,items)=>markDataPending(key,items);
 window.__requestDataCloudSync=()=>requestDataCloudSync();
 
-function cloudKasirProducts(phone){
- const raw=safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);
- if(!Array.isArray(raw))return [];
- return raw.map(p=>{const x={...p};delete x.photo;return x;});
-}
 function cloudLaporanBulanan(){
  const rows=Array.isArray(historyData)?historyData:[],groups=new Map();
  rows.forEach(r=>{const key=`${Number(r?.year)||0}-${String(Number(r?.monthIndex)||0).padStart(2,'0')}`;if(!groups.has(key))groups.set(key,{year:Number(r?.year)||0,monthIndex:Number(r?.monthIndex)||0,month:String(r?.month||''),pendapatan:0,totalBelanja:0,pengeluaran:0,profit:0,jumlahData:0});const g=groups.get(key);g.pendapatan+=Number(r?.income)||0;g.totalBelanja+=Number(r?.expense)||0;g.pengeluaran+=Number(r?.cashout)||0;g.profit+=Number(r?.profit)||0;g.jumlahData++;});
@@ -4329,13 +4322,11 @@ async function saveCloudData(){
  const uid=cloudUid(),phone=phoneOf(currentSessionUser?.phone);if(!uid||!phone)return;
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||'';if(shop.length>MAX)shop='';
  const kasirTransactions=safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
- const kasirProducts=cloudKasirProducts(phone);
  const activity=Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[];
  const inputData=Array.isArray(historyData)?historyData:[];
  const payload={
   namaPengguna:currentSessionUser?.name||'',nomorHp:currentSessionUser?.phone||'',
   kasirTransactions:Array.isArray(kasirTransactions)?kasirTransactions:[],
-  kasirProducts,
   LaporanKasir:Array.isArray(kasirTransactions)?kasirTransactions:[],
   activityData:activity,
   InputData:inputData,
@@ -4387,7 +4378,6 @@ async function hydrate(uid){
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
  if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(d.kasirTransactions));
- if(Array.isArray(d.kasirProducts)){const localProducts=safe(localStorage.getItem(`finance_kasir_products_${phone}`),[]);const photos=new Map((Array.isArray(localProducts)?localProducts:[]).map(x=>[String(x?.id),x?.photo||'']));nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(d.kasirProducts.map(x=>({...x,photo:photos.get(String(x?.id))||''}))));}
  if(Array.isArray(d.activityData)){window.__rekapinyuSetActivityData?.(d.activityData);nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(d.activityData));}
  const pendingHistory=mergePendingData(phone,"history",d.historyData).pending;
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
@@ -4428,7 +4418,7 @@ window.__rekapinyuSaveCloudData=()=>{
 // Data tertentu tetap disinkronkan ke Firebase; Produk Kasir dikelola sepenuhnya di localStorage.
 if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.setItem=function(k,v){const r=nativeSet.call(this,k,v);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){
-   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_shop_cover_${p}`,`finance_kasir_transactions_${p}`,`finance_kasir_products_${p}`,`finance_activity_desktop_${p}`];
+   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_shop_cover_${p}`,`finance_kasir_transactions_${p}`,`finance_activity_desktop_${p}`];
    if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),200)}
  }return r};
  Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),100)}return r};
@@ -4476,7 +4466,7 @@ async function firebaseRegister(){
     // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
     try{
       await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{kasirTransactions:[],kasirProducts:[],LaporanKasir:[],activityData:[],InputData:[],historyData:[],LaporanBulanan:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],shopCover:"",updatedAt:serverTimestamp()});
+      await setDoc(dref(credential.user.uid),{kasirTransactions:[],LaporanKasir:[],activityData:[],InputData:[],historyData:[],LaporanBulanan:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],shopCover:"",updatedAt:serverTimestamp()});
     }catch(dbErr){
       console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
     }
@@ -4530,7 +4520,7 @@ async function firebaseLogin(){
         try{
           await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
           let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-          await setDoc(dref(credential.user.uid),{kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),kasirProducts:cloudKasirProducts(phone),LaporanKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),activityData:safe(localStorage.getItem(`finance_activity_desktop_${phone}`),[]),InputData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),LaporanBulanan:[],pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
+          await setDoc(dref(credential.user.uid),{kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),LaporanKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),activityData:safe(localStorage.getItem(`finance_activity_desktop_${phone}`),[]),InputData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),LaporanBulanan:[],pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
         }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
         localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
         try{await hydrate(credential.user.uid)}catch{}
@@ -4773,7 +4763,6 @@ document.addEventListener("click",function(e){
 let dataUnsub=null,userUnsub=null;
 function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData); if(Array.isArray(d.activityData)){window.__rekapinyuSetActivityData?.(d.activityData);try{nativeSet.call(localStorage,`finance_activity_desktop_${p}`,JSON.stringify(d.activityData));}catch(e){}}
 if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(d.kasirTransactions));
-if(Array.isArray(d.kasirProducts)){const localProducts=safe(localStorage.getItem(`finance_kasir_products_${p}`),[]);const photos=new Map((Array.isArray(localProducts)?localProducts:[]).map(x=>[String(x?.id),x?.photo||'']));nativeSet.call(localStorage,`finance_kasir_products_${p}`,JSON.stringify(d.kasirProducts.map(x=>({...x,photo:photos.get(String(x?.id))||''}))));}
 const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${p}`)||"null");
@@ -5460,7 +5449,7 @@ onAuthStateChanged(auth,async u=>{
   function money(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function safeSession(){try{return JSON.parse(localStorage.getItem('finance_active_session')||'null')}catch{return null}}
   function read(){try{const v=JSON.parse(localStorage.getItem(phoneKey())||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
-  function write(){localStorage.setItem(phoneKey(),JSON.stringify(products));try{window.__rekapinyuSaveCloudData?.()}catch{}}
+  function write(){localStorage.setItem(phoneKey(),JSON.stringify(products))}
   function num(id){return Number(String($(id)?.value||'').replace(/\D/g,''))||0}
   function uid(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
   function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,' ')}
