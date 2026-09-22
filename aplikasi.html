@@ -1590,6 +1590,122 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </header>
 <!-- Scrollable Main View Area -->
 <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
+<!-- AKTIFITAS — IMPLEMENTASI BARU: seluruh UI langsung di area MAIN. -->
+<section class="hidden" id="view-activity"></section>
+<div aria-label="Area Aktifitas" class="hidden" id="activity-main-container">
+<style id="rekapinyu-activity-final-css">
+#activity-main-container{width:100%;max-width:900px;margin:10px auto 0;box-sizing:border-box;position:relative;display:flex;flex-direction:column;gap:16px}
+#activity-main-container .rk-activity-final-filter{width:100%;box-sizing:border-box;position:sticky;top:10px;z-index:40}
+#activity-main-container .rk-activity-final-filter-box{width:100%;box-sizing:border-box;padding:10px;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.07)}
+#activity-main-container .rk-activity-final-filter-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(78px,1.2fr) minmax(105px,1.8fr) minmax(92px,1.4fr);gap:7px;align-items:center}
+#activity-main-container .rk-activity-search-wrap{position:relative;min-width:0}
+#activity-main-container .rk-activity-search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:11px;pointer-events:none}
+#activity-main-container .rk-activity-final-filter input,#activity-main-container .rk-activity-final-filter select{width:100%;height:38px;min-width:0;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;color:#334155;padding:0 10px;outline:none;font-size:12px}
+#activity-main-container .rk-activity-final-filter input{padding-left:32px}
+#activity-main-container .rk-activity-final-filter input:focus,#activity-main-container .rk-activity-final-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
+#activity-main-container .rk-activity-grid{width:100%;max-width:900px;margin:16px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#activity-main-container .rk-activity-day-card{position:relative;min-width:0;min-height:122px;padding:12px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:15px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden}
+#activity-main-container .rk-activity-day-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0}
+#activity-main-container .rk-activity-day-date{min-width:0;color:#334155;font-size:11px;font-weight:900;line-height:1.35;overflow-wrap:anywhere}
+#activity-main-container .rk-activity-day-meta{margin-top:5px;color:#94a3b8;font-size:9px;font-weight:700}
+#activity-main-container .rk-activity-view-btn{flex:0 0 30px;width:30px;height:30px;border:0;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;color:#475569;cursor:pointer}
+#activity-main-container .rk-activity-view-btn:hover{background:#dbeafe;color:#2563eb}
+#activity-main-container .rk-activity-preview{margin-top:10px;padding-top:9px;border-top:1px solid #f1f5f9;color:#64748b;font-size:9px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#activity-main-container .rk-activity-empty{grid-column:1/-1;padding:30px 16px;text-align:center;color:#94a3b8;font-size:11px}
+#activity-main-container .rk-activity-popup{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.38);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease,visibility .2s ease}
+#activity-main-container .rk-activity-popup.is-open{opacity:1;visibility:visible;pointer-events:auto}
+#activity-main-container .rk-activity-dialog{width:min(560px,100%);max-height:min(78vh,680px);overflow:auto;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(15,23,42,.22);padding:16px}
+#activity-main-container .rk-activity-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#activity-main-container .rk-activity-dialog-kicker{font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase}
+#activity-main-container .rk-activity-dialog-title{margin:2px 0 0;font-size:16px;font-weight:900;color:#0f172a}
+#activity-main-container .rk-activity-close{width:32px;height:32px;border:0;border-radius:10px;background:#f1f5f9;color:#475569;cursor:pointer}
+#activity-main-container .rk-activity-list{margin-top:14px;display:grid;gap:8px}
+#activity-main-container .rk-activity-item{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:10px;border:1px solid #eef2f7;border-radius:12px;background:#f8fafc}
+#activity-main-container .rk-activity-time{font-size:10px;font-weight:900;color:#2563eb}
+#activity-main-container .rk-activity-action{font-size:11px;font-weight:800;color:#334155;line-height:1.35}
+#activity-main-container .rk-activity-menu{margin-top:3px;font-size:9px;font-weight:700;color:#94a3b8}
+#activity-main-container .rk-activity-list-empty{padding:30px 16px;text-align:center;color:#94a3b8;font-size:11px}
+@media (min-width:768px) and (max-width:1023px){#activity-main-container{margin-top:10px}}
+@media(max-width:900px){#activity-main-container .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767px){#activity-main-container{max-width:100%;margin:10px 0 0;padding:0 0 20px}#activity-main-container .rk-activity-final-filter{max-width:100%;margin:0}#activity-main-container .rk-activity-final-filter-box{padding:8px}#activity-main-container .rk-activity-final-filter-grid{grid-template-columns:minmax(0,1fr) 70px 92px 82px;gap:5px}#activity-main-container .rk-activity-final-filter input,#activity-main-container .rk-activity-final-filter select{height:36px;font-size:10px}#activity-main-container .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}#activity-main-container .rk-activity-day-card{min-height:112px;padding:10px;border-radius:13px}#activity-main-container .rk-activity-day-date{font-size:10px}#activity-main-container .rk-activity-view-btn{width:28px;height:28px;flex-basis:28px}}
+@media(max-width:390px){#activity-main-container .rk-activity-final-filter-grid{grid-template-columns:minmax(0,1fr) 60px 80px 72px}#activity-main-container .rk-activity-final-filter input,#activity-main-container .rk-activity-final-filter select{font-size:9px}}
+</style>
+<div aria-label="Filter Aktifitas" class="rk-activity-final-filter">
+<div class="rk-activity-final-filter-box">
+<div class="rk-activity-final-filter-grid">
+<div class="rk-activity-search-wrap"><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input autocomplete="off" id="rk-activity-search" placeholder="Search aktifitas" type="text"/></div>
+<select aria-label="Tanggal" id="rk-activity-date"><option value="">Tgl</option></select>
+<select aria-label="Bulan" id="rk-activity-month"><option value="">Bulan</option></select>
+<select aria-label="Tahun" id="rk-activity-year"><option value="">Tahun</option></select>
+</div></div></div>
+<div class="rk-activity-grid" id="activity-history-list"></div>
+<div aria-hidden="true" class="rk-activity-popup" id="activity-detail-popup"><div class="rk-activity-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title"><div class="rk-activity-dialog-head"><div><div class="rk-activity-dialog-kicker">Detail Aktifitas 24 Jam</div><h3 class="rk-activity-dialog-title" id="activity-detail-title">Aktifitas</h3></div><button aria-label="Tutup" class="rk-activity-close" data-activity-close="1" type="button"><i aria-hidden="true" class="fa-solid fa-xmark"></i></button></div><div class="rk-activity-list" id="activity-detail-list"></div></div></div>
+<script id="rekapinyu-activity-final-js">
+(function(){
+'use strict';
+const monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const view=document.getElementById('activity-main-container'),grid=document.getElementById('activity-history-list'),filter=document.querySelector('#activity-main-container .rk-activity-final-filter'),search=document.getElementById('rk-activity-search'),dateSelect=document.getElementById('rk-activity-date'),monthSelect=document.getElementById('rk-activity-month'),yearSelect=document.getElementById('rk-activity-year'),popup=document.getElementById('activity-detail-popup'),detailList=document.getElementById('activity-detail-list'),detailTitle=document.getElementById('activity-detail-title');
+if(!view||!grid||!filter||!search||!dateSelect||!monthSelect||!yearSelect||!popup||!detailList)return;
+let activityData=[],currentPhone='',baseline={},bound=false,realtimeTimer=null;
+function phone(){try{const raw=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'';return String(raw).replace(/\D/g,'')}catch(e){return''}}
+function key(){const p=phone();return p?`finance_activity_desktop_${p}`:'finance_activity_guest'}
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function activityDate(item){const d=new Date(Number(item?.timestamp)||item?.timestamp||Date.now());return Number.isNaN(d.getTime())?new Date():d}
+function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function dateText(d){return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`}
+function timeText(d){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+function readLocal(){try{const raw=localStorage.getItem(key());const data=raw?JSON.parse(raw):[];return Array.isArray(data)?data:[]}catch(e){return[]}}
+function setData(data,writeLocal=true){activityData=Array.isArray(data)?data:[];window.__rekapinyuActivityData=activityData;if(writeLocal){try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}}refreshFilterYears();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated'))}catch(e){}}
+window.__rekapinyuSetActivityData=function(data){setData(data,true);baseline=watchSnapshot()};
+function load(){const p=phone();if(p!==currentPhone){currentPhone=p;const local=readLocal();setData(local,false);baseline=watchSnapshot()}else{const local=readLocal();if(JSON.stringify(local)!==JSON.stringify(activityData))setData(local,false)}refreshFilterYears();render()}
+function addActivity(action,menu){if(!phone())return;const now=new Date(),item={id:`${now.getTime()}_${Math.random().toString(36).slice(2,8)}`,timestamp:now.getTime(),dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas')};activityData=[item,...activityData].slice(0,2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}}
+window.__rekapinyuLogActivity=addActivity;
+function getJSON(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
+function snapshot(){const p=phone();if(!p)return{};return{history:getJSON(`finance_history_desktop_${p}`)||[],pengeluaran:getJSON(`finance_pengeluaran_desktop_${p}`)||[],kasbon:getJSON(`finance_kasbon_desktop_${p}`)||[],backup:getJSON(`finance_backup_desktop_${p}`)||[],products:getJSON(`finance_kasir_products_${p}`)||[],transactions:getJSON(`finance_kasir_transactions_${p}`)||[],receipt:getJSON(`finance_kasir_receipt_settings_${p}`)||{},profile:getJSON(`finance_active_session`)||{},settings:getJSON(`finance_settings_${p}`)||{}}}
+function same(a,b){return JSON.stringify(a)===JSON.stringify(b)}
+function byId(list){const m=new Map();(Array.isArray(list)?list:[]).forEach(x=>m.set(String(x?.id),x));return m}
+function detectArray(oldList,newList,type){
+const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu),added=neu.filter(x=>!om.has(String(x?.id))),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
+if(!added.length&&!removed.length&&!changed.length)return;
+if(type==='history'){
+if(added.length)addActivity('Menambahkan data di menu History','History');
+if(removed.length)addActivity('Menghapus data di menu History','History');
+changed.forEach(n=>{const o=om.get(String(n?.id))||{},fields=[];if(Number(n?.income)!==Number(o?.income))fields.push('pendapatan');if(Number(n?.expense)!==Number(o?.expense))fields.push('total belanja');if(Number(n?.cashout)!==Number(o?.cashout))fields.push('pengeluaran');if(Number(n?.profitPercentage)!==Number(o?.profitPercentage))fields.push('profit');if(Number(n?.date)!==Number(o?.date)||String(n?.month)!==String(o?.month)||Number(n?.year)!==Number(o?.year))fields.push('tanggal');addActivity(fields.length?`Mengubah ${fields.join(', ')} di menu History`:'Mengubah data di menu History','History')})
+}else if(type==='pengeluaran'){
+if(added.length)addActivity('Menambahkan pengeluaran di menu Pengeluaran','Pengeluaran');
+if(removed.length)addActivity('Menghapus pengeluaran di menu Pengeluaran','Pengeluaran');
+if(changed.length)addActivity('Mengubah data di menu Pengeluaran','Pengeluaran');
+}else if(type==='kasbon'){
+if(added.length)addActivity('Menambahkan data kasbon di menu Kasbon','Kasbon');
+if(removed.length)addActivity('Menghapus data kasbon di menu Kasbon','Kasbon');
+if(changed.length)addActivity('Mengubah data kasbon di menu Kasbon','Kasbon');
+}else if(type==='backup'){
+if(added.length)addActivity('Membuat backup otomatis','Backup');
+if(removed.length)addActivity('Menghapus backup otomatis','Backup');
+if(changed.length)addActivity('Memperbarui backup otomatis','Backup');
+}else if(type==='products'){
+if(added.length)addActivity('Menambahkan Produk di menu Produk Kasir','Produk Kasir');
+if(removed.length)addActivity('Menghapus Produk di menu Produk Kasir','Produk Kasir');
+changed.forEach(n=>{const o=om.get(String(n?.id))||{},priceChanged=Number(n?.price)!==Number(o?.price)||Number(n?.cost??n?.grosir)!==Number(o?.cost??o?.grosir),nameChanged=String(n?.name||'')!==String(o?.name||''),stockChanged=Number(n?.stock)!==Number(o?.stock),barcodeChanged=JSON.stringify(n?.barcodes||[])!==JSON.stringify(o?.barcodes||[]),photoChanged=String(n?.photo||'')!==String(o?.photo||'');if(priceChanged)addActivity('Mengubah Harga di menu Produk Kasir','Produk Kasir');else if(nameChanged)addActivity('Mengubah Nama Produk di menu Produk Kasir','Produk Kasir');else if(barcodeChanged)addActivity('Mengubah Barcode Produk di menu Produk Kasir','Produk Kasir');else if(stockChanged)addActivity('Mengubah Stok Produk di menu Produk Kasir','Produk Kasir');else if(photoChanged)addActivity('Mengubah Foto Produk di menu Produk Kasir','Produk Kasir');else addActivity('Mengubah Produk di menu Produk Kasir','Produk Kasir')})
+}else if(type==='transactions'){
+if(added.length)addActivity('Menambahkan transaksi di menu Kasir','Kasir');
+if(removed.length)addActivity('Menghapus transaksi di menu Kasir','Kasir');
+if(changed.length)addActivity('Mengubah transaksi di menu Kasir','Kasir');
+}}
+function watchSnapshot(){return snapshot()}
+function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p;baseline=watchSnapshot();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectArray(baseline.history,next.history,'history');detectArray(baseline.pengeluaran,next.pengeluaran,'pengeluaran');detectArray(baseline.kasbon,next.kasbon,'kasbon');detectArray(baseline.backup,next.backup,'backup');detectArray(baseline.products,next.products,'products');detectArray(baseline.transactions,next.transactions,'transactions');if(!same(baseline.receipt,next.receipt))addActivity('Mengubah pengaturan struk di menu Setting','Setting');if(!same(baseline.profile,next.profile))addActivity('Mengubah data profil pengguna','Profil');if(!same(baseline.settings,next.settings))addActivity('Mengubah Pengaturan aplikasi','Pengaturan');baseline=next}
+function filtered(){const q=String(search.value||'').trim().toLowerCase(),fd=String(dateSelect.value||''),fm=String(monthSelect.value||''),fy=String(yearSelect.value||'');return activityData.filter(item=>{const d=activityDate(item);if(fd&&String(d.getDate())!==fd)return false;if(fm&&String(d.getMonth()+1).padStart(2,'0')!==fm)return false;if(fy&&String(d.getFullYear())!==fy)return false;if(q){const hay=`${item.action||''} ${item.menu||''} ${dateText(d)}`.toLowerCase();if(!hay.includes(q))return false}return true})}
+function refreshFilterYears(){const old=String(yearSelect.value||''),years=[...new Set(activityData.map(x=>activityDate(x).getFullYear()))].sort((a,b)=>b-a);yearSelect.innerHTML='<option value="">Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');yearSelect.value=years.includes(Number(old))?old:''}
+function render(){if(view.classList.contains('hidden'))return;refreshFilterYears();const rows=filtered(),groups={};rows.forEach(item=>{const d=activityDate(item),k=dayKey(d);if(!groups[k])groups[k]={date:d,items:[]};groups[k].items.push(item)});const today=new Date(),todayKey=dayKey(today);if(!Object.keys(groups).length&&!search.value&&!dateSelect.value&&!monthSelect.value&&!yearSelect.value)groups[todayKey]={date:today,items:[]};const ordered=Object.values(groups).sort((a,b)=>b.date-a.date);grid.innerHTML=ordered.length?ordered.map(g=>{g.items.sort((a,b)=>activityDate(b)-activityDate(a));const first=g.items[0],preview=first?`${timeText(activityDate(first))} ${first.action}`:'Belum ada aktifitas tersimpan';return `<article class="rk-activity-day-card"><div class="rk-activity-day-head"><div style="min-width:0"><div class="rk-activity-day-date">${esc(dateText(g.date))}</div><div class="rk-activity-day-meta">${g.items.length} aktifitas dalam 24 jam</div></div><button type="button" class="rk-activity-view-btn" data-activity-day="${esc(dayKey(g.date))}" title="Lihat list aktifitas" aria-label="Lihat list aktifitas"><i class="fa-solid fa-eye"></i></button></div><div class="rk-activity-preview">${esc(preview)}</div></article>`}).join(''):'<div class="rk-activity-empty">Tidak ada aktifitas sesuai filter.</div>'}
+function openDay(day){const d=new Date(`${day}T12:00:00`),items=activityData.filter(x=>dayKey(activityDate(x))===day).sort((a,b)=>activityDate(b)-activityDate(a));detailTitle.textContent=dateText(d);detailList.innerHTML=items.length?items.map(item=>{const ad=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(ad))}</div><div><div class="rk-activity-action">${esc(item.action||'Aktifitas')}</div><div class="rk-activity-menu">${esc(item.menu||'Aplikasi')}</div></div></div>`}).join(''):'<div class="rk-activity-list-empty">Belum ada aktifitas pada tanggal ini.</div>';popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')}
+function closePopup(){popup.classList.remove('is-open');popup.setAttribute('aria-hidden','true')}
+function bind(){if(bound)return;bound=true;search.addEventListener('input',render);dateSelect.addEventListener('change',render);monthSelect.addEventListener('change',render);yearSelect.addEventListener('change',render);for(let i=1;i<=31;i++)dateSelect.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);for(let i=0;i<12;i++)monthSelect.insertAdjacentHTML('beforeend',`<option value="${String(i+1).padStart(2,'0')}">${monthNames[i]}</option>`);grid.addEventListener('click',e=>{const btn=e.target.closest('[data-activity-day]');if(btn)openDay(btn.dataset.activityDay)});popup.addEventListener('click',e=>{if(e.target===popup||e.target.closest('[data-activity-close]'))closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});const mo=new MutationObserver(()=>{if(!view.classList.contains('hidden')){load();render();startRealtime()}});mo.observe(view,{attributes:true,attributeFilter:['class']});window.addEventListener('storage',e=>{if(e.key===key()){setData(readLocal(),false);baseline=watchSnapshot()}});document.addEventListener('rekapinyu-activity-realtime-updated',render);startRealtime();load()}
+function startRealtime(){if(realtimeTimer)return;realtimeTimer=setInterval(()=>{if(document.visibilityState!=='hidden')compare()},250)}
+bind();
+})();
+</script>
+</div>
 
 <!-- PENGELUARAN STICKY — satu implementasi, langsung di bawah header -->
 <div aria-label="Input Pengeluaran" class="hidden" id="pengeluaran-sticky-container">
@@ -1767,118 +1883,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <div class="grid grid-cols-1 gap-4" id="kasbon-grid"></div>
 </section>
 <!-- VIEW SETTING STRUK -->
-<!-- AKTIFITAS — SATU IMPLEMENTASI BARU: filter sticky + grid 24 jam + detail realtime. -->
-<section class="hidden activity-view" id="view-activity">
-<style id="rekapinyu-activity-final-css">
-/* AKTIFITAS: filter + grid mengikuti area MAIN secara langsung */
-#view-activity:not(.hidden){display:contents}
-#view-activity:not(.hidden) .rk-activity-final-filter{width:100%;max-width:900px;margin:10px auto 0;position:sticky;top:0;z-index:40;box-sizing:border-box}
-#view-activity:not(.hidden) .rk-activity-final-filter-box{width:100%;box-sizing:border-box;padding:10px;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.07)}
-#view-activity:not(.hidden) .rk-activity-final-filter-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(78px,1.2fr) minmax(105px,1.8fr) minmax(92px,1.4fr);gap:7px;align-items:center}
-#view-activity:not(.hidden) .rk-activity-search-wrap{position:relative;min-width:0}
-#view-activity:not(.hidden) .rk-activity-search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:11px;pointer-events:none}
-#view-activity:not(.hidden) .rk-activity-final-filter input,#view-activity:not(.hidden) .rk-activity-final-filter select{width:100%;height:38px;min-width:0;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;color:#334155;padding:0 10px;outline:none;font-size:12px}
-#view-activity:not(.hidden) .rk-activity-final-filter input{padding-left:32px}
-#view-activity:not(.hidden) .rk-activity-final-filter input:focus,#view-activity:not(.hidden) .rk-activity-final-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
-#view-activity:not(.hidden) .rk-activity-grid{width:100%;max-width:900px;margin:16px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-#view-activity:not(.hidden) .rk-activity-day-card{position:relative;min-width:0;min-height:122px;padding:12px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:15px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden}
-#view-activity:not(.hidden) .rk-activity-day-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0}
-#view-activity:not(.hidden) .rk-activity-day-date{min-width:0;color:#334155;font-size:11px;font-weight:900;line-height:1.35;overflow-wrap:anywhere}
-#view-activity:not(.hidden) .rk-activity-day-meta{margin-top:5px;color:#94a3b8;font-size:9px;font-weight:700}
-#view-activity:not(.hidden) .rk-activity-view-btn{flex:0 0 30px;width:30px;height:30px;border:0;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;color:#475569;cursor:pointer}
-#view-activity:not(.hidden) .rk-activity-view-btn:hover{background:#cbd5e1}
-#view-activity:not(.hidden) .rk-activity-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
-#view-activity:not(.hidden) .rk-activity-list-item{display:flex;align-items:center;gap:7px;min-width:0}
-#view-activity:not(.hidden) .rk-activity-time{flex:0 0 auto;color:#64748b;font-size:9px;font-weight:800}
-#view-activity:not(.hidden) .rk-activity-action{color:#334155;font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#view-activity:not(.hidden) .rk-activity-menu{color:#94a3b8;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media(max-width:767px){
-#view-activity:not(.hidden) .rk-activity-final-filter{max-width:100%;margin:8px 0 0}
-#view-activity:not(.hidden) .rk-activity-final-filter-grid{grid-template-columns:1fr 1fr;gap:7px}
-#view-activity:not(.hidden) .rk-activity-grid{max-width:100%;margin-top:14px;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-#view-activity:not(.hidden) .rk-activity-day-card{min-height:112px;padding:10px;border-radius:13px}
-}
-@media(max-width:420px){
-#view-activity:not(.hidden) .rk-activity-final-filter-grid{grid-template-columns:1fr}
-#view-activity:not(.hidden) .rk-activity-grid{grid-template-columns:1fr}
-}
-</style>
-<div aria-label="Filter Aktifitas" class="rk-activity-final-filter">
-<div class="rk-activity-final-filter-box">
-<div class="rk-activity-final-filter-grid">
-<div class="rk-activity-search-wrap"><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input autocomplete="off" id="rk-activity-search" placeholder="Search aktifitas" type="text"/></div>
-<select aria-label="Tanggal" id="rk-activity-date"><option value="">Tgl</option></select>
-<select aria-label="Bulan" id="rk-activity-month"><option value="">Bulan</option></select>
-<select aria-label="Tahun" id="rk-activity-year"><option value="">Tahun</option></select>
-</div></div></div>
-<div class="rk-activity-grid" id="activity-history-list"></div>
-<div aria-hidden="true" class="rk-activity-popup" id="activity-detail-popup"><div class="rk-activity-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title"><div class="rk-activity-dialog-head"><div><div class="rk-activity-dialog-kicker">Detail Aktifitas 24 Jam</div><h3 class="rk-activity-dialog-title" id="activity-detail-title">Aktifitas</h3></div><button aria-label="Tutup" class="rk-activity-close" data-activity-close="1" type="button"><i aria-hidden="true" class="fa-solid fa-xmark"></i></button></div><div class="rk-activity-list" id="activity-detail-list"></div></div></div>
-<script id="rekapinyu-activity-final-js">
-(function(){
-'use strict';
-const monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-const view=document.getElementById('view-activity'),grid=document.getElementById('activity-history-list'),filter=document.querySelector('#view-activity .rk-activity-final-filter'),search=document.getElementById('rk-activity-search'),dateSelect=document.getElementById('rk-activity-date'),monthSelect=document.getElementById('rk-activity-month'),yearSelect=document.getElementById('rk-activity-year'),popup=document.getElementById('activity-detail-popup'),detailList=document.getElementById('activity-detail-list'),detailTitle=document.getElementById('activity-detail-title');
-if(!view||!grid||!filter||!search||!dateSelect||!monthSelect||!yearSelect||!popup||!detailList)return;
-let activityData=[],currentPhone='',baseline={},bound=false,realtimeTimer=null;
-function phone(){try{const raw=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'';return String(raw).replace(/\D/g,'')}catch(e){return''}}
-function key(){const p=phone();return p?`finance_activity_desktop_${p}`:'finance_activity_guest'}
-function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function activityDate(item){const d=new Date(Number(item?.timestamp)||item?.timestamp||Date.now());return Number.isNaN(d.getTime())?new Date():d}
-function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function dateText(d){return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`}
-function timeText(d){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
-function readLocal(){try{const raw=localStorage.getItem(key());const data=raw?JSON.parse(raw):[];return Array.isArray(data)?data:[]}catch(e){return[]}}
-function setData(data,writeLocal=true){activityData=Array.isArray(data)?data:[];window.__rekapinyuActivityData=activityData;if(writeLocal){try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}}refreshFilterYears();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated'))}catch(e){}}
-window.__rekapinyuSetActivityData=function(data){setData(data,true);baseline=watchSnapshot()};
-function load(){const p=phone();if(p!==currentPhone){currentPhone=p;const local=readLocal();setData(local,false);baseline=watchSnapshot()}else{const local=readLocal();if(JSON.stringify(local)!==JSON.stringify(activityData))setData(local,false)}refreshFilterYears();render()}
-function addActivity(action,menu){if(!phone())return;const now=new Date(),item={id:`${now.getTime()}_${Math.random().toString(36).slice(2,8)}`,timestamp:now.getTime(),dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas')};activityData=[item,...activityData].slice(0,2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}}
-window.__rekapinyuLogActivity=addActivity;
-function getJSON(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
-function snapshot(){const p=phone();if(!p)return{};return{history:getJSON(`finance_history_desktop_${p}`)||[],pengeluaran:getJSON(`finance_pengeluaran_desktop_${p}`)||[],kasbon:getJSON(`finance_kasbon_desktop_${p}`)||[],backup:getJSON(`finance_backup_desktop_${p}`)||[],products:getJSON(`finance_kasir_products_${p}`)||[],transactions:getJSON(`finance_kasir_transactions_${p}`)||[],receipt:getJSON(`finance_kasir_receipt_settings_${p}`)||{},profile:getJSON(`finance_active_session`)||{},settings:getJSON(`finance_settings_${p}`)||{}}}
-function same(a,b){return JSON.stringify(a)===JSON.stringify(b)}
-function byId(list){const m=new Map();(Array.isArray(list)?list:[]).forEach(x=>m.set(String(x?.id),x));return m}
-function detectArray(oldList,newList,type){
-const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old),nm=byId(neu),added=neu.filter(x=>!om.has(String(x?.id))),removed=old.filter(x=>!nm.has(String(x?.id))),changed=neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id))));
-if(!added.length&&!removed.length&&!changed.length)return;
-if(type==='history'){
-if(added.length)addActivity('Menambahkan data di menu History','History');
-if(removed.length)addActivity('Menghapus data di menu History','History');
-changed.forEach(n=>{const o=om.get(String(n?.id))||{},fields=[];if(Number(n?.income)!==Number(o?.income))fields.push('pendapatan');if(Number(n?.expense)!==Number(o?.expense))fields.push('total belanja');if(Number(n?.cashout)!==Number(o?.cashout))fields.push('pengeluaran');if(Number(n?.profitPercentage)!==Number(o?.profitPercentage))fields.push('profit');if(Number(n?.date)!==Number(o?.date)||String(n?.month)!==String(o?.month)||Number(n?.year)!==Number(o?.year))fields.push('tanggal');addActivity(fields.length?`Mengubah ${fields.join(', ')} di menu History`:'Mengubah data di menu History','History')})
-}else if(type==='pengeluaran'){
-if(added.length)addActivity('Menambahkan pengeluaran di menu Pengeluaran','Pengeluaran');
-if(removed.length)addActivity('Menghapus pengeluaran di menu Pengeluaran','Pengeluaran');
-if(changed.length)addActivity('Mengubah data di menu Pengeluaran','Pengeluaran');
-}else if(type==='kasbon'){
-if(added.length)addActivity('Menambahkan data kasbon di menu Kasbon','Kasbon');
-if(removed.length)addActivity('Menghapus data kasbon di menu Kasbon','Kasbon');
-if(changed.length)addActivity('Mengubah data kasbon di menu Kasbon','Kasbon');
-}else if(type==='backup'){
-if(added.length)addActivity('Membuat backup otomatis','Backup');
-if(removed.length)addActivity('Menghapus backup otomatis','Backup');
-if(changed.length)addActivity('Memperbarui backup otomatis','Backup');
-}else if(type==='products'){
-if(added.length)addActivity('Menambahkan Produk di menu Produk Kasir','Produk Kasir');
-if(removed.length)addActivity('Menghapus Produk di menu Produk Kasir','Produk Kasir');
-changed.forEach(n=>{const o=om.get(String(n?.id))||{},priceChanged=Number(n?.price)!==Number(o?.price)||Number(n?.cost??n?.grosir)!==Number(o?.cost??o?.grosir),nameChanged=String(n?.name||'')!==String(o?.name||''),stockChanged=Number(n?.stock)!==Number(o?.stock),barcodeChanged=JSON.stringify(n?.barcodes||[])!==JSON.stringify(o?.barcodes||[]),photoChanged=String(n?.photo||'')!==String(o?.photo||'');if(priceChanged)addActivity('Mengubah Harga di menu Produk Kasir','Produk Kasir');else if(nameChanged)addActivity('Mengubah Nama Produk di menu Produk Kasir','Produk Kasir');else if(barcodeChanged)addActivity('Mengubah Barcode Produk di menu Produk Kasir','Produk Kasir');else if(stockChanged)addActivity('Mengubah Stok Produk di menu Produk Kasir','Produk Kasir');else if(photoChanged)addActivity('Mengubah Foto Produk di menu Produk Kasir','Produk Kasir');else addActivity('Mengubah Produk di menu Produk Kasir','Produk Kasir')})
-}else if(type==='transactions'){
-if(added.length)addActivity('Menambahkan transaksi di menu Kasir','Kasir');
-if(removed.length)addActivity('Menghapus transaksi di menu Kasir','Kasir');
-if(changed.length)addActivity('Mengubah transaksi di menu Kasir','Kasir');
-}}
-function watchSnapshot(){return snapshot()}
-function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p;baseline=watchSnapshot();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectArray(baseline.history,next.history,'history');detectArray(baseline.pengeluaran,next.pengeluaran,'pengeluaran');detectArray(baseline.kasbon,next.kasbon,'kasbon');detectArray(baseline.backup,next.backup,'backup');detectArray(baseline.products,next.products,'products');detectArray(baseline.transactions,next.transactions,'transactions');if(!same(baseline.receipt,next.receipt))addActivity('Mengubah pengaturan struk di menu Setting','Setting');if(!same(baseline.profile,next.profile))addActivity('Mengubah data profil pengguna','Profil');if(!same(baseline.settings,next.settings))addActivity('Mengubah Pengaturan aplikasi','Pengaturan');baseline=next}
-function filtered(){const q=String(search.value||'').trim().toLowerCase(),fd=String(dateSelect.value||''),fm=String(monthSelect.value||''),fy=String(yearSelect.value||'');return activityData.filter(item=>{const d=activityDate(item);if(fd&&String(d.getDate())!==fd)return false;if(fm&&String(d.getMonth()+1).padStart(2,'0')!==fm)return false;if(fy&&String(d.getFullYear())!==fy)return false;if(q){const hay=`${item.action||''} ${item.menu||''} ${dateText(d)}`.toLowerCase();if(!hay.includes(q))return false}return true})}
-function refreshFilterYears(){const old=String(yearSelect.value||''),years=[...new Set(activityData.map(x=>activityDate(x).getFullYear()))].sort((a,b)=>b-a);yearSelect.innerHTML='<option value="">Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');yearSelect.value=years.includes(Number(old))?old:''}
-function render(){if(view.classList.contains('hidden'))return;refreshFilterYears();const rows=filtered(),groups={};rows.forEach(item=>{const d=activityDate(item),k=dayKey(d);if(!groups[k])groups[k]={date:d,items:[]};groups[k].items.push(item)});const today=new Date(),todayKey=dayKey(today);if(!Object.keys(groups).length&&!search.value&&!dateSelect.value&&!monthSelect.value&&!yearSelect.value)groups[todayKey]={date:today,items:[]};const ordered=Object.values(groups).sort((a,b)=>b.date-a.date);grid.innerHTML=ordered.length?ordered.map(g=>{g.items.sort((a,b)=>activityDate(b)-activityDate(a));const first=g.items[0],preview=first?`${timeText(activityDate(first))} ${first.action}`:'Belum ada aktifitas tersimpan';return `<article class="rk-activity-day-card"><div class="rk-activity-day-head"><div style="min-width:0"><div class="rk-activity-day-date">${esc(dateText(g.date))}</div><div class="rk-activity-day-meta">${g.items.length} aktifitas dalam 24 jam</div></div><button type="button" class="rk-activity-view-btn" data-activity-day="${esc(dayKey(g.date))}" title="Lihat list aktifitas" aria-label="Lihat list aktifitas"><i class="fa-solid fa-eye"></i></button></div><div class="rk-activity-preview">${esc(preview)}</div></article>`}).join(''):'<div class="rk-activity-empty">Tidak ada aktifitas sesuai filter.</div>'}
-function openDay(day){const d=new Date(`${day}T12:00:00`),items=activityData.filter(x=>dayKey(activityDate(x))===day).sort((a,b)=>activityDate(b)-activityDate(a));detailTitle.textContent=dateText(d);detailList.innerHTML=items.length?items.map(item=>{const ad=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(ad))}</div><div><div class="rk-activity-action">${esc(item.action||'Aktifitas')}</div><div class="rk-activity-menu">${esc(item.menu||'Aplikasi')}</div></div></div>`}).join(''):'<div class="rk-activity-list-empty">Belum ada aktifitas pada tanggal ini.</div>';popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')}
-function closePopup(){popup.classList.remove('is-open');popup.setAttribute('aria-hidden','true')}
-function bind(){if(bound)return;bound=true;search.addEventListener('input',render);dateSelect.addEventListener('change',render);monthSelect.addEventListener('change',render);yearSelect.addEventListener('change',render);for(let i=1;i<=31;i++)dateSelect.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);for(let i=0;i<12;i++)monthSelect.insertAdjacentHTML('beforeend',`<option value="${String(i+1).padStart(2,'0')}">${monthNames[i]}</option>`);grid.addEventListener('click',e=>{const btn=e.target.closest('[data-activity-day]');if(btn)openDay(btn.dataset.activityDay)});popup.addEventListener('click',e=>{if(e.target===popup||e.target.closest('[data-activity-close]'))closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});const mo=new MutationObserver(()=>{if(!view.classList.contains('hidden')){load();render();startRealtime()}});mo.observe(view,{attributes:true,attributeFilter:['class']});window.addEventListener('storage',e=>{if(e.key===key()){setData(readLocal(),false);baseline=watchSnapshot()}});document.addEventListener('rekapinyu-activity-realtime-updated',render);startRealtime();load()}
-function startRealtime(){if(realtimeTimer)return;realtimeTimer=setInterval(()=>{if(document.visibilityState!=='hidden')compare()},250)}
-bind();
-})();
-</script>
-</section>
+
 <section class="hidden receipt-settings-view" id="view-settings">
 <div class="receipt-settings-card">
 <div class="receipt-settings-heading">
@@ -2717,6 +2722,10 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             views.forEach(v => {
                 const viewEl = document.getElementById(`view-${v}`);
                 if (viewEl) viewEl.classList.add('hidden');
+                if (v === 'activity') {
+                    const activityMain = document.getElementById('activity-main-container');
+                    if (activityMain) activityMain.classList.add('hidden');
+                }
                 
                 const deskNav = document.getElementById(`nav-${v}`);
                 const iconEl = document.getElementById(`icon-${v}`);
@@ -2773,6 +2782,10 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 
 
             document.getElementById(`view-${tab}`).classList.remove('hidden');
+            if (tab === 'activity') {
+                const activityMain = document.getElementById('activity-main-container');
+                if (activityMain) activityMain.classList.remove('hidden');
+            }
             document.getElementById('page-title-header').innerText = titles[tab].title;
             document.getElementById('page-subtitle-header').innerText = titles[tab].subtitle;
 
