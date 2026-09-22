@@ -1769,20 +1769,17 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <!-- VIEW SETTING STRUK -->
 <!-- AKTIFITAS — SATU IMPLEMENTASI BARU: filter sticky + grid 24 jam + detail realtime. -->
 <section class="hidden activity-view" id="view-activity">
-<style id="rekapinyu-activity-single-css">
-#view-activity.activity-view{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
-main > .max-w-4xl.mx-auto.w-full.my-auto:has(> #view-activity:not(.hidden)){margin-top:0!important;margin-bottom:0!important}
-#view-activity .rk-activity-sticky-filter{width:100%;max-width:900px;margin:-16px auto 14px;position:sticky;top:0;z-index:40;box-sizing:border-box}
-@media(min-width:768px){#view-activity .rk-activity-sticky-filter{margin-top:-24px}}
-@media(min-width:1024px){#view-activity .rk-activity-sticky-filter{margin-top:-32px}}
-#view-activity .rk-activity-sticky-filter-box{width:100%;box-sizing:border-box;padding:10px;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.07)}
-#view-activity .rk-activity-sticky-filter-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(78px,1.2fr) minmax(105px,1.8fr) minmax(92px,1.4fr);gap:7px;align-items:center}
+<style id="rekapinyu-activity-final-css">
+#view-activity.activity-view{width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:8px 0 24px}
+#view-activity .rk-activity-final-filter{width:100%;max-width:900px;margin:0 auto;position:sticky;top:0;z-index:40;box-sizing:border-box}
+#view-activity .rk-activity-final-filter-box{width:100%;box-sizing:border-box;padding:10px;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.07)}
+#view-activity .rk-activity-final-filter-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(78px,1.2fr) minmax(105px,1.8fr) minmax(92px,1.4fr);gap:7px;align-items:center}
 #view-activity .rk-activity-search-wrap{position:relative;min-width:0}
 #view-activity .rk-activity-search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:11px;pointer-events:none}
-#view-activity .rk-activity-sticky-filter input,#view-activity .rk-activity-sticky-filter select{width:100%;height:38px;min-width:0;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;color:#334155;padding:0 10px;outline:none;font-size:12px}
-#view-activity .rk-activity-sticky-filter input{padding-left:32px}
-#view-activity .rk-activity-sticky-filter input:focus,#view-activity .rk-activity-sticky-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
-#view-activity .rk-activity-grid{width:100%;max-width:900px;margin:8px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#view-activity .rk-activity-final-filter input,#view-activity .rk-activity-final-filter select{width:100%;height:38px;min-width:0;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;color:#334155;padding:0 10px;outline:none;font-size:12px}
+#view-activity .rk-activity-final-filter input{padding-left:32px}
+#view-activity .rk-activity-final-filter input:focus,#view-activity .rk-activity-final-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
+#view-activity .rk-activity-grid{width:100%;max-width:900px;margin:16px auto 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 #view-activity .rk-activity-day-card{position:relative;min-width:0;min-height:122px;padding:12px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:15px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden}
 #view-activity .rk-activity-day-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0}
 #view-activity .rk-activity-day-date{min-width:0;color:#334155;font-size:11px;font-weight:900;line-height:1.35;overflow-wrap:anywhere}
@@ -1790,60 +1787,40 @@ main > .max-w-4xl.mx-auto.w-full.my-auto:has(> #view-activity:not(.hidden)){marg
 #view-activity .rk-activity-view-btn{flex:0 0 30px;width:30px;height:30px;border:0;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;color:#475569;cursor:pointer}
 #view-activity .rk-activity-view-btn:hover{background:#dbeafe;color:#2563eb}
 #view-activity .rk-activity-preview{margin-top:10px;padding-top:9px;border-top:1px solid #f1f5f9;color:#64748b;font-size:9px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#view-activity .rk-activity-empty{grid-column:1/-1;min-height:150px;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;border:1px dashed #cbd5e1;border-radius:15px;background:#fff;color:#94a3b8;text-align:center;font-size:11px;font-weight:700}
-#view-activity .rk-activity-popup{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(15,23,42,.58)}
-#view-activity .rk-activity-popup.is-open{display:flex}
-#view-activity .rk-activity-dialog{width:min(620px,96vw);max-height:min(720px,92vh);display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.25)}
-#view-activity .rk-activity-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
-#view-activity .rk-activity-dialog-kicker{color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
-#view-activity .rk-activity-dialog-title{margin:3px 0 0;color:#0f172a;font-size:15px;font-weight:900}
-#view-activity .rk-activity-close{width:32px;height:32px;flex:0 0 32px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#64748b;cursor:pointer}
-#view-activity .rk-activity-list{min-height:0;overflow-y:auto;padding:10px}
-#view-activity .rk-activity-item{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;padding:10px 8px;border-bottom:1px solid #f1f5f9}
-#view-activity .rk-activity-item:last-child{border-bottom:0}
-#view-activity .rk-activity-time{color:#0f766e;font-size:11px;font-weight:900;line-height:1.4}
-#view-activity .rk-activity-action{min-width:0;color:#334155;font-size:11px;font-weight:800;line-height:1.45;overflow-wrap:anywhere}
-#view-activity .rk-activity-menu{margin-top:3px;color:#94a3b8;font-size:9px;font-weight:700}
+#view-activity .rk-activity-empty{grid-column:1/-1;padding:30px 16px;text-align:center;color:#94a3b8;font-size:11px}
+#view-activity .rk-activity-popup{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.38);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease,visibility .2s ease}
+#view-activity .rk-activity-popup.is-open{opacity:1;visibility:visible;pointer-events:auto}
+#view-activity .rk-activity-dialog{width:min(560px,100%);max-height:min(78vh,680px);overflow:auto;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(15,23,42,.22);padding:16px}
+#view-activity .rk-activity-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#view-activity .rk-activity-dialog-kicker{font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase}
+#view-activity .rk-activity-dialog-title{margin:2px 0 0;font-size:16px;font-weight:900;color:#0f172a}
+#view-activity .rk-activity-close{width:32px;height:32px;border:0;border-radius:10px;background:#f1f5f9;color:#475569;cursor:pointer}
+#view-activity .rk-activity-list{margin-top:14px;display:grid;gap:8px}
+#view-activity .rk-activity-item{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:10px;border:1px solid #eef2f7;border-radius:12px;background:#f8fafc}
+#view-activity .rk-activity-time{font-size:10px;font-weight:900;color:#2563eb}
+#view-activity .rk-activity-action{font-size:11px;font-weight:800;color:#334155;line-height:1.35}
+#view-activity .rk-activity-menu{margin-top:3px;font-size:9px;font-weight:700;color:#94a3b8}
 #view-activity .rk-activity-list-empty{padding:30px 16px;text-align:center;color:#94a3b8;font-size:11px}
 @media(max-width:900px){#view-activity .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767px){
-#view-activity .rk-activity-sticky-filter{max-width:100%;margin:-16px 0 12px}
-#view-activity .rk-activity-sticky-filter-box{padding:8px}
-#view-activity .rk-activity-sticky-filter-grid{grid-template-columns:minmax(0,1fr) 70px 92px 82px;gap:5px}
-#view-activity .rk-activity-sticky-filter input,#view-activity .rk-activity-sticky-filter select{height:36px;font-size:10px}
-#view-activity .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
-#view-activity .rk-activity-day-card{min-height:112px;padding:10px;border-radius:13px}
-#view-activity .rk-activity-day-date{font-size:10px}
-#view-activity .rk-activity-view-btn{width:28px;height:28px;flex-basis:28px}
-}
-@media(max-width:390px){
-#view-activity .rk-activity-sticky-filter-grid{grid-template-columns:minmax(0,1fr) 60px 80px 72px}
-#view-activity .rk-activity-sticky-filter input,#view-activity .rk-activity-sticky-filter select{font-size:9px}
-}
+@media(max-width:767px){#view-activity.activity-view{padding:6px 0 20px}#view-activity .rk-activity-final-filter{max-width:100%;margin:0}#view-activity .rk-activity-final-filter-box{padding:8px}#view-activity .rk-activity-final-filter-grid{grid-template-columns:minmax(0,1fr) 70px 92px 82px;gap:5px}#view-activity .rk-activity-final-filter input,#view-activity .rk-activity-final-filter select{height:36px;font-size:10px}#view-activity .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}#view-activity .rk-activity-day-card{min-height:112px;padding:10px;border-radius:13px}#view-activity .rk-activity-day-date{font-size:10px}#view-activity .rk-activity-view-btn{width:28px;height:28px;flex-basis:28px}}
+@media(max-width:390px){#view-activity .rk-activity-final-filter-grid{grid-template-columns:minmax(0,1fr) 60px 80px 72px}#view-activity .rk-activity-final-filter input,#view-activity .rk-activity-final-filter select{font-size:9px}}
 </style>
-<div aria-label="Filter Aktifitas" class="rk-activity-sticky-filter">
-<div class="rk-activity-sticky-filter-box">
-<div class="rk-activity-sticky-filter-grid">
+<div aria-label="Filter Aktifitas" class="rk-activity-final-filter">
+<div class="rk-activity-final-filter-box">
+<div class="rk-activity-final-filter-grid">
 <div class="rk-activity-search-wrap"><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input autocomplete="off" id="rk-activity-search" placeholder="Search aktifitas" type="text"/></div>
 <select aria-label="Tanggal" id="rk-activity-date"><option value="">Tgl</option></select>
 <select aria-label="Bulan" id="rk-activity-month"><option value="">Bulan</option></select>
 <select aria-label="Tahun" id="rk-activity-year"><option value="">Tahun</option></select>
-</div>
-</div>
-</div>
+</div></div></div>
 <div class="rk-activity-grid" id="activity-history-list"></div>
-<div aria-hidden="true" class="rk-activity-popup" id="activity-detail-popup">
-<div class="rk-activity-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
-<div class="rk-activity-dialog-head"><div><div class="rk-activity-dialog-kicker">Detail Aktifitas 24 Jam</div><h3 class="rk-activity-dialog-title" id="activity-detail-title">Aktifitas</h3></div><button aria-label="Tutup" class="rk-activity-close" data-activity-close="1" type="button"><i aria-hidden="true" class="fa-solid fa-xmark"></i></button></div>
-<div class="rk-activity-list" id="activity-detail-list"></div>
-</div>
-</div>
-<script id="rekapinyu-activity-single-js">
+<div aria-hidden="true" class="rk-activity-popup" id="activity-detail-popup"><div class="rk-activity-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title"><div class="rk-activity-dialog-head"><div><div class="rk-activity-dialog-kicker">Detail Aktifitas 24 Jam</div><h3 class="rk-activity-dialog-title" id="activity-detail-title">Aktifitas</h3></div><button aria-label="Tutup" class="rk-activity-close" data-activity-close="1" type="button"><i aria-hidden="true" class="fa-solid fa-xmark"></i></button></div><div class="rk-activity-list" id="activity-detail-list"></div></div></div>
+<script id="rekapinyu-activity-final-js">
 (function(){
 'use strict';
 const monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-const view=document.getElementById('view-activity'),grid=document.getElementById('activity-history-list'),filter=document.querySelector('#view-activity .rk-activity-sticky-filter'),search=document.getElementById('rk-activity-search'),dateSelect=document.getElementById('rk-activity-date'),monthSelect=document.getElementById('rk-activity-month'),yearSelect=document.getElementById('rk-activity-year'),popup=document.getElementById('activity-detail-popup'),detailList=document.getElementById('activity-detail-list'),detailTitle=document.getElementById('activity-detail-title');
+const view=document.getElementById('view-activity'),grid=document.getElementById('activity-history-list'),filter=document.querySelector('#view-activity .rk-activity-final-filter'),search=document.getElementById('rk-activity-search'),dateSelect=document.getElementById('rk-activity-date'),monthSelect=document.getElementById('rk-activity-month'),yearSelect=document.getElementById('rk-activity-year'),popup=document.getElementById('activity-detail-popup'),detailList=document.getElementById('activity-detail-list'),detailTitle=document.getElementById('activity-detail-title');
 if(!view||!grid||!filter||!search||!dateSelect||!monthSelect||!yearSelect||!popup||!detailList)return;
 let activityData=[],currentPhone='',baseline={},bound=false,realtimeTimer=null;
 function phone(){try{const raw=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'';return String(raw).replace(/\D/g,'')}catch(e){return''}}
