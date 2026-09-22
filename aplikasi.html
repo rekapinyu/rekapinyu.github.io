@@ -1621,9 +1621,9 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #activity-main-container .rk-activity-close{width:32px;height:32px;border:0;border-radius:10px;background:#f1f5f9;color:#475569;cursor:pointer}
 #activity-main-container .rk-activity-list{margin-top:14px;display:grid;gap:8px}
 #activity-main-container .rk-activity-item{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:10px;border:1px solid #eef2f7;border-radius:12px;background:#f8fafc}
-#activity-main-container .rk-activity-time{font-size:10px;font-weight:900;color:#2563eb}
-#activity-main-container .rk-activity-action{font-size:11px;font-weight:800;color:#334155;line-height:1.35}
-#activity-main-container .rk-activity-menu{margin-top:3px;font-size:9px;font-weight:700;color:#94a3b8}
+#activity-main-container .rk-activity-time{font-size:10px;font-weight:400;color:#2563eb}
+#activity-main-container .rk-activity-action{font-size:11px;font-weight:400;color:#334155;line-height:1.35}
+#activity-main-container .rk-activity-menu{margin-top:3px;font-size:9px;font-weight:400;color:#94a3b8}
 #activity-main-container .rk-activity-list-empty{padding:30px 16px;text-align:center;color:#94a3b8;font-size:11px}
 @media (min-width:768px) and (max-width:1023px){#activity-main-container{margin-top:10px}}
 @media(max-width:900px){#activity-main-container .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1656,7 +1656,29 @@ function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(
 function dateText(d){return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`}
 function timeText(d){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 function readLocal(){try{const raw=localStorage.getItem(key());const data=raw?JSON.parse(raw):[];return Array.isArray(data)?data:[]}catch(e){return[]}}
-function setData(data,writeLocal=true){activityData=Array.isArray(data)?data:[];window.__rekapinyuActivityData=activityData;if(writeLocal){try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}}refreshFilterYears();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated'))}catch(e){}}
+const allowedActivityActions=new Set([
+ 'Melakukan transaksi di menu KASIR',
+ 'Menambahkan Produk di Menu Produk Kasir',
+ 'Merubah Nama Produk di menu Produk Kasir',
+ 'Merubah Harga HPP / Grosir di menu Produk Kasir',
+ 'Merubah Harga Jual di menu Produk Kasir',
+ 'Merubah Foto Produk di menu Produk Kasir',
+ 'Merubah Stok di menu Produk Kasir',
+ 'Menginput Data Baru di menu Input Data',
+ 'Mengubah Nominal di Menu History',
+ 'Merubah Tanggal Bulan tahun di menu History',
+ 'Menghapus Data di menu History',
+ 'Mencetak Laporan Bulanan di Menu Laporan Bulanan',
+ 'Menambah Kasbon Pelanggan di menu Kasbon',
+ 'Mengganti Nama Pelanggan di menu Kasbon',
+ 'Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon',
+ 'Merubah Tanggal bulan tahun di Menu Backup Otomatis',
+ 'Menghapus Data Backup di menu Backup Otomatis',
+ 'Memulihkan Data Backup di menu Backup Otomatis',
+ 'Mengubah Tampilan Struk di menu Seting'
+]);
+function sanitizeActivityData(data){return (Array.isArray(data)?data:[]).filter(item=>allowedActivityActions.has(String(item?.action||'')))}
+function setData(data,writeLocal=true){activityData=sanitizeActivityData(data);window.__rekapinyuActivityData=activityData;if(writeLocal){try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}}refreshFilterYears();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated'))}catch(e){}}
 window.__rekapinyuSetActivityData=function(data){setData(data,true);baseline=watchSnapshot()};
 function load(){const p=phone();if(p!==currentPhone){currentPhone=p;const local=readLocal();setData(local,false);baseline=watchSnapshot()}else{const local=readLocal();if(JSON.stringify(local)!==JSON.stringify(activityData))setData(local,false)}refreshFilterYears();render()}
 function addActivity(action,menu){if(!phone())return;const now=new Date(),item={id:`${now.getTime()}_${Math.random().toString(36).slice(2,8)}`,timestamp:now.getTime(),dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas')};activityData=[item,...activityData].slice(0,2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}}
@@ -1694,7 +1716,7 @@ function watchSnapshot(){return snapshot()}
 function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p;baseline=watchSnapshot();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectHistory(baseline.history,next.history);detectKasbon(baseline.kasbon,next.kasbon);detectBackup(baseline.backup,next.backup);detectProducts(baseline.products,next.products);detectTransactions(baseline.transactions,next.transactions);if(!same(baseline.receipt,next.receipt))addActivity('Mengubah Tampilan Struk di menu Seting','Seting');baseline=next}
 function filtered(){const q=String(search.value||'').trim().toLowerCase(),fd=String(dateSelect.value||''),fm=String(monthSelect.value||''),fy=String(yearSelect.value||'');return activityData.filter(item=>{const d=activityDate(item);if(fd&&String(d.getDate())!==fd)return false;if(fm&&String(d.getMonth()+1).padStart(2,'0')!==fm)return false;if(fy&&String(d.getFullYear())!==fy)return false;if(q){const hay=`${item.action||''} ${item.menu||''} ${dateText(d)}`.toLowerCase();if(!hay.includes(q))return false}return true})}
 function refreshFilterYears(){const old=String(yearSelect.value||''),years=[...new Set(activityData.map(x=>activityDate(x).getFullYear()))].sort((a,b)=>b-a);yearSelect.innerHTML='<option value="">Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');yearSelect.value=years.includes(Number(old))?old:''}
-function formatAction(item){const action=String(item.action||'Aktifitas'),menu=String(item.menu||'');const safeAction=esc(action);if(!menu)return safeAction;const safeMenu=esc(menu);return safeAction.replace(safeMenu,`<strong>${safeMenu}</strong>`)}
+function formatAction(item){return esc(String(item?.action||''))}
 function render(){if(view.classList.contains('hidden'))return;refreshFilterYears();const rows=filtered(),groups={};rows.forEach(item=>{const d=activityDate(item),k=dayKey(d);if(!groups[k])groups[k]={date:d,items:[]};groups[k].items.push(item)});const today=new Date(),todayKey=dayKey(today);if(!Object.keys(groups).length&&!search.value&&!dateSelect.value&&!monthSelect.value&&!yearSelect.value)groups[todayKey]={date:today,items:[]};const ordered=Object.values(groups).sort((a,b)=>b.date-a.date);grid.innerHTML=ordered.length?ordered.map(g=>{g.items.sort((a,b)=>activityDate(b)-activityDate(a));const first=g.items[0],preview=first?`${timeText(activityDate(first))} ${first.action}`:'Belum ada aktifitas tersimpan';return `<article class="rk-activity-day-card"><div class="rk-activity-day-head"><div style="min-width:0"><div class="rk-activity-day-date">${esc(dateText(g.date))}</div><div class="rk-activity-day-meta">${g.items.length} aktifitas dalam 24 jam</div></div><button type="button" class="rk-activity-view-btn" data-activity-day="${esc(dayKey(g.date))}" title="Lihat list aktifitas" aria-label="Lihat list aktifitas"><i class="fa-solid fa-eye"></i></button></div><div class="rk-activity-preview">${esc(preview)}</div></article>`}).join(''):'<div class="rk-activity-empty">Tidak ada aktifitas sesuai filter.</div>'}
 function openDay(day){const d=new Date(`${day}T12:00:00`),items=activityData.filter(x=>dayKey(activityDate(x))===day).sort((a,b)=>activityDate(b)-activityDate(a));detailTitle.textContent=dateText(d);detailList.innerHTML=items.length?items.map(item=>{const ad=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(ad))}</div><div><div class="rk-activity-action">${formatAction(item)}</div></div></div>`}).join(''):'<div class="rk-activity-list-empty">Belum ada aktifitas pada tanggal ini.</div>';popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')}
 function closePopup(){popup.classList.remove('is-open');popup.setAttribute('aria-hidden','true')}
