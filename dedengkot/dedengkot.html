@@ -1221,11 +1221,25 @@
       setConnectionStatus(false, "Menguji koneksi Firestore...");
 
       if (!auth.currentUser) {
-        setConnectionStatus(false, "Auth Firebase belum terhubung");
-        window.showToast?.(
-          "Sinkronisasi dihentikan: belum ada user Firebase. Aktifkan Anonymous Authentication di Firebase Authentication jika Rules memakai request.auth.",
-          "warning"
-        );
+        setConnectionStatus(false, "Mengaktifkan Firebase Auth...");
+        try {
+          const credential = await signInAnonymously(auth);
+          window.firebaseUser = credential.user || auth.currentUser || null;
+          window.firebaseReady = !!window.firebaseUser;
+        } catch (authError) {
+          console.error("Firebase Anonymous Auth gagal saat sinkronisasi:", authError);
+          setConnectionStatus(false, "Firebase Auth gagal");
+          window.showToast?.(
+            "Login Firebase gagal: " + (authError.code || authError.message || "Anonymous Authentication belum aktif"),
+            "warning"
+          );
+          return;
+        }
+      }
+
+      if (!auth.currentUser) {
+        setConnectionStatus(false, "Firebase Auth belum tersedia");
+        window.showToast?.("Firebase Auth belum membuat user. Cek Anonymous Authentication di Firebase.", "warning");
         return;
       }
 
