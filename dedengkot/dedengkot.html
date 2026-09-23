@@ -1059,8 +1059,8 @@
 };
 const firebaseApp = initializeApp(firebaseConfig);
     const auth = getAuth(firebaseApp);
-    const ADMIN_EMAIL = "admin@rekapinyu.app";
     const db = getFirestore(firebaseApp);
+    let firebaseListenersStarted = false;
 
     function setAdminLoginVisible(visible) {
       const screen = document.getElementById("adminLoginScreen");
@@ -1246,44 +1246,66 @@ const firebaseApp = initializeApp(firebaseConfig);
         if (store.ownerId) storeById.set(String(store.ownerId), store);
       });
 
-      window.appState.users = (window.appState.users || []).map(user => {
-        const rtdbUser = (window.rtdbUsers && user.uid) ? (window.rtdbUsers[user.uid] || {}) : {};
+      const firestoreUsers = window.appState.users || [];
+      const byUid = new Map(firestoreUsers.map(u => [String(u.uid || u.id), u]));
+      const rtdb = window.rtdbUsers || {};
+
+      Object.entries(rtdb).forEach(([uid, raw]) => {
+        if (byUid.has(String(uid))) return;
+        const d = raw || {};
+        byUid.set(String(uid), window.normalizeUser({
+          id: uid,
+          uid,
+          ...d
+        }));
+      });
+
+      window.appState.users = Array.from(byUid.values()).map(user => {
+        const rtdbUser = user.uid ? (rtdb[user.uid] || {}) : {};
         const store = storeById.get(String(user.storeId || user.uid || ""));
-        const storeName = user.storeName && user.storeName !== "-" ? user.storeName
-          : rtdbUser.storeName || rtdbUser.nama_toko || rtdbUser.namaToko || rtdbUser.toko || rtdbUser.store || (store && store.name) || "-";
         return {
           ...user,
-          name: user.name === "Tanpa Nama" ? (rtdbUser.name || rtdbUser.nama || rtdbUser.fullName || user.name) : user.name,
+          name: user.name && user.name !== "Tanpa Nama" ? user.name : (rtdbUser.name || rtdbUser.nama || rtdbUser.fullName || "Tanpa Nama"),
           email: user.email || rtdbUser.email || "",
           phone: user.phone && user.phone !== "-" ? user.phone : (rtdbUser.phone || rtdbUser.telepon || rtdbUser.no_hp || "-"),
-          storeName,
+          storeName: (user.storeName && user.storeName !== "-") ? user.storeName : (rtdbUser.storeName || rtdbUser.nama_toko || rtdbUser.namaToko || rtdbUser.toko || rtdbUser.store || (store && store.name) || "-"),
           storeId: user.storeId || rtdbUser.storeId || rtdbUser.tokoId || (store && store.id) || ""
         };
       });
     }
 
     function listenFirestoreCollections() {
-      onSnapshot(collection(db, "rekapinyu_users"), (snapshot) => {
+      if (window.__rekapinyuFirestoreUnsubs) return;
+      const unsubs = [];
+
+      unsubs.push(onSnapshot(collection(db, "rekapinyu_users"), (snapshot) => {
         window.appState.users = snapshot.docs.map(window.normalizeUser);
+        mergeUserStoreNames();
         window.renderAllViews?.();
+        setConnectionStatus(true, `Firebase Terhubung — ${window.appState.users.length} pengguna`);
       }, (err) => {
         console.error("rekapinyu_users:", err);
-        setConnectionStatus(false, "Firestore: users gagal");
-      });
+        setConnectionStatus(false, "Firestore users gagal: " + (err.code || err.message || "permission-denied"));
+      }));
 
-      onSnapshot(collection(db, "rekapinyu_data"), (snapshot) => {
+      unsubs.push(onSnapshot(collection(db, "rekapinyu_data"), (snapshot) => {
         window.appState.stores = snapshot.docs.map(window.normalizeStore);
+        mergeUserStoreNames();
         window.renderAllViews?.();
+        setConnectionStatus(true, `Firebase Terhubung — ${window.appState.stores.length} toko`);
       }, (err) => {
         console.error("rekapinyu_data:", err);
-        setConnectionStatus(false, "Firestore: data gagal");
-      });
+        setConnectionStatus(false, "Firestore data gagal: " + (err.code || err.message || "permission-denied"));
+      }));
 
+      window.__rekapinyuFirestoreUnsubs = unsubs;
     }
 
     function listenRealtimeDatabase() {
-      onValue(ref(rtdb, "users"), (snapshot) => {
+      if (window.__rekapinyuRtdbUnsub) return;
+      window.__rekapinyuRtdbUnsub = onValue(ref(rtdb, "users"), (snapshot) => {
         window.rtdbUsers = snapshot.val() || {};
+        mergeUserStoreNames();
         window.renderAllViews?.();
       }, (error) => {
         console.warn("Realtime Database users:", error);
@@ -1299,17 +1321,6 @@ const firebaseApp = initializeApp(firebaseConfig);
         return false;
       }
 
-      const email = String(user.email || "").trim().toLowerCase();
-      if (email !== ADMIN_EMAIL) {
-        await signOut(auth).catch(() => {});
-        window.firebaseUser = null;
-        window.firebaseReady = false;
-        setAdminLoginVisible(true);
-        setConnectionStatus(false, "Email bukan akun Admin");
-        setAdminLoginError("Gunakan akun Admin: " + ADMIN_EMAIL);
-        return false;
-      }
-
       try {
         const adminRef = doc(db, "rekapinyu_superadmins", user.uid);
         const adminSnap = await getDoc(adminRef);
@@ -1320,7 +1331,7 @@ const firebaseApp = initializeApp(firebaseConfig);
           window.firebaseReady = false;
           setAdminLoginVisible(true);
           setConnectionStatus(false, "Akun belum terdaftar sebagai Superadmin");
-          setAdminLoginError("Akun " + ADMIN_EMAIL + " belum memiliki dokumen rekapinyu_superadmins dengan Document ID UID Firebase.");
+          setAdminLoginError("Akun ini belum memiliki dokumen rekapinyu_superadmins dengan Document ID UID Firebase.");
           return false;
         }
 
@@ -1361,8 +1372,11 @@ const firebaseApp = initializeApp(firebaseConfig);
           return;
         }
 
-        listenFirestoreCollections();
-        listenRealtimeDatabase();
+        if (!firebaseListenersStarted) {
+          firebaseListenersStarted = true;
+          listenFirestoreCollections();
+          listenRealtimeDatabase();
+        }
       } catch (error) {
         console.error("Firebase initialization error:", error);
         window.firebaseReady = false;
@@ -1382,8 +1396,11 @@ const firebaseApp = initializeApp(firebaseConfig);
 
       const validAdmin = await validateAdminAuth(user);
       if (!validAdmin) return;
-      listenFirestoreCollections();
-      listenRealtimeDatabase();
+      if (!firebaseListenersStarted) {
+        firebaseListenersStarted = true;
+        listenFirestoreCollections();
+        listenRealtimeDatabase();
+      }
     });
 
     window.quickSyncFirestore = async function() {
@@ -1409,6 +1426,7 @@ const firebaseApp = initializeApp(firebaseConfig);
         try {
           const snap = await getDocs(collection(db, job.collection));
           window.appState[job.key] = snap.docs.map(job.normalize);
+          if (job.key === "users") mergeUserStoreNames();
           success.push(`${job.label}: ${snap.size}`);
         } catch (error) {
           console.error(`Firestore sync ${job.collection}:`, error);
@@ -1464,13 +1482,6 @@ const firebaseApp = initializeApp(firebaseConfig);
 
       document.getElementById('sidebar').classList.add('-translate-x-full');
     }
-
-    // Master Render Hook Update
-    const oldRenderAll = window.renderAllViews;
-    window.renderAllViews = function() {
-      if (typeof oldRenderAll === 'function') oldRenderAll();
-      renderKasbonAndPengeluaran();
-    };
 
     // RENDER KASBON & PENGELUARAN TABLES & STATS
     function renderKasbonAndPengeluaran() {
@@ -1693,6 +1704,7 @@ const firebaseApp = initializeApp(firebaseConfig);
     const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 
     function renderUsersTable(){
+      mergeUserStoreNames();
       const b=document.getElementById("usersTableBody");if(!b)return;
       const q=(document.getElementById("userSearchInput")?.value||"").toLowerCase();
       const role=document.getElementById("userRoleFilter")?.value||"ALL";
