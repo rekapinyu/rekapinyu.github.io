@@ -89,7 +89,7 @@
       <form id="adminLoginForm" class="p-6 space-y-4">
         <div>
           <label for="adminLoginEmail" class="block text-xs font-semibold text-slate-300 mb-2">Email Admin</label>
-          <input id="adminLoginEmail" type="email" autocomplete="username" required placeholder="Email Admin" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-indigo-500">
+          <input id="adminLoginEmail" type="email" autocomplete="username" required value="110895@rekapinyu.app" placeholder="Email Admin" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-indigo-500">
         </div>
         <div>
           <label for="adminLoginPassword" class="block text-xs font-semibold text-slate-300 mb-2">Password</label>
@@ -1032,6 +1032,7 @@
       getFirestore,
       collection,
       getDocs,
+      getDoc,
       doc,
       setDoc,
       addDoc,
@@ -1046,17 +1047,30 @@
       set as rtdbSet
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-    const firebaseConfig = {
-  apiKey: "AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",
-  authDomain: "rekapinyu.firebaseapp.com",
-  databaseURL: "https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "rekapinyu",
-  storageBucket: "rekapinyu.firebasestorage.app",
-  messagingSenderId: "835450919713",
-  appId: "1:835450919713:web:818f9f48c5b05330d67c60",
-  measurementId: "G-4KSJC9ENH8"
-};
+    const fallbackFirebaseConfig = {
+      apiKey: "AIzaSyAyzAV68m4BRtwm0iu2vDplZaJ9r_uQVk",
+      authDomain: "rekapinyu.firebaseapp.com",
+      databaseURL: "https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "rekapinyu",
+      storageBucket: "rekapinyu.firebasestorage.app",
+      messagingSenderId: "835450919713",
+      appId: "1:835450919713:web:818f9f48c5b05330d67c60"
+    };
 
+    // Ambil konfigurasi Web App terbaru dari Firebase Hosting terlebih dahulu.
+    // Jika init.json tidak tersedia, gunakan konfigurasi Web App yang sudah tersimpan.
+    let firebaseConfig = fallbackFirebaseConfig;
+    try {
+      const configResponse = await fetch("https://rekapinyu.firebaseapp.com/__/firebase/init.json", { cache: "no-store" });
+      if (configResponse.ok) {
+        const hostedConfig = await configResponse.json();
+        if (hostedConfig && hostedConfig.apiKey && hostedConfig.projectId === fallbackFirebaseConfig.projectId) {
+          firebaseConfig = { ...fallbackFirebaseConfig, ...hostedConfig };
+        }
+      }
+    } catch (configError) {
+      console.warn("Konfigurasi Firebase Hosting tidak dapat diambil. Menggunakan konfigurasi Web App tersimpan.", configError);
+    }
 
     const firebaseApp = initializeApp(firebaseConfig);
     const auth = getAuth(firebaseApp);
@@ -1085,14 +1099,8 @@
 
       try {
         const credential = await signInWithEmailAndPassword(auth, email, password);
-        if (credential.user.uid !== ADMIN_UID) {
-          await signOut(auth);
-          setAdminLoginError("Akun ditolak. UID akun ini bukan UID Admin yang ditetapkan.");
-          setConnectionStatus(false, "UID Firebase bukan UID Admin");
-          return false;
-        }
-        validateAdminAuth(credential.user);
-        setAdminLoginVisible(false);
+        const validAdmin = await validateAdminAuth(credential.user);
+        if (!validAdmin) return false;
         // Listener data dijalankan oleh onAuthStateChanged setelah sesi Admin aktif.
         window.showToast?.("Login Admin berhasil.", "success");
         return true;
@@ -1103,7 +1111,8 @@
           "auth/invalid-email": "Format email tidak valid.",
           "auth/user-disabled": "Akun Admin sedang dinonaktifkan.",
           "auth/too-many-requests": "Terlalu banyak percobaan. Coba lagi beberapa saat lagi.",
-          "auth/operation-not-allowed": "Login Email/Password belum diaktifkan di Firebase Authentication."
+          "auth/operation-not-allowed": "Login Email/Password belum diaktifkan di Firebase Authentication.",
+          "auth/api-key-not-valid": "API key Firebase tidak diterima. Sistem sudah mencoba konfigurasi Web App terbaru; periksa API key Firebase Authentication pada project rekapinyu."
         };
         setAdminLoginError(messages[error.code] || (error.message || "Login Admin gagal."));
         return false;
@@ -1272,7 +1281,7 @@
       });
     }
 
-    function validateAdminAuth(user) {
+    async function validateAdminAuth(user) {
       if (!user) {
         window.firebaseUser = null;
         window.firebaseReady = false;
@@ -1284,8 +1293,69 @@
       if (user.uid !== ADMIN_UID) {
         window.firebaseUser = null;
         window.firebaseReady = false;
+        setAdminLoginVisible(true);
         setConnectionStatus(false, "UID Firebase bukan UID Admin");
         window.showToast?.("Akun Firebase ditolak. Dashboard ini hanya untuk UID Admin: " + ADMIN_UID, "warning");
+        return false;
+      }
+
+      // Pastikan akun Firebase juga cocok dengan dokumen Admin di Firestore.
+      // Dokumen Admin ditetapkan dengan nomor/id 110895.
+      try {
+        const adminRef = doc(db, "rekapinyu_admin", "110895");
+        const adminSnap = await getDoc(adminRef);
+
+        if (!adminSnap.exists()) {
+          await signOut(auth);
+          window.firebaseUser = null;
+          window.firebaseReady = false;
+          setAdminLoginVisible(true);
+          setConnectionStatus(false, "Data Admin 110895 tidak ditemukan");
+          setAdminLoginError("Data Admin 110895 tidak ditemukan di Firestore rekapinyu_admin.");
+          return false;
+        }
+
+        const adminData = adminSnap.data() || {};
+        const adminEmail = String(adminData.email || adminData.emailAdmin || "").trim().toLowerCase();
+        const adminUid = String(adminData.uid || adminData.userId || adminData.adminUid || "").trim();
+        const adminNumber = String(adminData.nomor || adminData.no || adminData.number || adminData.id || adminSnap.id || "").trim();
+
+        if (adminEmail && adminEmail !== String(user.email || "").trim().toLowerCase()) {
+          await signOut(auth);
+          window.firebaseUser = null;
+          window.firebaseReady = false;
+          setAdminLoginVisible(true);
+          setConnectionStatus(false, "Email Admin tidak cocok");
+          setAdminLoginError("Email akun Firebase tidak cocok dengan Admin 110895 di Firestore.");
+          return false;
+        }
+
+        if (adminUid && adminUid !== ADMIN_UID) {
+          await signOut(auth);
+          window.firebaseUser = null;
+          window.firebaseReady = false;
+          setAdminLoginVisible(true);
+          setConnectionStatus(false, "UID Admin Firestore tidak cocok");
+          setAdminLoginError("UID pada rekapinyu_admin untuk Admin 110895 tidak cocok dengan UID Admin Firebase.");
+          return false;
+        }
+
+        if (adminNumber !== "110895") {
+          await signOut(auth);
+          window.firebaseUser = null;
+          window.firebaseReady = false;
+          setAdminLoginVisible(true);
+          setConnectionStatus(false, "Nomor Admin tidak cocok");
+          setAdminLoginError("Dokumen Admin yang digunakan bukan Admin nomor 110895.");
+          return false;
+        }
+      } catch (adminError) {
+        console.error("Verifikasi rekapinyu_admin gagal:", adminError);
+        window.firebaseUser = null;
+        window.firebaseReady = false;
+        setAdminLoginVisible(true);
+        setConnectionStatus(false, "Verifikasi Admin Firestore gagal");
+        setAdminLoginError("Login berhasil, tetapi verifikasi Admin 110895 di Firestore ditolak: " + (adminError.code || adminError.message || "permission-denied"));
         return false;
       }
 
@@ -1301,7 +1371,7 @@
         setConnectionStatus(false, "Memeriksa sesi Firebase Admin...");
         const signedInUser = auth.currentUser || null;
 
-        if (!validateAdminAuth(signedInUser)) {
+        if (!(await validateAdminAuth(signedInUser))) {
           window.showToast?.("Silakan login menggunakan akun Firebase Admin dengan UID yang telah ditetapkan.", "warning");
           return;
         }
@@ -1324,8 +1394,11 @@
         return;
       }
 
-      if (!validateAdminAuth(user)) return;
-      listenFirestoreCollections();
+      validateAdminAuth(user).then((validAdmin) => {
+        if (!validAdmin) return;
+        listenFirestoreCollections();
+        listenRealtimeDatabase();
+      });
       listenRealtimeDatabase();
     });
 
@@ -1338,7 +1411,7 @@
         return;
       }
 
-      if (!validateAdminAuth(auth.currentUser)) return;
+      if (!(await validateAdminAuth(auth.currentUser))) return;
 
       const jobs = [
         { key: "users", label: "pengguna", collection: "rekapinyu_users", normalize: window.normalizeUser },
