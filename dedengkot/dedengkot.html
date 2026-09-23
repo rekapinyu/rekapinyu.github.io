@@ -178,7 +178,7 @@
           </div>
           <div>
             <p class="text-xs font-bold text-white leading-tight">Super Admin</p>
-            <p class="text-[10px] text-slate-400">110895@rekapinyu.app</p>
+            <p class="text-[10px] text-slate-400">admin@rekapinyu.com</p>
           </div>
         </div>
         <button onclick="showToast('Sesi refreshed!', 'info')" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800">
@@ -992,7 +992,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import {
       getAuth,
-      signInAnonymously,
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import {
@@ -1014,20 +1013,25 @@
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
     const firebaseConfig = {
-     apiKey: "AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",
-  authDomain: "rekapinyu.firebaseapp.com",
-  databaseURL: "https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "rekapinyu",
-  storageBucket: "rekapinyu.firebasestorage.app",
-  messagingSenderId: "835450919713",
-  appId: "1:835450919713:web:818f9f48c5b05330d67c60",
-};
-
+      apiKey: "AIzaSyAyzAV68m4BRtwm0iu2vDplZaJ9r_uQVk",
+      authDomain: "rekapinyu.firebaseapp.com",
+      databaseURL: "https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "rekapinyu",
+      storageBucket: "rekapinyu.firebasestorage.app",
+      messagingSenderId: "835450919713",
+      appId: "1:835450919713:web:818f9f48c5b05330d67c60"
+    };
 
     const firebaseApp = initializeApp(firebaseConfig);
     const auth = getAuth(firebaseApp);
     const db = getFirestore(firebaseApp);
     const rtdb = getDatabase(firebaseApp);
+
+    // UID Superadmin yang diizinkan untuk dashboard ini.
+    // Catatan: UID Authentication tidak dapat dibuat/dipalsukan dari HTML.
+    // Akun Firebase yang sedang login harus benar-benar memiliki UID ini.
+    const SUPERADMIN_UID = "A2Lxiy19bHMnhdi3qUCXRprhEFM2";
+    window.REKAPINYU_SUPERADMIN_UID = SUPERADMIN_UID;
 
     window.firebaseReady = false;
     window.firebaseUser = null;
@@ -1180,34 +1184,38 @@
 
     async function startFirebase() {
       try {
-        setConnectionStatus(false, "Menghubungkan Firebase Auth...");
+        setConnectionStatus(false, "Memeriksa Firebase Auth...");
 
-        // Firestore Rules yang memakai request.auth membutuhkan user Firebase
-        // sebelum data boleh dibaca. Tunggu sign-in selesai terlebih dahulu.
-        let signedInUser = auth.currentUser || null;
+        // Jangan lagi membuat Anonymous UID acak. Dashboard ini harus memakai
+        // akun Firebase dengan UID Superadmin yang sudah ditentukan.
+        const signedInUser = auth.currentUser || null;
 
         if (!signedInUser) {
-          try {
-            const credential = await signInAnonymously(auth);
-            signedInUser = credential.user || auth.currentUser || null;
-          } catch (authError) {
-            console.error("Firebase Anonymous Auth gagal:", authError);
-            window.firebaseUser = null;
-            window.firebaseReady = false;
-            setConnectionStatus(false, "Auth Firebase gagal");
-            window.showToast?.(
-              "Login Firebase gagal: " + (authError.code || authError.message || "Anonymous Auth belum aktif"),
-              "warning"
-            );
-            return;
-          }
+          window.firebaseUser = null;
+          window.firebaseReady = false;
+          setConnectionStatus(false, "Login Firebase diperlukan");
+          window.showToast?.(
+            "Login Firebase diperlukan. Gunakan akun yang UID-nya " + SUPERADMIN_UID + ".",
+            "warning"
+          );
+          return;
+        }
+
+        if (signedInUser.uid !== SUPERADMIN_UID) {
+          window.firebaseUser = null;
+          window.firebaseReady = false;
+          setConnectionStatus(false, "UID Superadmin tidak sesuai");
+          window.showToast?.(
+            "UID Firebase tidak sesuai. UID aktif: " + signedInUser.uid + " | UID yang diperlukan: " + SUPERADMIN_UID,
+            "warning"
+          );
+          return;
         }
 
         window.firebaseUser = signedInUser;
         window.firebaseReady = true;
-        setConnectionStatus(true, "Firebase Auth Terhubung");
+        setConnectionStatus(true, "Firebase Auth Terhubung — UID Superadmin");
 
-        // Jalankan listener setelah user Firebase tersedia.
         listenFirestoreCollections();
         listenRealtimeDatabase();
       } catch (error) {
@@ -1221,28 +1229,27 @@
     window.quickSyncFirestore = async function() {
       setConnectionStatus(false, "Menguji koneksi Firestore...");
 
-      if (!auth.currentUser) {
-        setConnectionStatus(false, "Mengaktifkan Firebase Auth...");
-        try {
-          const credential = await signInAnonymously(auth);
-          window.firebaseUser = credential.user || auth.currentUser || null;
-          window.firebaseReady = !!window.firebaseUser;
-        } catch (authError) {
-          console.error("Firebase Anonymous Auth gagal saat sinkronisasi:", authError);
-          setConnectionStatus(false, "Firebase Auth gagal");
-          window.showToast?.(
-            "Login Firebase gagal: " + (authError.code || authError.message || "Anonymous Authentication belum aktif"),
-            "warning"
-          );
-          return;
-        }
-      }
-
-      if (!auth.currentUser) {
-        setConnectionStatus(false, "Firebase Auth belum tersedia");
-        window.showToast?.("Firebase Auth belum membuat user. Cek Anonymous Authentication di Firebase.", "warning");
+      const currentUser = auth.currentUser || null;
+      if (!currentUser) {
+        setConnectionStatus(false, "Login Firebase diperlukan");
+        window.showToast?.(
+          "Login Firebase diperlukan. Gunakan akun dengan UID " + SUPERADMIN_UID + ".",
+          "warning"
+        );
         return;
       }
+
+      if (currentUser.uid !== SUPERADMIN_UID) {
+        setConnectionStatus(false, "UID Superadmin tidak sesuai");
+        window.showToast?.(
+          "UID Firebase tidak sesuai. UID aktif: " + currentUser.uid + " | UID yang diperlukan: " + SUPERADMIN_UID,
+          "warning"
+        );
+        return;
+      }
+
+      window.firebaseUser = currentUser;
+      window.firebaseReady = true;
 
       const jobs = [
         { key: "users", label: "pengguna", collection: "rekapinyu_users", normalize: window.normalizeUser },
