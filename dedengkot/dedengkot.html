@@ -1219,24 +1219,47 @@
     }
 
     window.quickSyncFirestore = async function() {
-      try {
-        setConnectionStatus(false, "Menguji koneksi...");
-        const [usersSnap, storesSnap, adminsSnap] = await Promise.all([
-          getDocs(collection(db, "rekapinyu_users")),
-          getDocs(collection(db, "rekapinyu_data")),
-          getDocs(collection(db, "rekapinyu_admin"))
-        ]);
-        window.appState.users = usersSnap.docs.map(window.normalizeUser);
-        window.appState.stores = storesSnap.docs.map(window.normalizeStore);
-        window.appState.admins = adminsSnap.docs.map(window.normalizeAdmin);
-        window.renderAllViews?.();
-        setConnectionStatus(true, "Firestore Terhubung");
-        window.showToast?.(`Sinkron berhasil: ${usersSnap.size} pengguna, ${storesSnap.size} toko, ${adminsSnap.size} admin`, "success");
-      } catch (error) {
-        console.error("Firestore sync:", error);
-        setConnectionStatus(false, "Firestore gagal");
-        window.showToast?.("Sinkronisasi gagal: " + (error.message || "cek Firestore Rules"), "warning");
+      setConnectionStatus(false, "Menguji koneksi Firestore...");
+
+      const jobs = [
+        { key: "users", label: "pengguna", collection: "rekapinyu_users", normalize: window.normalizeUser },
+        { key: "stores", label: "toko", collection: "rekapinyu_data", normalize: window.normalizeStore },
+        { key: "admins", label: "admin", collection: "rekapinyu_admin", normalize: window.normalizeAdmin },
+        { key: "kasbon", label: "kasbon", collection: "rekapinyu_kasbon", normalize: window.normalizeKasbon },
+        { key: "pengeluaran", label: "pengeluaran", collection: "rekapinyu_pengeluaran", normalize: window.normalizePengeluaran }
+      ];
+
+      const success = [];
+      const failed = [];
+
+      for (const job of jobs) {
+        try {
+          const snap = await getDocs(collection(db, job.collection));
+          window.appState[job.key] = snap.docs.map(job.normalize);
+          success.push(`${job.label}: ${snap.size}`);
+        } catch (error) {
+          console.error(`Firestore sync ${job.collection}:`, error);
+          failed.push(`${job.collection} → ${error.code || error.message || "akses ditolak"}`);
+        }
       }
+
+      window.renderAllViews?.();
+
+      if (success.length > 0 && failed.length === 0) {
+        setConnectionStatus(true, "Firestore Terhubung");
+        window.showToast?.(`Sinkron berhasil — ${success.join(", ")}`, "success");
+        return;
+      }
+
+      if (success.length > 0 && failed.length > 0) {
+        setConnectionStatus(false, "Firestore sebagian terhubung");
+        window.showToast?.(`Sebagian berhasil. Ditolak: ${failed.join(" | ")}`, "warning");
+        return;
+      }
+
+      setConnectionStatus(false, "Firestore ditolak Rules");
+      const authState = auth.currentUser ? `UID: ${auth.currentUser.uid}` : "Belum ada user Firebase";
+      window.showToast?.(`Sinkronisasi gagal. ${failed.join(" | ")} — ${authState}`, "warning");
     };
 
     startFirebase();
