@@ -1605,7 +1605,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #activity-main-container .rk-activity-final-filter input{padding-left:32px}
 #activity-main-container .rk-activity-final-filter input:focus,#activity-main-container .rk-activity-final-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
 #activity-main-container .rk-activity-grid{width:100%;max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-#activity-main-container .rk-activity-24h-card{min-width:0;aspect-ratio:1/1;padding:13px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden;display:flex;flex-direction:column}
+#activity-main-container .rk-activity-24h-card{min-width:0;aspect-ratio:1.8/1;padding:13px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden;display:flex;flex-direction:column}
 #activity-main-container .rk-activity-24h-card.is-current{border-color:#cbd5e1}
 #activity-main-container .rk-activity-24h-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0;padding-bottom:10px;border-bottom:1px solid #eef2f7}
 #activity-main-container .rk-activity-24h-title{min-width:0;color:#334155;font-size:12px;font-weight:900;line-height:1.35;overflow-wrap:anywhere}
@@ -1849,19 +1849,14 @@ function render(){
     const items=[...g.items].sort((a,b)=>activityDate(b)-activityDate(a));
     const end=periodEnd(g.start);
     const current=g.virtual||now<end;
-    const list=items.length?items.map(item=>{const d=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(d))}</div><div class="rk-activity-action">${esc(String(item.action||''))}</div></div>`}).join(''):'<div class="rk-activity-item"><div class="rk-activity-time">—</div><div class="rk-activity-action">Belum ada aktifitas tersimpan pada durasi ini.</div></div>';
-    const a=new Date(g.start),b=new Date(end);
-    const labelStart=`${dateText(a)} 06:00`;
-    const labelEnd=`${dateText(b)} ${timeText(b)}`;
+    const a=new Date(g.start);
     return `<article class="rk-activity-24h-card${current?' is-current':''}">
       <div class="rk-activity-24h-head">
         <div style="min-width:0">
-          <div class="rk-activity-24h-title">${esc(`${dayNames[a.getDay()]}, ${a.getDate()} ${monthNames[a.getMonth()]}`)}</div>
-          <div class="rk-activity-24h-meta">${esc(new Date(g.start).getHours()===0?'00:00 — 06:00':'06:00 — 00:00')} • ${items.length} aktifitas${current?' • periode aktif':''}</div>
+          <div class="rk-activity-24h-title">${esc(`${dayNames[a.getDay()]}, ${a.getDate()} ${monthNames[a.getMonth()]} ${a.getFullYear()}`)}</div>
         </div>
         <button type="button" class="rk-activity-view-btn" data-activity-24h="${esc(String(g.start))}" title="Lihat list aktifitas" aria-label="Lihat list aktifitas"><i class="fa-solid fa-eye"></i></button>
       </div>
-      <div class="rk-activity-preview">${esc(items[0]?`${timeText(activityDate(items[0]))} ${items[0].action}`:'Belum ada aktifitas tersimpan')}</div>
     </article>`;
   }).join(''):'<div class="rk-activity-empty">Tidak ada aktifitas sesuai filter.</div>';
 }
