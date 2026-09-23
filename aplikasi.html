@@ -1604,18 +1604,19 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #activity-main-container .rk-activity-final-filter input,#activity-main-container .rk-activity-final-filter select{width:100%;height:38px;min-width:0;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;color:#334155;padding:0 10px;outline:none;font-size:12px}
 #activity-main-container .rk-activity-final-filter input{padding-left:32px}
 #activity-main-container .rk-activity-final-filter input:focus,#activity-main-container .rk-activity-final-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
-#activity-main-container .rk-activity-grid{width:100%;max-width:900px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:12px}
-#activity-main-container .rk-activity-24h-card{min-width:0;padding:13px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden}
+#activity-main-container .rk-activity-grid{width:100%;max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+#activity-main-container .rk-activity-24h-card{min-width:0;aspect-ratio:1/1;padding:13px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.055);overflow:hidden;display:flex;flex-direction:column}
 #activity-main-container .rk-activity-24h-card.is-current{border-color:#cbd5e1}
 #activity-main-container .rk-activity-24h-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0;padding-bottom:10px;border-bottom:1px solid #eef2f7}
 #activity-main-container .rk-activity-24h-title{min-width:0;color:#334155;font-size:12px;font-weight:900;line-height:1.35;overflow-wrap:anywhere}
 #activity-main-container .rk-activity-24h-meta{margin-top:4px;color:#94a3b8;font-size:9px;font-weight:700;line-height:1.35}
-#activity-main-container .rk-activity-items{margin-top:10px;display:grid;gap:7px}
+#activity-main-container .rk-activity-items{margin-top:10px;display:grid;gap:7px;flex:1;min-height:0;overflow-y:auto;align-content:start}
 #activity-main-container .rk-activity-item{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:9px 10px;border:1px solid #eef2f7;border-radius:11px;background:#f8fafc}
 #activity-main-container .rk-activity-time{font-size:10px;font-weight:400;color:#2563eb}
 #activity-main-container .rk-activity-action{font-size:11px;font-weight:400;color:#334155;line-height:1.4}
 #activity-main-container .rk-activity-empty{padding:30px 16px;text-align:center;color:#94a3b8;font-size:11px}
-@media(max-width:600px){#activity-main-container .rk-activity-final-filter-grid{grid-template-columns:1fr 1fr}.rk-activity-search-wrap{grid-column:1/-1}}
+@media(max-width:900px){#activity-main-container .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#activity-main-container .rk-activity-grid{grid-template-columns:1fr}#activity-main-container .rk-activity-final-filter-grid{grid-template-columns:1fr 1fr}.rk-activity-search-wrap{grid-column:1/-1}}
 </style>
 
 <div class="rk-activity-final-filter">
@@ -1682,13 +1683,18 @@ const allowedActivityActions=new Set([
 function sanitizeActivityData(data){
   return (Array.isArray(data)?data:[]).filter(item=>allowedActivityActions.has(String(item?.action||''))).sort((a,b)=>activityDate(a)-activityDate(b));
 }
+function activityPeriodStart(ts){
+  const d=new Date(ts);
+  const start=new Date(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours()>=6?6:0,0,0,0);
+  return start.getTime();
+}
 function assign24hBuckets(data){
   const rows=sanitizeActivityData(data);
-  let start=null;
   return rows.map(item=>{
     const ts=activityDate(item).getTime();
-    if(start===null||ts>=start+DAY)start=ts;
-    return {...item,activity24hStart:start,activity24hId:String(start),activity24hEnd:start+DAY};
+    const start=activityPeriodStart(ts);
+    const end=start+(new Date(start).getHours()===6?18:6)*60*60*1000;
+    return {...item,activity24hStart:start,activity24hId:String(start),activity24hEnd:end};
   });
 }
 function setData(data,writeLocal=true){
@@ -1719,14 +1725,11 @@ function addActivity(action,menu){
   if(!phone())return;
   const now=new Date(),ts=now.getTime();
   const item={id:`${ts}_${Math.random().toString(36).slice(2,8)}`,timestamp:ts,dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas')};
-  const current=assign24hBuckets(activityData);
-  const latest=current.length?current[current.length-1]:null;
-  const latestStart=latest?Number(latest.activity24hStart)||activityDate(latest).getTime():null;
-  const bucketStart=latestStart!==null&&ts<latestStart+DAY?latestStart:ts;
+  const bucketStart=activityPeriodStart(ts);
   item.activity24hStart=bucketStart;
   item.activity24hId=String(bucketStart);
-  item.activity24hEnd=bucketStart+DAY;
-  activityData=assign24hBuckets([...current,item]);
+  item.activity24hEnd=bucketStart+(new Date(bucketStart).getHours()===6?18:6)*60*60*1000;
+  activityData=assign24hBuckets([...activityData,item]);
   if(activityData.length>2000)activityData=activityData.slice(-2000);
   window.__rekapinyuActivityData=activityData;
   try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}
@@ -1805,12 +1808,16 @@ function refreshFilterYears(){
 function bucketize(rows){
   const groups={};
   rows.forEach(item=>{
-    const start=Number(item.activity24hStart)||activityDate(item).getTime();
+    const ts=activityDate(item).getTime();
+    const start=activityPeriodStart(ts);
     const id=String(start);
     if(!groups[id])groups[id]={start,items:[]};
     groups[id].items.push(item);
   });
   return Object.values(groups).sort((a,b)=>b.start-a.start);
+}
+function periodEnd(start){
+  return start+(new Date(start).getHours()===6?18:6)*60*60*1000;
 }
 function render(){
   if(view.classList.contains('hidden'))return;
@@ -1820,19 +1827,23 @@ function render(){
   const noFilter=!search.value&&!dateSelect.value&&!monthSelect.value&&!yearSelect.value;
   const now=Date.now();
   if(noFilter){
-    const latest=groups[0];
-    if(!latest||now>=latest.start+DAY)groups.unshift({start:now,items:[],virtual:true});
+    const currentStart=activityPeriodStart(now);
+    const exists=groups.some(g=>g.start===currentStart);
+    if(!exists)groups.unshift({start:currentStart,items:[],virtual:true});
   }
   grid.innerHTML=groups.length?groups.map(g=>{
     const items=[...g.items].sort((a,b)=>activityDate(b)-activityDate(a));
-    const end=g.start+DAY;
+    const end=periodEnd(g.start);
     const current=g.virtual||now<end;
     const list=items.length?items.map(item=>{const d=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(d))}</div><div class="rk-activity-action">${esc(String(item.action||''))}</div></div>`}).join(''):'<div class="rk-activity-item"><div class="rk-activity-time">—</div><div class="rk-activity-action">Belum ada aktifitas tersimpan pada durasi ini.</div></div>';
+    const a=new Date(g.start),b=new Date(end);
+    const labelStart=`${dateText(a)} 06:00`;
+    const labelEnd=`${dateText(b)} ${timeText(b)}`;
     return `<article class="rk-activity-24h-card${current?' is-current':''}">
       <div class="rk-activity-24h-head">
         <div style="min-width:0">
-          <div class="rk-activity-24h-title">History Aktifitas • Durasi 24 Jam</div>
-          <div class="rk-activity-24h-meta">${esc(rangeText(g.start))} • ${items.length} aktifitas${current?' • periode aktif':''}</div>
+          <div class="rk-activity-24h-title">${new Date(g.start).getHours()===6?'History Aktifitas • Durasi 06:00–00:00':'History Aktifitas • Durasi 00:00–06:00'}</div>
+          <div class="rk-activity-24h-meta">${esc(new Date(g.start).getHours()===0?`${dateText(a)} 00:00 — ${dateText(b)} 06:00`:labelStart+' — '+labelEnd)} • ${items.length} aktifitas${current?' • periode aktif':''}</div>
         </div>
       </div>
       <div class="rk-activity-items">${list}</div>
