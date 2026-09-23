@@ -1632,6 +1632,16 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 
 <div id="activity-history-list" class="rk-activity-grid"></div>
 
+<div id="activity-activity-popup" aria-hidden="true">
+  <div class="rk-activity-popup-box" role="dialog" aria-modal="true" aria-labelledby="activity-popup-title">
+    <div class="rk-activity-popup-head">
+      <div id="activity-popup-title" class="rk-activity-popup-title">List History Aktifitas</div>
+      <button type="button" id="activity-popup-close" class="rk-activity-popup-close" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="activity-popup-list" class="rk-activity-popup-list"></div>
+  </div>
+</div>
+
 <script id="rekapinyu-activity-24h-js">
 (function(){
 'use strict';
@@ -1645,6 +1655,10 @@ const search=document.getElementById('rk-activity-search');
 const dateSelect=document.getElementById('rk-activity-date');
 const monthSelect=document.getElementById('rk-activity-month');
 const yearSelect=document.getElementById('rk-activity-year');
+const activityPopup=document.getElementById('activity-activity-popup');
+const activityPopupTitle=document.getElementById('activity-popup-title');
+const activityPopupList=document.getElementById('activity-popup-list');
+const activityPopupClose=document.getElementById('activity-popup-close');
 if(!view||!grid||!filter||!search||!dateSelect||!monthSelect||!yearSelect)return;
 
 let activityData=[],currentPhone='',baseline={},bound=false,realtimeTimer=null;
@@ -1842,21 +1856,37 @@ function render(){
     return `<article class="rk-activity-24h-card${current?' is-current':''}">
       <div class="rk-activity-24h-head">
         <div style="min-width:0">
-          <div class="rk-activity-24h-title">${new Date(g.start).getHours()===6?'History Aktifitas • Durasi 06:00–00:00':'History Aktifitas • Durasi 00:00–06:00'}</div>
-          <div class="rk-activity-24h-meta">${esc(new Date(g.start).getHours()===0?`${dateText(a)} 00:00 — ${dateText(b)} 06:00`:labelStart+' — '+labelEnd)} • ${items.length} aktifitas${current?' • periode aktif':''}</div>
+          <div class="rk-activity-24h-title">${esc(`${dayNames[a.getDay()]}, ${a.getDate()} ${monthNames[a.getMonth()]}`)}</div>
+          <div class="rk-activity-24h-meta">${esc(new Date(g.start).getHours()===0?'00:00 — 06:00':'06:00 — 00:00')} • ${items.length} aktifitas${current?' • periode aktif':''}</div>
         </div>
+        <button type="button" class="rk-activity-view-btn" data-activity-24h="${esc(String(g.start))}" title="Lihat list aktifitas" aria-label="Lihat list aktifitas"><i class="fa-solid fa-eye"></i></button>
       </div>
-      <div class="rk-activity-items">${list}</div>
+      <div class="rk-activity-preview">${esc(items[0]?`${timeText(activityDate(items[0]))} ${items[0].action}`:'Belum ada aktifitas tersimpan')}</div>
     </article>`;
   }).join(''):'<div class="rk-activity-empty">Tidak ada aktifitas sesuai filter.</div>';
 }
+function openActivityList(start){
+  const s=Number(start);
+  const items=activityData.filter(x=>activityPeriodStart(activityDate(x).getTime())===s).sort((a,b)=>activityDate(b)-activityDate(a));
+  const d=new Date(s);
+  activityPopupTitle.textContent=`List History Aktifitas • ${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]}`;
+  activityPopupList.innerHTML=items.length?items.map(item=>{const dt=activityDate(item);return `<div class="rk-activity-item"><div class="rk-activity-time">${esc(timeText(dt))}</div><div class="rk-activity-action">${esc(String(item.action||''))}</div></div>`}).join(''):'<div class="rk-activity-list-empty">Belum ada aktifitas pada periode ini.</div>';
+  activityPopup.classList.add('is-open');
+  activityPopup.setAttribute('aria-hidden','false');
+}
+function closeActivityList(){activityPopup.classList.remove('is-open');activityPopup.setAttribute('aria-hidden','true')}
 function bind(){
   if(bound)return;bound=true;
   document.addEventListener('submit',e=>{if(e.target?.id==='finance-form')window.__rekapinyuActivityInputPending=true},{capture:true});
   document.addEventListener('click',e=>{
+    const viewBtn=e.target.closest('.rk-activity-view-btn');
+    if(viewBtn){openActivityList(viewBtn.getAttribute('data-activity-24h'));return}
+    if(e.target.closest('#activity-popup-close')){closeActivityList();return}
+    if(e.target===activityPopup){closeActivityList();return}
     if(e.target.closest('#pdf-modal button[onclick*="window.print"]')){addActivity('Mencetak Laporan Bulanan di Menu Laporan Bulanan','Laporan Bulanan');return}
     if(e.target.closest('[onclick*="restoreHistoryFromBackup("]')){addActivity('Memulihkan Data Backup di menu Backup Otomatis','Backup Otomatis');return}
   });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeActivityList()});
   search.addEventListener('input',render);
   dateSelect.addEventListener('change',render);
   monthSelect.addEventListener('change',render);
