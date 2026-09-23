@@ -1166,22 +1166,6 @@
         setConnectionStatus(false, "Firestore: data gagal");
       });
 
-      onSnapshot(collection(db, "rekapinyu_admin"), (snapshot) => {
-        window.appState.admins = snapshot.docs.map(window.normalizeAdmin);
-        window.renderAllViews?.();
-      }, (err) => {
-        console.error("rekapinyu_admin:", err);
-      });
-
-      onSnapshot(collection(db, "rekapinyu_kasbon"), (snapshot) => {
-        window.appState.kasbon = snapshot.docs.map(window.normalizeKasbon);
-        window.renderAllViews?.();
-      }, (err) => console.log("rekapinyu_kasbon sync:", err));
-
-      onSnapshot(collection(db, "rekapinyu_pengeluaran"), (snapshot) => {
-        window.appState.pengeluaran = snapshot.docs.map(window.normalizePengeluaran);
-        window.renderAllViews?.();
-      }, (err) => console.log("rekapinyu_pengeluaran sync:", err));
     }
 
     function listenRealtimeDatabase() {
@@ -1223,10 +1207,7 @@
 
       const jobs = [
         { key: "users", label: "pengguna", collection: "rekapinyu_users", normalize: window.normalizeUser },
-        { key: "stores", label: "toko", collection: "rekapinyu_data", normalize: window.normalizeStore },
-        { key: "admins", label: "admin", collection: "rekapinyu_admin", normalize: window.normalizeAdmin },
-        { key: "kasbon", label: "kasbon", collection: "rekapinyu_kasbon", normalize: window.normalizeKasbon },
-        { key: "pengeluaran", label: "pengeluaran", collection: "rekapinyu_pengeluaran", normalize: window.normalizePengeluaran }
+        { key: "stores", label: "toko", collection: "rekapinyu_data", normalize: window.normalizeStore }
       ];
 
       const success = [];
