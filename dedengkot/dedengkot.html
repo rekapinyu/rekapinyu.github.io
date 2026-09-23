@@ -4502,12 +4502,25 @@ async function firebaseLogin(){
   if(submit)submit.dataset.busy="1";
   try{
     await authReadyPromise;
-    const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
+
+    /* Jika Firebase masih memegang sesi akun yang sama, jangan melakukan sign-in kedua.
+       Ini mencegah pesan "Gagal Masuk" muncul sementara observer Auth sudah membawa akun
+       admin ke dashboard. Jika sesi berbeda, baru lakukan sign-in normal. */
+    let credential=null;
+    const existingAuthUser=auth.currentUser;
+    if(existingAuthUser && String(existingAuthUser.email||'').toLowerCase()===String(emailOf(phone)||'').toLowerCase()){
+      credential={user:existingAuthUser};
+    }else{
+      if(existingAuthUser){try{await signOut(auth)}catch{}}
+      credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
+    }
+
     let user={uid:credential.user.uid,name:credential.user.displayName||"",phone,email:credential.user.email,photo:""};
     try{
       const snap=await getDoc(uref(credential.user.uid));
       if(snap.exists())user={...user,...snap.data()};
     }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
+
     localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
     try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
     checkAuth();
