@@ -36,7 +36,7 @@
   <!-- Chart.js for analytics -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
-  <!-- SheetJS for Excel Export -->
+  <!-- SheetJS for Excel Export (Integrasi dari file referensi aplikasi.html) -->
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
   <style>
@@ -80,7 +80,7 @@
       </div>
       <span class="font-bold text-lg text-white tracking-wide">RekapInyu <span class="text-xs text-indigo-400 font-normal px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-800">Admin</span></span>
     </div>
-    <button id="mobileMenuBtn" onclick="toggleMobileMenu()" class="text-slate-300 hover:text-white p-2 rounded-lg bg-slate-800 focus:outline-none">
+    <button id="mobileMenuBtn" class="text-slate-300 hover:text-white p-2 rounded-lg bg-slate-800 focus:outline-none">
       <i class="fa-solid fa-bars text-xl"></i>
     </button>
   </div>
@@ -95,7 +95,7 @@
         </div>
         <div>
           <h1 class="font-extrabold text-xl text-white tracking-tight leading-none">RekapInyu</h1>
-          <p class="text-xs text-indigo-400 mt-1 font-medium">Portal Terintegrasi v2.5</p>
+          <p class="text-xs text-indigo-400 mt-1 font-medium">Backend Portal v2.5</p>
         </div>
       </div>
 
@@ -134,7 +134,7 @@
           <span id="adminBadgeCount" class="text-xs bg-slate-800 text-amber-300 px-2 py-0.5 rounded-full font-semibold border border-slate-700">0</span>
         </button>
 
-        <div class="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-4">Keuangan Toko</div>
+        <div class="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-4">Keuangan Toko (Referensial)</div>
 
         <button onclick="switchTab('kasbon')" id="nav-kasbon" class="nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition duration-150">
           <div class="flex items-center space-x-3">
@@ -181,7 +181,7 @@
             <p class="text-[10px] text-slate-400">admin@rekapinyu.com</p>
           </div>
         </div>
-        <button onclick="quickSyncFirestore()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800" title="Refresh Firestore">
+        <button onclick="showToast('Sesi refreshed!', 'info')" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800">
           <i class="fa-solid fa-arrows-rotate text-xs"></i>
         </button>
       </div>
@@ -201,7 +201,7 @@
       <div class="flex items-center space-x-3">
         <div class="relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-          <input type="text" id="globalSearch" oninput="handleGlobalSearch()" placeholder="Cari ID, Toko, atau Email..." class="bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-64 transition">
+          <input type="text" id="globalSearch" placeholder="Cari ID, Toko, atau Email..." class="bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-64 transition">
         </div>
 
         <button onclick="quickSyncFirestore()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-2 shadow-lg shadow-indigo-600/20 transition active:scale-95">
@@ -295,7 +295,7 @@
                 <h3 class="font-bold text-white text-base">Pertumbuhan Registrasi Toko & Pengguna</h3>
                 <p class="text-xs text-slate-400">Visualisasi bulanan dari database RekapInyu</p>
               </div>
-              <select id="chartTimeframe" onchange="updateCharts()" class="bg-slate-900 border border-slate-700 rounded-lg text-xs px-3 py-1.5 text-slate-300 focus:outline-none">
+              <select id="chartTimeframe" class="bg-slate-900 border border-slate-700 rounded-lg text-xs px-3 py-1.5 text-slate-300 focus:outline-none">
                 <option value="6m">6 Bulan Terakhir</option>
                 <option value="1y">1 Tahun</option>
               </select>
@@ -356,6 +356,7 @@
       <!-- ================= TAB 2: USER MANAGEMENT (rekapinyu_users) ================= -->
       <section id="tab-users" class="tab-content hidden space-y-6">
         
+        <!-- Header & Action Row -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 class="text-lg font-bold text-white">Manajemen Pengguna (`rekapinyu_users`)</h3>
@@ -369,6 +370,7 @@
           </div>
         </div>
 
+        <!-- Filter Bar -->
         <div class="glass-card p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row gap-3 justify-between">
           <div class="flex flex-1 items-center space-x-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2">
             <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>
@@ -390,6 +392,7 @@
           </div>
         </div>
 
+        <!-- Table Card -->
         <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-slate-300">
@@ -415,6 +418,7 @@
       <!-- ================= TAB 3: STORE MANAGEMENT (rekapinyu_data) ================= -->
       <section id="tab-stores" class="tab-content hidden space-y-6">
         
+        <!-- Header & Action Row -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 class="text-lg font-bold text-white">Manajemen Toko Terdaftar (`rekapinyu_data`)</h3>
@@ -426,6 +430,7 @@
           </button>
         </div>
 
+        <!-- Filter Bar -->
         <div class="glass-card p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row gap-3 justify-between">
           <div class="flex flex-1 items-center space-x-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2">
             <i class="fa-solid fa-store text-slate-500 text-xs"></i>
@@ -449,6 +454,7 @@
           </div>
         </div>
 
+        <!-- Store Grid / Table Container -->
         <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-slate-300">
@@ -473,40 +479,13 @@
 
       <!-- ================= TAB 4: ADMIN MANAGEMENT (rekapinyu_admin) ================= -->
       <section id="tab-admins" class="tab-content hidden space-y-6">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h3 class="text-lg font-bold text-white">Kelola Admin System (`rekapinyu_admin`)</h3>
-            <p class="text-xs text-slate-400">Atur hak akses administrator portal RekapInyu.</p>
-          </div>
-          <button onclick="openAdminModal()" class="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-2 shadow-lg shadow-violet-600/25 transition">
-            <i class="fa-solid fa-user-shield"></i>
-            <span>Tambah Administrator</span>
-          </button>
-        </div>
-
-        <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800">
-                <tr>
-                  <th class="py-3.5 px-4">Nama Admin</th>
-                  <th class="py-3.5 px-4">Email Address</th>
-                  <th class="py-3.5 px-4">Peran Admin</th>
-                  <th class="py-3.5 px-4">Status Hak Akses</th>
-                  <th class="py-3.5 px-4 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="adminsTableBody" class="divide-y divide-slate-800/60">
-                <!-- Dynamic admin rows -->
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <!-- ... existing admins section ... -->
       </section>
 
-      <!-- ================= TAB 5: KASBON & PENGELUARAN TOKO ================= -->
+      <!-- ================= TAB: KASBON & PENGELUARAN TOKO ================= -->
       <section id="tab-kasbon" class="tab-content hidden space-y-6">
         
+        <!-- Sticky Input/Filter Container (Inspirasi dari id="kasbon-sticky-container" aplikasi.html) -->
         <div id="kasbon-sticky-container" class="sticky top-0 z-20 glass-card p-4 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-md">
           <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
             <div>
@@ -567,7 +546,7 @@
           </div>
 
           <div class="glass-card p-4 rounded-xl border border-slate-800">
-            <p class="text-xs text-slate-400 font-medium">Total Pengeluaran Toko</p>
+            <p class="text-xs text-slate-400 font-medium font-medium">Total Pengeluaran Toko</p>
             <h4 id="statTotalExpenses" class="text-xl font-extrabold text-amber-400 mt-1">Rp 0</h4>
             <p class="text-[10px] text-slate-500 mt-1">Biaya Operasional & Stok</p>
           </div>
@@ -579,7 +558,7 @@
           </div>
         </div>
 
-        <!-- Grids Container -->
+        <!-- Grids Container (Inspirasi dari id="kasbon-grid" & id="pengeluaran-grid") -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           <!-- Kasbon Table Block -->
@@ -644,7 +623,7 @@
 
       </section>
 
-      <!-- ================= TAB 6: REPORTS & EXPORT ================= -->
+      <!-- ================= TAB 5: REPORTS & EXPORT ================= -->
       <section id="tab-reports" class="tab-content hidden space-y-6">
         <div>
           <h3 class="text-lg font-bold text-white">Laporan Rekapitulasi & Export Data</h3>
@@ -708,7 +687,7 @@
         </div>
       </section>
 
-      <!-- ================= TAB 7: SETTINGS / FIREBASE STATUS ================= -->
+      <!-- ================= TAB 6: SETTINGS / FIREBASE STATUS ================= -->
       <section id="tab-settings" class="tab-content hidden space-y-6">
         <div>
           <h3 class="text-lg font-bold text-white">Status Koneksi Firebase & Firestore</h3>
@@ -735,12 +714,12 @@
             </div>
           </div>
 
-          <div class="pt-4 border-t border-slate-800 flex items-center justify-between flex-wrap gap-3">
+          <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span class="text-xs text-slate-300">Target Collections: <code class="text-indigo-400">rekapinyu_admin</code>, <code class="text-emerald-400">rekapinyu_data</code>, <code class="text-amber-400">rekapinyu_users</code>, <code class="text-rose-400">rekapinyu_kasbon</code></span>
+              <span class="text-xs text-slate-300">Target Collections: <code class="text-indigo-400">rekapinyu_admin</code>, <code class="text-emerald-400">rekapinyu_data</code>, <code class="text-amber-400">rekapinyu_users</code></span>
             </div>
-            <button onclick="quickSyncFirestore()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition">
+            <button onclick="quickSyncFirestore()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl">
               Tes Ulang Koneksi
             </button>
           </div>
@@ -752,7 +731,7 @@
 
   <!-- MODAL: ADD / EDIT USER -->
   <div id="userModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass-card w-full max-w-md rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div class="glass-card w-full max-w-md rounded-2xl border border-slate-800 overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
       <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
         <h3 id="userModalTitle" class="font-bold text-white text-base">Tambah Pengguna Baru</h3>
         <button onclick="closeUserModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -804,7 +783,7 @@
 
   <!-- MODAL: ADD / EDIT STORE -->
   <div id="storeModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass-card w-full max-w-lg rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div class="glass-card w-full max-w-lg rounded-2xl border border-slate-800 overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
       <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
         <h3 id="storeModalTitle" class="font-bold text-white text-base">Daftarkan Toko Baru</h3>
         <button onclick="closeStoreModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -870,48 +849,7 @@
 
   <!-- MODAL: ADD / EDIT ADMIN -->
   <div id="adminModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass-card w-full max-w-md rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
-      <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
-        <h3 id="adminModalTitle" class="font-bold text-white text-base">Tambah Admin Baru</h3>
-        <button onclick="closeAdminModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <form id="adminForm" onsubmit="saveAdmin(event)" class="p-5 space-y-4 text-xs">
-        <input type="hidden" id="adminIdInput">
-
-        <div>
-          <label class="block text-slate-400 mb-1 font-medium">Nama Administrator</label>
-          <input type="text" id="adminNameInput" required placeholder="Contoh: Rian Pratama" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500">
-        </div>
-
-        <div>
-          <label class="block text-slate-400 mb-1 font-medium">Email Address</label>
-          <input type="email" id="adminEmailInput" required placeholder="rian@rekapinyu.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 mb-1 font-medium">Peran Admin</label>
-            <select id="adminRoleInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500">
-              <option value="Super Admin">Super Admin</option>
-              <option value="Admin Moderator">Admin Moderator</option>
-              <option value="Finance Admin">Finance Admin</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1 font-medium">Status Status</label>
-            <select id="adminStatusInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500">
-              <option value="Aktif">Aktif</option>
-              <option value="Nonaktif">Nonaktif</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="pt-3 flex space-x-3">
-          <button type="button" onclick="closeAdminModal()" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl">Batal</button>
-          <button type="submit" class="w-1/2 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl shadow-lg shadow-violet-600/30">Simpan Admin</button>
-        </div>
-      </form>
-    </div>
+    <!-- ... existing admin modal ... -->
   </div>
 
   <!-- MODAL: TAMBAH KASBON KARYAWAN -->
@@ -1021,14 +959,14 @@
       </div>
       <div class="flex space-x-3 pt-2">
         <button onclick="closeDeleteModal()" class="w-1/2 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl">Batal</button>
-        <button id="confirmDeleteBtn" onclick="executeDelete()" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-rose-600/25">Hapus</button>
+        <button id="confirmDeleteBtn" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-rose-600/25">Hapus</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: RAW FIRESTORE DATA INSPECTOR -->
   <div id="rawJsonModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass-card w-full max-w-lg rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div class="glass-card w-full max-w-lg rounded-2xl border border-slate-800 overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
       <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
         <div class="flex items-center space-x-2">
           <i class="fa-solid fa-database text-amber-400"></i>
@@ -1052,245 +990,261 @@
   <!-- FIREBASE & CORE JAVASCRIPT LOGIC -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-      getFirestore, 
-      collection, 
-      doc, 
-      setDoc, 
-      deleteDoc, 
-      onSnapshot 
+    import {
+      getAuth,
+      signInAnonymously,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      doc,
+      setDoc,
+      addDoc,
+      updateDoc,
+      deleteDoc,
+      onSnapshot
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import {
+      getDatabase,
+      ref,
+      onValue,
+      set as rtdbSet
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-    // Firebase App Config untuk RekapInyu
     const firebaseConfig = {
-  apiKey: "AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",
-  authDomain: "rekapinyu.firebaseapp.com",
-  databaseURL: "https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "rekapinyu",
-  storageBucket: "rekapinyu.firebasestorage.app",
-  messagingSenderId: "835450919713",
-  appId: "1:835450919713:web:818f9f48c5b05330d67c60",
+      apiKey: "AIzaSyAyzAV68m4BRtwm0iu2vDplZaJ9r_uQVk",
+      authDomain: "rekapinyu.firebaseapp.com",
+      databaseURL: "https://rekapinyu-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "rekapinyu",
+      storageBucket: "rekapinyu.firebasestorage.app",
+      messagingSenderId: "835450919713",
+      appId: "1:835450919713:web:818f9f48c5b05330d67c60"
     };
 
-    let app, auth, db;
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+    const rtdb = getDatabase(firebaseApp);
 
-    try {
-      app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-      db = getFirestore(app);
-      signInAnonymously(auth).catch(() => console.log("Firebase Auth Fallback"));
-    } catch (e) {
-      console.warn("Firestore connection initialized in offline/simulation mode", e);
-    }
+    window.firebaseReady = false;
+    window.firebaseUser = null;
+    window.firebaseDb = db;
+    window.firebaseRtdb = rtdb;
 
-    // Normalizers
-    window.normalizeUser = function(docItem) {
-      const data = docItem.data ? docItem.data() : docItem;
+    window.appState = {
+      users: [],
+      stores: [],
+      admins: [],
+      kasbon: [],
+      pengeluaran: [],
+      auditLogs: []
+    };
+
+    window.normalizeUser = function(snapshotDoc) {
+      const data = snapshotDoc.data ? snapshotDoc.data() : (snapshotDoc || {});
       return {
-        id: docItem.id || data.id || `USR-${Math.floor(100 + Math.random() * 900)}`,
-        name: data.name || data.nama || data.fullName || "Pengguna RekapInyu",
-        email: data.email || "user@rekapinyu.com",
-        phone: data.phone || data.hp || data.telepon || "081200000000",
+        id: snapshotDoc.id || data.id || data.uid || "",
+        uid: data.uid || snapshotDoc.id || "",
+        name: data.name || data.nama || data.fullName || data.nama_lengkap || "Tanpa Nama",
+        email: data.email || "",
+        phone: data.phone || data.telepon || data.no_hp || data.whatsapp || "-",
         role: data.role || data.peran || "Pemilik Toko",
-        storeName: data.storeName || data.nama_toko || data.toko || "Toko Berkah",
+        storeId: data.storeId || data.tokoId || data.store_id || "",
+        storeName: data.storeName || data.nama_toko || data.toko || "-",
         status: data.status || "Aktif",
-        _raw: data
+        createdAt: data.createdAt || data.created_at || data.tanggalDaftar || data.tanggal_daftar || null,
+        ...data
       };
     };
 
-    window.normalizeStore = function(docItem) {
-      const data = docItem.data ? docItem.data() : docItem;
+    window.normalizeStore = function(snapshotDoc) {
+      const data = snapshotDoc.data ? snapshotDoc.data() : (snapshotDoc || {});
       return {
-        id: docItem.id || data.id || `STR-${Math.floor(100 + Math.random() * 900)}`,
-        name: data.name || data.nama_toko || data.toko || "Toko Usaha",
-        owner: data.owner || data.pemilik || "Pemilik Usaha",
-        phone: data.phone || data.hp || "081100000000",
-        category: data.category || data.kategori || "Kuliner / F&B",
-        location: data.location || data.kota || data.alamat || "Indonesia",
-        revenue: Number(data.revenue || data.omset || data.penjualan || 0),
-        status: data.status || "Terverifikasi",
-        _raw: data
+        id: snapshotDoc.id || data.id || data.storeId || "",
+        name: data.name || data.nama_toko || data.storeName || data.nama || "Tanpa Nama",
+        owner: data.owner || data.ownerName || data.nama_pemilik || data.pemilik || "-",
+        phone: data.phone || data.telepon || data.no_hp || data.whatsapp || "-",
+        category: data.category || data.kategori || "Lainnya",
+        location: data.location || data.lokasi || data.kota || data.alamat || "-",
+        revenue: Number(data.revenue || data.omset || data.omset_bulanan || data.monthlyRevenue || 0),
+        status: data.status || data.statusVerifikasi || "Pending",
+        ownerId: data.ownerId || data.uid || data.userId || "",
+        createdAt: data.createdAt || data.created_at || data.tanggalDaftar || null,
+        ...data
       };
     };
 
-    window.normalizeAdmin = function(docItem) {
-      const data = docItem.data ? docItem.data() : docItem;
+    window.normalizeAdmin = function(snapshotDoc) {
+      const data = snapshotDoc.data ? snapshotDoc.data() : (snapshotDoc || {});
       return {
-        id: docItem.id || data.id || `ADM-${Math.floor(100 + Math.random() * 900)}`,
-        name: data.name || data.nama || "Admin Portal",
-        email: data.email || "admin@rekapinyu.com",
-        role: data.role || "Admin Moderator",
+        id: snapshotDoc.id || data.id || data.uid || "",
+        name: data.name || data.nama || data.displayName || "Admin",
+        email: data.email || "",
+        phone: data.phone || data.telepon || "-",
+        role: data.role || data.peran || "Admin",
         status: data.status || "Aktif",
-        _raw: data
+        createdAt: data.createdAt || data.created_at || null,
+        ...data
       };
     };
 
-    window.normalizeKasbon = function(docItem) {
-      const data = docItem.data ? docItem.data() : docItem;
+    window.normalizeKasbon = function(snapshotDoc) {
+      const data = snapshotDoc.data ? snapshotDoc.data() : (snapshotDoc || {});
       return {
-        id: docItem.id || data.id || `KSB-${Math.floor(100 + Math.random() * 900)}`,
+        id: snapshotDoc.id || data.id || `KSB-${Math.floor(100 + Math.random() * 900)}`,
         employee: data.employee || data.karyawan || data.nama_karyawan || "Karyawan",
-        storeName: data.storeName || data.nama_toko || data.toko || "Warung Berkah Jaya",
+        storeName: data.storeName || data.nama_toko || data.toko || "Toko Umum",
         amount: Number(data.amount || data.nominal || data.jumlah || 0),
         note: data.note || data.catatan || data.alasan || "-",
         status: data.status || "Belum Lunas",
-        date: data.date || data.tanggal || new Date().toISOString().split('T')[0],
-        _raw: data
+        date: data.date || data.tanggal || new Date().toISOString().split("T")[0],
+        ...data
       };
     };
 
-    window.normalizePengeluaran = function(docItem) {
-      const data = docItem.data ? docItem.data() : docItem;
+    window.normalizePengeluaran = function(snapshotDoc) {
+      const data = snapshotDoc.data ? snapshotDoc.data() : (snapshotDoc || {});
       return {
-        id: docItem.id || data.id || `EXP-${Math.floor(100 + Math.random() * 900)}`,
+        id: snapshotDoc.id || data.id || `EXP-${Math.floor(100 + Math.random() * 900)}`,
         description: data.description || data.keterangan || data.nama_pengeluaran || "Pengeluaran",
-        storeName: data.storeName || data.nama_toko || data.toko || "Warung Berkah Jaya",
+        storeName: data.storeName || data.nama_toko || data.toko || "Toko Umum",
         category: data.category || data.kategori || "Operasional",
         amount: Number(data.amount || data.nominal || data.jumlah || 0),
-        date: data.date || data.tanggal || new Date().toISOString().split('T')[0],
-        _raw: data
+        date: data.date || data.tanggal || new Date().toISOString().split("T")[0],
+        ...data
       };
     };
 
-    // Global Initial App State
-    window.appState = {
-      users: [
-        { id: "USR-001", name: "Herman Pratama", email: "herman@berkahjaya.com", phone: "081234567891", role: "Pemilik Toko", storeName: "Warung Berkah Jaya", status: "Aktif" },
-        { id: "USR-002", name: "Siti Rahmawati", email: "siti@kopiinyu.com", phone: "081987654321", role: "Pemilik Toko", storeName: "Kopi Inyu Station", status: "Aktif" },
-        { id: "USR-003", name: "Andi Saputra", email: "andi@kasir.com", phone: "085611223344", role: "Kasir", storeName: "Warung Berkah Jaya", status: "Aktif" },
-        { id: "USR-004", name: "Maya Indah", email: "maya@gmail.com", phone: "082199887766", role: "Pelanggan", storeName: "-", status: "Aktif" }
-      ],
-      stores: [
-        { id: "STR-101", name: "Warung Berkah Jaya", owner: "Herman Pratama", phone: "081234567891", category: "Kuliner / F&B", location: "Bandung", revenue: 18500000, status: "Terverifikasi" },
-        { id: "STR-102", name: "Kopi Inyu Station", owner: "Siti Rahmawati", phone: "081987654321", category: "Kuliner / F&B", location: "Jakarta Selatan", revenue: 32000000, status: "Terverifikasi" },
-        { id: "STR-103", name: "Toko Kelontong Inyu", owner: "Rudi Tabuti", phone: "087722113344", category: "Ritel & Minimarket", location: "Surabaya", revenue: 12000000, status: "Pending" }
-      ],
-      admins: [
-        { id: "ADM-001", name: "Budi Santoso", email: "admin@rekapinyu.com", role: "Super Admin", status: "Aktif" },
-        { id: "ADM-002", name: "Rina Wijaya", email: "rina@rekapinyu.com", role: "Admin Moderator", status: "Aktif" }
-      ],
-      kasbon: [
-        { id: "KSB-101", employee: "Ahmad Rizky", storeName: "Warung Berkah Jaya", amount: 250000, note: "DP Gaji Minggu Ini", status: "Belum Lunas", date: "2026-03-01" },
-        { id: "KSB-102", employee: "Dewi Safitri", storeName: "Kopi Inyu Station", amount: 150000, note: "Beli Obat Karyawan", status: "Lunas", date: "2026-02-20" }
-      ],
-      pengeluaran: [
-        { id: "EXP-201", description: "Beli Gas & Token Listrik", storeName: "Warung Berkah Jaya", category: "Sewa & Listrik", amount: 350000, date: "2026-03-02" },
-        { id: "EXP-202", description: "Biji Kopi Arabika 5kg", storeName: "Kopi Inyu Station", category: "Bahan Baku", amount: 850000, date: "2026-03-03" }
-      ]
-    };
-
-    // Save item to Firestore
-    window.saveToFirestore = async function(collectionName, itemData) {
-      if (!db) return;
+    window.saveToFirestore = async function(collectionName, data) {
       try {
-        const docRef = doc(db, collectionName, itemData.id);
-        const cleanData = { ...itemData };
-        delete cleanData._raw;
-        await setDoc(docRef, cleanData, { merge: true });
-        console.log(`Saved to ${collectionName}:`, itemData.id);
-      } catch (err) {
-        console.error("Firestore Save Error:", err);
+        const id = data.id || doc(collection(db, collectionName)).id;
+        const payload = { ...data, id, updatedAt: new Date().toISOString() };
+        await setDoc(doc(db, collectionName, id), payload, { merge: true });
+        return id;
+      } catch (error) {
+        console.error("Firestore save error:", error);
+        window.showToast?.("Gagal menyimpan ke Firestore: " + (error.message || "akses ditolak"), "warning");
+        throw error;
       }
     };
 
-    // Delete item from Firestore
-    window.deleteFromFirestore = async function(collectionName, itemId) {
-      if (!db) return;
+    window.deleteFromFirestore = async function(collectionName, id) {
       try {
-        await deleteDoc(doc(db, collectionName, itemId));
-        console.log(`Deleted from ${collectionName}:`, itemId);
-      } catch (err) {
-        console.error("Firestore Delete Error:", err);
+        await deleteDoc(doc(db, collectionName, id));
+      } catch (error) {
+        console.error("Firestore delete error:", error);
+        window.showToast?.("Gagal menghapus data Firestore", "warning");
+        throw error;
       }
     };
 
-    // Realtime listeners for Firestore Collections
-    window.listenFirestoreCollections = function() {
-      if (!db) return;
+    function setConnectionStatus(connected, message) {
+      const text = document.getElementById("connectionText");
+      const dot = document.getElementById("pingDot");
+      const pulse = document.getElementById("pingDotPulse");
+      if (text) text.textContent = message;
+      if (dot) dot.className = "relative inline-flex rounded-full h-3 w-3 " + (connected ? "bg-emerald-500" : "bg-rose-500");
+      if (pulse) pulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full " + (connected ? "bg-emerald-400" : "bg-rose-400") + " opacity-75";
+    }
 
-      const collectionsMap = [
-        { name: "rekapinyu_users", target: "users", norm: window.normalizeUser },
-        { name: "rekapinyu_data", target: "stores", norm: window.normalizeStore },
-        { name: "rekapinyu_admin", target: "admins", norm: window.normalizeAdmin },
-        { name: "rekapinyu_kasbon", target: "kasbon", norm: window.normalizeKasbon },
-        { name: "rekapinyu_pengeluaran", target: "pengeluaran", norm: window.normalizePengeluaran }
-      ];
-
-      collectionsMap.forEach(({ name, target, norm }) => {
-        try {
-          onSnapshot(collection(db, name), (snapshot) => {
-            if (!snapshot.empty) {
-              window.appState[target] = snapshot.docs.map(docDoc => norm(docDoc));
-            }
-            window.renderAllViews();
-          }, (err) => console.log(`Sync status for ${name}: offline / fallback`));
-        } catch (e) {
-          console.log(`Listener init error for ${name}`);
-        }
+    function listenFirestoreCollections() {
+      onSnapshot(collection(db, "rekapinyu_users"), (snapshot) => {
+        window.appState.users = snapshot.docs.map(window.normalizeUser);
+        window.renderAllViews?.();
+      }, (err) => {
+        console.error("rekapinyu_users:", err);
+        setConnectionStatus(false, "Firestore: users gagal");
       });
+
+      onSnapshot(collection(db, "rekapinyu_data"), (snapshot) => {
+        window.appState.stores = snapshot.docs.map(window.normalizeStore);
+        window.renderAllViews?.();
+      }, (err) => {
+        console.error("rekapinyu_data:", err);
+        setConnectionStatus(false, "Firestore: data gagal");
+      });
+
+      onSnapshot(collection(db, "rekapinyu_admin"), (snapshot) => {
+        window.appState.admins = snapshot.docs.map(window.normalizeAdmin);
+        window.renderAllViews?.();
+      }, (err) => {
+        console.error("rekapinyu_admin:", err);
+      });
+
+      onSnapshot(collection(db, "rekapinyu_kasbon"), (snapshot) => {
+        window.appState.kasbon = snapshot.docs.map(window.normalizeKasbon);
+        window.renderAllViews?.();
+      }, (err) => console.log("rekapinyu_kasbon sync:", err));
+
+      onSnapshot(collection(db, "rekapinyu_pengeluaran"), (snapshot) => {
+        window.appState.pengeluaran = snapshot.docs.map(window.normalizePengeluaran);
+        window.renderAllViews?.();
+      }, (err) => console.log("rekapinyu_pengeluaran sync:", err));
+    }
+
+    function listenRealtimeDatabase() {
+      onValue(ref(rtdb, "users"), (snapshot) => {
+        window.rtdbUsers = snapshot.val() || {};
+        window.renderAllViews?.();
+      }, (error) => {
+        console.warn("Realtime Database users:", error);
+      });
+    }
+
+    async function startFirebase() {
+      try {
+        setConnectionStatus(false, "Menghubungkan Firebase...");
+        try {
+          await signInAnonymously(auth);
+        } catch (authError) {
+          console.warn("Anonymous Auth tidak tersedia:", authError);
+          // Firestore tetap dicoba; aturan Firestore dapat mengizinkan akses tanpa Auth.
+        }
+
+        onAuthStateChanged(auth, (user) => {
+          window.firebaseUser = user || null;
+          window.firebaseReady = true;
+          setConnectionStatus(true, user ? "Firestore Terhubung" : "Firebase Terhubung");
+        });
+
+        listenFirestoreCollections();
+        listenRealtimeDatabase();
+      } catch (error) {
+        console.error("Firebase initialization error:", error);
+        setConnectionStatus(false, "Firebase gagal terhubung");
+        window.showToast?.("Firebase gagal terhubung: " + (error.message || "periksa Rules"), "warning");
+      }
+    }
+
+    window.quickSyncFirestore = async function() {
+      try {
+        setConnectionStatus(false, "Menguji koneksi...");
+        const [usersSnap, storesSnap, adminsSnap] = await Promise.all([
+          getDocs(collection(db, "rekapinyu_users")),
+          getDocs(collection(db, "rekapinyu_data")),
+          getDocs(collection(db, "rekapinyu_admin"))
+        ]);
+        window.appState.users = usersSnap.docs.map(window.normalizeUser);
+        window.appState.stores = storesSnap.docs.map(window.normalizeStore);
+        window.appState.admins = adminsSnap.docs.map(window.normalizeAdmin);
+        window.renderAllViews?.();
+        setConnectionStatus(true, "Firestore Terhubung");
+        window.showToast?.(`Sinkron berhasil: ${usersSnap.size} pengguna, ${storesSnap.size} toko, ${adminsSnap.size} admin`, "success");
+      } catch (error) {
+        console.error("Firestore sync:", error);
+        setConnectionStatus(false, "Firestore gagal");
+        window.showToast?.("Sinkronisasi gagal: " + (error.message || "cek Firestore Rules"), "warning");
+      }
     };
 
-    // Init listeners on window load
-    window.addEventListener('DOMContentLoaded', () => {
-      window.listenFirestoreCollections();
-      window.renderAllViews();
-    });
+    startFirebase();
   </script>
 
-  <!-- APP CONTROLLERS & VIEW RENDERERS -->
   <script>
-    let growthChartInstance = null;
-    let categoryChartInstance = null;
-    let itemToDelete = null;
-
-    // Toast Notification System
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      if (!container) return;
-
-      const toast = document.createElement('div');
-      const colors = {
-        success: 'bg-emerald-950/90 border-emerald-600 text-emerald-200',
-        error: 'bg-rose-950/90 border-rose-600 text-rose-200',
-        info: 'bg-indigo-950/90 border-indigo-600 text-indigo-200',
-        warning: 'bg-amber-950/90 border-amber-600 text-amber-200'
-      };
-
-      const icons = {
-        success: 'fa-circle-check text-emerald-400',
-        error: 'fa-circle-xmark text-rose-400',
-        info: 'fa-circle-info text-indigo-400',
-        warning: 'fa-triangle-exclamation text-amber-400'
-      };
-
-      toast.className = `pointer-events-auto flex items-center space-x-3 px-4 py-3 rounded-xl border ${colors[type] || colors.info} shadow-2xl backdrop-blur-md transition transform translate-y-2 opacity-0 text-xs font-semibold`;
-      toast.innerHTML = `<i class="fa-solid ${icons[type]} text-base"></i><span>${message}</span>`;
-
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        toast.classList.remove('translate-y-2', 'opacity-0');
-      }, 10);
-
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-    }
-
-    // Currency Formatter
-    function formatRupiah(num) {
-      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num || 0);
-    }
-
-    // Toggle Mobile Navigation
-    function toggleMobileMenu() {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('-translate-x-full');
-    }
-
-    // Tab Navigation Switcher
+    // Dynamic Page Titles for Tab Switcher
+    const originalSwitchTab = window.switchTab;
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-nav'));
@@ -1302,248 +1256,29 @@
       if (targetNav) targetNav.classList.add('active-nav');
 
       const titles = {
-        'dashboard': 'Dashboard Overview',
+        'dashboard': 'Dashboard & Ringkasan Rekap',
         'users': 'Manajemen Pengguna (`rekapinyu_users`)',
         'stores': 'Manajemen Toko Terdaftar (`rekapinyu_data`)',
-        'admins': 'Kelola Admin System (`rekapinyu_admin`)',
-        'kasbon': 'Keuangan Toko (Kasbon & Pengeluaran)',
+        'admins': 'Kelola Admin (`rekapinyu_admin`)',
+        'kasbon': 'Manajemen Keuangan Toko (Kasbon & Pengeluaran)',
         'reports': 'Laporan & Export Data',
         'settings': 'Status Firebase SDK'
       };
       document.getElementById('pageTitle').innerText = titles[tabId] || 'Admin Portal';
 
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar && window.innerWidth < 768) {
-        sidebar.classList.add('-translate-x-full');
-      }
+      document.getElementById('sidebar').classList.add('-translate-x-full');
     }
 
-    // Global Search Handler
-    function handleGlobalSearch() {
-      const q = document.getElementById('globalSearch').value.toLowerCase().trim();
-      if (!q) return;
-
-      if (window.appState.users.some(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))) {
-        switchTab('users');
-        document.getElementById('userSearchInput').value = q;
-        renderUsersTable();
-      } else if (window.appState.stores.some(s => s.name.toLowerCase().includes(q) || s.owner.toLowerCase().includes(q))) {
-        switchTab('stores');
-        document.getElementById('storeSearchInput').value = q;
-        renderStoresTable();
-      }
-    }
-
-    // Quick Sync Firestore Trigger
-    function quickSyncFirestore() {
-      showToast("Mengunduh pembaruan data dari Firestore...", "info");
-      if (window.listenFirestoreCollections) window.listenFirestoreCollections();
-      renderAllViews();
-    }
-
-    // Master Render Controller
-    function renderAllViews() {
-      updateBadgesAndCounters();
-      renderRecentStoresTable();
-      renderUsersTable();
-      renderStoresTable();
-      renderAdminsTable();
+    // Master Render Hook Update
+    const oldRenderAll = window.renderAllViews;
+    window.renderAllViews = function() {
+      if (typeof oldRenderAll === 'function') oldRenderAll();
       renderKasbonAndPengeluaran();
-      initOrUpdateCharts();
-    }
+    };
 
-    // Update Counter Badges
-    function updateBadgesAndCounters() {
-      const users = window.appState.users || [];
-      const stores = window.appState.stores || [];
-      const admins = window.appState.admins || [];
-
-      document.getElementById('statTotalUsers').innerText = users.length;
-      document.getElementById('statTotalStores').innerText = stores.length;
-      document.getElementById('statTotalAdmins').innerText = admins.length;
-
-      document.getElementById('userBadgeCount').innerText = users.length;
-      document.getElementById('storeBadgeCount').innerText = stores.length;
-      document.getElementById('adminBadgeCount').innerText = admins.length;
-
-      const totalRevenue = stores.reduce((sum, s) => sum + (s.revenue || 0), 0);
-      document.getElementById('statTotalRevenue').innerText = formatRupiah(totalRevenue);
-    }
-
-    // Render Recent Stores on Dashboard
-    function renderRecentStoresTable() {
-      const tbody = document.getElementById('recentStoresTable');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      const stores = (window.appState.stores || []).slice(0, 5);
-      if (stores.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-500">Belum ada data toko terdaftar.</td></tr>`;
-        return;
-      }
-
-      stores.forEach(s => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-900/50 transition";
-        tr.innerHTML = `
-          <td class="py-3 px-4 font-bold text-white">${s.name}</td>
-          <td class="py-3 px-4">${s.owner}</td>
-          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] border border-slate-700">${s.category}</span></td>
-          <td class="py-3 px-4 text-slate-400">${s.location}</td>
-          <td class="py-3 px-4">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-              s.status === 'Terverifikasi' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-            }">${s.status}</span>
-          </td>
-          <td class="py-3 px-4 text-right">
-            <button onclick="viewRawJson('stores', '${s.id}')" class="p-1.5 text-slate-400 hover:text-amber-400" title="Inspeksi Data Raw"><i class="fa-solid fa-code"></i></button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Render Users Table
-    function renderUsersTable() {
-      const tbody = document.getElementById('usersTableBody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      const search = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
-      const roleFilter = document.getElementById('userRoleFilter')?.value || 'ALL';
-      const statusFilter = document.getElementById('userStatusFilter')?.value || 'ALL';
-
-      const filtered = (window.appState.users || []).filter(u => {
-        const matchSearch = u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search) || u.phone.includes(search);
-        const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
-        const matchStatus = statusFilter === 'ALL' || u.status === statusFilter;
-        return matchSearch && matchRole && matchStatus;
-      });
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500">Tidak ada data pengguna yang sesuai.</td></tr>`;
-        return;
-      }
-
-      filtered.forEach(u => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-900/50 transition";
-        tr.innerHTML = `
-          <td class="py-3.5 px-4">
-            <div class="font-bold text-white">${u.name}</div>
-            <div class="text-[10px] text-slate-400">ID: ${u.id}</div>
-          </td>
-          <td class="py-3.5 px-4">
-            <div>${u.email}</div>
-            <div class="text-[10px] text-slate-400">${u.phone}</div>
-          </td>
-          <td class="py-3.5 px-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium text-[11px]">${u.role}</span></td>
-          <td class="py-3.5 px-4 text-slate-300">${u.storeName}</td>
-          <td class="py-3.5 px-4">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-              u.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-            }">${u.status}</span>
-          </td>
-          <td class="py-3.5 px-4 text-center space-x-1">
-            <button onclick="editUser('${u.id}')" class="p-1.5 text-slate-400 hover:text-indigo-400" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-            <button onclick="viewRawJson('users', '${u.id}')" class="p-1.5 text-slate-400 hover:text-amber-400" title="Raw JSON"><i class="fa-solid fa-code"></i></button>
-            <button onclick="promptDelete('users', '${u.id}', '${u.name}')" class="p-1.5 text-slate-400 hover:text-rose-400" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Render Stores Table
-    function renderStoresTable() {
-      const tbody = document.getElementById('storesTableBody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      const search = (document.getElementById('storeSearchInput')?.value || '').toLowerCase();
-      const categoryFilter = document.getElementById('storeCategoryFilter')?.value || 'ALL';
-      const statusFilter = document.getElementById('storeStatusFilter')?.value || 'ALL';
-
-      const filtered = (window.appState.stores || []).filter(s => {
-        const matchSearch = s.name.toLowerCase().includes(search) || s.owner.toLowerCase().includes(search) || s.location.toLowerCase().includes(search);
-        const matchCat = categoryFilter === 'ALL' || s.category === categoryFilter;
-        const matchStatus = statusFilter === 'ALL' || s.status === statusFilter;
-        return matchSearch && matchCat && matchStatus;
-      });
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500">Tidak ada toko yang sesuai kriteria.</td></tr>`;
-        return;
-      }
-
-      filtered.forEach(s => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-900/50 transition";
-        tr.innerHTML = `
-          <td class="py-3.5 px-4">
-            <div class="font-bold text-white">${s.name}</div>
-            <div class="text-[10px] text-slate-400">ID: ${s.id}</div>
-          </td>
-          <td class="py-3.5 px-4">
-            <div>${s.owner}</div>
-            <div class="text-[10px] text-slate-400">${s.phone}</div>
-          </td>
-          <td class="py-3.5 px-4">
-            <div class="text-slate-200">${s.category}</div>
-            <div class="text-[10px] text-slate-400">${s.location}</div>
-          </td>
-          <td class="py-3.5 px-4 font-mono font-semibold text-emerald-400">${formatRupiah(s.revenue)}</td>
-          <td class="py-3.5 px-4">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-              s.status === 'Terverifikasi' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-            }">${s.status}</span>
-          </td>
-          <td class="py-3.5 px-4 text-center space-x-1">
-            <button onclick="editStore('${s.id}')" class="p-1.5 text-slate-400 hover:text-emerald-400" title="Edit Toko"><i class="fa-solid fa-pen-to-square"></i></button>
-            <button onclick="viewRawJson('stores', '${s.id}')" class="p-1.5 text-slate-400 hover:text-amber-400" title="Raw JSON"><i class="fa-solid fa-code"></i></button>
-            <button onclick="promptDelete('stores', '${s.id}', '${s.name}')" class="p-1.5 text-slate-400 hover:text-rose-400" title="Hapus Toko"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Render Admins Table
-    function renderAdminsTable() {
-      const tbody = document.getElementById('adminsTableBody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      const admins = window.appState.admins || [];
-      if (admins.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">Belum ada administrator terdaftar.</td></tr>`;
-        return;
-      }
-
-      admins.forEach(a => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-900/50 transition";
-        tr.innerHTML = `
-          <td class="py-3.5 px-4 font-bold text-white">${a.name}</td>
-          <td class="py-3.5 px-4 text-slate-300">${a.email}</td>
-          <td class="py-3.5 px-4"><span class="px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 font-medium text-[11px]">${a.role}</span></td>
-          <td class="py-3.5 px-4">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-              a.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'
-            }">${a.status}</span>
-          </td>
-          <td class="py-3.5 px-4 text-center space-x-1">
-            <button onclick="editAdmin('${a.id}')" class="p-1.5 text-slate-400 hover:text-violet-400" title="Edit Admin"><i class="fa-solid fa-pen-to-square"></i></button>
-            <button onclick="viewRawJson('admins', '${a.id}')" class="p-1.5 text-slate-400 hover:text-amber-400" title="Raw JSON"><i class="fa-solid fa-code"></i></button>
-            <button onclick="promptDelete('admins', '${a.id}', '${a.name}')" class="p-1.5 text-slate-400 hover:text-rose-400" title="Hapus Admin"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Render Kasbon and Pengeluaran
+    // RENDER KASBON & PENGELUARAN TABLES & STATS
     function renderKasbonAndPengeluaran() {
+      // Update Store Select Options
       const storeSelects = [
         document.getElementById('kasbonStoreFilter'),
         document.getElementById('kasbonStoreSelect'),
@@ -1581,31 +1316,27 @@
 
         document.getElementById('kasbonBadgeCount').innerText = filteredKasbon.length;
 
-        if (filteredKasbon.length === 0) {
-          kasbonBody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-500">Tidak ada data kasbon.</td></tr>`;
-        } else {
-          filteredKasbon.forEach(k => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-900/50 transition";
-            tr.innerHTML = `
-              <td class="py-3 px-4">
-                <div class="font-bold text-white">${k.employee}</div>
-                <div class="text-[10px] text-slate-400">${k.storeName}</div>
-              </td>
-              <td class="py-3 px-4 font-mono font-bold text-rose-400">${formatRupiah(k.amount)}</td>
-              <td class="py-3 px-4 text-slate-400 text-[11px]">${k.date}</td>
-              <td class="py-3 px-4">
-                <button onclick="toggleKasbonStatus('${k.id}')" class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  k.status === 'Lunas' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                }">${k.status}</button>
-              </td>
-              <td class="py-3 px-4 text-center">
-                <button onclick="promptDelete('kasbon', '${k.id}', '${k.employee}')" class="p-1 text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash-can"></i></button>
-              </td>
-            `;
-            kasbonBody.appendChild(tr);
-          });
-        }
+        filteredKasbon.forEach(k => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-900/50 transition";
+          tr.innerHTML = `
+            <td class="py-3 px-4">
+              <div class="font-bold text-white">${k.employee}</div>
+              <div class="text-[10px] text-slate-400">${k.storeName}</div>
+            </td>
+            <td class="py-3 px-4 font-mono font-bold text-rose-400">${formatRupiah(k.amount)}</td>
+            <td class="py-3 px-4 text-slate-400 text-[11px]">${k.date}</td>
+            <td class="py-3 px-4">
+              <button onclick="toggleKasbonStatus('${k.id}')" class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                k.status === 'Lunas' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+              }">${k.status}</button>
+            </td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="promptDelete('kasbon', '${k.id}', '${k.employee}')" class="p-1 text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash-can"></i></button>
+            </td>
+          `;
+          kasbonBody.appendChild(tr);
+        });
       }
 
       // Render Pengeluaran Table
@@ -1618,27 +1349,23 @@
           return matchStore && matchSearch;
         });
 
-        if (filteredExp.length === 0) {
-          pengeluaranBody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-500">Tidak ada pengeluaran tercatat.</td></tr>`;
-        } else {
-          filteredExp.forEach(e => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-900/50 transition";
-            tr.innerHTML = `
-              <td class="py-3 px-4">
-                <div class="font-bold text-white">${e.description}</div>
-                <div class="text-[10px] text-slate-400">${e.storeName}</div>
-              </td>
-              <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 text-[10px] border border-slate-700">${e.category}</span></td>
-              <td class="py-3 px-4 font-mono font-semibold text-amber-400">${formatRupiah(e.amount)}</td>
-              <td class="py-3 px-4 text-slate-400 text-[11px]">${e.date}</td>
-              <td class="py-3 px-4 text-center">
-                <button onclick="promptDelete('pengeluaran', '${e.id}', '${e.description}')" class="p-1 text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash-can"></i></button>
-              </td>
-            `;
-            pengeluaranBody.appendChild(tr);
-          });
-        }
+        filteredExp.forEach(e => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-900/50 transition";
+          tr.innerHTML = `
+            <td class="py-3 px-4">
+              <div class="font-bold text-white">${e.description}</div>
+              <div class="text-[10px] text-slate-400">${e.storeName}</div>
+            </td>
+            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 text-[10px] border border-slate-700">${e.category}</span></td>
+            <td class="py-3 px-4 font-mono font-semibold text-amber-400">${formatRupiah(e.amount)}</td>
+            <td class="py-3 px-4 text-slate-400 text-[11px]">${e.date}</td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="promptDelete('pengeluaran', '${e.id}', '${e.description}')" class="p-1 text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash-can"></i></button>
+            </td>
+          `;
+          pengeluaranBody.appendChild(tr);
+        });
       }
 
       // Update Financial Metrics
@@ -1657,223 +1384,14 @@
       document.getElementById('statNetKasBalance').innerText = formatRupiah(totalRevenue - totalExpenses);
     }
 
-    // Chart.js Visual Analytics
-    function initOrUpdateCharts() {
-      const growthCtx = document.getElementById('growthChart')?.getContext('2d');
-      const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
-
-      if (growthCtx) {
-        if (growthChartInstance) growthChartInstance.destroy();
-        growthChartInstance = new Chart(growthCtx, {
-          type: 'line',
-          data: {
-            labels: ['Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar'],
-            datasets: [
-              {
-                label: 'Registrasi Toko',
-                data: [2, 5, 8, 12, 19, (window.appState.stores || []).length],
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                tension: 0.4,
-                fill: true
-              },
-              {
-                label: 'Pengguna Aktif',
-                data: [5, 12, 22, 35, 48, (window.appState.users || []).length],
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.4,
-                fill: true
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
-            scales: {
-              x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-              y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } }
-            }
-          }
-        });
-      }
-
-      if (categoryCtx) {
-        if (categoryChartInstance) categoryChartInstance.destroy();
-
-        const catCounts = {};
-        (window.appState.stores || []).forEach(s => {
-          catCounts[s.category] = (catCounts[s.category] || 0) + 1;
-        });
-
-        categoryChartInstance = new Chart(categoryCtx, {
-          type: 'doughnut',
-          data: {
-            labels: Object.keys(catCounts).length ? Object.keys(catCounts) : ['Kuliner / F&B', 'Ritel & Minimarket'],
-            datasets: [{
-              data: Object.values(catCounts).length ? Object.values(catCounts) : [2, 1],
-              backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
-              borderWidth: 0
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } }
-          }
-        });
-      }
-    }
-
-    // Modal Operations: Users
-    function openUserModal(isEdit = false) {
-      if (!isEdit) {
-        document.getElementById('userForm').reset();
-        document.getElementById('userIdInput').value = '';
-        document.getElementById('userModalTitle').innerText = 'Tambah Pengguna Baru';
-      }
-      document.getElementById('userModal').classList.remove('hidden');
-    }
-    function closeUserModal() { document.getElementById('userModal').classList.add('hidden'); }
-    
-    function editUser(id) {
-      const u = window.appState.users.find(item => item.id === id);
-      if (!u) return;
-      document.getElementById('userIdInput').value = u.id;
-      document.getElementById('userNameInput').value = u.name;
-      document.getElementById('userEmailInput').value = u.email;
-      document.getElementById('userPhoneInput').value = u.phone;
-      document.getElementById('userRoleInput').value = u.role;
-      document.getElementById('userStatusInput').value = u.status;
-      document.getElementById('userModalTitle').innerText = 'Edit Data Pengguna';
-      openUserModal(true);
-    }
-
-    function saveUser(e) {
-      e.preventDefault();
-      const id = document.getElementById('userIdInput').value || `USR-${Math.floor(100 + Math.random() * 900)}`;
-      const newUser = {
-        id: id,
-        name: document.getElementById('userNameInput').value,
-        email: document.getElementById('userEmailInput').value,
-        phone: document.getElementById('userPhoneInput').value,
-        role: document.getElementById('userRoleInput').value,
-        storeName: "Toko Berkah",
-        status: document.getElementById('userStatusInput').value
-      };
-
-      const idx = window.appState.users.findIndex(u => u.id === id);
-      if (idx >= 0) window.appState.users[idx] = newUser;
-      else window.appState.users.unshift(newUser);
-
-      if (window.saveToFirestore) window.saveToFirestore("rekapinyu_users", newUser);
-      closeUserModal();
-      renderAllViews();
-      showToast("Data pengguna berhasil disimpan", "success");
-    }
-
-    // Modal Operations: Stores
-    function openStoreModal(isEdit = false) {
-      if (!isEdit) {
-        document.getElementById('storeForm').reset();
-        document.getElementById('storeIdInput').value = '';
-        document.getElementById('storeModalTitle').innerText = 'Daftarkan Toko Baru';
-      }
-      document.getElementById('storeModal').classList.remove('hidden');
-    }
-    function closeStoreModal() { document.getElementById('storeModal').classList.add('hidden'); }
-
-    function editStore(id) {
-      const s = window.appState.stores.find(item => item.id === id);
-      if (!s) return;
-      document.getElementById('storeIdInput').value = s.id;
-      document.getElementById('storeNameInput').value = s.name;
-      document.getElementById('storeOwnerInput').value = s.owner;
-      document.getElementById('storePhoneInput').value = s.phone;
-      document.getElementById('storeCategoryInput').value = s.category;
-      document.getElementById('storeLocationInput').value = s.location;
-      document.getElementById('storeRevenueInput').value = s.revenue;
-      document.getElementById('storeStatusInput').value = s.status;
-      document.getElementById('storeModalTitle').innerText = 'Edit Data Toko';
-      openStoreModal(true);
-    }
-
-    function saveStore(e) {
-      e.preventDefault();
-      const id = document.getElementById('storeIdInput').value || `STR-${Math.floor(100 + Math.random() * 900)}`;
-      const newStore = {
-        id: id,
-        name: document.getElementById('storeNameInput').value,
-        owner: document.getElementById('storeOwnerInput').value,
-        phone: document.getElementById('storePhoneInput').value,
-        category: document.getElementById('storeCategoryInput').value,
-        location: document.getElementById('storeLocationInput').value,
-        revenue: Number(document.getElementById('storeRevenueInput').value) || 0,
-        status: document.getElementById('storeStatusInput').value
-      };
-
-      const idx = window.appState.stores.findIndex(s => s.id === id);
-      if (idx >= 0) window.appState.stores[idx] = newStore;
-      else window.appState.stores.unshift(newStore);
-
-      if (window.saveToFirestore) window.saveToFirestore("rekapinyu_data", newStore);
-      closeStoreModal();
-      renderAllViews();
-      showToast("Data toko berhasil diperbarui", "success");
-    }
-
-    // Modal Operations: Admin
-    function openAdminModal(isEdit = false) {
-      if (!isEdit) {
-        document.getElementById('adminForm').reset();
-        document.getElementById('adminIdInput').value = '';
-        document.getElementById('adminModalTitle').innerText = 'Tambah Admin Baru';
-      }
-      document.getElementById('adminModal').classList.remove('hidden');
-    }
-    function closeAdminModal() { document.getElementById('adminModal').classList.add('hidden'); }
-
-    function editAdmin(id) {
-      const a = window.appState.admins.find(item => item.id === id);
-      if (!a) return;
-      document.getElementById('adminIdInput').value = a.id;
-      document.getElementById('adminNameInput').value = a.name;
-      document.getElementById('adminEmailInput').value = a.email;
-      document.getElementById('adminRoleInput').value = a.role;
-      document.getElementById('adminStatusInput').value = a.status;
-      document.getElementById('adminModalTitle').innerText = 'Edit Data Administrator';
-      openAdminModal(true);
-    }
-
-    function saveAdmin(e) {
-      e.preventDefault();
-      const id = document.getElementById('adminIdInput').value || `ADM-${Math.floor(100 + Math.random() * 900)}`;
-      const newAdmin = {
-        id: id,
-        name: document.getElementById('adminNameInput').value,
-        email: document.getElementById('adminEmailInput').value,
-        role: document.getElementById('adminRoleInput').value,
-        status: document.getElementById('adminStatusInput').value
-      };
-
-      const idx = window.appState.admins.findIndex(a => a.id === id);
-      if (idx >= 0) window.appState.admins[idx] = newAdmin;
-      else window.appState.admins.unshift(newAdmin);
-
-      if (window.saveToFirestore) window.saveToFirestore("rekapinyu_admin", newAdmin);
-      closeAdminModal();
-      renderAllViews();
-      showToast("Data admin berhasil disimpan", "success");
-    }
-
-    // Modal Operations: Kasbon & Pengeluaran
+    // KASBON MODAL LOGIC
     function openKasbonModal() {
       document.getElementById('kasbonForm').reset();
       document.getElementById('kasbonModal').classList.remove('hidden');
     }
-    function closeKasbonModal() { document.getElementById('kasbonModal').classList.add('hidden'); }
-
+    function closeKasbonModal() {
+      document.getElementById('kasbonModal').classList.add('hidden');
+    }
     function saveKasbon(e) {
       e.preventDefault();
       const newKasbon = {
@@ -1888,9 +1406,10 @@
 
       window.appState.kasbon.unshift(newKasbon);
       if (window.saveToFirestore) window.saveToFirestore("rekapinyu_kasbon", newKasbon);
+
       closeKasbonModal();
-      renderAllViews();
-      showToast("Catatan kasbon berhasil ditambahkan", "success");
+      window.renderAllViews();
+      showToast("Pencatatan kasbon berhasil disimpan", "success");
     }
 
     function toggleKasbonStatus(id) {
@@ -1898,17 +1417,19 @@
       if (k) {
         k.status = k.status === 'Lunas' ? 'Belum Lunas' : 'Lunas';
         if (window.saveToFirestore) window.saveToFirestore("rekapinyu_kasbon", k);
-        renderAllViews();
+        window.renderAllViews();
         showToast(`Status kasbon ${k.employee} diubah ke ${k.status}`, "info");
       }
     }
 
+    // PENGELUARAN MODAL LOGIC
     function openPengeluaranModal() {
       document.getElementById('pengeluaranForm').reset();
       document.getElementById('pengeluaranModal').classList.remove('hidden');
     }
-    function closePengeluaranModal() { document.getElementById('pengeluaranModal').classList.add('hidden'); }
-
+    function closePengeluaranModal() {
+      document.getElementById('pengeluaranModal').classList.add('hidden');
+    }
     function savePengeluaran(e) {
       e.preventDefault();
       const newExp = {
@@ -1922,97 +1443,13 @@
 
       window.appState.pengeluaran.unshift(newExp);
       if (window.saveToFirestore) window.saveToFirestore("rekapinyu_pengeluaran", newExp);
+
       closePengeluaranModal();
-      renderAllViews();
+      window.renderAllViews();
       showToast("Pengeluaran toko berhasil dicatat", "success");
     }
 
-    // Delete Modal & Confirmation System
-    function promptDelete(type, id, name) {
-      itemToDelete = { type, id, name };
-      const colNames = {
-        users: 'rekapinyu_users',
-        stores: 'rekapinyu_data',
-        admins: 'rekapinyu_admin',
-        kasbon: 'rekapinyu_kasbon',
-        pengeluaran: 'rekapinyu_pengeluaran'
-      };
-      document.getElementById('deleteModalMessage').innerText = `Apakah Anda yakin ingin menghapus data "${name}" dari ${colNames[type]}?`;
-      document.getElementById('deleteModal').classList.remove('hidden');
-    }
-
-    function closeDeleteModal() {
-      itemToDelete = null;
-      document.getElementById('deleteModal').classList.add('hidden');
-    }
-
-    function executeDelete() {
-      if (!itemToDelete) return;
-      const { type, id, name } = itemToDelete;
-
-      const collectionsMap = {
-        users: 'rekapinyu_users',
-        stores: 'rekapinyu_data',
-        admins: 'rekapinyu_admin',
-        kasbon: 'rekapinyu_kasbon',
-        pengeluaran: 'rekapinyu_pengeluaran'
-      };
-
-      window.appState[type] = (window.appState[type] || []).filter(item => item.id !== id);
-      if (window.deleteFromFirestore) window.deleteFromFirestore(collectionsMap[type], id);
-
-      closeDeleteModal();
-      renderAllViews();
-      showToast(`Data "${name}" berhasil dihapus`, "error");
-    }
-
-    // Raw Firestore JSON Inspector
-    function viewRawJson(type, id) {
-      const item = (window.appState[type] || []).find(i => i.id === id);
-      if (!item) return;
-      const content = item._raw ? item._raw : item;
-      document.getElementById('rawJsonContent').innerText = JSON.stringify(content, null, 2);
-      document.getElementById('rawJsonModal').classList.remove('hidden');
-    }
-
-    function closeRawJsonModal() {
-      document.getElementById('rawJsonModal').classList.add('hidden');
-    }
-
-    // Export Data (CSV & JSON)
-    function exportData(type, format) {
-      const data = window.appState[type] || [];
-      const timestamp = new Date().toISOString().split('T')[0];
-
-      if (format === 'json') {
-        const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", jsonStr);
-        downloadAnchor.setAttribute("download", `RekapInyu_${type}_${timestamp}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-        showToast(`Export JSON ${type} berhasil!`, "success");
-      } else if (format === 'csv') {
-        if (data.length === 0) return showToast("Tidak ada data untuk diexport", "warning");
-        const headers = Object.keys(data[0]).filter(k => k !== '_raw');
-        let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
-        data.forEach(row => {
-          const values = headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`);
-          csvContent += values.join(",") + "\n";
-        });
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `RekapInyu_${type}_${timestamp}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        showToast(`Export CSV ${type} berhasil!`, "success");
-      }
-    }
-
-    // Export Excel via SheetJS
+    // EXPORT EXCEL VIA SHEETJS (Fungsi Ekspor dari aplikasi.html)
     function exportKasbonExcel() {
       if (typeof XLSX === 'undefined') {
         return showToast("Pustaka SheetJS belum dimuat", "warning");
@@ -2020,7 +1457,8 @@
 
       const wb = XLSX.utils.book_new();
 
-      const kasbonSheetData = (window.appState.kasbon || []).map(k => ({
+      // Sheet Kasbon
+      const kasbonSheetData = window.appState.kasbon.map(k => ({
         "ID Kasbon": k.id,
         "Nama Toko": k.storeName,
         "Karyawan": k.employee,
@@ -2032,7 +1470,8 @@
       const wsKasbon = XLSX.utils.json_to_sheet(kasbonSheetData);
       XLSX.utils.book_append_sheet(wb, wsKasbon, "Kasbon Karyawan");
 
-      const expSheetData = (window.appState.pengeluaran || []).map(e => ({
+      // Sheet Pengeluaran
+      const expSheetData = window.appState.pengeluaran.map(e => ({
         "ID Pengeluaran": e.id,
         "Nama Toko": e.storeName,
         "Keterangan": e.description,
@@ -2046,6 +1485,71 @@
       XLSX.writeFile(wb, `RekapInyu_Keuangan_Toko_${new Date().toISOString().split('T')[0]}.xlsx`);
       showToast("Laporan Excel Kasbon & Pengeluaran berhasil diunduh!", "success");
     }
+
+    window.showToast = function(message, type="info"){
+      const c=document.getElementById("toastContainer"); if(!c)return;
+      const colors={success:"bg-emerald-600",warning:"bg-amber-600",error:"bg-rose-600",info:"bg-indigo-600"};
+      const el=document.createElement("div");
+      el.className=`${colors[type]||colors.info} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl pointer-events-auto max-w-sm`;
+      el.textContent=message;c.appendChild(el);setTimeout(()=>el.remove(),3500);
+    };
+    window.formatRupiah=v=>"Rp "+Number(v||0).toLocaleString("id-ID");
+    const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+
+    function renderUsersTable(){
+      const b=document.getElementById("usersTableBody");if(!b)return;
+      const q=(document.getElementById("userSearchInput")?.value||"").toLowerCase();
+      const role=document.getElementById("userRoleFilter")?.value||"ALL";
+      const status=document.getElementById("userStatusFilter")?.value||"ALL";
+      const a=(window.appState.users||[]).filter(u=>
+        (!q||`${u.name} ${u.email} ${u.phone} ${u.storeName}`.toLowerCase().includes(q)) &&
+        (role==="ALL"||u.role===role)&&(status==="ALL"||u.status===status));
+      document.getElementById("userBadgeCount").textContent=a.length;
+      b.innerHTML=a.length?a.map(u=>`<tr class="hover:bg-slate-900/50"><td class="py-3.5 px-4"><div class="font-bold text-white">${esc(u.name)}</div><div class="text-[10px] text-slate-500">${esc(u.id)}</div></td><td class="py-3.5 px-4"><div>${esc(u.email)}</div><div class="text-[10px] text-slate-500">${esc(u.phone)}</div></td><td class="py-3.5 px-4">${esc(u.role)}</td><td class="py-3.5 px-4">${esc(u.storeName||u.storeId||"-")}</td><td class="py-3.5 px-4">${esc(u.status)}</td><td class="py-3.5 px-4 text-center"><button onclick="editUser('${esc(u.id)}')" class="p-1.5 text-slate-400 hover:text-indigo-400"><i class="fa-solid fa-pen"></i></button><button onclick="promptDelete('users','${esc(u.id)}','${esc(u.name)}')" class="p-1.5 text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`).join(""):`<tr><td colspan="6" class="py-10 text-center text-slate-500">Belum ada data pengguna di Firestore.</td></tr>`;
+    }
+
+    function renderStoresTable(){
+      const b=document.getElementById("storesTableBody");if(!b)return;
+      const q=(document.getElementById("storeSearchInput")?.value||"").toLowerCase();
+      const cat=document.getElementById("storeCategoryFilter")?.value||"ALL";
+      const st=document.getElementById("storeStatusFilter")?.value||"ALL";
+      const a=(window.appState.stores||[]).filter(s=>
+        (!q||`${s.name} ${s.owner} ${s.phone} ${s.location} ${s.id}`.toLowerCase().includes(q)) &&
+        (cat==="ALL"||s.category===cat)&&(st==="ALL"||s.status===st));
+      document.getElementById("storeBadgeCount").textContent=a.length;
+      b.innerHTML=a.length?a.map(s=>`<tr class="hover:bg-slate-900/50"><td class="py-3.5 px-4"><div class="font-bold text-white">${esc(s.name)}</div><div class="text-[10px] text-slate-500">${esc(s.id)}</div></td><td class="py-3.5 px-4">${esc(s.owner)}<div class="text-[10px] text-slate-500">${esc(s.phone)}</div></td><td class="py-3.5 px-4">${esc(s.category)}<div class="text-[10px] text-slate-500">${esc(s.location)}</div></td><td class="py-3.5 px-4 font-mono text-amber-400">${formatRupiah(s.revenue)}</td><td class="py-3.5 px-4">${esc(s.status)}</td><td class="py-3.5 px-4 text-center"><button onclick="editStore('${esc(s.id)}')" class="p-1.5 text-slate-400 hover:text-emerald-400"><i class="fa-solid fa-pen"></i></button><button onclick="promptDelete('stores','${esc(s.id)}','${esc(s.name)}')" class="p-1.5 text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`).join(""):`<tr><td colspan="6" class="py-10 text-center text-slate-500">Belum ada data toko di Firestore.</td></tr>`;
+    }
+
+    function renderDashboard(){
+      const u=window.appState.users||[],s=window.appState.stores||[],a=window.appState.admins||[];
+      document.getElementById("statTotalUsers").textContent=u.length;
+      document.getElementById("statTotalStores").textContent=s.length;
+      document.getElementById("statTotalRevenue").textContent=formatRupiah(s.reduce((x,v)=>x+Number(v.revenue||0),0));
+      document.getElementById("statTotalAdmins").textContent=a.length;
+      const b=document.getElementById("recentStoresTable");
+      if(b)b.innerHTML=s.slice(0,8).map(v=>`<tr class="hover:bg-slate-900/50"><td class="py-3 px-4 font-semibold text-white">${esc(v.name)}</td><td class="py-3 px-4">${esc(v.owner)}</td><td class="py-3 px-4">${esc(v.category)}</td><td class="py-3 px-4">${esc(v.location)}</td><td class="py-3 px-4">${esc(v.status)}</td><td class="py-3 px-4 text-right">${formatRupiah(v.revenue)}</td></tr>`).join("")||`<tr><td colspan="6" class="py-8 text-center text-slate-500">Belum ada toko.</td></tr>`;
+    }
+    window.renderAllViews=function(){renderDashboard();renderUsersTable();renderStoresTable();if(typeof renderKasbonAndPengeluaran==="function")renderKasbonAndPengeluaran();};
+
+    window.openUserModal=function(){document.getElementById("userForm").reset();document.getElementById("userIdInput").value="";document.getElementById("userModalTitle").textContent="Tambah Pengguna Baru";document.getElementById("userModal").classList.remove("hidden");};
+    window.closeUserModal=function(){document.getElementById("userModal").classList.add("hidden");};
+    window.editUser=function(id){const u=(window.appState.users||[]).find(x=>x.id===id);if(!u)return;document.getElementById("userIdInput").value=u.id;document.getElementById("userNameInput").value=u.name||"";document.getElementById("userEmailInput").value=u.email||"";document.getElementById("userPhoneInput").value=u.phone||"";document.getElementById("userRoleInput").value=u.role||"Pemilik Toko";document.getElementById("userStatusInput").value=u.status||"Aktif";document.getElementById("userModalTitle").textContent="Edit Pengguna";document.getElementById("userModal").classList.remove("hidden");};
+    window.saveUser=async e=>{e.preventDefault();const id=document.getElementById("userIdInput").value||crypto.randomUUID(),old=(window.appState.users||[]).find(x=>x.id===id)||{};await window.saveToFirestore("rekapinyu_users",{...old,id,name:document.getElementById("userNameInput").value.trim(),email:document.getElementById("userEmailInput").value.trim(),phone:document.getElementById("userPhoneInput").value.trim(),role:document.getElementById("userRoleInput").value,status:document.getElementById("userStatusInput").value,updatedAt:new Date().toISOString()});window.closeUserModal();showToast("Data pengguna berhasil disimpan","success");};
+
+    window.openStoreModal=function(){document.getElementById("storeForm").reset();document.getElementById("storeIdInput").value="";document.getElementById("storeModalTitle").textContent="Daftarkan Toko Baru";document.getElementById("storeModal").classList.remove("hidden");};
+    window.closeStoreModal=function(){document.getElementById("storeModal").classList.add("hidden");};
+    window.editStore=function(id){const s=(window.appState.stores||[]).find(x=>x.id===id);if(!s)return;document.getElementById("storeIdInput").value=s.id;document.getElementById("storeNameInput").value=s.name||"";document.getElementById("storeCategoryInput").value=s.category||"Kuliner / F&B";document.getElementById("storeOwnerInput").value=s.owner||"";document.getElementById("storePhoneInput").value=s.phone||"";document.getElementById("storeLocationInput").value=s.location||"";document.getElementById("storeRevenueInput").value=s.revenue||0;document.getElementById("storeStatusInput").value=s.status||"Pending";document.getElementById("storeModalTitle").textContent="Edit Data Toko";document.getElementById("storeModal").classList.remove("hidden");};
+    window.saveStore=async e=>{e.preventDefault();const id=document.getElementById("storeIdInput").value||crypto.randomUUID(),old=(window.appState.stores||[]).find(x=>x.id===id)||{};await window.saveToFirestore("rekapinyu_data",{...old,id,name:document.getElementById("storeNameInput").value.trim(),category:document.getElementById("storeCategoryInput").value,owner:document.getElementById("storeOwnerInput").value.trim(),phone:document.getElementById("storePhoneInput").value.trim(),location:document.getElementById("storeLocationInput").value.trim(),revenue:Number(document.getElementById("storeRevenueInput").value)||0,status:document.getElementById("storeStatusInput").value,updatedAt:new Date().toISOString()});window.closeStoreModal();showToast("Data toko berhasil disimpan","success");};
+
+    window.promptDelete=function(type,id,label){const m=document.getElementById("deleteModal");if(!m)return;m.dataset.collection=type==="users"?"rekapinyu_users":type==="stores"?"rekapinyu_data":type==="kasbon"?"rekapinyu_kasbon":"rekapinyu_pengeluaran";m.dataset.id=id;document.getElementById("deleteModalMessage").textContent=`Apakah Anda yakin ingin menghapus "${label}" secara permanen dari Firestore?`;m.classList.remove("hidden");};
+    window.closeDeleteModal=function(){document.getElementById("deleteModal")?.classList.add("hidden");};
+    const delBtn=document.getElementById("confirmDeleteBtn");
+    if(delBtn)delBtn.onclick=async()=>{const m=document.getElementById("deleteModal");try{await window.deleteFromFirestore(m.dataset.collection,m.dataset.id);closeDeleteModal();showToast("Data berhasil dihapus","success");}catch(e){}};
+
+    window.exportData=function(type,format){const data=type==="users"?window.appState.users||[]:window.appState.stores||[];if(format==="json"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RekapInyu_${type}.json`;a.click();URL.revokeObjectURL(a.href);}else{const h=data.length?Object.keys(data[0]):[],csv=[h.join(","),...data.map(r=>h.map(k=>`"${String(r[k]??"").replace(/"/g,'""')}"`).join(","))].join("\n"),blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RekapInyu_${type}.csv`;a.click();URL.revokeObjectURL(a.href);}showToast(`Export ${type} berhasil dibuat`,"success");};
+    window.closeRawJsonModal=function(){document.getElementById("rawJsonModal")?.classList.add("hidden");};
+    window.renderAllViews();
+
   </script>
 </body>
 </html>
