@@ -1179,31 +1179,55 @@
 
     async function startFirebase() {
       try {
-        setConnectionStatus(false, "Menghubungkan Firebase...");
-        try {
-          await signInAnonymously(auth);
-        } catch (authError) {
-          console.warn("Anonymous Auth tidak tersedia:", authError);
-          // Firestore tetap dicoba; aturan Firestore dapat mengizinkan akses tanpa Auth.
+        setConnectionStatus(false, "Menghubungkan Firebase Auth...");
+
+        // Firestore Rules yang memakai request.auth membutuhkan user Firebase
+        // sebelum data boleh dibaca. Tunggu sign-in selesai terlebih dahulu.
+        let signedInUser = auth.currentUser || null;
+
+        if (!signedInUser) {
+          try {
+            const credential = await signInAnonymously(auth);
+            signedInUser = credential.user || auth.currentUser || null;
+          } catch (authError) {
+            console.error("Firebase Anonymous Auth gagal:", authError);
+            window.firebaseUser = null;
+            window.firebaseReady = false;
+            setConnectionStatus(false, "Auth Firebase gagal");
+            window.showToast?.(
+              "Login Firebase gagal: " + (authError.code || authError.message || "Anonymous Auth belum aktif"),
+              "warning"
+            );
+            return;
+          }
         }
 
-        onAuthStateChanged(auth, (user) => {
-          window.firebaseUser = user || null;
-          window.firebaseReady = true;
-          setConnectionStatus(true, user ? "Firestore Terhubung" : "Firebase Terhubung");
-        });
+        window.firebaseUser = signedInUser;
+        window.firebaseReady = true;
+        setConnectionStatus(true, "Firebase Auth Terhubung");
 
+        // Jalankan listener setelah user Firebase tersedia.
         listenFirestoreCollections();
         listenRealtimeDatabase();
       } catch (error) {
         console.error("Firebase initialization error:", error);
+        window.firebaseReady = false;
         setConnectionStatus(false, "Firebase gagal terhubung");
-        window.showToast?.("Firebase gagal terhubung: " + (error.message || "periksa Rules"), "warning");
+        window.showToast?.("Firebase gagal terhubung: " + (error.message || "periksa konfigurasi"), "warning");
       }
     }
 
     window.quickSyncFirestore = async function() {
       setConnectionStatus(false, "Menguji koneksi Firestore...");
+
+      if (!auth.currentUser) {
+        setConnectionStatus(false, "Auth Firebase belum terhubung");
+        window.showToast?.(
+          "Sinkronisasi dihentikan: belum ada user Firebase. Aktifkan Anonymous Authentication di Firebase Authentication jika Rules memakai request.auth.",
+          "warning"
+        );
+        return;
+      }
 
       const jobs = [
         { key: "users", label: "pengguna", collection: "rekapinyu_users", normalize: window.normalizeUser },
