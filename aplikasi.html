@@ -1686,7 +1686,7 @@ function assign24hBuckets(data){return sanitizeActivityData(data).map(item=>{con
 function setData(data,writeLocal=true){activityData=assign24hBuckets(data);window.__rekapinyuActivityData=activityData;if(writeLocal){try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}}refreshFilterYears();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated'))}catch(e){}}
 window.__rekapinyuSetActivityData=function(data){setData(data,true);baseline=watchSnapshot()};
 function load(){const p=phone();if(p!==currentPhone){currentPhone=p;setData(readLocal(),false);baseline=watchSnapshot()}else{const local=readLocal();if(JSON.stringify(local)!==JSON.stringify(activityData))setData(local,false);else render()}}
-function addActivity(action,menu){if(!phone())return;const now=new Date(),ts=now.getTime(),start=activityPeriodStart(ts),item={id:`${ts}_${Math.random().toString(36).slice(2,8)}`,timestamp:ts,dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas'),activity24hStart:start,activity24hId:String(start),activity24hEnd:periodEnd(start)};activityData=assign24hBuckets([...activityData,item]);if(activityData.length>2000)activityData=activityData.slice(-2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}}
+function addActivity(action,menu){if(!phone())return;const now=new Date(),ts=now.getTime(),start=activityPeriodStart(ts),item={id:`${ts}_${Math.random().toString(36).slice(2,8)}`,timestamp:ts,dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas'),activity24hStart:start,activity24hId:String(start),activity24hEnd:periodEnd(start)};activityData=assign24hBuckets([...activityData,item]);if(activityData.length>2000)activityData=activityData.slice(-2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData));localStorage.setItem(`finance_pending_activity_${phone()}`,JSON.stringify(activityData.map(x=>String(x.id)).slice(-2000)))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__requestDataCloudSync?.()}catch(e){}}
 window.__rekapinyuLogActivity=addActivity;
 function getJSON(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
 function snapshot(){const p=phone();if(!p)return{};return{history:getJSON(`finance_history_desktop_${p}`)||[],pengeluaran:getJSON(`finance_pengeluaran_desktop_${p}`)||[],kasbon:getJSON(`finance_kasbon_desktop_${p}`)||[],backup:getJSON(`finance_backup_desktop_${p}`)||[],products:getJSON(`finance_kasir_products_${p}`)||[],transactions:getJSON(`finance_kasir_transactions_${p}`)||[],receipt:getJSON(`finance_kasir_receipt_settings_${p}`)||{}}}
@@ -4336,6 +4336,7 @@ async function saveCloudData(){
   historyData:inputData,
   LaporanBulanan:cloudLaporanBulanan(),
   pengeluaranData:Array.isArray(pengeluaranData)?pengeluaranData:[],
+  kasbonData:Array.isArray(kasbonData)?kasbonData:[],
   backupOtomatisData:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
   receiptSettings:receiptSettings&&typeof receiptSettings==='object'?receiptSettings:{},
   updatedAt:serverTimestamp()
@@ -4358,6 +4359,20 @@ function localSession(u){
  else list.push(currentSessionUser);
  nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
 }
+function mergeActivityCloud(phone,cloudValue){
+ const local=safe(localStorage.getItem(`finance_activity_desktop_${phone}`),[]);
+ const cloud=Array.isArray(cloudValue)?cloudValue:[];
+ const pending=safe(localStorage.getItem(`finance_pending_activity_${phone}`),[]);
+ const ids=new Set(Array.isArray(pending)?pending.map(String):[]);
+ const byId=new Map(cloud.map(x=>[String(x?.id),x]));
+ (Array.isArray(local)?local:[]).forEach(x=>{if(ids.has(String(x?.id)))byId.set(String(x?.id),x)});
+ const merged=Array.from(byId.values()).sort((a,b)=>activityDate(a)-activityDate(b)).slice(-2000);
+ const mergedIds=new Set(merged.map(x=>String(x?.id)));
+ const left=[...ids].filter(id=>mergedIds.has(id));
+ try{if(left.length)nativeSet.call(localStorage,`finance_pending_activity_${phone}`,JSON.stringify(left));else nativeRemove.call(localStorage,`finance_pending_activity_${phone}`)}catch(e){}
+ return merged;
+}
+
 function syncCloudArrayToCache(phone,key,cloudValue){
  const localKey=`finance_${key}_desktop_${phone}`;
  const result=mergePendingData(phone,key,cloudValue);
@@ -4382,7 +4397,7 @@ async function hydrate(uid){
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
  if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(d.kasirTransactions));
- if(Array.isArray(d.activityData)){window.__rekapinyuSetActivityData?.(d.activityData);nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(d.activityData));}
+ if(Array.isArray(d.activityData)){const mergedActivity=mergeActivityCloud(phone,d.activityData);window.__rekapinyuSetActivityData?.(mergedActivity);nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(mergedActivity));}
  if(d.receiptSettings&&typeof d.receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(d.receiptSettings));
  const pendingHistory=mergePendingData(phone,"history",d.historyData).pending;
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
