@@ -1417,10 +1417,45 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </style>
 
 <style id="report-monthly-position-rebuild">
-/* Laporan Bulanan: satu implementasi posisi. Tepat 6px di bawah header, tetap berada di dalam main. */
-#view-report{width:100%;margin:6px 0 0;padding:0;transform:none;}
-#view-report #report-grid{width:100%;margin:0;padding:0;display:block;box-sizing:border-box;}
-#view-report #report-grid .report-monthly-empty{width:100%;min-height:220px;margin:0;padding:64px 16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border-radius:16px;box-shadow:0 10px 15px -3px rgb(15 23 42 / 0.10),0 4px 6px -4px rgb(15 23 42 / 0.10);border:1px dashed #e2e8f0;color:#94a3b8;text-align:center;}
+/* Laporan Bulanan: hanya atur posisi laporan. Main tetap menggunakan layout aslinya. */
+#view-report{
+  width:100%;
+  margin:0;
+  padding:0;
+  transform:translateY(-10px);
+}
+#view-report #report-grid{
+  width:100%;
+  margin:0;
+  padding:0;
+  display:block;
+  box-sizing:border-box;
+}
+#view-report #report-grid .report-monthly-empty{
+  width:100%;
+  min-height:220px;
+  margin:0;
+  padding:64px 16px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 10px 15px -3px rgb(15 23 42 / 0.10),0 4px 6px -4px rgb(15 23 42 / 0.10);
+  border:1px dashed #e2e8f0;
+  color:#94a3b8;
+  text-align:center;
+}
+/* Main memiliki padding 16px / 24px / 32px. Transform menetralkannya
+   sehingga panel laporan berhenti tepat 6px di bawah header. */
+@media (min-width:768px){
+  #view-report{transform:translateY(-18px);}
+}
+@media (min-width:1024px){
+  #view-report{transform:translateY(-26px);}
+}
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
@@ -1669,7 +1704,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 </header>
 <!-- Scrollable Main View Area -->
-<main>
+<main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
 <!-- AKTIFITAS — IMPLEMENTASI BARU: seluruh UI langsung di area MAIN. -->
 <section class="hidden" id="view-activity"></section>
 <div aria-label="Area Aktifitas" class="hidden" id="activity-main-container">
