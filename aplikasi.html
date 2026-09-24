@@ -1792,7 +1792,7 @@ function detectBackup(oldList,newList){const old=Array.isArray(oldList)?oldList:
 function detectProducts(oldList,newList){const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old);neu.filter(x=>!om.has(String(x?.id))).forEach(()=>addActivity('Menambahkan Produk di Menu Produk Kasir','Produk Kasir'));neu.filter(x=>om.has(String(x?.id))&&!same(x,om.get(String(x?.id)))).forEach(n=>{const o=om.get(String(n?.id))||{};if(String(n?.name||'')!==String(o?.name||''))addActivity('Merubah Nama Produk di menu Produk Kasir','Produk Kasir');if(Number(n?.cost)!==Number(o?.cost)||Number(n?.wholesale)!==Number(o?.wholesale))addActivity('Merubah Harga HPP / Grosir di menu Produk Kasir','Produk Kasir');if(Number(n?.price)!==Number(o?.price))addActivity('Merubah Harga Jual di menu Produk Kasir','Produk Kasir');if(Number(n?.stock)!==Number(o?.stock))addActivity('Merubah Stok di menu Produk Kasir','Produk Kasir');if(String(n?.photo||'')!==String(o?.photo||''))addActivity('Merubah Foto Produk di menu Produk Kasir','Produk Kasir')})}
 function detectTransactions(oldList,newList){const old=Array.isArray(oldList)?oldList:[],neu=Array.isArray(newList)?newList:[],om=byId(old);neu.filter(x=>!om.has(String(x?.id))).forEach(()=>addActivity('Melakukan transaksi di menu KASIR','KASIR'))}
 function watchSnapshot(){return snapshot()}
-function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p;baseline=watchSnapshot();load();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectHistory(baseline.history,next.history);detectPengeluaran(baseline.pengeluaran,next.pengeluaran);detectKasbon(baseline.kasbon,next.kasbon);detectBackup(baseline.backup,next.backup);detectProducts(baseline.products,next.products);detectTransactions(baseline.transactions,next.transactions);if(!same(baseline.receipt,next.receipt))addActivity('Mengubah Tampilan Struk di menu Seting','Seting');baseline=next;if(!view.classList.contains('hidden'))render()}
+function compare(){const p=phone();if(!p)return;if(typeof applyingFirestoreRealtime!=='undefined'&&applyingFirestoreRealtime){baseline=watchSnapshot();return}if(!currentPhone){currentPhone=p;baseline=watchSnapshot();load();return}if(p!==currentPhone){currentPhone=p;load();baseline=watchSnapshot();return}const next=watchSnapshot();if(!baseline||!Object.keys(baseline).length){baseline=next;return}detectHistory(baseline.history,next.history);detectPengeluaran(baseline.pengeluaran,next.pengeluaran);detectKasbon(baseline.kasbon,next.kasbon);detectBackup(baseline.backup,next.backup);detectProducts(baseline.products,next.products);detectTransactions(baseline.transactions,next.transactions);if(!same(baseline.receipt,next.receipt))addActivity('Mengubah Tampilan Struk di menu Seting','Seting');baseline=next;if(!view.classList.contains('hidden'))render()}
 function filtered(){const q=String(search.value||'').trim().toLowerCase(),fd=String(dateSelect.value||''),fm=String(monthSelect.value||''),fy=String(yearSelect.value||'');return activityData.filter(item=>{const d=activityDate(item);if(fd&&String(d.getDate())!==fd)return false;if(fm&&String(d.getMonth()+1).padStart(2,'0')!==fm)return false;if(fy&&String(d.getFullYear())!==fy)return false;if(q){const hay=`${item.action||''} ${item.menu||''} ${dateText(d)}`.toLowerCase();if(!hay.includes(q))return false}return true})}
 function refreshFilterYears(){const old=String(yearSelect.value||''),years=[...new Set(activityData.map(x=>activityDate(x).getFullYear()))].sort((a,b)=>b-a);yearSelect.innerHTML='<option value="">Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');yearSelect.value=years.includes(Number(old))?old:''}
 function bucketize(rows){const groups={};rows.forEach(item=>{const start=activityPeriodStart(activityDate(item).getTime()),id=String(start);if(!groups[id])groups[id]={start,items:[]};groups[id].items.push(item)});return Object.values(groups).sort((a,b)=>b.start-a.start)}
@@ -4439,6 +4439,15 @@ function cloudLaporanBulanan(){
 let cloudSaveChain=Promise.resolve();
 let applyingFirestoreRealtime=false;
 
+window.__rekapinyuSaveActivityCloud=async function(){
+ try{
+  const u=auth.currentUser,phone=phoneOf(currentSessionUser?.phone);
+  if(!u||!phone)return;
+  const activity=Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[];
+  await setDoc(aref(u.uid),{LaporanAktifitas:activity,updatedAt:serverTimestamp()},{merge:true});
+ }catch(e){console.warn('Rekapinyu: sinkronisasi aktifitas gagal.',e)}
+};
+
 function firestorePayload(){
  const phone=phoneOf(currentSessionUser?.phone);
  const kasir=safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
@@ -4491,14 +4500,13 @@ async function hydrate(uid){
  const u=us.exists()?us.data():{};
  const phone=phoneOf(u.phone||currentSessionUser?.phone);if(!phone)return;
  localSession({...u,uid});
- const [txSnap,lapSnap,actSnap,inputSnap,histSnap,kasbonSnap,pengeluaranSnap,bulananSnap,backupSnap,produkSnap,shopSnap,fotoSnap]=await Promise.all([
-  getDoc(tref(uid)),getDoc(lref(uid)),getDoc(aref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid)),getDoc(produkKasirRef(uid)),getDoc(shopCoverRef(uid)),getDoc(fotoSampulRef(uid))
+ const [txSnap,lapSnap,inputSnap,histSnap,kasbonSnap,pengeluaranSnap,bulananSnap,backupSnap,produkSnap,shopSnap,fotoSnap]=await Promise.all([
+  getDoc(tref(uid)),getDoc(lref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid)),getDoc(produkKasirRef(uid)),getDoc(shopCoverRef(uid)),getDoc(fotoSampulRef(uid))
  ]);
  applyingFirestoreRealtime=true;
  try{
   const tx=txSnap.exists()?txSnap.data()?.TransaksiKasir:null;
   const laporan=lapSnap.exists()?lapSnap.data()?.LaporanKasir:null;
-  const aktivitas=actSnap.exists()?actSnap.data()?.LaporanAktifitas:null;
   const input=inputSnap.exists()?inputSnap.data()?.InputData:null;
   const history=histSnap.exists()?histSnap.data()?.LaporanHistory:null;
   const kasbon=kasbonSnap.exists()?kasbonSnap.data()?.DataKasbon:null;
@@ -4517,10 +4525,6 @@ async function hydrate(uid){
   if(Array.isArray(produkKasir))nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(produkKasir));
   if(shopCover&&shopCover.src)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:shopCover.src,x:Number(shopCover.x)||50,y:Number(shopCover.y)||50}));
   if(fotoSampul&&fotoSampul.src)nativeSet.call(localStorage,`finance_foto_sampul_${phone}`,JSON.stringify({src:fotoSampul.src,x:Number(fotoSampul.x)||50,y:Number(fotoSampul.y)||50}));
-  if(Array.isArray(aktivitas)){
-   window.__rekapinyuSetActivityData?.(aktivitas);
-   nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(aktivitas));
-  }
  }finally{applyingFirestoreRealtime=false;}
  loadUserData();
  if(typeof refreshShopCoverPhoto==='function')refreshShopCoverPhoto();
@@ -4912,10 +4916,6 @@ function realtimeCollections(u){
   nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(value));
   try{window.__renderLaporanKasir?.()}catch{}
  },'LaporanKasir');
- listen(aref(u.uid),'LaporanAktifitas',value=>{
-  window.__rekapinyuSetActivityData?.(value);
-  nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(value));
- },'LaporanAktifitas');
  listen(iref(u.uid),'InputData',value=>{
   nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(value));
   try{historyData=value}catch{}
