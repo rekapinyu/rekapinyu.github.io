@@ -1421,7 +1421,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <div id="kasir-print-area" style="display:none"></div>
 <!-- AUTHENTICATION OVERLAY / PAGES -->
-<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
+<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 rk-auth-bootstrap" id="auth-container">
 <!-- CARD LOGIN -->
 <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 transition-all" id="login-card">
 <div class="text-center mb-6 login-brand-header">
@@ -2298,42 +2298,43 @@ bind();
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
-/* REKAPINYU AUTH RELOAD — IMPLEMENTASI BARU, SATU BLOK
-   Halaman yang sedang dibuka dipertahankan saat reload.
+/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI BARU
+   Login tidak boleh tampil selama Firebase masih memulihkan sesi.
+   Setelah Firebase selesai:
+   - ada sesi Firebase -> langsung masuk aplikasi
+   - tidak ada sesi -> baru tampilkan login
 */
-function checkAuth(){
-  const authContainer=document.getElementById("auth-container");
-  if(!authContainer)return;
-  const view=localStorage.getItem("finance_auth_view")||"login";
-  const firebaseUser=window.RekapinyuFirebase?.auth?.currentUser||null;
-  if(view==="dashboard" && firebaseUser && currentSessionUser){
-    authContainer.classList.add("rk-auth-reload-hidden");
-    return;
-  }
-  authContainer.classList.remove("rk-auth-reload-hidden");
-  const loginCard=document.getElementById("login-card");
-  const registerCard=document.getElementById("register-card");
-  if(view==="register"){
-    loginCard?.classList.add("hidden");
-    registerCard?.classList.remove("hidden");
-  }else{
-    registerCard?.classList.add("hidden");
-    loginCard?.classList.remove("hidden");
-  }
+function checkAuth() {
+    const authContainer = document.getElementById('auth-container');
+    if (!authContainer) return;
+    if (window.__rekapinyuAuthBooting) {
+        authContainer.classList.remove('hidden');
+        authContainer.classList.remove('rk-auth-bootstrap');
+        return;
+    }
+    authContainer.classList.remove('rk-auth-bootstrap');
+    if (currentSessionUser) {
+        authContainer.classList.add('hidden');
+        const nameEl = document.getElementById('sidebar-user-name');
+        if (nameEl) nameEl.innerText = currentSessionUser.name || '';
+        updateUserAvatarUI();
+        loadUserData();
+    } else {
+        authContainer.classList.remove('hidden');
+        historyData = [];
+        pengeluaranData = [];
+        kasbonData = [];
+        backupOtomatisData = [];
+    }
 }
 
-const authReloadStyle=document.createElement("style");
-authReloadStyle.id="rekapinyu-auth-reload-css";
-authReloadStyle.textContent="#auth-container.rk-auth-reload-hidden{display:none!important}";
-document.head.appendChild(authReloadStyle);
-
-/* Tentukan tampilan terakhir sebelum Firebase selesai memulihkan sesi. */
-(function(){
-  const c=document.getElementById("auth-container");
-  const v=localStorage.getItem("finance_auth_view")||"login";
-  if(c && v==="dashboard") c.classList.add("rk-auth-reload-hidden");
-  else if(c) c.classList.remove("rk-auth-reload-hidden");
-})();
+/* Gate reload baru: auth overlay tetap menutup dashboard selama Firebase memulihkan sesi. */
+window.__rekapinyuAuthBooting = true;
+const initialAuthContainer = document.getElementById('auth-container');
+if (initialAuthContainer) {
+    initialAuthContainer.classList.remove('hidden');
+    initialAuthContainer.classList.remove('rk-auth-bootstrap');
+}
 
 function updateUserAvatarUI() {
             const avatarContainer = document.getElementById('sidebar-user-avatar-container');
@@ -2349,14 +2350,12 @@ function updateUserAvatarUI() {
         function toggleAuthView(view) {
             const loginCard = document.getElementById('login-card');
             const registerCard = document.getElementById('register-card');
-            const target = view === 'register' ? 'register' : 'login';
-            localStorage.setItem('finance_auth_view', target);
-            if (target === 'register') {
-                loginCard?.classList.add('hidden');
-                registerCard?.classList.remove('hidden');
+            if (view === 'register') {
+                loginCard.classList.add('hidden');
+                registerCard.classList.remove('hidden');
             } else {
-                registerCard?.classList.add('hidden');
-                loginCard?.classList.remove('hidden');
+                registerCard.classList.add('hidden');
+                loginCard.classList.remove('hidden');
             }
         }
 
@@ -4363,7 +4362,7 @@ kref=uid=>doc(db,"DataKasbon",uid),
 pref=uid=>doc(db,"DataPengeluaran",uid),
 bref=uid=>doc(db,"DataLaporanBulanan",uid),
 oref=uid=>doc(db,"LaporanBackupOtomatis",uid);
-const nativeGet=Storage.prototype.getItem, nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
+const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
@@ -4660,7 +4659,6 @@ async function firebaseLogin(){
       if(snap.exists())user={...user,...snap.data()};
     }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
     localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
-     localStorage.setItem("finance_auth_view","dashboard");
     try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
     checkAuth();
     openDashboardAfterLogin();
@@ -5070,43 +5068,38 @@ async function consumeLandingLogin(){
 
 const landingHandoffPromise=consumeLandingLogin();
 
-/* SATU observer Firebase untuk mempertahankan halaman saat reload. */
-onAuthStateChanged(auth, async (u)=>{
+/* SATU titik penyelesaian auth saat reload.
+   Tidak memanggil checkAuth sebelum Firebase menentukan user. */
+onAuthStateChanged(auth,async u=>{
   await authReadyPromise;
   await landingHandoffPromise;
+
+  window.RekapinyuFirebase.ready=true;
+  window.RekapinyuFirebase.uid=u?.uid||null;
+
+  if(!u){
+    if(dataUnsub)dataUnsub();
+    if(userUnsub)userUnsub();
+    window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBooting=false;
+    currentSessionUser=null;
+    nativeRemove.call(localStorage,"finance_active_session");
+    checkAuth();
+    return;
+  }
+
   try{
-    if(u){
-      window.RekapinyuFirebase.ready=true;
-      window.RekapinyuFirebase.uid=u.uid;
-      const cached=safe(nativeGet.call(localStorage,"finance_active_session"),null);
-      currentSessionUser={...(cached&&typeof cached==="object"?cached:{}),uid:u.uid,email:u.email||cached?.email||"",name:u.displayName||cached?.name||"",phone:phoneOf(cached?.phone||"")};
-      if(!currentSessionUser.phone){
-        try{
-          const snap=await getDoc(uref(u.uid));
-          if(snap.exists()){const profile=snap.data()||{};currentSessionUser={...currentSessionUser,...profile,uid:u.uid,email:u.email||profile.email||"",phone:phoneOf(profile.phone||"")};}
-        }catch{}
-      }
-      nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-      await hydrate(u.uid);
-      realtime(u);
-      if(localStorage.getItem("finance_auth_view")==="dashboard"){
-        checkAuth();
-        redraw();
-      }
-    }else{
-      if(dataUnsub)dataUnsub();
-      if(userUnsub)userUnsub();
-      window.RekapinyuFirebase.ready=false;
-      window.RekapinyuFirebase.uid=null;
-      currentSessionUser=null;
-      nativeRemove.call(localStorage,"finance_active_session");
-      localStorage.setItem("finance_auth_view",localStorage.getItem("finance_auth_view")==="register"?"register":"login");
-      checkAuth();
-    }
+    await hydrate(u.uid);
+    realtime(u);
+    window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBooting=false;
+    checkAuth();
+    redraw();
   }catch(e){
-    console.error("Rekapinyu auth reload:",e);
-    if(u && localStorage.getItem("finance_auth_view")==="dashboard") checkAuth();
-    else checkAuth();
+    console.error("Firebase hydrate:",e);
+    window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBooting=false;
+    checkAuth();
   }
 });
 </script>
