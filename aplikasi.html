@@ -4827,7 +4827,9 @@ if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropaga
 if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
 window.handleLogout=async()=>{
-  try{await saveCloudData()}catch{}
+  /* Logout tidak boleh menunggu sinkronisasi Firestore.
+     Simpan data di background, lalu segera keluarkan sesi Firebase. */
+  try{void Promise.resolve(saveCloudData()).catch(e=>console.warn("Firebase save before logout:",e));}catch(e){console.warn("Firebase save before logout:",e)}
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
   currentSessionUser=null;
   window.__rekapinyuCloudRemove("finance_active_session");
