@@ -5038,13 +5038,25 @@ function realtime(u){
  },err=>console.warn('Rekapinyu: realtime data aplikasi gagal.',err));
  userUnsub=onSnapshot(uref(u.uid),snap=>{
   if(!snap.exists()||!currentSessionUser)return;
-  const d=snap.data();
-  currentSessionUser.name=d.name||currentSessionUser.name;
-  currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||''}catch{return''}})();
-  currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);
+  const d=snap.data()||{};
+  const saved=safe(localStorage.getItem("finance_active_session"),null);
+  const sameUid=saved&&String(saved.uid||"")===String(u.uid||"");
+  const ownName=String(currentSessionUser.name||"").trim();
+  const ownPhone=phoneOf(currentSessionUser.phone);
+  const ownPhoto=String(currentSessionUser.photo||"");
+  if(!sameUid){
+    currentSessionUser.name=String(d.name||ownName||"").trim();
+    currentSessionUser.phone=phoneOf(d.phone||ownPhone);
+    currentSessionUser.photo=String(d.photo||ownPhoto||"");
+  }else{
+    currentSessionUser.name=ownName||String(d.name||"").trim();
+    currentSessionUser.phone=ownPhone||phoneOf(d.phone);
+    currentSessionUser.photo=ownPhoto||String(d.photo||"");
+  }
   nativeSet.call(localStorage,'finance_active_session',JSON.stringify(currentSessionUser));
   document.getElementById('sidebar-user-name')?.replaceChildren(document.createTextNode(currentSessionUser.name));
   updateUserAvatarUI();
+  if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto();
  },err=>console.warn('Rekapinyu: realtime profil pengguna gagal.',err));
 }
 
