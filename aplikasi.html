@@ -4363,7 +4363,7 @@ window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,unsubscribe:n
 const USERS="rekapinyu_users", DATA="rekapinyu_data", MAX=850000;
 const phoneOf=v=>String(v||"").replace(/\D/g,"");
 const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
-const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid), aref=uid=>doc(db,"AktifitasHarian",uid);
+const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid), aref=uid=>doc(db,"AktifitasHarian",uid), lref=uid=>doc(db,"LaporanKasir",uid);
 const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
@@ -4453,6 +4453,7 @@ async function saveCloudData(){
  };
  if(shop)payload.shopCover=shop;
  await setDoc(dref(uid),payload,{merge:true});
+ await setDoc(lref(uid),{LaporanKasir:Array.isArray(kasirTransactions)?kasirTransactions:[],updatedAt:serverTimestamp()},{merge:true});
 }
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
