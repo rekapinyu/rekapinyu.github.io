@@ -1421,7 +1421,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <div id="kasir-print-area" style="display:none"></div>
 <!-- AUTHENTICATION OVERLAY / PAGES -->
-<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 rk-auth-bootstrap" id="auth-container">
+<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
 <!-- CARD LOGIN -->
 <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 transition-all" id="login-card">
 <div class="text-center mb-6 login-brand-header">
@@ -2298,42 +2298,52 @@ bind();
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
-/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI BARU
-   Login tidak boleh tampil selama Firebase masih memulihkan sesi.
-   Setelah Firebase selesai:
-   - ada sesi Firebase -> langsung masuk aplikasi
-   - tidak ada sesi -> baru tampilkan login
+/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI FINAL
+   Satu sumber keputusan saat reload:
+   - Firebase punya sesi -> tetap Dashboard
+   - Firebase tidak punya sesi -> tetap Login/Daftar
+   Tidak memakai localStorage sebagai sumber autentikasi.
 */
 function checkAuth() {
     const authContainer = document.getElementById('auth-container');
     if (!authContainer) return;
+
     if (window.__rekapinyuAuthBooting) {
         authContainer.classList.remove('hidden');
-        authContainer.classList.remove('rk-auth-bootstrap');
         return;
     }
-    authContainer.classList.remove('rk-auth-bootstrap');
-    if (currentSessionUser) {
+
+    if (currentSessionUser && window.RekapinyuFirebase?.ready && window.RekapinyuFirebase?.uid) {
         authContainer.classList.add('hidden');
         const nameEl = document.getElementById('sidebar-user-name');
         if (nameEl) nameEl.innerText = currentSessionUser.name || '';
         updateUserAvatarUI();
         loadUserData();
-    } else {
-        authContainer.classList.remove('hidden');
-        historyData = [];
-        pengeluaranData = [];
-        kasbonData = [];
-        backupOtomatisData = [];
+        return;
     }
+
+    authContainer.classList.remove('hidden');
+    historyData = [];
+    pengeluaranData = [];
+    kasbonData = [];
+    backupOtomatisData = [];
 }
 
-/* Gate reload baru: auth overlay tetap menutup dashboard selama Firebase memulihkan sesi. */
+/* Saat Firebase belum selesai menentukan sesi, Dashboard ditutup oleh auth-container. */
 window.__rekapinyuAuthBooting = true;
 const initialAuthContainer = document.getElementById('auth-container');
 if (initialAuthContainer) {
     initialAuthContainer.classList.remove('hidden');
-    initialAuthContainer.classList.remove('rk-auth-bootstrap');
+    const savedAuthView = localStorage.getItem('finance_auth_view');
+    const loginCard = document.getElementById('login-card');
+    const registerCard = document.getElementById('register-card');
+    if (savedAuthView === 'register') {
+        loginCard?.classList.add('hidden');
+        registerCard?.classList.remove('hidden');
+    } else {
+        registerCard?.classList.add('hidden');
+        loginCard?.classList.remove('hidden');
+    }
 }
 
 function updateUserAvatarUI() {
@@ -2350,12 +2360,14 @@ function updateUserAvatarUI() {
         function toggleAuthView(view) {
             const loginCard = document.getElementById('login-card');
             const registerCard = document.getElementById('register-card');
-            if (view === 'register') {
-                loginCard.classList.add('hidden');
-                registerCard.classList.remove('hidden');
+            const target = view === 'register' ? 'register' : 'login';
+            localStorage.setItem('finance_auth_view', target);
+            if (target === 'register') {
+                loginCard?.classList.add('hidden');
+                registerCard?.classList.remove('hidden');
             } else {
-                registerCard.classList.add('hidden');
-                loginCard.classList.remove('hidden');
+                registerCard?.classList.add('hidden');
+                loginCard?.classList.remove('hidden');
             }
         }
 
@@ -4362,7 +4374,7 @@ kref=uid=>doc(db,"DataKasbon",uid),
 pref=uid=>doc(db,"DataPengeluaran",uid),
 bref=uid=>doc(db,"DataLaporanBulanan",uid),
 oref=uid=>doc(db,"LaporanBackupOtomatis",uid);
-const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
+const nativeGet=Storage.prototype.getItem, nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
@@ -5068,37 +5080,80 @@ async function consumeLandingLogin(){
 
 const landingHandoffPromise=consumeLandingLogin();
 
-/* SATU titik penyelesaian auth saat reload.
-   Tidak memanggil checkAuth sebelum Firebase menentukan user. */
-onAuthStateChanged(auth,async u=>{
+/* SATU observer auth untuk reload Login/Daftar/Dashboard. */
+onAuthStateChanged(auth, async (u) => {
   await authReadyPromise;
   await landingHandoffPromise;
 
-  window.RekapinyuFirebase.ready=true;
-  window.RekapinyuFirebase.uid=u?.uid||null;
+  window.RekapinyuFirebase.ready = true;
+  window.RekapinyuFirebase.uid = u?.uid || null;
 
-  if(!u){
-    if(dataUnsub)dataUnsub();
-    if(userUnsub)userUnsub();
-    window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBooting=false;
-    currentSessionUser=null;
-    nativeRemove.call(localStorage,"finance_active_session");
+  if (!u) {
+    if (dataUnsub) dataUnsub();
+    if (userUnsub) userUnsub();
+
+    window.__rekapinyuLandingHandoffActive = false;
+    currentSessionUser = null;
+    nativeRemove.call(localStorage, "finance_active_session");
+    window.__rekapinyuAuthBooting = false;
+
     checkAuth();
     return;
   }
 
-  try{
+  /* Firebase sudah memastikan sesi valid: bentuk session dari UID Firebase
+     sebelum Dashboard dibuka, sehingga reload tidak memunculkan Login. */
+  try {
+    const cached = safe(nativeGet.call(localStorage, "finance_active_session"), null);
+    currentSessionUser = {
+      ...(cached && typeof cached === "object" ? cached : {}),
+      uid: u.uid,
+      email: u.email || cached?.email || "",
+      name: u.displayName || cached?.name || "",
+      phone: phoneOf(cached?.phone || "")
+    };
+
+    if (!currentSessionUser.phone) {
+      try {
+        const profileSnap = await getDoc(uref(u.uid));
+        if (profileSnap.exists()) {
+          const profile = profileSnap.data() || {};
+          currentSessionUser = {
+            ...currentSessionUser,
+            ...profile,
+            uid: u.uid,
+            email: u.email || profile.email || "",
+            phone: phoneOf(profile.phone || "")
+          };
+        }
+      } catch (profileErr) {
+        console.warn("Rekapinyu: profil Firebase belum dapat dibaca saat reload.", profileErr);
+      }
+    }
+
+    nativeSet.call(
+      localStorage,
+      "finance_active_session",
+      JSON.stringify(currentSessionUser)
+    );
+
     await hydrate(u.uid);
     realtime(u);
-    window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBooting=false;
+
+    window.__rekapinyuLandingHandoffActive = false;
+    window.__rekapinyuAuthBooting = false;
+
+    /* Sesi Firebase valid = Dashboard tetap terbuka. */
+    localStorage.setItem("finance_auth_view", "dashboard");
     checkAuth();
     redraw();
-  }catch(e){
-    console.error("Firebase hydrate:",e);
-    window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBooting=false;
+  } catch (e) {
+    console.error("Firebase auth reload:", e);
+
+    /* Jangan menampilkan Login hanya karena hydrate Firestore gagal.
+       Sesi Firebase tetap valid, sehingga Dashboard tetap dipertahankan. */
+    window.__rekapinyuLandingHandoffActive = false;
+    window.__rekapinyuAuthBooting = false;
     checkAuth();
   }
 });
