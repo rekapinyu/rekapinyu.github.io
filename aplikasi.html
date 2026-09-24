@@ -1779,6 +1779,7 @@ window.__rekapinyuSetActivityData=function(data){setData(data,true);baseline=wat
 function load(){const p=phone();if(p!==currentPhone){currentPhone=p;setData(readLocal(),false);baseline=watchSnapshot()}else{const local=readLocal();if(JSON.stringify(local)!==JSON.stringify(activityData))setData(local,false);else render()}}
 function addActivity(action,menu){if(!phone())return;const now=new Date(),ts=now.getTime(),start=activityPeriodStart(ts),item={id:`${ts}_${Math.random().toString(36).slice(2,8)}`,timestamp:ts,dateText:dateText(now),time:timeText(now),menu:String(menu||'Aplikasi'),action:String(action||'Aktifitas'),activity24hStart:start,activity24hId:String(start),activity24hEnd:periodEnd(start)};activityData=assign24hBuckets([...activityData,item]);if(activityData.length>2000)activityData=activityData.slice(-2000);window.__rekapinyuActivityData=activityData;try{localStorage.setItem(key(),JSON.stringify(activityData));localStorage.setItem(`finance_pending_activity_${phone()}`,JSON.stringify(activityData.map(x=>String(x.id)).slice(-2000)))}catch(e){}baseline=watchSnapshot();render();try{document.dispatchEvent(new CustomEvent('rekapinyu-activity-realtime-updated',{detail:item}))}catch(e){}try{window.__rekapinyuSaveActivityCloud?.()}catch(e){} }
 window.__rekapinyuLogActivity=addActivity;
+window.__rekapinyuActivitySyncBaseline=function(){try{baseline=watchSnapshot()}catch(e){}};
 function getJSON(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
 function snapshot(){const p=phone();if(!p)return{};return{history:getJSON(`finance_history_desktop_${p}`)||[],pengeluaran:getJSON(`finance_pengeluaran_desktop_${p}`)||[],kasbon:getJSON(`finance_kasbon_desktop_${p}`)||[],backup:getJSON(`finance_backup_desktop_${p}`)||[],products:getJSON(`finance_kasir_products_${p}`)||[],transactions:getJSON(`finance_kasir_transactions_${p}`)||[],receipt:getJSON(`finance_kasir_receipt_settings_${p}`)||{}}}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b)}
@@ -4931,6 +4932,7 @@ function realtimeCollections(u){
    applyingFirestoreRealtime=true;
    try{apply(value);}finally{applyingFirestoreRealtime=false;}
    try{redraw()}catch{}
+   if(label!=='LaporanAktifitas')try{window.__rekapinyuActivitySyncBaseline?.()}catch{}
   },err=>console.warn(`Rekapinyu: realtime ${label} gagal.`,err));
   collectionUnsubs.push(unsub);
  };
