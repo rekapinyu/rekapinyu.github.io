@@ -4431,7 +4431,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
@@ -4451,6 +4451,52 @@ pref=uid=>doc(db,"DataPengeluaran",uid),
 bref=uid=>doc(db,"DataLaporanBulanan",uid),
 oref=uid=>doc(db,"LaporanBackupOtomatis",uid);
 const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
+
+/* FIRESTORE COLLECTION RENAME — SATU IMPLEMENTASI BARU
+   Memindahkan data koleksi lama milik UID aktif ke nama koleksi baru,
+   lalu menghapus dokumen lama agar tidak ada dua sumber data yang berjalan. */
+let legacyCollectionMigrationPromise=null;
+async function migrateLegacyFirestoreCollections(uid){
+  if(!uid)return;
+  if(legacyCollectionMigrationPromise)return legacyCollectionMigrationPromise;
+  legacyCollectionMigrationPromise=(async()=>{
+    const maps=[
+      ["kasirTransactions",tref,"TransaksiKasir",["kasirTransactions","transactions"]],
+      ["activityData",aref,"LaporanAktifitas",["activityData","LaporanAktifitas"]],
+      ["historyData",href,"LaporanHistory",["historyData","LaporanHistory"]],
+      ["kasbonData",kref,"DataKasbon",["kasbonData","DataKasbon"]],
+      ["pengeluaranData",pref,"DataPengeluaran",["pengeluaranData","DataPengeluaran"]],
+      ["LaporanBulanan",bref,"DataLaporanBulanan",["LaporanBulanan","DataLaporanBulanan"]],
+      ["backupOtomatisData",oref,"LaporanBackupOtomatis",["backupOtomatisData","LaporanBackupOtomatis"]]
+    ];
+    for(const [oldName,newRef,newField,oldFields] of maps){
+      try{
+        const oldRef=doc(db,oldName,uid);
+        const oldSnap=await getDoc(oldRef);
+        if(!oldSnap.exists())continue;
+        const oldData=oldSnap.data()||{};
+        const newSnap=await getDoc(newRef(uid));
+        const newData=newSnap.exists()?newSnap.data()||{}:{};
+        let oldValue;
+        for(const field of oldFields){
+          if(oldData[field]!==undefined){oldValue=oldData[field];break;}
+        }
+        if(oldValue!==undefined){
+          const currentValue=newData[newField];
+          const currentEmpty=currentValue===undefined || (Array.isArray(currentValue)&&currentValue.length===0);
+          const oldHasData=!(Array.isArray(oldValue)&&oldValue.length===0);
+          if(currentEmpty && oldHasData){
+            await setDoc(newRef(uid),{[newField]:oldValue,updatedAt:serverTimestamp()},{merge:true});
+          }
+        }
+        await deleteDoc(oldRef);
+      }catch(err){
+        console.warn(`Rekapinyu: migrasi koleksi ${oldName} gagal.`,err);
+      }
+    }
+  })().finally(()=>{legacyCollectionMigrationPromise=null});
+  return legacyCollectionMigrationPromise;
+}
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
@@ -4731,7 +4777,7 @@ async function firebaseLogin(){
       if(snap.exists())user={...user,...snap.data()};
     }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
     localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
-    try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
+    try{await migrateLegacyFirestoreCollections(credential.user.uid);await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
     checkAuth();
     openDashboardAfterLogin();
     form.reset();
@@ -4761,7 +4807,7 @@ async function firebaseLogin(){
           ]);
         }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
         localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
-        try{await hydrate(credential.user.uid)}catch{}
+        try{await migrateLegacyFirestoreCollections(credential.user.uid);await hydrate(credential.user.uid)}catch{}
         checkAuth();openDashboardAfterLogin();form.reset();
         notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
         return;
@@ -5174,6 +5220,7 @@ onAuthStateChanged(auth,async u=>{
   }
 
   try{
+    await migrateLegacyFirestoreCollections(u.uid);
     await hydrate(u.uid);
     realtime(u);
     window.__rekapinyuLandingHandoffActive=false;
