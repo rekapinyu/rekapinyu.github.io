@@ -4437,6 +4437,7 @@ async function saveCloudData(){
  const uid=cloudUid(),phone=phoneOf(currentSessionUser?.phone);if(!uid||!phone)return;
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||'';if(shop.length>MAX)shop='';
  const kasirTransactions=safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]);
+ const laporanKasirCache=safe(localStorage.getItem(`finance_laporan_kasir_desktop_${phone}`),kasirTransactions);
  const activity=Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[];
  const receiptSettings=safe(localStorage.getItem(`finance_kasir_receipt_settings_${phone}`),{});
  const inputData=Array.isArray(historyData)?historyData:[];
@@ -4459,7 +4460,7 @@ async function saveCloudData(){
  await setDoc(dref(uid),payload,{merge:true});
  await Promise.all([
   setDoc(tref(uid),{TransaksiKasir:Array.isArray(kasirTransactions)?kasirTransactions:[],updatedAt:serverTimestamp()},{merge:true}),
-  setDoc(lref(uid),{LaporanKasir:Array.isArray(kasirTransactions)?kasirTransactions:[],updatedAt:serverTimestamp()},{merge:true}),
+  setDoc(lref(uid),{LaporanKasir:Array.isArray(laporanKasirCache)?laporanKasirCache:[],updatedAt:serverTimestamp()},{merge:true}),
   setDoc(aref(uid),{LaporanAktifitas:activity,updatedAt:serverTimestamp()},{merge:true}),
   setDoc(iref(uid),{InputData:inputData,updatedAt:serverTimestamp()},{merge:true}),
   setDoc(href(uid),{LaporanHistory:inputData,updatedAt:serverTimestamp()},{merge:true}),
@@ -4536,7 +4537,7 @@ async function hydrate(uid){
  const backupCloud=backupSnap.exists()?backupSnap.data()?.LaporanBackupOtomatis:(Array.isArray(d.backupOtomatisData)?d.backupOtomatisData:null);
 
  if(Array.isArray(txCloud))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(txCloud));
- if(Array.isArray(laporanCloud))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(laporanCloud));
+ if(Array.isArray(laporanCloud))nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(laporanCloud));
  const inputResult=syncCloudArrayToCache(phone,"history",Array.isArray(inputCloud)?inputCloud:historyCloud);
  const historyResult=syncCloudArrayToCache(phone,"history",Array.isArray(historyCloud)?historyCloud:inputResult);
  const preservedPengeluaran=syncCloudArrayToCache(phone,"pengeluaran",pengeluaranCloud);
@@ -4975,29 +4976,33 @@ function realtimeCollections(u){
  },'TransaksiKasir');
 
  listen(lref(u.uid),'LaporanKasir',v=>{
-  nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(v));
+  nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${p}`,JSON.stringify(v));
+  try{window.__renderLaporanKasir?.()}catch(e){}
  },'LaporanKasir');
 
  listen(aref(u.uid),'LaporanAktifitas',v=>{
-  const merged=mergeActivityCloud(p,v);
-  window.__rekapinyuSetActivityData?.(merged);
-  nativeSet.call(localStorage,`finance_activity_desktop_${p}`,JSON.stringify(merged));
+  window.__rekapinyuSetActivityData?.(v);
+  nativeSet.call(localStorage,`finance_activity_desktop_${p}`,JSON.stringify(v));
  },'LaporanAktifitas');
 
  listen(iref(u.uid),'InputData',v=>{
-  syncCloudArrayToCache(p,'history',v);
+  nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(v));
+  try{historyData=Array.isArray(v)?v:[];}catch{}
  },'InputData');
 
  listen(href(u.uid),'LaporanHistory',v=>{
-  syncCloudArrayToCache(p,'history',v);
+  nativeSet.call(localStorage,`finance_history_desktop_${p}`,JSON.stringify(v));
+  try{historyData=Array.isArray(v)?v:[];}catch{}
  },'LaporanHistory');
 
  listen(kref(u.uid),'DataKasbon',v=>{
-  syncCloudArrayToCache(p,'kasbon',v);
+  nativeSet.call(localStorage,`finance_kasbon_desktop_${p}`,JSON.stringify(v));
+  try{kasbonData=Array.isArray(v)?v:[];}catch{}
  },'DataKasbon');
 
  listen(pref(u.uid),'DataPengeluaran',v=>{
-  syncCloudArrayToCache(p,'pengeluaran',v);
+  nativeSet.call(localStorage,`finance_pengeluaran_desktop_${p}`,JSON.stringify(v));
+  try{pengeluaranData=Array.isArray(v)?v:[];}catch{}
  },'DataPengeluaran');
 
  listen(bref(u.uid),'DataLaporanBulanan',v=>{
@@ -5005,7 +5010,8 @@ function realtimeCollections(u){
  },'DataLaporanBulanan');
 
  listen(oref(u.uid),'LaporanBackupOtomatis',v=>{
-  syncCloudArrayToCache(p,'backup',v);
+  nativeSet.call(localStorage,`finance_backup_desktop_${p}`,JSON.stringify(v));
+  try{backupOtomatisData=Array.isArray(v)?v:[];}catch{}
  },'LaporanBackupOtomatis');
 }
 
@@ -6651,7 +6657,7 @@ function initKasirViews(){
 </style>
 <script id="laporan-kasir-v4-js">
 (function(){
-  function laporanKasirKey(){const p=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return 'finance_kasir_transactions_'+p}
+  function laporanKasirKey(){const p=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:'guest';return 'finance_laporan_kasir_desktop_'+p}
   function laporanKasirData(){try{const v=JSON.parse(localStorage.getItem(laporanKasirKey())||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}}
   function laporanKasirRupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function laporanKasirEscape(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
