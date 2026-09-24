@@ -4775,27 +4775,16 @@ async function firebaseLogin(){
   const submit=form.querySelector('button[type="submit"]');
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
+  let credential=null;
   try{
     await authReadyPromise;
-    const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-    let user={uid:credential.user.uid,name:credential.user.displayName||"",phone,email:credential.user.email,photo:""};
-    try{
-      const snap=await getDoc(uref(credential.user.uid));
-      if(snap.exists())user={...user,...snap.data()};
-    }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
-    localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
-    try{await migrateLegacyFirestoreCollections(credential.user.uid);await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
-    checkAuth();
-    openDashboardAfterLogin();
-    form.reset();
-    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+    credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
   }catch(err){
     console.error("Rekapinyu Firebase login:",err);
-    // Migrasi satu kali akun lama yang masih tersimpan di versi sebelum Firebase.
     const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
     if(legacy && (err?.code==="auth/user-not-found" || err?.code==="auth/invalid-credential" || err?.code==="auth/invalid-login-credentials")){
       try{
-        const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
+        credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
         await updateProfile(credential.user,{displayName:legacy.name||""});
         try{
           await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
@@ -4813,16 +4802,33 @@ async function firebaseLogin(){
             setDoc(aref(credential.user.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true})
           ]);
         }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
-        localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
-        try{await migrateLegacyFirestoreCollections(credential.user.uid);await hydrate(credential.user.uid)}catch{}
-        checkAuth();openDashboardAfterLogin();form.reset();
-        notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
-        return;
       }catch(migrateErr){
         console.error("Rekapinyu legacy migration:",migrateErr);
+        notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
+        return;
       }
+    }else{
+      notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
+      return;
     }
-    notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
+  }
+  try{
+    let user={uid:credential.user.uid,name:credential.user.displayName||"",phone,email:credential.user.email,photo:""};
+    try{
+      const snap=await getDoc(uref(credential.user.uid));
+      if(snap.exists())user={...user,...snap.data()};
+    }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
+    localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
+    try{await migrateLegacyFirestoreCollections(credential.user.uid);await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
+    checkAuth();
+    openDashboardAfterLogin();
+    form.reset();
+    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+  }catch(postLoginErr){
+    console.error("Rekapinyu: proses setelah autentikasi berhasil.",postLoginErr);
+    try{checkAuth();openDashboardAfterLogin()}catch(e){console.warn("Rekapinyu: dashboard tidak dapat dibuka otomatis.",e)}
+    form.reset();
+    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser?.name||nameFromPhone(phone)}!`);
   }finally{
     if(submit)delete submit.dataset.busy;
   }
