@@ -1415,6 +1415,70 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   }
 }
 </style>
+<script id="rekapinyu-cloud-persistence-layer">
+/* REKAPINYU DATA PERSISTENCE — SATU IMPLEMENTASI
+   Data aplikasi yang ditetapkan ke Firestore tidak disimpan ke localStorage.
+   localStorage tetap dipakai untuk Produk Kasir dan data UI/non-data lainnya. */
+(function(){
+  if(window.__rekapinyuCloudPersistenceLayer)return;
+  window.__rekapinyuCloudPersistenceLayer=true;
+  const nativeGet=Storage.prototype.getItem;
+  const nativeSet=Storage.prototype.setItem;
+  const nativeRemove=Storage.prototype.removeItem;
+  const memory=window.__rekapinyuCloudMemory=window.__rekapinyuCloudMemory||Object.create(null);
+  function isCloudKey(k){
+    k=String(k||'');
+    return /^finance_(history_desktop_|pengeluaran_desktop_|kasbon_desktop_|backup_desktop_|kasir_transactions_|laporan_kasir_desktop_|activity_desktop_|laporan_bulanan_|shop_cover_|kasir_receipt_settings_|pending_|activity_guest)/.test(k);
+  }
+  window.__rekapinyuIsCloudKey=isCloudKey;
+  window.__rekapinyuCloudGet=function(k){
+    const key=String(k||'');
+    if(Object.prototype.hasOwnProperty.call(memory,key))return memory[key];
+    return nativeGet.call(localStorage,key);
+  };
+  window.__rekapinyuCloudSet=function(k,v){
+    const key=String(k||'');
+    if(!isCloudKey(key))return window.__rekapinyuCloudSet(key,String(v));
+    memory[key]=String(v);
+    try{
+      if(window.RekapinyuFirebase?.ready&&window.RekapinyuFirebase.uid&&!window.__rekapinyuApplyingCloudRealtime){
+        clearTimeout(window.__rekapinyuCloudSaveTimer);
+        window.__rekapinyuCloudSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),180);
+      }
+    }catch(e){}
+    return undefined;
+  };
+  window.__rekapinyuCloudRemove=function(k){
+    const key=String(k||'');
+    if(!isCloudKey(key))return window.__rekapinyuCloudRemove(key);
+    delete memory[key];
+    try{
+      if(window.RekapinyuFirebase?.ready&&window.RekapinyuFirebase.uid&&!window.__rekapinyuApplyingCloudRealtime){
+        clearTimeout(window.__rekapinyuCloudSaveTimer);
+        window.__rekapinyuCloudSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),180);
+      }
+    }catch(e){}
+    return undefined;
+  };
+  window.__rekapinyuNativeSet=nativeSet;
+  window.__rekapinyuNativeRemove=nativeRemove;
+  Storage.prototype.getItem=function(k){
+    const key=String(k||'');
+    if(this===localStorage&&isCloudKey(key))return Object.prototype.hasOwnProperty.call(memory,key)?memory[key]:null;
+    return nativeGet.call(this,k);
+  };
+  Storage.prototype.setItem=function(k,v){
+    const key=String(k||'');
+    if(this===localStorage&&isCloudKey(key))return window.__rekapinyuCloudSet(key,v);
+    return nativeSet.call(this,k,v);
+  };
+  Storage.prototype.removeItem=function(k){
+    const key=String(k||'');
+    if(this===localStorage&&isCloudKey(key))return window.__rekapinyuCloudRemove(key);
+    return nativeRemove.call(this,k);
+  };
+})();
+</script>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 <div aria-hidden="true" id="kasir-payment-popup">
@@ -4403,7 +4467,7 @@ function markDataPending(key,items){
   const arr=Array.isArray(items)?items:[];
   const ids=arr.map(x=>String(x?.id)).filter(Boolean);
   if(!ids.length)return;
-  nativeSet.call(localStorage,dataPendingKey(phone,key),JSON.stringify(ids));
+  window.__rekapinyuCloudSet(dataPendingKey(phone,key),JSON.stringify(ids));
  }catch(e){}
 }
 function clearDataPending(key,items){
@@ -4413,8 +4477,8 @@ function clearDataPending(key,items){
   if(!Array.isArray(pending)||!pending.length)return;
   const ids=new Set((Array.isArray(items)?items:[]).map(x=>String(x?.id)));
   const left=pending.filter(id=>!ids.has(String(id)));
-  if(left.length)nativeSet.call(localStorage,dataPendingKey(phone,key),JSON.stringify(left));
-  else nativeRemove.call(localStorage,dataPendingKey(phone,key));
+  if(left.length)window.__rekapinyuCloudSet(dataPendingKey(phone,key),JSON.stringify(left));
+  else window.__rekapinyuCloudRemove(dataPendingKey(phone,key));
  }catch(e){}
 }
 function mergePendingData(phone,key,cloudValue){
@@ -4431,10 +4495,10 @@ function mergePendingData(phone,key,cloudValue){
 }
 function persistAllDataLocally(){
  const phone=phoneOf(currentSessionUser?.phone); if(!phone)return;
- nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(Array.isArray(historyData)?historyData:[]));
- nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(Array.isArray(pengeluaranData)?pengeluaranData:[]));
- nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(Array.isArray(kasbonData)?kasbonData:[]));
- nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(Array.isArray(backupOtomatisData)?backupOtomatisData:[]));
+ window.__rekapinyuCloudSet(`finance_history_desktop_${phone}`,JSON.stringify(Array.isArray(historyData)?historyData:[]));
+ window.__rekapinyuCloudSet(`finance_pengeluaran_desktop_${phone}`,JSON.stringify(Array.isArray(pengeluaranData)?pengeluaranData:[]));
+ window.__rekapinyuCloudSet(`finance_kasbon_desktop_${phone}`,JSON.stringify(Array.isArray(kasbonData)?kasbonData:[]));
+ window.__rekapinyuCloudSet(`finance_backup_desktop_${phone}`,JSON.stringify(Array.isArray(backupOtomatisData)?backupOtomatisData:[]));
 }
 function requestDataCloudSync(){try{window.__rekapinyuSaveCloudData?.();}catch(e){}}
 // Bridge untuk script klasik: helper di dalam module tidak terlihat oleh script biasa.
@@ -4449,7 +4513,8 @@ function cloudLaporanBulanan(){
 
 /* FIRESTORE DATA SYNC — SATU IMPLEMENTASI */
 let cloudSaveChain=Promise.resolve();
-let applyingFirestoreRealtime=false;
+let applyingFirestoreRealtime=false; window.__rekapinyuApplyingCloudRealtime=false;
+window.__rekapinyuApplyingCloudRealtime=false;
 
 function firestorePayload(){
  const phone=phoneOf(currentSessionUser?.phone);
@@ -4468,7 +4533,11 @@ function firestorePayload(){
 async function saveCloudData(){
  const uid=cloudUid(),phone=phoneOf(currentSessionUser?.phone);if(!uid||!phone)return;
  const data=firestorePayload();
+ const receiptSettings=safe(localStorage.getItem(`finance_kasir_receipt_settings_${phone}`),{});
+ const printerSettings=safe(localStorage.getItem(`finance_kasir_printer_settings_${phone}`),{});
+ const kasirSettings=safe(localStorage.getItem(`finance_kasir_settings_${phone}`),{});
  await Promise.all([
+  setDoc(dref(uid),{receiptSettings,printerSettings,kasirSettings,updatedAt:serverTimestamp()},{merge:true}),
   setDoc(tref(uid),{TransaksiKasir:data.kasir,updatedAt:serverTimestamp()},{merge:true}),
   setDoc(lref(uid),{LaporanKasir:data.laporanKasir,updatedAt:serverTimestamp()},{merge:true}),
   setDoc(aref(uid),{LaporanAktifitas:data.aktivitas,updatedAt:serverTimestamp()},{merge:true}),
@@ -4501,11 +4570,12 @@ async function hydrate(uid){
  const u=us.exists()?us.data():{};
  const phone=phoneOf(u.phone||currentSessionUser?.phone);if(!phone)return;
  localSession({...u,uid});
- const [txSnap,lapSnap,actSnap,inputSnap,histSnap,kasbonSnap,pengeluaranSnap,bulananSnap,backupSnap]=await Promise.all([
-  getDoc(tref(uid)),getDoc(lref(uid)),getDoc(aref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid))
+ const [appSnap,txSnap,lapSnap,actSnap,inputSnap,histSnap,kasbonSnap,pengeluaranSnap,bulananSnap,backupSnap]=await Promise.all([
+  getDoc(dref(uid)),getDoc(tref(uid)),getDoc(lref(uid)),getDoc(aref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid))
  ]);
- applyingFirestoreRealtime=true;
+ applyingFirestoreRealtime=true; window.__rekapinyuApplyingCloudRealtime=true;
  try{
+  const app=appSnap.exists()?appSnap.data()||{}:{};
   const tx=txSnap.exists()?txSnap.data()?.TransaksiKasir:null;
   const laporan=lapSnap.exists()?lapSnap.data()?.LaporanKasir:null;
   const aktivitas=actSnap.exists()?actSnap.data()?.LaporanAktifitas:null;
@@ -4514,18 +4584,21 @@ async function hydrate(uid){
   const kasbon=kasbonSnap.exists()?kasbonSnap.data()?.DataKasbon:null;
   const pengeluaran=pengeluaranSnap.exists()?pengeluaranSnap.data()?.DataPengeluaran:null;
   const backup=backupSnap.exists()?backupSnap.data()?.LaporanBackupOtomatis:null;
-  if(Array.isArray(tx))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(tx));
-  if(Array.isArray(laporan))nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(laporan));
-  if(Array.isArray(input))nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(input));
-  else if(Array.isArray(history))nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(history));
-  if(Array.isArray(kasbon))nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(kasbon));
-  if(Array.isArray(pengeluaran))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(pengeluaran));
-  if(Array.isArray(backup))nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(backup));
+  if(Array.isArray(tx))window.__rekapinyuCloudSet(`finance_kasir_transactions_${phone}`,JSON.stringify(tx));
+  if(Array.isArray(laporan))window.__rekapinyuCloudSet(`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(laporan));
+  if(Array.isArray(input))window.__rekapinyuCloudSet(`finance_history_desktop_${phone}`,JSON.stringify(input));
+  else if(Array.isArray(history))window.__rekapinyuCloudSet(`finance_history_desktop_${phone}`,JSON.stringify(history));
+  if(Array.isArray(kasbon))window.__rekapinyuCloudSet(`finance_kasbon_desktop_${phone}`,JSON.stringify(kasbon));
+  if(Array.isArray(pengeluaran))window.__rekapinyuCloudSet(`finance_pengeluaran_desktop_${phone}`,JSON.stringify(pengeluaran));
+  if(Array.isArray(backup))window.__rekapinyuCloudSet(`finance_backup_desktop_${phone}`,JSON.stringify(backup));
+  if(app.receiptSettings&&typeof app.receiptSettings==='object')window.__rekapinyuCloudSet(`finance_kasir_receipt_settings_${phone}`,JSON.stringify(app.receiptSettings));
+  if(app.printerSettings&&typeof app.printerSettings==='object')window.__rekapinyuCloudSet(`finance_kasir_printer_settings_${phone}`,JSON.stringify(app.printerSettings));
+  if(app.kasirSettings&&typeof app.kasirSettings==='object')window.__rekapinyuCloudSet(`finance_kasir_settings_${phone}`,JSON.stringify(app.kasirSettings));
   if(Array.isArray(aktivitas)){
    window.__rekapinyuSetActivityData?.(aktivitas);
-   nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(aktivitas));
+   window.__rekapinyuCloudSet(`finance_activity_desktop_${phone}`,JSON.stringify(aktivitas));
   }
- }finally{applyingFirestoreRealtime=false;}
+ }finally{applyingFirestoreRealtime=false; window.__rekapinyuApplyingCloudRealtime=false;}
  loadUserData();
  if(typeof refreshShopCoverPhoto==='function')refreshShopCoverPhoto();
  if(typeof updateUserAvatarUI==='function')updateUserAvatarUI();
@@ -4559,49 +4632,15 @@ function localSession(u){
   photo:String(current.photo??u.photo??"") ,
   email:current.email||u.email||auth.currentUser?.email||""
  };
- nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+ window.__rekapinyuCloudSet("finance_active_session",JSON.stringify(currentSessionUser));
  const users=safe(localStorage.getItem("finance_registered_users"),[]);
  const list=Array.isArray(users)?users:[];
  const index=list.findIndex(item=>phoneOf(item.phone)===currentSessionUser.phone);
  if(index>=0)list[index]={...list[index],...currentSessionUser};
  else list.push(currentSessionUser);
- nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
+ window.__rekapinyuCloudSet("finance_registered_users",JSON.stringify(list));
 }
-// FIRESTORE AUTO-SAVE WATCHER — SATU IMPLEMENTASI
-if(!Storage.prototype.__rekapinyuFirebaseFull){
- Storage.prototype.setItem=function(k,v){
-  const r=nativeSet.call(this,k,v);
-  if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()&&!applyingFirestoreRealtime){
-   const p=phoneOf(currentSessionUser?.phone);
-   const watched=[
-    `finance_history_desktop_${p}`,
-    `finance_pengeluaran_desktop_${p}`,
-    `finance_kasbon_desktop_${p}`,
-    `finance_backup_desktop_${p}`,
-    `finance_shop_cover_${p}`,
-    `finance_kasir_transactions_${p}`,
-    `finance_laporan_kasir_desktop_${p}`,
-    `finance_activity_desktop_${p}`,
-    `finance_kasir_receipt_settings_${p}`
-   ];
-   if(watched.includes(k)){
-    clearTimeout(window.__rfSaveTimer);
-    window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),200);
-   }
-  }
-  return r;
- };
- Storage.prototype.removeItem=function(k){
-  const r=nativeRemove.call(this,k);
-  if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()&&!applyingFirestoreRealtime){
-   clearTimeout(window.__rfSaveTimer);
-   window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),100);
-  }
-  return r;
- };
- Storage.prototype.__rekapinyuFirebaseFull=true;
-}
-
+/* FIRESTORE AUTO-SAVE: ditangani oleh satu persistence layer di <head>. */
 // REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI FIREBASE
 // Persistensi sesi diaktifkan sebelum observer auth dipasang.
 const authReadyPromise = setPersistence(auth, browserLocalPersistence).catch(err => {
@@ -4643,7 +4682,7 @@ async function firebaseRegister(){
     // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
     try{
       await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
+      await setDoc(dref(credential.user.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},printerSettings:{paperWidth:'32',copyCount:1},kasirSettings:{confirmCancel:true,focusSearch:true},shopCover:"",updatedAt:serverTimestamp()});
       await Promise.all([
         setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
         setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
@@ -4659,9 +4698,9 @@ async function firebaseRegister(){
       console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
     }
     // Cache lokal hanya untuk kompatibilitas UI lama; bukan sumber autentikasi.
-    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
+    window.__rekapinyuCloudSet("finance_registered_users",JSON.stringify([{...userData,password}]));
     currentSessionUser=null;
-    nativeRemove.call(localStorage,"finance_active_session");
+    window.__rekapinyuCloudRemove("finance_active_session");
     try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
     form.reset();
     toggleAuthView("login");
@@ -4745,13 +4784,13 @@ window.handleLogout=async()=>{
   try{await saveCloudData()}catch{}
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
   currentSessionUser=null;
-  nativeRemove.call(localStorage,"finance_active_session");
+  window.__rekapinyuCloudRemove("finance_active_session");
   checkAuth();
   toggleAuthView("login");
 };
 
 // Profile changes save to Firestore instead of only localStorage.
-window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
+window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});window.__rekapinyuCloudSet("finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
 
 // Pengolah gambar: menerima JPG/PNG, portrait maupun landscape, dan membuat preview yang ringan.
 function imageToDataURL(file,maxSide=1600,quality=0.88){return new Promise((resolve,reject)=>{
@@ -4778,10 +4817,10 @@ if(profileSave)profileSave.addEventListener("click",async e=>{
     const localUrl=await imageToDataURL(file,900,0.88);
     const phone=phoneOf(currentSessionUser.phone);
     currentSessionUser.photo=localUrl;
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
+    window.__rekapinyuCloudSet("finance_active_session",JSON.stringify(currentSessionUser));
+    window.__rekapinyuCloudSet(`finance_profile_photo_${phone}`,localUrl);
     const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
-    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
+    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};window.__rekapinyuCloudSet("finance_registered_users",JSON.stringify(registeredUsers));}
     updateUserAvatarUI();
     // Simpan profil lokal/Firestore tanpa menjadikan kegagalan Rules sebagai kegagalan UI.
     try{await saveCloudUser({photo:localUrl})}catch(err){console.warn("Foto profil lokal tersimpan; Firestore belum menerima foto.",err)}
@@ -4791,8 +4830,8 @@ if(profileSave)profileSave.addEventListener("click",async e=>{
       await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
       const url=await getDownloadURL(r);
       currentSessionUser.photo=url;
-      nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-      nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
+      window.__rekapinyuCloudSet("finance_active_session",JSON.stringify(currentSessionUser));
+      window.__rekapinyuCloudSet(`finance_profile_photo_${phone}`,url);
       await saveCloudUser({photo:url});
       updateUserAvatarUI();
     }catch(storageErr){console.warn("Storage profil belum mengizinkan upload; cache lokal tetap digunakan.",storageErr)}
@@ -4832,10 +4871,10 @@ window.__rekapinyuSaveProfilePhoto=async function(){
     const localUrl=await imageToDataURL(file,900,0.88);
     const phone=phoneOf(currentSessionUser?.phone);
     currentSessionUser.photo=localUrl;
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
+    window.__rekapinyuCloudSet("finance_active_session",JSON.stringify(currentSessionUser));
+    if(phone)window.__rekapinyuCloudSet(`finance_profile_photo_${phone}`,localUrl);
     const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
-    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
+    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};window.__rekapinyuCloudSet("finance_registered_users",JSON.stringify(registeredUsers));}
     updateUserAvatarUI();
     closeProfileModal();
 
@@ -4851,8 +4890,8 @@ window.__rekapinyuSaveProfilePhoto=async function(){
         await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
         const url=await getDownloadURL(r);
         currentSessionUser.photo=url;
-        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-        if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
+        window.__rekapinyuCloudSet("finance_active_session",JSON.stringify(currentSessionUser));
+        if(phone)window.__rekapinyuCloudSet(`finance_profile_photo_${phone}`,url);
         try{await saveCloudUser({photo:url});}catch(err){console.warn("Firestore URL foto profil:",err)}
         updateUserAvatarUI();
       }catch(err){console.warn("Storage foto profil:",err)}
@@ -4972,47 +5011,46 @@ function realtimeCollections(u){
  const phone=phoneOf(currentSessionUser?.phone);if(!phone)return;
  const listen=(ref,field,apply,label)=>{
   const unsub=onSnapshot(ref,snap=>{
-   if(!snap.exists())return;
-   const value=snap.data()?.[field];
+   const value=snap.exists()?snap.data()?.[field]:[];
    if(!Array.isArray(value))return;
-   applyingFirestoreRealtime=true;
-   try{apply(value);}finally{applyingFirestoreRealtime=false;}
+   applyingFirestoreRealtime=true; window.__rekapinyuApplyingCloudRealtime=true;
+   try{apply(value);}finally{applyingFirestoreRealtime=false; window.__rekapinyuApplyingCloudRealtime=false;}
    try{redraw()}catch{}
   },err=>console.warn(`Rekapinyu: realtime ${label} gagal.`,err));
   collectionUnsubs.push(unsub);
  };
  listen(tref(u.uid),'TransaksiKasir',value=>{
-  nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_kasir_transactions_${phone}`,JSON.stringify(value));
  },'TransaksiKasir');
  listen(lref(u.uid),'LaporanKasir',value=>{
-  nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(value));
   try{window.__renderLaporanKasir?.()}catch{}
  },'LaporanKasir');
  listen(aref(u.uid),'LaporanAktifitas',value=>{
   window.__rekapinyuSetActivityData?.(value);
-  nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_activity_desktop_${phone}`,JSON.stringify(value));
  },'LaporanAktifitas');
  listen(iref(u.uid),'InputData',value=>{
-  nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_history_desktop_${phone}`,JSON.stringify(value));
   try{historyData=value}catch{}
  },'InputData');
  listen(href(u.uid),'LaporanHistory',value=>{
-  nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_history_desktop_${phone}`,JSON.stringify(value));
   try{historyData=value}catch{}
  },'LaporanHistory');
  listen(kref(u.uid),'DataKasbon',value=>{
-  nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_kasbon_desktop_${phone}`,JSON.stringify(value));
   try{kasbonData=value}catch{}
  },'DataKasbon');
  listen(pref(u.uid),'DataPengeluaran',value=>{
-  nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_pengeluaran_desktop_${phone}`,JSON.stringify(value));
   try{pengeluaranData=value}catch{}
  },'DataPengeluaran');
  listen(bref(u.uid),'DataLaporanBulanan',value=>{
-  nativeSet.call(localStorage,`finance_laporan_bulanan_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_laporan_bulanan_${phone}`,JSON.stringify(value));
  },'DataLaporanBulanan');
  listen(oref(u.uid),'LaporanBackupOtomatis',value=>{
-  nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(value));
+  window.__rekapinyuCloudSet(`finance_backup_desktop_${phone}`,JSON.stringify(value));
   try{backupOtomatisData=value}catch{}
  },'LaporanBackupOtomatis');
 }
@@ -5024,16 +5062,18 @@ function realtime(u){
  dataUnsub=onSnapshot(dref(u.uid),snap=>{
   if(!snap.exists())return;
   const d=snap.data(),phone=phoneOf(currentSessionUser?.phone);if(!phone)return;
-  applyingFirestoreRealtime=true;
+  applyingFirestoreRealtime=true; window.__rekapinyuApplyingCloudRealtime=true;
   try{
-   if(d.receiptSettings&&typeof d.receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(d.receiptSettings));
+   if(d.receiptSettings&&typeof d.receiptSettings==='object')window.__rekapinyuCloudSet(`finance_kasir_receipt_settings_${phone}`,JSON.stringify(d.receiptSettings));
+   if(d.printerSettings&&typeof d.printerSettings==='object')window.__rekapinyuCloudSet(`finance_kasir_printer_settings_${phone}`,JSON.stringify(d.printerSettings));
+   if(d.kasirSettings&&typeof d.kasirSettings==='object')window.__rekapinyuCloudSet(`finance_kasir_settings_${phone}`,JSON.stringify(d.kasirSettings));
    if(d.shopCover&&!String(d.shopCover).startsWith('data:')){
     try{
      const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${phone}`)||'null');
-     if(!existing||!existing.src||String(existing.src).startsWith('http'))nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:d.shopCover,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
+     if(!existing||!existing.src||String(existing.src).startsWith('http'))window.__rekapinyuCloudSet(`finance_shop_cover_${phone}`,JSON.stringify({src:d.shopCover,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
     }catch{}
    }
-  }finally{applyingFirestoreRealtime=false;}
+  }finally{applyingFirestoreRealtime=false; window.__rekapinyuApplyingCloudRealtime=false;}
   redraw();
  },err=>console.warn('Rekapinyu: realtime data aplikasi gagal.',err));
  userUnsub=onSnapshot(uref(u.uid),snap=>{
@@ -5053,7 +5093,7 @@ function realtime(u){
     currentSessionUser.phone=ownPhone||phoneOf(d.phone);
     currentSessionUser.photo=ownPhoto||String(d.photo||"");
   }
-  nativeSet.call(localStorage,'finance_active_session',JSON.stringify(currentSessionUser));
+  window.__rekapinyuCloudSet('finance_active_session',JSON.stringify(currentSessionUser));
   document.getElementById('sidebar-user-name')?.replaceChildren(document.createTextNode(currentSessionUser.name));
   updateUserAvatarUI();
   if(typeof refreshShopCoverPhoto==="function")refreshShopCoverPhoto();
@@ -5128,7 +5168,7 @@ onAuthStateChanged(auth,async u=>{
     window.__rekapinyuLandingHandoffActive=false;
     window.__rekapinyuAuthBooting=false;
     currentSessionUser=null;
-    nativeRemove.call(localStorage,"finance_active_session");
+    window.__rekapinyuCloudRemove("finance_active_session");
     checkAuth();
     return;
   }
