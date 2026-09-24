@@ -4363,7 +4363,7 @@ window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,unsubscribe:n
 const USERS="rekapinyu_users", DATA="rekapinyu_data", MAX=850000;
 const phoneOf=v=>String(v||"").replace(/\D/g,"");
 const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
-const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid);
+const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid), aref=uid=>doc(db,"AktifitasHarian",uid);
 const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
@@ -4424,6 +4424,12 @@ function cloudLaporanBulanan(){
  rows.forEach(r=>{const key=`${Number(r?.year)||0}-${String(Number(r?.monthIndex)||0).padStart(2,'0')}`;if(!groups.has(key))groups.set(key,{year:Number(r?.year)||0,monthIndex:Number(r?.monthIndex)||0,month:String(r?.month||''),pendapatan:0,totalBelanja:0,pengeluaran:0,profit:0,jumlahData:0});const g=groups.get(key);g.pendapatan+=Number(r?.income)||0;g.totalBelanja+=Number(r?.expense)||0;g.pengeluaran+=Number(r?.cashout)||0;g.profit+=Number(r?.profit)||0;g.jumlahData++;});
  return [...groups.values()].sort((a,b)=>b.year-a.year||b.monthIndex-a.monthIndex);
 }
+async function saveActivityCloud(){
+ const uid=cloudUid();if(!uid)return;
+ const activity=Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[];
+ await setDoc(aref(uid),{activityData:activity,updatedAt:serverTimestamp()},{merge:true});
+}
+window.__rekapinyuSaveActivityCloud=()=>saveActivityCloud();
 async function saveCloudData(){
  const uid=cloudUid(),phone=phoneOf(currentSessionUser?.phone);if(!uid||!phone)return;
  let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||'';if(shop.length>MAX)shop='';
@@ -4435,7 +4441,6 @@ async function saveCloudData(){
   namaPengguna:currentSessionUser?.name||'',nomorHp:currentSessionUser?.phone||'',
   kasirTransactions:Array.isArray(kasirTransactions)?kasirTransactions:[],
   LaporanKasir:Array.isArray(kasirTransactions)?kasirTransactions:[],
-  activityData:activity,
   InputData:inputData,
   historyData:inputData,
   LaporanBulanan:cloudLaporanBulanan(),
@@ -4501,7 +4506,9 @@ async function hydrate(uid){
  const preservedKasbon=syncCloudArrayToCache(phone,"kasbon",d.kasbonData);
  const preservedBackup=syncCloudArrayToCache(phone,"backup",d.backupOtomatisData);
  if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(d.kasirTransactions));
- if(Array.isArray(d.activityData)){const mergedActivity=mergeActivityCloud(phone,d.activityData);window.__rekapinyuSetActivityData?.(mergedActivity);nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(mergedActivity));}
+ const activitySnap=await getDoc(aref(uid));
+ const activityCloud=activitySnap.exists()?activitySnap.data()?.activityData:[];
+ if(Array.isArray(activityCloud)){const mergedActivity=mergeActivityCloud(phone,activityCloud);window.__rekapinyuSetActivityData?.(mergedActivity);nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(mergedActivity));if(JSON.stringify(mergedActivity)!==JSON.stringify(activityCloud))saveActivityCloud().catch(console.warn);}
  if(d.receiptSettings&&typeof d.receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(d.receiptSettings));
  const pendingHistory=mergePendingData(phone,"history",d.historyData).pending;
  const pendingPengeluaran=mergePendingData(phone,"pengeluaran",d.pengeluaranData).pending;
@@ -4526,6 +4533,7 @@ let cloudSaveChain=Promise.resolve();
 window.__rekapinyuSaveCloudData=()=>{
  cloudSaveChain=cloudSaveChain.then(async()=>{
    await saveCloudData();
+   await saveActivityCloud();
    const phone=phoneOf(currentSessionUser?.phone);
    if(phone){
      clearDataPending('history',safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]));
@@ -4542,7 +4550,7 @@ window.__rekapinyuSaveCloudData=()=>{
 // Data tertentu tetap disinkronkan ke Firebase; Produk Kasir dikelola sepenuhnya di localStorage.
 if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.setItem=function(k,v){const r=nativeSet.call(this,k,v);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){
-   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_shop_cover_${p}`,`finance_kasir_transactions_${p}`,`finance_activity_desktop_${p}`,`finance_kasir_receipt_settings_${p}`];
+   const p=phoneOf(currentSessionUser?.phone);const watched=[`finance_history_desktop_${p}`,`finance_pengeluaran_desktop_${p}`,`finance_kasbon_desktop_${p}`,`finance_backup_desktop_${p}`,`finance_shop_cover_${p}`,`finance_kasir_transactions_${p}`,`finance_kasir_receipt_settings_${p}`];
    if(watched.includes(k)){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),200)}
  }return r};
  Storage.prototype.removeItem=function(k){const r=nativeRemove.call(this,k);if(this===localStorage&&window.RekapinyuFirebase.ready&&cloudUid()){clearTimeout(window.__rfSaveTimer);window.__rfSaveTimer=setTimeout(()=>window.__rekapinyuSaveCloudData?.(),100)}return r};
@@ -4590,7 +4598,8 @@ async function firebaseRegister(){
     // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
     try{
       await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{kasirTransactions:[],LaporanKasir:[],activityData:[],InputData:[],historyData:[],LaporanBulanan:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
+      await setDoc(dref(credential.user.uid),{kasirTransactions:[],LaporanKasir:[],InputData:[],historyData:[],LaporanBulanan:[],pengeluaranData:[],kasbonData:[],backupOtomatisData:[],receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
+       await setDoc(aref(credential.user.uid),{activityData:[],updatedAt:serverTimestamp()},{merge:true});
     }catch(dbErr){
       console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
     }
@@ -4885,8 +4894,19 @@ document.addEventListener("click",function(e){
 
 
 let dataUnsub=null,userUnsub=null;
-function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData); if(Array.isArray(d.activityData)){const mergedActivity=mergeActivityCloud(p,d.activityData);window.__rekapinyuSetActivityData?.(mergedActivity);try{nativeSet.call(localStorage,`finance_activity_desktop_${p}`,JSON.stringify(mergedActivity));}catch(e){}}
-if(d.receiptSettings&&typeof d.receiptSettings==='object'){try{nativeSet.call(localStorage,`finance_kasir_receipt_settings_${p}`,JSON.stringify(d.receiptSettings));}catch(e){}}
+let activityUnsub=null;
+function realtimeActivity(u){
+ if(activityUnsub)activityUnsub();
+ activityUnsub=onSnapshot(aref(u.uid),s=>{
+  if(!s.exists())return;
+  const p=phoneOf(currentSessionUser?.phone);if(!p)return;
+  const cloud=Array.isArray(s.data()?.activityData)?s.data().activityData:[];
+  const merged=mergeActivityCloud(p,cloud);
+  window.__rekapinyuSetActivityData?.(merged);
+  try{nativeSet.call(localStorage,`finance_activity_desktop_${p}`,JSON.stringify(merged));}catch(e){}
+ },err=>console.warn("Rekapinyu: realtime AktifitasHarian gagal.",err));
+}
+function realtime(u){if(dataUnsub)dataUnsub();if(userUnsub)userUnsub();realtimeActivity(u);dataUnsub=onSnapshot(dref(u.uid),s=>{if(!s.exists())return;const d=s.data(),p=phoneOf(currentSessionUser?.phone);if(!p)return;const preservedHistory=syncCloudArrayToCache(p,"history",d.historyData),preservedPengeluaran=syncCloudArrayToCache(p,"pengeluaran",d.pengeluaranData),preservedKasbon=syncCloudArrayToCache(p,"kasbon",d.kasbonData),preservedBackup=syncCloudArrayToCache(p,"backup",d.backupOtomatisData); if(d.receiptSettings&&typeof d.receiptSettings==='object'){try{nativeSet.call(localStorage,`finance_kasir_receipt_settings_${p}`,JSON.stringify(d.receiptSettings));}catch(e){}}
 if(Array.isArray(d.kasirTransactions))nativeSet.call(localStorage,`finance_kasir_transactions_${p}`,JSON.stringify(d.kasirTransactions));
 const pendingHistory=mergePendingData(p,"history",d.historyData).pending,pendingPengeluaran=mergePendingData(p,"pengeluaran",d.pengeluaranData).pending,pendingKasbon=mergePendingData(p,"kasbon",d.kasbonData).pending,pendingBackup=mergePendingData(p,"backup",d.backupOtomatisData).pending;if(d.shopCover&&!String(d.shopCover).startsWith("data:")){
   try{
