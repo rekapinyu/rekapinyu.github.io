@@ -4358,10 +4358,10 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
 const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
 const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
 window.RekapinyuFirebase={app,auth,db,ready:false,uid:null,unsubscribe:null};
-const USERS="rekapinyu_users", DATA="rekapinyu_data", MAX=850000;
+const USERS="rekapinyu_users", MAX=850000;
 const phoneOf=v=>String(v||"").replace(/\D/g,"");
 const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
-const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid),
+const uref=uid=>doc(db,USERS,uid), receiptSettingsRef=uid=>doc(db,"ReceiptSettings",uid),
 tref=uid=>doc(db,"TransaksiKasir",uid),
 lref=uid=>doc(db,"LaporanKasir",uid),
 aref=uid=>doc(db,"LaporanAktifitas",uid),
@@ -4630,7 +4630,7 @@ async function firebaseRegister(){
     // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
     try{
       await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
+      await setDoc(receiptSettingsRef(credential.user.uid),{name:"",address:"",phone:"",footer:"",updatedAt:serverTimestamp()},{merge:true});
       await Promise.all([
         setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
         setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
@@ -4689,37 +4689,6 @@ async function firebaseLogin(){
     notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
   }catch(err){
     console.error("Rekapinyu Firebase login:",err);
-    // Migrasi satu kali akun lama yang masih tersimpan di versi sebelum Firebase.
-    const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-    if(legacy && (err?.code==="auth/user-not-found" || err?.code==="auth/invalid-credential" || err?.code==="auth/invalid-login-credentials")){
-      try{
-        const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
-        await updateProfile(credential.user,{displayName:legacy.name||""});
-        try{
-          await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-          let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-          await setDoc(dref(credential.user.uid),{shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()},{merge:true});
-          await Promise.all([
-            setDoc(tref(credential.user.uid),{TransaksiKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(lref(credential.user.uid),{LaporanKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(iref(credential.user.uid),{InputData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(href(credential.user.uid),{LaporanHistory:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(bref(credential.user.uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(pref(credential.user.uid),{DataPengeluaran:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(kref(credential.user.uid),{DataKasbon:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(oref(credential.user.uid),{LaporanBackupOtomatis:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(aref(credential.user.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true})
-          ]);
-        }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
-        localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
-        try{await hydrate(credential.user.uid)}catch{}
-        checkAuth();openDashboardAfterLogin();form.reset();
-        notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
-        return;
-      }catch(migrateErr){
-        console.error("Rekapinyu legacy migration:",migrateErr);
-      }
-    }
     notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
   }finally{
     if(submit)delete submit.dataset.busy;
@@ -4913,7 +4882,7 @@ document.addEventListener("click",function(e){
 },true);
 
 
-let dataUnsub=null,userUnsub=null;
+let userUnsub=null;
 let collectionUnsubs=[];
 
 function stopCollectionRealtime(){
@@ -4994,24 +4963,18 @@ function realtimeCollections(u){
 }
 
 function realtime(u){
- if(dataUnsub){try{dataUnsub()}catch{}}
  if(userUnsub){try{userUnsub()}catch{}}
  realtimeCollections(u);
- dataUnsub=onSnapshot(dref(u.uid),snap=>{
+ const receiptSettingsUnsub=onSnapshot(receiptSettingsRef(u.uid),snap=>{
   if(!snap.exists())return;
-  const d=snap.data(),phone=phoneOf(currentSessionUser?.phone);if(!phone)return;
+  const value=snap.data(),phone=phoneOf(currentSessionUser?.phone);if(!phone)return;
+  if(!value||typeof value!=="object")return;
   applyingFirestoreRealtime=true;
-  try{
-   if(d.receiptSettings&&typeof d.receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(d.receiptSettings));
-   if(d.shopCover&&!String(d.shopCover).startsWith('data:')){
-    try{
-     const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${phone}`)||'null');
-     if(!existing||!existing.src||String(existing.src).startsWith('http'))nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:d.shopCover,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
-    }catch{}
-   }
-  }finally{applyingFirestoreRealtime=false;}
-  redraw();
- },err=>console.warn('Rekapinyu: realtime data aplikasi gagal.',err));
+  try{nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify({name:String(value.name??""),address:String(value.address??""),phone:String(value.phone??""),footer:String(value.footer??"")}));}
+  finally{applyingFirestoreRealtime=false;}
+  try{redraw()}catch{}
+ },err=>console.warn('Rekapinyu: realtime ReceiptSettings gagal.',err));
+ collectionUnsubs.push(receiptSettingsUnsub);
  userUnsub=onSnapshot(uref(u.uid),snap=>{
   if(!snap.exists()||!currentSessionUser)return;
   const d=snap.data();
@@ -5087,7 +5050,6 @@ onAuthStateChanged(auth,async u=>{
   window.RekapinyuFirebase.uid=u?.uid||null;
 
   if(!u){
-    if(dataUnsub)dataUnsub();
     if(userUnsub)userUnsub();
     window.__rekapinyuLandingHandoffActive=false;
     window.__rekapinyuAuthBooting=false;
