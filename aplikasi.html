@@ -4731,7 +4731,8 @@ if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropaga
 if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
 window.handleLogout=async()=>{
-  try{await saveCloudData()}catch{}
+  // Logout tidak menunggu sinkronisasi Firestore yang berat.
+  // Data sudah disinkronkan oleh auto-save/realtime sebelumnya.
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
   currentSessionUser=null;
   nativeRemove.call(localStorage,"finance_active_session");
