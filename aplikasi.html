@@ -4720,43 +4720,50 @@ async function firebaseRegister(){
   const submit=form.querySelector('button[type="submit"]');
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
+  let credential=null;
   try{
     await authReadyPromise;
-    const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
-    await updateProfile(credential.user,{displayName:name});
-    const userData={uid:credential.user.uid,name,phone,email:credential.user.email,photo:""};
-    // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
-    try{
-      await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},printerSettings:{paperWidth:'32',copyCount:1},kasirSettings:{confirmCancel:true,focusSearch:true},shopCover:"",updatedAt:serverTimestamp()});
-      await Promise.all([
-        setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(aref(credential.user.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(iref(credential.user.uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(href(credential.user.uid),{LaporanHistory:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(kref(credential.user.uid),{DataKasbon:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(pref(credential.user.uid),{DataPengeluaran:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(bref(credential.user.uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(oref(credential.user.uid),{LaporanBackupOtomatis:[],updatedAt:serverTimestamp()},{merge:true})
-      ]);
-    }catch(dbErr){
-      console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
-    }
-    // Cache lokal hanya untuk kompatibilitas UI lama; bukan sumber autentikasi.
-    window.__rekapinyuCloudSet("finance_registered_users",JSON.stringify([{...userData,password}]));
-    currentSessionUser=null;
-    window.__rekapinyuCloudRemove("finance_active_session");
-    try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
-    form.reset();
-    toggleAuthView("login");
-    notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
+    credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
   }catch(err){
-    console.error("Rekapinyu Firebase registration:",err);
+    console.error("Rekapinyu Firebase registration/Auth:",err);
     notify("Gagal Daftar",authErrorMessage(err,"register"),"fa-solid fa-circle-xmark text-rose-600");
-  }finally{
     if(submit)delete submit.dataset.busy;
+    return;
   }
+
+  // Akun Firebase sudah berhasil dibuat. Semua proses setelah ini tidak boleh
+  // mengubah hasil pendaftaran menjadi gagal.
+  const uid=credential.user.uid;
+  const userData={uid,name,phone,email:credential.user.email,photo:""};
+  try{await updateProfile(credential.user,{displayName:name});}
+  catch(e){console.warn("Rekapinyu: update profil setelah pendaftaran gagal, akun tetap berhasil dibuat.",e)}
+
+  try{
+    await setDoc(uref(uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+    await setDoc(dref(uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},printerSettings:{paperWidth:'32',copyCount:1},kasirSettings:{confirmCancel:true,focusSearch:true},shopCover:"",updatedAt:serverTimestamp()});
+    await Promise.all([
+      setDoc(tref(uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(lref(uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(aref(uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(iref(uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(href(uid),{LaporanHistory:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(kref(uid),{DataKasbon:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(pref(uid),{DataPengeluaran:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(bref(uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
+      setDoc(oref(uid),{LaporanBackupOtomatis:[],updatedAt:serverTimestamp()},{merge:true})
+    ]);
+  }catch(dbErr){
+    console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi sebagian profil/data Firestore belum tersimpan.",dbErr);
+  }
+
+  try{window.__rekapinyuCloudSet("finance_registered_users",JSON.stringify([{...userData,password}]))}catch(e){}
+  currentSessionUser=null;
+  try{window.__rekapinyuCloudRemove("finance_active_session")}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
+  try{form.reset()}catch(e){}
+  try{toggleAuthView("login")}catch(e){}
+  notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
+  if(submit)delete submit.dataset.busy;
 }
 
 async function firebaseLogin(){
@@ -4827,9 +4834,7 @@ if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropaga
 if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
 window.handleLogout=async()=>{
-  /* Logout tidak boleh menunggu sinkronisasi Firestore.
-     Simpan data di background, lalu segera keluarkan sesi Firebase. */
-  try{void Promise.resolve(saveCloudData()).catch(e=>console.warn("Firebase save before logout:",e));}catch(e){console.warn("Firebase save before logout:",e)}
+  try{await saveCloudData()}catch{}
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
   currentSessionUser=null;
   window.__rekapinyuCloudRemove("finance_active_session");
