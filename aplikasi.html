@@ -5845,6 +5845,7 @@ function initKasirViews(){
       printButton.disabled=!connected;
       printButton.title=connected?'Simpan transaksi dan cetak melalui printer Bluetooth':'Sambungkan printer Bluetooth terlebih dahulu';
     }
+    if(typeof updateSettingsPrinterPanel==='function')updateSettingsPrinterPanel();
   }
 
   function kasirBluetoothDisconnect(){
@@ -5981,7 +5982,7 @@ function initKasirViews(){
     if(width)width.value=String(s.paperWidth||'32');if(copies)copies.value=String(Math.min(5,Math.max(1,Number(s.copyCount)||1)));
   }
   function updateSettingsPrinterPanel(){
-    const box=document.getElementById('settings-printer-status');const title=document.getElementById('settings-printer-status-title');const text=document.getElementById('settings-printer-status-text');const connected=!!(typeof kasirBluetooth!=='undefined'&&kasirBluetooth.device?.gatt?.connected&&kasirBluetooth.characteristic);
+    const box=document.getElementById('settings-printer-status');const title=document.getElementById('settings-printer-status-title');const text=document.getElementById('settings-printer-status-text');const connected=!!(typeof kasirBluetooth!=='undefined'&&kasirBluetooth.device?.gatt?.connected);
     if(box)box.classList.toggle('is-connected',connected);if(title)title.textContent=connected?'Printer Bluetooth tersambung':'Printer belum tersambung';if(text)text.textContent=connected?'Printer siap digunakan untuk mencetak struk.':'Hubungkan printer Bluetooth untuk mulai mencetak.';
   }
   function loadSettingsInfo(){const s=getKasirReceiptSettings();const a=document.getElementById('settings-info-store-name'),b=document.getElementById('settings-info-store-address'),c=document.getElementById('settings-info-store-phone');if(a)a.textContent=s.name||'-';if(b)b.textContent=s.address||'-';if(c)c.textContent=s.phone||'-';}
