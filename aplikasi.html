@@ -861,6 +861,15 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #kasir-cart-list [data-kasir-cart-item]{transition:background .12s ease,box-shadow .12s ease;}
 #kasir-cart-list [data-kasir-cart-item]:hover,#kasir-cart-list [data-kasir-cart-item].kasir-cart-key-selected{background:#fee2e2!important;color:#dc2626;}
 </style>
+<style id="kasir-transaction-tabs-css">
+.kasir-transaction-tabs{display:flex;align-items:flex-end;gap:6px;width:100%;min-width:0;height:42px;margin:0 0 10px;padding:0;border-bottom:1px solid #e2e8f0;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.kasir-transaction-tab{flex:0 0 auto;height:36px;min-width:112px;max-width:180px;padding:0 12px;border:1px solid #dbe3eb;border-bottom:0;border-radius:8px 8px 0 0;background:#fff;color:#64748b;display:flex;align-items:center;justify-content:center;box-sizing:border-box;cursor:pointer;font-size:11px;font-weight:800;white-space:nowrap}
+.kasir-transaction-tab:hover{background:#f8fafc;color:#334155}
+.kasir-transaction-tab.is-active{background:#edf8f5;color:#0f9f8a;border-color:#cbd5e1;box-shadow:0 -1px 0 #fff inset}
+.kasir-transaction-tab-add{flex:0 0 38px;min-width:38px;width:38px;padding:0;color:#475569}
+.kasir-transaction-tab-add i{font-size:12px}
+@media(max-width:560px){.kasir-transaction-tabs{height:40px;margin-bottom:8px}.kasir-transaction-tab{height:34px;min-width:100px;padding:0 10px;font-size:10px}.kasir-transaction-tab-add{min-width:34px;width:34px}}
+</style>
 <style id="fix-kasir-cart-fixed-box-only">
 @media (min-width:901px){
   #view-kasir .kasir-cart-list{
@@ -1973,6 +1982,7 @@ bind();
 <section class="hidden kasir-view space-y-4" id="view-kasir">
 <div class="kasir-shell">
 <div class="kasir-products-panel">
+<div class="kasir-transaction-tabs" id="kasir-transaction-tabs" aria-label="Tab transaksi"></div>
 <div class="kasir-toolbar">
 <div class="kasir-search-wrap">
 <input autocomplete="off" id="kasir-search" placeholder="Cari nama produk" type="text">
@@ -5503,6 +5513,30 @@ onAuthStateChanged(auth,async u=>{
   let kasirProducts=[];
   let kasirCart=[];
   let kasirTransactions=[];
+  let kasirTransactionTabs=[{id:'kasir-tab-1',name:'Transaksi 1',cart:[]}];
+  let kasirActiveTransactionTabId='kasir-tab-1';
+
+  function renderKasirTransactionTabs(){
+    const box=document.getElementById('kasir-transaction-tabs');
+    if(!box)return;
+    box.innerHTML=kasirTransactionTabs.map(tab=>`<button type="button" class="kasir-transaction-tab${tab.id===kasirActiveTransactionTabId?' is-active':''}" data-kasir-transaction-tab="${esc(tab.id)}">${esc(tab.name)}</button>`).join('')+`<button type="button" class="kasir-transaction-tab kasir-transaction-tab-add" id="kasir-add-transaction-tab" title="Tambah tab transaksi" aria-label="Tambah tab transaksi"><i class="fa-solid fa-plus"></i></button>`;
+  }
+  function syncKasirActiveTransactionTab(){const tab=kasirTransactionTabs.find(x=>x.id===kasirActiveTransactionTabId);if(tab)tab.cart=kasirCart}
+  function switchKasirTransactionTab(id){
+    if(String(id)===String(kasirActiveTransactionTabId))return;
+    syncKasirActiveTransactionTab();
+    const target=kasirTransactionTabs.find(x=>String(x.id)===String(id)); if(!target)return;
+    kasirActiveTransactionTabId=target.id; kasirCart=Array.isArray(target.cart)?target.cart:[]; kasirCartSelectedIndex=-1; kasirLastAddedProductId=null;
+    const search=document.getElementById('kasir-search'),barcode=document.getElementById('kasir-barcode'); if(search)search.value=''; if(barcode)barcode.value='';
+    closeKasirSuggestions(); renderKasirTransactionTabs(); renderCart(); renderKasirProducts();
+  }
+  function addKasirTransactionTab(){
+    syncKasirActiveTransactionTab();
+    const id='kasir-tab-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),tab={id,name:'Transaksi '+(kasirTransactionTabs.length+1),cart:[]};
+    kasirTransactionTabs.push(tab); kasirActiveTransactionTabId=id; kasirCart=tab.cart; kasirCartSelectedIndex=-1; kasirLastAddedProductId=null;
+    const search=document.getElementById('kasir-search'),barcode=document.getElementById('kasir-barcode'); if(search)search.value=''; if(barcode)barcode.value='';
+    closeKasirSuggestions(); renderKasirTransactionTabs(); renderCart(); renderKasirProducts();
+  }
 
   function kasirUserKey(name){
     const phone=(typeof currentSessionUser!=='undefined' && currentSessionUser && currentSessionUser.phone) ? currentSessionUser.phone : 'guest';
@@ -5619,7 +5653,9 @@ onAuthStateChanged(auth,async u=>{
     return true;
   }
 function initKasirViews(){
-    loadKasirStore(); kasirProducts=kasirProducts.map(p=>({...p,barcodes:productBarcodes(p),barcode:productBarcodes(p)[0]||''})); renderKasirProducts(); renderCart(); renderTransactions();
+    loadKasirStore(); kasirProducts=kasirProducts.map(p=>({...p,barcodes:productBarcodes(p),barcode:productBarcodes(p)[0]||''}));
+    const active=kasirTransactionTabs.find(x=>x.id===kasirActiveTransactionTabId); kasirCart=active&&Array.isArray(active.cart)?active.cart:[];
+    renderKasirTransactionTabs(); renderKasirProducts(); renderCart(); renderTransactions();
   }
 
   function saveKasirTransaction(paymentData){
@@ -5633,7 +5669,8 @@ function initKasirViews(){
     saveKasirStore();
     renderKasirProducts();
     kasirCart=[];
-    renderCart(); renderTransactions(); try{window.__renderLaporanKasir?.()}catch(e){}
+    syncKasirActiveTransactionTab();
+    renderCart(); renderKasirTransactionTabs(); renderTransactions(); try{window.__renderLaporanKasir?.()}catch(e){}
     return true;
   }
 
@@ -6153,8 +6190,12 @@ function initKasirViews(){
     }
   });
 
-  // Semua klik Kasir yang berkaitan dengan suggest/keranjang tetap satu jalur.
+  // Tab transaksi: setiap tab menyimpan keranjangnya sendiri.
   document.addEventListener('click',e=>{
+    const tab=e.target.closest('#kasir-transaction-tabs [data-kasir-transaction-tab]');
+    if(tab){e.preventDefault();switchKasirTransactionTab(tab.dataset.kasirTransactionTab);return}
+    if(e.target.closest('#kasir-add-transaction-tab')){e.preventDefault();addKasirTransactionTab();return}
+
     const suggestion=e.target.closest('#kasir-search-suggestions [data-kasir-suggest]');
     if(suggestion){
       const id=String(suggestion.dataset.kasirSuggest||'');
@@ -6190,7 +6231,7 @@ function initKasirViews(){
     if(e.target.id==='kasir-payment-popup'&&!e.target.closest('.kasir-payment-dialog')){closeKasirPaymentPopup();return}
     if(e.target.closest('#kasir-save-btn-popup')){saveKasirPaymentOnly();return}
     if(e.target.closest('#kasir-save-print-btn')){saveAndPrintKasirPayment();return}
-    if(e.target.closest('#kasir-cancel-btn')){kasirCart=[];kasirCartSelectedIndex=-1;renderCart();return}
+    if(e.target.closest('#kasir-cancel-btn')){kasirCart=[];kasirCartSelectedIndex=-1;syncKasirActiveTransactionTab();renderCart();renderKasirTransactionTabs();return}
     if(e.target.closest('#kasir-save-btn')){openKasirPaymentPopup();return}
   });
 
