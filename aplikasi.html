@@ -1416,45 +1416,21 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
-<style id="report-monthly-position-rebuild">
-/* Laporan Bulanan: hanya atur posisi laporan. Main tetap menggunakan layout aslinya. */
-#view-report{
-  width:100%;
-  margin:0;
-  padding:0;
-  transform:translateY(-10px);
-}
-#view-report #report-grid{
-  width:100%;
-  margin:0;
-  padding:0;
-  display:block;
-  box-sizing:border-box;
-}
-#view-report #report-grid .report-monthly-empty{
-  width:100%;
-  min-height:220px;
-  margin:0;
-  padding:64px 16px;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  background:#fff;
-  border-radius:16px;
-  box-shadow:0 10px 15px -3px rgb(15 23 42 / 0.10),0 4px 6px -4px rgb(15 23 42 / 0.10);
-  border:1px dashed #e2e8f0;
-  color:#94a3b8;
-  text-align:center;
-}
-/* Main memiliki padding 16px / 24px / 32px. Transform menetralkannya
-   sehingga panel laporan berhenti tepat 6px di bawah header. */
-@media (min-width:768px){
-  #view-report{transform:translateY(-18px);}
-}
-@media (min-width:1024px){
-  #view-report{transform:translateY(-26px);}
+<style id="report-monthly-empty-position">
+#view-report { margin-top: -10px; }
+#view-report .report-monthly-area { width: 100%; }
+#view-report .report-monthly-empty {
+    width: 100%;
+    min-height: 220px;
+    margin: 0;
+    padding: 4rem 1rem;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.10), 0 4px 6px -4px rgb(15 23 42 / 0.10);
+    border: 1px dashed #e2e8f0;
+    color: #94a3b8;
+    text-align: center;
+    box-sizing: border-box;
 }
 </style>
 </head>
@@ -2157,7 +2133,7 @@ bind();
 </section>
 <!-- VIEW 3: LAPORAN BULANAN -->
 <section class="hidden" id="view-report">
-<div id="report-grid"></div>
+<div class="report-monthly-area" id="report-grid"></div>
 </section>
 <!-- VIEW NEW: BACKUP OTOMATIS -->
 <section class="hidden space-y-4" id="view-backup">
@@ -4512,7 +4488,9 @@ function firestorePayload(){
 }
 
 async function saveCloudData(){
- const uid=cloudUid(),phone=phoneOf(currentSessionUser?.phone);if(!uid||!phone)return;
+ const uid=cloudUid();
+ const phone=phoneOf(currentSessionUser?.phone);
+ if(!uid||!phone||!auth.currentUser||auth.currentUser.uid!==uid)return;
  const data=firestorePayload();
  await Promise.all([
   setDoc(tref(uid),{TransaksiKasir:data.kasir,updatedAt:serverTimestamp()},{merge:true}),
@@ -4530,6 +4508,8 @@ async function saveCloudData(){
 window.__rekapinyuSaveCloudData=()=>{
  if(applyingFirestoreRealtime)return Promise.resolve();
  cloudSaveChain=cloudSaveChain.then(async()=>{
+  await authReadyPromise;
+  if(!auth.currentUser||!currentSessionUser)return;
   await saveCloudData();
   const phone=phoneOf(currentSessionUser?.phone);
   if(phone){
