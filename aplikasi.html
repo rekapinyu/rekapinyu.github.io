@@ -863,9 +863,12 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </style>
 <style id="kasir-transaction-tabs-css">
 .kasir-transaction-tabs{display:flex;align-items:flex-end;gap:6px;width:100%;min-width:0;height:42px;margin:0 0 10px;padding:0;border-bottom:1px solid #e2e8f0;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
-.kasir-transaction-tab{flex:0 0 auto;height:36px;min-width:112px;max-width:180px;padding:0 12px;border:1px solid #dbe3eb;border-bottom:0;border-radius:8px 8px 0 0;background:#fff;color:#64748b;display:flex;align-items:center;justify-content:center;box-sizing:border-box;cursor:pointer;font-size:11px;font-weight:800;white-space:nowrap}
+.kasir-transaction-tab{flex:0 0 auto;height:36px;min-width:112px;max-width:180px;padding:0 10px;border:1px solid #dbe3eb;border-bottom:0;border-radius:8px 8px 0 0;background:#fff;color:#64748b;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer;font-size:11px;font-weight:800;white-space:nowrap}
 .kasir-transaction-tab:hover{background:#f8fafc;color:#334155}
 .kasir-transaction-tab.is-active{background:#edf8f5;color:#0f9f8a;border-color:#cbd5e1;box-shadow:0 -1px 0 #fff inset}
+.kasir-transaction-tab>span{overflow:hidden;text-overflow:ellipsis}
+.kasir-transaction-tab-close{flex:0 0 auto;font-size:10px;color:#94a3b8;padding:3px;cursor:pointer}
+.kasir-transaction-tab-close:hover{color:#dc2626}
 .kasir-transaction-tab-add{flex:0 0 38px;min-width:38px;width:38px;padding:0;color:#475569}
 .kasir-transaction-tab-add i{font-size:12px}
 @media(max-width:560px){.kasir-transaction-tabs{height:40px;margin-bottom:8px}.kasir-transaction-tab{height:34px;min-width:100px;padding:0 10px;font-size:10px}.kasir-transaction-tab-add{min-width:34px;width:34px}}
@@ -5519,7 +5522,29 @@ onAuthStateChanged(auth,async u=>{
   function renderKasirTransactionTabs(){
     const box=document.getElementById('kasir-transaction-tabs');
     if(!box)return;
-    box.innerHTML=kasirTransactionTabs.map(tab=>`<button type="button" class="kasir-transaction-tab${tab.id===kasirActiveTransactionTabId?' is-active':''}" data-kasir-transaction-tab="${esc(tab.id)}">${esc(tab.name)}</button>`).join('')+`<button type="button" class="kasir-transaction-tab kasir-transaction-tab-add" id="kasir-add-transaction-tab" title="Tambah tab transaksi" aria-label="Tambah tab transaksi"><i class="fa-solid fa-plus"></i></button>`;
+    box.innerHTML=kasirTransactionTabs.map(tab=>`<button type="button" class="kasir-transaction-tab${tab.id===kasirActiveTransactionTabId?' is-active':''}" data-kasir-transaction-tab="${esc(tab.id)}"><span>${esc(tab.name)}</span><i class="fa-solid fa-xmark kasir-transaction-tab-close" data-kasir-close-tab="${esc(tab.id)}" title="Hapus tab" aria-label="Hapus tab"></i></button>`).join('')+`<button type="button" class="kasir-transaction-tab kasir-transaction-tab-add" id="kasir-add-transaction-tab" title="Tambah tab transaksi" aria-label="Tambah tab transaksi"><i class="fa-solid fa-plus"></i></button>`;
+  }
+  function removeKasirTransactionTab(id){
+    if(kasirTransactionTabs.length<=1)return;
+    syncKasirActiveTransactionTab();
+    const index=kasirTransactionTabs.findIndex(x=>String(x.id)===String(id));
+    if(index<0)return;
+    const wasActive=String(id)===String(kasirActiveTransactionTabId);
+    kasirTransactionTabs.splice(index,1);
+    if(wasActive){
+      const next=kasirTransactionTabs[Math.min(index,kasirTransactionTabs.length-1)];
+      kasirActiveTransactionTabId=next.id;
+      kasirCart=Array.isArray(next.cart)?next.cart:[];
+      kasirCartSelectedIndex=-1;
+      kasirLastAddedProductId=null;
+      const search=document.getElementById('kasir-search'),barcode=document.getElementById('kasir-barcode');
+      if(search)search.value='';
+      if(barcode)barcode.value='';
+      closeKasirSuggestions();
+      renderCart();
+      renderKasirProducts();
+    }
+    renderKasirTransactionTabs();
   }
   function syncKasirActiveTransactionTab(){const tab=kasirTransactionTabs.find(x=>x.id===kasirActiveTransactionTabId);if(tab)tab.cart=kasirCart}
   function switchKasirTransactionTab(id){
@@ -6192,6 +6217,8 @@ function initKasirViews(){
 
   // Tab transaksi: setiap tab menyimpan keranjangnya sendiri.
   document.addEventListener('click',e=>{
+    const closeTab=e.target.closest('#kasir-transaction-tabs [data-kasir-close-tab]');
+    if(closeTab){e.preventDefault();e.stopPropagation();removeKasirTransactionTab(closeTab.dataset.kasirCloseTab);return}
     const tab=e.target.closest('#kasir-transaction-tabs [data-kasir-transaction-tab]');
     if(tab){e.preventDefault();switchKasirTransactionTab(tab.dataset.kasirTransactionTab);return}
     if(e.target.closest('#kasir-add-transaction-tab')){e.preventDefault();addKasirTransactionTab();return}
