@@ -2,6 +2,20 @@
 
 <html lang="id">
 <head>
+<style id="rekapinyu-auth-reload-final">
+html.rk-dashboard-session #auth-container{display:none!important;}
+</style>
+<script>
+(function(){
+  try{
+    var raw=localStorage.getItem("finance_active_session");
+    var session=raw?JSON.parse(raw):null;
+    if(session&&(session.uid||session.phone)){
+      document.documentElement.classList.add("rk-dashboard-session");
+    }
+  }catch(e){}
+})();
+</script>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <title>Aplikasi Keuangan - Toko</title>
@@ -1421,7 +1435,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <div id="kasir-print-area" style="display:none"></div>
 <!-- AUTHENTICATION OVERLAY / PAGES -->
-<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 rk-auth-bootstrap" id="auth-container">
+<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
 <!-- CARD LOGIN -->
 <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 transition-all" id="login-card">
 <div class="text-center mb-6 login-brand-header">
@@ -1463,12 +1477,12 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <form class="space-y-4" id="register-form">
 <div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nama Toko</label>
+<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nama Lengkap</label>
 <div class="relative">
 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
 <i class="fa-solid fa-user"></i>
 </span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-name" placeholder="Nama Toko Anda" required="" type="text"/>
+<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-name" placeholder="Nama Anda" required="" type="text"/>
 </div>
 </div>
 <div>
@@ -2298,43 +2312,53 @@ bind();
 
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
-/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI BARU
-   Login tidak boleh tampil selama Firebase masih memulihkan sesi.
-   Setelah Firebase selesai:
-   - ada sesi Firebase -> langsung masuk aplikasi
-   - tidak ada sesi -> baru tampilkan login
+/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI FINAL
+   Hanya mengatur tampilan Login/Daftar/Dashboard saat reload.
+   Sesi Firebase tetap menjadi sumber autentikasi.
 */
 function checkAuth() {
     const authContainer = document.getElementById('auth-container');
     if (!authContainer) return;
-    if (window.__rekapinyuAuthBooting) {
-        authContainer.classList.remove('hidden');
-        authContainer.classList.remove('rk-auth-bootstrap');
-        return;
-    }
-    authContainer.classList.remove('rk-auth-bootstrap');
-    if (currentSessionUser) {
+
+    const hasFirebaseUser = !!currentSessionUser;
+
+    if (hasFirebaseUser) {
+        document.documentElement.classList.add('rk-dashboard-session');
         authContainer.classList.add('hidden');
         const nameEl = document.getElementById('sidebar-user-name');
         if (nameEl) nameEl.innerText = currentSessionUser.name || '';
         updateUserAvatarUI();
         loadUserData();
-    } else {
-        authContainer.classList.remove('hidden');
-        historyData = [];
-        pengeluaranData = [];
-        kasbonData = [];
-        backupOtomatisData = [];
+        return;
     }
+
+    document.documentElement.classList.remove('rk-dashboard-session');
+    authContainer.classList.remove('hidden');
+    historyData = [];
+    pengeluaranData = [];
+    kasbonData = [];
+    backupOtomatisData = [];
 }
 
-/* Gate reload baru: auth overlay tetap menutup dashboard selama Firebase memulihkan sesi. */
-window.__rekapinyuAuthBooting = true;
-const initialAuthContainer = document.getElementById('auth-container');
-if (initialAuthContainer) {
-    initialAuthContainer.classList.remove('hidden');
-    initialAuthContainer.classList.remove('rk-auth-bootstrap');
-}
+/* Saat reload Dashboard, sembunyikan auth overlay sebelum Firebase selesai memulihkan sesi.
+   Saat reload Login/Daftar, tidak ada session marker sehingga auth tetap terlihat. */
+(function initAuthReloadGate() {
+    const raw = localStorage.getItem('finance_active_session');
+    let hasLocalSession = false;
+    try {
+        const parsed = raw ? JSON.parse(raw) : null;
+        hasLocalSession = !!(parsed && (parsed.uid || parsed.phone));
+    } catch (_) {
+        hasLocalSession = false;
+    }
+
+    window.__rekapinyuAuthBooting = true;
+    if (hasLocalSession) {
+        document.documentElement.classList.add('rk-dashboard-session');
+    } else {
+        document.documentElement.classList.remove('rk-dashboard-session');
+    }
+})();
 
 function updateUserAvatarUI() {
             const avatarContainer = document.getElementById('sidebar-user-avatar-container');
