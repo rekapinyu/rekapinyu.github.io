@@ -6538,25 +6538,27 @@ function initKasirViews(){
       showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
       return;
     }
-    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
-      showModal('Printer Belum Tersambung','Sambungkan printer Bluetooth terlebih dahulu sebelum menekan Simpan dan Cetak.','fa-brands fa-bluetooth-b text-rose-600');
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      return;
-    }
-    renderKasirReceiptPreview();
-    try{
-      await printKasirReceiptBluetooth();
-    }catch(err){
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      showModal('Cetak Gagal',err?.message||'Struk tidak dapat dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-rose-600');
-      return;
-    }
+    // Transaksi disimpan terlebih dahulu agar keberhasilan transaksi tidak bergantung pada printer Bluetooth.
     commitKasirReceiptInvoiceId();
     const saved=saveKasirTransaction({paid,discount});
     if(!saved)return;
     window.__kasirCurrentInvoiceId=null;
     closeKasirPaymentPopup();
-    showModal('Berhasil','Transaksi berhasil disimpan dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
+
+    // Setelah transaksi tersimpan ke Laporan Kasir/localStorage/Firestore, cetak dilakukan sebagai proses terpisah.
+    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
+      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
+      showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir. Printer Bluetooth belum tersambung sehingga struk belum dicetak.','fa-solid fa-circle-check text-emerald-600');
+      return;
+    }
+    renderKasirReceiptPreview();
+    try{
+      await printKasirReceiptBluetooth();
+      showModal('Berhasil','Transaksi berhasil disimpan, masuk ke Laporan Kasir, dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
+    }catch(err){
+      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
+      showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak.','fa-solid fa-circle-check text-emerald-600');
+    }
   }
 
   function focusKasirSearch(){
