@@ -324,24 +324,18 @@ html.rk-dashboard-session #auth-container{display:none!important;}
       /* Kartu data hasil render: putih, radius lembut, bayangan tipis. */
       #pengeluaran-grid > div,
       #kasbon-grid > div,
-      #history-grid > div,
-      #report-grid > div,
-      #backup-grid > div{
+      #history-grid > div{
         border-color:var(--rk-border)!important;
         border-radius:18px!important;
         box-shadow:0 8px 24px rgba(15,23,42,.055)!important;
       }
       #pengeluaran-grid > div:hover,
       #kasbon-grid > div:hover,
-      #history-grid > div:hover,
-      #report-grid > div:hover,
-      #backup-grid > div:hover{
+      #history-grid > div:hover{
         box-shadow:0 12px 30px rgba(15,23,42,.075)!important;
       }
 
       /* Sub-card di dalam laporan/backup/filter. */
-      #report-grid [class*="bg-slate-50"],
-      #backup-grid [class*="bg-slate-50"],
       #history-grid [class*="bg-slate-50"],
       #kasbon-grid [class*="bg-slate-50"],
       #pengeluaran-grid [class*="bg-slate-50"]{
@@ -351,17 +345,13 @@ html.rk-dashboard-session #auth-container{display:none!important;}
       }
 
       /* Warna aksen agar konsisten dengan dashboard referensi. */
-      #report-grid .text-emerald-600,
       #history-grid .text-emerald-600,
       #kasbon-grid .text-emerald-600,
-      #backup-grid .text-emerald-600,
       #pengeluaran-grid .text-emerald-600{
         color:var(--rk-green)!important;
       }
-      #report-grid .bg-emerald-50,
       #history-grid .bg-emerald-50,
       #kasbon-grid .bg-emerald-50,
-      #backup-grid .bg-emerald-50,
       #pengeluaran-grid .bg-emerald-50{
         background:var(--rk-green-soft)!important;
       }
@@ -736,9 +726,7 @@ html.rk-dashboard-session #auth-container{display:none!important;}
 
   /* Kartu Pengeluaran/Kasbon/History/Laporan/Backup tidak memotong isi. */
   #pengeluaran-grid > div,
-  #kasbon-grid > div,
-  #report-grid > div,
-  #backup-grid > div{
+  #kasbon-grid > div{
     width:100%!important;
     max-width:100%!important;
     min-width:0!important;
@@ -1416,38 +1404,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
-<style id="report-monthly-empty-position">
-#view-report .report-monthly-area { width: 100%; }
-#view-report .report-monthly-empty {
-    width: 100%;
-    min-height: 220px;
-    margin: 0;
-    padding: 4rem 1rem;
-    background: #fff;
-    border-radius: 1rem;
-    box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.10), 0 4px 6px -4px rgb(15 23 42 / 0.10);
-    border: 1px dashed #e2e8f0;
-    color: #94a3b8;
-    text-align: center;
-    box-sizing: border-box;
-}
-</style>
-
-<style id="laporan-backup-position-final">
-/* SATU IMPLEMENTASI FINAL: posisi isi Laporan Bulanan + Backup Otomatis. */
+<style id="spacing-kasbon-final">
 @media (min-width:768px){
-  main > .max-w-4xl:has(#view-report:not(.hidden)),
-  main > .max-w-4xl:has(#view-backup:not(.hidden)){
-    margin-top:0!important;
-    margin-bottom:auto!important;
-  }
-
-  /* Backup sticky dipertahankan persis pada posisi/spacing sebelumnya. */
-  #backup-sticky-container{
-    margin-bottom:8px!important;
-  }
-
-  /* Perilaku posisi Kasbon dipertahankan; tidak diubah. */
   main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
     margin-top:0!important;
     margin-bottom:auto!important;
@@ -1456,20 +1414,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     margin-bottom:8px!important;
   }
 }
-
 @media (max-width:767px){
-  main > .max-w-4xl:has(#view-report:not(.hidden)),
-  main > .max-w-4xl:has(#view-backup:not(.hidden)){
-    margin-top:0!important;
-    margin-bottom:0!important;
-  }
-
-  /* Backup sticky dipertahankan persis pada posisi/spacing sebelumnya. */
-  #backup-sticky-container{
-    margin-bottom:8px!important;
-  }
-
-  /* Perilaku posisi Kasbon dipertahankan; tidak diubah. */
   main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
     margin-top:0!important;
     margin-bottom:0!important;
@@ -1962,20 +1907,20 @@ bind();
 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
 <i class="fa-solid fa-magnifying-glass"></i>
 </span>
-<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-backup-search" oninput="renderBackupGrid()" placeholder="Search" type="text"/>
+<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-backup-search" placeholder="Search" type="text"/>
 </div>
 <div class="col-span-2">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-date" onchange="renderBackupGrid()">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-date">
 <option value="">Tgl</option>
 </select>
 </div>
 <div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-month" onchange="renderBackupGrid()">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-month">
 <option value="">Bulan</option>
 </select>
 </div>
 <div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-year" onchange="renderBackupGrid()">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-year">
 <option value="">Tahun</option>
 </select>
 </div>
@@ -2229,17 +2174,9 @@ bind();
 <div class="flex flex-col items-center gap-4 w-full" id="history-grid"></div>
 </section>
 <!-- VIEW 3: LAPORAN BULANAN -->
-<section class="hidden" id="view-report">
-<div class="report-monthly-area" id="report-grid"></div>
-</section>
+
 <!-- VIEW NEW: BACKUP OTOMATIS -->
-<section class="hidden space-y-4" id="view-backup">
-<div class="flex items-center justify-between mb-2">
-<h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
-<span class="text-xs text-slate-400">Pulihkan history dari backup jika data hilang</span>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="backup-grid"></div>
-</section>
+
 </main></div>
 <!-- Mobile Bottom Dock Menu -->
 <!-- Custom Modal Notifikasi -->
@@ -3054,10 +2991,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             }
 
             if (tab === 'input' || tab === 'backup' || tab === 'laporan-kasir' || tab === 'settings') {
-                if (tab === 'backup') {
-                    populateBackupFilters();
-                    renderBackupGrid();
-                }
             } else if (tab === 'kasir') {
             } else {
                 if (tab === 'history' && window.matchMedia('(max-width:767px)').matches) {
@@ -3076,148 +3009,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 } else if (tab === 'history') {
                     populateHistoryFilters();
                     renderHistory();
-                } else if (tab === 'report') {
-                    populateReportFilters();
-                    renderReport();
-                }
             }
-        }
-
-        function renderBackupGrid() {
-            const container = document.getElementById('backup-grid');
-            if (!container) return;
-
-            loadUserData();
-
-            const searchEl = document.getElementById('filter-backup-search');
-            const dateEl = document.getElementById('filter-backup-date');
-            const monthEl = document.getElementById('filter-backup-month');
-            const yearEl = document.getElementById('filter-backup-year');
-            const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
-            const fDate = dateEl ? dateEl.value : '';
-            const fMonth = monthEl ? monthEl.value : '';
-            const fYear = yearEl ? yearEl.value : '';
-
-            let filtered = backupOtomatisData.filter(backup => {
-                const text = `${backup.day || ''} ${backup.date || ''} ${backup.month || ''} ${backup.year || ''}`.toLowerCase();
-                const matchSearch = !search || text.includes(search);
-                const matchDate = !fDate || String(backup.date) === String(fDate);
-                const matchMonth = !fMonth || String(backup.month) === String(fMonth);
-                const matchYear = !fYear || String(backup.year) === String(fYear);
-                return matchSearch && matchDate && matchMonth && matchYear;
-            });
-
-            // Backup selalu ditampilkan dari tanggal terbaru ke terlama.
-            // Gunakan daftar bulan lokal agar tidak bergantung pada variabel dari script lain.
-            const backupMonthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-            filtered.sort((a,b) => {
-                const aMonth = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : backupMonthNames.indexOf(a.month);
-                const bMonth = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : backupMonthNames.indexOf(b.month);
-                const ad = new Date(Number(a.year)||0, aMonth >= 0 ? aMonth : 0, Number(a.date)||1).getTime();
-                const bd = new Date(Number(b.year)||0, bMonth >= 0 ? bMonth : 0, Number(b.date)||1).getTime();
-                return bd - ad || (Number(b.id)||0) - (Number(a.id)||0);
-            });
-
-            if (backupOtomatisData.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-cloud-arrow-down text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data backup otomatis.</p>
-                        <p class="text-xs text-slate-400 mt-1">Data backup otomatis akan tercatat saat Anda menambahkan transaksi.</p>
-                    </div>`;
-                return;
-            }
-
-            if (!filtered.length) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-16 bg-white rounded-2xl shadow-lg border border-dashed border-slate-200 text-slate-400">
-                        <i class="fa-solid fa-filter-circle-xmark text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Tidak ada backup yang sesuai filter.</p>
-                    </div>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(backup => {
-                return `
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200/80 flex flex-col justify-between space-y-4 hover:shadow-xl transition">
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
-                                    <i class="fa-solid fa-database"></i>
-                                </span>
-                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Backup Aktif</span>
-                            </div>
-                            <h4 class="font-extrabold text-slate-800 text-base">${backup.historyName || `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`}</h4>
-                            <p class="text-xs text-slate-500 mt-1">Total riwayat tersimpan: ${backup.historySnapshot.length} item data</p>
-                            ${backup.sourceHistory ? `
-                            <div class="grid grid-cols-2 gap-2 mt-3">
-                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <div class="text-[10px] text-slate-500 font-semibold">Pendapatan</div>
-                                    <div class="text-xs font-extrabold text-emerald-600">${formatRupiah(backup.sourceHistory.income || 0)}</div>
-                                </div>
-                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <div class="text-[10px] text-slate-500 font-semibold">Total Belanja</div>
-                                    <div class="text-xs font-extrabold text-slate-800">${formatRupiah(backup.sourceHistory.expense || 0)}</div>
-                                </div>
-                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <div class="text-[10px] text-slate-500 font-semibold">Pengeluaran</div>
-                                    <div class="text-xs font-extrabold text-rose-600">${formatRupiah(backup.sourceHistory.cashout || 0)}</div>
-                                </div>
-                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <div class="text-[10px] text-slate-500 font-semibold">Profit (${backup.sourceHistory.profitPercentage !== undefined ? backup.sourceHistory.profitPercentage : 10}%)</div>
-                                    <div class="text-xs font-extrabold text-amber-600">${formatRupiah(backup.sourceHistory.profit || 0)}</div>
-                                </div>
-                            </div>` : ''}
-                        </div>
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
-                            <span class="text-[11px] font-semibold text-slate-400">Pulihkan jika history hilang</span>
-                            <button onclick="restoreHistoryFromBackup(${backup.id})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
-                                <i class="fa-solid fa-rotate-left"></i> Pulihkan
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function restoreHistoryFromBackup(backupId) {
-            const backup = backupOtomatisData.find(b => b.id === backupId);
-            if (!backup) return;
-
-            historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
-            if (currentSessionUser && currentSessionUser.phone) {
-                localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
-            }
-
-            showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
-            switchTab('history');
-        }
-
-        function populateBackupFilters() {
-            const dateSelect = document.getElementById('filter-backup-date');
-            const monthSelect = document.getElementById('filter-backup-month');
-            const yearSelect = document.getElementById('filter-backup-year');
-            if (!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentDate = dateSelect.value;
-            const currentMonth = monthSelect.value;
-            const currentYear = yearSelect.value;
-            const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-
-            dateSelect.innerHTML = '<option value="">Tgl</option>' + Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
-            monthSelect.innerHTML = '<option value="">Bulan</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
-
-            const years = [...new Set(backupOtomatisData.map(b=>Number(b.year)).filter(y=>y))].sort((a,b)=>b-a);
-            if (!years.length) {
-                const currentYearNow = new Date().getFullYear();
-                for(let y=2000;y<=2030;y++) years.push(y);
-                years.sort((a,b)=>b-a);
-            }
-            yearSelect.innerHTML = '<option value="">Tahun</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-
-            dateSelect.value = currentDate;
-            monthSelect.value = currentMonth;
-            yearSelect.value = currentYear;
         }
 
         function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
@@ -3735,10 +3527,6 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             // PATCH FOKUS: setelah input tersimpan, semua tampilan turunan langsung diperbarui.
             populateHistoryFilters();
             renderHistory();
-            populateReportFilters();
-            renderReport();
-            populateBackupFilters();
-            renderBackupGrid();
             if (typeof window.renderMobileAdminSummary === 'function') window.renderMobileAdminSummary();
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
@@ -3889,585 +3677,10 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             }).join('');
         }
 
-        function populateReportFilters() {
-            const dateSelect = document.getElementById('filter-report-date');
-            const monthSelect = document.getElementById('filter-report-month');
-            const yearSelect = document.getElementById('filter-report-year');
-            
-            if(!dateSelect || !monthSelect || !yearSelect) return;
-
-            const currentSelectedDate = dateSelect.value;
-            const currentSelectedMonth = monthSelect.value;
-            const currentSelectedYear = yearSelect.value;
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            let datesHtml = '<option value="">Semua Tgl (1-31)</option>';
-            for(let i=1; i<=31; i++) {
-                datesHtml += `<option value="${i}">${i}</option>`;
-            }
-
-            let monthsHtml = '<option value="">Semua Bln</option>';
-            months.forEach(m => {
-                monthsHtml += `<option value="${m}">${m}</option>`;
-            });
-
-            let yearsHtml = '<option value="">Semua Thn</option>';
-            for(let y=2000; y<=2030; y++) {
-                yearsHtml += `<option value="${y}">${y}</option>`;
-            }
-
-            dateSelect.innerHTML = datesHtml;
-            monthSelect.innerHTML = monthsHtml;
-            yearSelect.innerHTML = yearsHtml;
-
-            dateSelect.value = currentSelectedDate;
-            monthSelect.value = currentSelectedMonth;
-            yearSelect.value = currentSelectedYear;
-        }
-
         // RENDER LAPORAN PER BULAN & TAHUN.
         // Default: semua kombinasi Bulan + Tahun yang tersedia di History.
         // Jika filter tanggal/bulan/tahun dipilih, data tetap diringkas sesuai filter aktif.
-        function renderReport() {
-            const container = document.getElementById('report-grid');
-            if (!container) return;
-
-            const fDateEl = document.getElementById('filter-report-date');
-            const fMonthEl = document.getElementById('filter-report-month');
-            const fYearEl = document.getElementById('filter-report-year');
-
-            const fDate = fDateEl ? fDateEl.value : "";
-            const fMonth = fMonthEl ? fMonthEl.value : "";
-            const fYear = fYearEl ? fYearEl.value : "";
-
-            let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="report-monthly-empty">
-                        <i class="fa-solid fa-chart-pie text-4xl mb-3 text-slate-300"></i>
-                        <p class="text-sm font-medium">Belum ada data laporan yang dapat direkap.</p>
-                    </div>`;
-                return;
-            }
-
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            // Kelompokkan berdasarkan Bulan + Tahun.
-            const groups = {};
-            filtered.forEach(item => {
-                const monthIndex = Number.isInteger(item.monthIndex)
-                    ? item.monthIndex
-                    : months.indexOf(item.month);
-                const monthName = item.month || months[monthIndex] || '';
-                const year = item.year;
-                const key = `${year}-${String(monthIndex >= 0 ? monthIndex : 99).padStart(2, '0')}`;
-
-                if (!groups[key]) {
-                    groups[key] = {
-                        monthIndex,
-                        month: monthName,
-                        year,
-                        items: []
-                    };
-                }
-                groups[key].items.push(item);
-            });
-
-            const sortedGroups = Object.values(groups).sort((a, b) => {
-                const yearA = Number(a.year) || 0;
-                const yearB = Number(b.year) || 0;
-                if (yearA !== yearB) return yearB - yearA;
-                return (b.monthIndex ?? 99) - (a.monthIndex ?? 99);
-            });
-
-            container.innerHTML = sortedGroups.map(group => {
-                const items = group.items;
-                const totalIncome = items.reduce((s, i) => s + (Number(i.income) || 0), 0);
-                const totalExpense = items.reduce((s, i) => s + (Number(i.expense) || 0), 0);
-                const totalCashout = items.reduce((s, i) => s + (Number(i.cashout) || 0), 0);
-                const totalProfit = items.reduce((s, i) => s + (Number(i.profit) || 0), 0);
-
-                const safeMonth = String(group.month).replace(/'/g, "\\'");
-                const safeYear = String(group.year).replace(/'/g, "\\'");
-
-                return `
-                    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200/85 space-y-6">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
-                            <div>
-                                <h3 class="font-bold text-slate-800 text-base">Rekap ${group.month} ${group.year}</h3>
-                                <p class="text-xs text-slate-400 mt-0.5">Rekap berdasarkan data History pada ${group.month} ${group.year}${fDate ? `, tanggal ${fDate}` : ''}</p>
-                            </div>
-                            <button onclick="openPdfModal('${fDate}', '${safeMonth}', '${safeYear}')" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer">
-                                <i class="fa-solid fa-file-pdf"></i> View di PDF
-                            </button>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-arrow-trend-up text-emerald-600 text-base"></i> Total Pendapatan
-                                    </div>
-                                    <div class="text-lg font-extrabold text-emerald-600">${formatRupiah(totalIncome)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-wallet"></i>
-                                </span>
-                            </div>
-
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-bag-shopping text-blue-600 text-base"></i> Total Belanja
-                                    </div>
-                                    <div class="text-lg font-extrabold text-slate-800">${formatRupiah(totalExpense)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-cart-shopping"></i>
-                                </span>
-                            </div>
-
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-arrow-trend-down text-rose-600 text-base"></i> Total Pengeluaran
-                                    </div>
-                                    <div class="text-lg font-extrabold text-rose-600">${formatRupiah(totalCashout)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-receipt"></i>
-                                </span>
-                            </div>
-
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-                                        <i class="fa-solid fa-sack-dollar text-amber-600 text-base"></i> Total Keuntungan Bersih
-                                    </div>
-                                    <div class="text-lg font-extrabold text-amber-600">${formatRupiah(totalProfit)}</div>
-                                </div>
-                                <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-chart-line"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // FUNGSI MODAL VIEW PDF DENGAN DATA HISTORY TANGGAL 1-31
-        function openPdfModal(fDate, fMonth, fYear) {
-            const modal = document.getElementById('pdf-modal');
-            const contentBody = document.getElementById('pdf-content-body');
-
-            let filtered = historyData.filter(item => {
-                let matchDate = fDate === "" || item.date.toString() === fDate;
-                let matchMonth = fMonth === "" || item.month === fMonth;
-                let matchYear = fYear === "" || item.year.toString() === fYear;
-                return matchDate && matchMonth && matchYear;
-            });
-
-            const totalIncome = filtered.reduce((s, i) => s + i.income, 0);
-            const totalExpense = filtered.reduce((s, i) => s + (i.expense || 0), 0);
-            const totalCashout = filtered.reduce((s, i) => s + (i.cashout || 0), 0);
-            const totalProfit = filtered.reduce((s, i) => s + (i.profit || 0), 0);
-
-            contentBody.innerHTML = `
-                <div class="bg-white p-6 rounded-2xl shadow border border-slate-200 space-y-6">
-                    <div class="text-center border-b pb-4">
-                        <h2 class="font-extrabold text-slate-800 text-lg">LAPORAN KEUANGAN REKAPINYU</h2>
-                        <p class="text-xs text-slate-500 mt-1">Data History Dari Tanggal 1 s/d 31</p>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Data Realtime: ${fMonth || 'Semua Bulan'}, ${fYear || 'Semua Tahun'}</p>
-                    </div>
-
-                    <!-- Ringkasan Total -->
-                    <div class="grid grid-cols-2 gap-3 text-xs">
-                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <span class="text-emerald-700 font-semibold block">Total Pendapatan:</span>
-                            <span class="font-bold text-emerald-800 text-sm">${formatRupiah(totalIncome)}</span>
-                        </div>
-                        <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                            <span class="text-blue-700 font-semibold block">Total Belanja:</span>
-                            <span class="font-bold text-blue-800 text-sm">${formatRupiah(totalExpense)}</span>
-                        </div>
-                        <div class="p-3 bg-rose-50 rounded-xl border border-rose-100">
-                            <span class="text-rose-700 font-semibold block">Total Pengeluaran:</span>
-                            <span class="font-bold text-rose-800 text-sm">${formatRupiah(totalCashout)}</span>
-                        </div>
-                        <div class="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                            <span class="text-amber-700 font-semibold block">Total Profit:</span>
-                            <span class="font-bold text-amber-800 text-sm">${formatRupiah(totalProfit)}</span>
-                        </div>
-                    </div>
-
-                    <!-- Tabel Rincian Data History Tanggal 1-31 -->
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide mb-3">Rincian Data History Harian</h4>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 text-slate-600 border-b">
-                                        <th class="p-2.5 font-bold">Tanggal</th>
-                                        <th class="p-2.5 font-bold">Pendapatan</th>
-                                        <th class="p-2.5 font-bold">Belanja</th>
-                                        <th class="p-2.5 font-bold">Pengeluaran</th>
-                                        <th class="p-2.5 font-bold">Profit</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    ${filtered.map(item => `
-                                        <tr>
-                                            <td class="p-2.5 font-medium text-slate-700">${item.date} ${item.month} ${item.year}</td>
-                                            <td class="p-2.5 text-emerald-600 font-semibold">${formatRupiah(item.income)}</td>
-                                            <td class="p-2.5 text-slate-800 font-semibold">${formatRupiah(item.expense || 0)}</td>
-                                            <td class="p-2.5 text-rose-600 font-semibold">${formatRupiah(item.cashout || 0)}</td>
-                                            <td class="p-2.5 text-amber-600 font-semibold">${formatRupiah(item.profit || 0)}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            modal.classList.remove('hidden');
-        }
-
-        function closePdfModal() {
-            document.getElementById('pdf-modal').classList.add('hidden');
-        }
-    </script>
-<!-- MOBILE ONLY: SIMPLIFIED BOTTOM DOCK -->
-<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-6px_20px_rgba(15,23,42,.08)] z-40" id="mobile-simplified-dock">
-<div class="max-w-md mx-auto grid grid-cols-3 px-3 py-2">
-<button class="mobile-dock-item flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition" id="nav-mobile-home" onclick="switchTab('home')" type="button"><i class="fa-solid fa-house-chimney text-lg mb-0.5"></i><span class="text-[11px] font-semibold">Beranda</span></button>
-<button class="mobile-dock-item mobile-dock-input flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition" id="nav-mobile-input" onclick="switchTab('input')" type="button"><i class="fa-solid fa-square-plus text-lg mb-0.5"></i><span class="text-[11px] font-medium">Input</span></button>
-<button class="mobile-dock-item flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition" id="nav-mobile-history" onclick="switchTab('history')" type="button"><i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i><span class="text-[11px] font-medium">History</span></button>
-</div>
-</nav>
-<!-- MOBILE-ONLY OVERRIDE: original desktop UI is not changed -->
-<style>
-    @media (max-width:767px){
-      body{overflow:hidden} main{padding-bottom:92px!important}
-      body > nav.md\:hidden.fixed.bottom-0:not(#mobile-simplified-dock){display:none!important}
-            #mobile-date-header{display:none!important}
-            header .md\:hidden.bg-rose-50{display:none!important}
-            .mobile-home-settings,
-            #mobile-profile-menu-container{display:block!important}
-            header{position:relative;z-index:60!important}
-            .mobile-profile-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ecfdf5;color:#059669;border:2px solid #a7f3d0;overflow:hidden;font-size:15px;box-shadow:0 3px 10px rgba(5,150,105,.15)}
-            .mobile-profile-button img{width:100%;height:100%;object-fit:cover}
-            .mobile-profile-menu{position:absolute;right:0;top:44px;bottom:auto;width:142px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 30px rgba(15,23,42,.16);z-index:70}
-            .mobile-profile-menu button{width:100%;display:flex;align-items:center;gap:9px;padding:10px 9px;border-radius:10px;color:#475569;font-size:11px;font-weight:700;text-align:left}
-            .mobile-profile-menu button:active{background:#f1f5f9}.mobile-profile-menu button i{width:16px;text-align:center;color:#059669}
-            #mobile-simplified-dock{height:68px;background:#fff!important;border-top:1px solid #e2e8f0!important;border-radius:0!important;box-shadow:0 -6px 18px rgba(15,23,42,.08)!important;padding:0 18px!important;overflow:visible}
-            #mobile-simplified-dock:before{display:none!important}
-            #mobile-simplified-dock>div{height:100%;max-width:none;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;padding:0!important;position:relative;z-index:1}
-            #mobile-simplified-dock .mobile-dock-item{height:58px;gap:2px;padding:7px 4px!important;border-radius:16px;color:#94a3b8}
-            #mobile-simplified-dock .mobile-dock-item i{font-size:18px;line-height:1}
-            #mobile-simplified-dock #nav-mobile-home.text-emerald-600,#mobile-simplified-dock #nav-mobile-input.text-emerald-600,#mobile-simplified-dock #nav-mobile-history.text-emerald-600{color:#059669}
-            #mobile-simplified-dock #nav-mobile-input{width:58px;height:58px;justify-self:center;align-self:center;margin-top:-18px;border-radius:50%;background:#059669;color:#fff!important;border:5px solid #fff;box-shadow:0 7px 16px rgba(5,150,105,.28);padding:0!important;gap:0}
-            #mobile-simplified-dock #nav-mobile-input i{font-size:23px;margin:0}
-            #mobile-simplified-dock #nav-mobile-input span{display:none!important}
-            #mobile-simplified-dock #nav-mobile-input.text-emerald-600{background:#047857;color:#fff!important}
-      .mobile-home-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%}
-      .mobile-home-card{min-height:128px;position:relative;overflow:visible;border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.06);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px 8px;color:#334155;transition:transform .18s ease}
-      .mobile-home-card:active{transform:scale(.98)}
-      .mobile-home-card-main{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;display:flex;align-items:center;justify-content:center;padding:14px 8px;color:inherit}
-      .mobile-home-card-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;pointer-events:none}
-      .mobile-home-card-content>span{display:block;max-width:100%;font-size:12px;line-height:1.25;font-weight:700}
-      .mobile-home-icon{width:42px;height:42px;border-radius:13px;background:#ecfdf5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:18px}
-      .mobile-home-watermark{position:absolute;right:-8px;bottom:-12px;font-size:74px;line-height:1;color:#0f172a;opacity:.10;pointer-events:none;z-index:1}
-      .mobile-admin-summary{position:sticky;top:0;z-index:25;background:#2563eb;color:#fff;border-radius:18px;padding:12px;box-shadow:0 8px 22px rgba(37,99,235,.24);border:1px solid rgba(255,255,255,.16)}
-      .mobile-admin-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-      .mobile-admin-title{font-size:14px;font-weight:900;letter-spacing:.4px;display:flex;align-items:center;gap:7px}
-      .mobile-admin-subtitle{font-size:9px;font-weight:600;opacity:.82;margin-top:2px}
-      .mobile-admin-title-icon{font-size:22px;opacity:.3}
-      .mobile-admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-      .mobile-admin-card{min-width:0;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:13px;padding:9px 6px 8px;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
-      .mobile-admin-card-icon{width:27px;height:27px;margin:0 auto 5px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px}
-      .mobile-admin-card-label{font-size:8.5px;line-height:1.2;font-weight:700;min-height:20px;display:flex;align-items:center;justify-content:center}
-      .mobile-admin-card-value{font-size:10px;line-height:1.2;font-weight:900;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      #history-io-floating{display:none!important}
-    }
-    @media (max-width:370px){.mobile-home-grid{gap:8px}.mobile-home-card{min-height:116px;border-radius:17px;padding-left:5px;padding-right:5px}.mobile-home-card-content>span{font-size:10.5px}.mobile-home-icon{width:37px;height:37px;font-size:16px}.mobile-home-watermark{font-size:62px}}
-    </style>
-<script>
-    (function(){
-      function formatMobileAdminCurrency(value){
-        const n=Number(value)||0;
-        return 'Rp ' + n.toLocaleString('id-ID');
-      }
-      function renderMobileAdminSummary(){
-        if(!window.matchMedia('(max-width:767px)').matches)return;
-        const incomeEl=document.getElementById('mobile-admin-income');
-        const expenseEl=document.getElementById('mobile-admin-expense');
-        const profitEl=document.getElementById('mobile-admin-profit');
-        const storeNameEl=document.getElementById('mobile-admin-store-name');
-        if(!incomeEl||!expenseEl||!profitEl)return;
-        if(storeNameEl)storeNameEl.textContent=(currentSessionUser&&currentSessionUser.name)||'ADMIN';
-        const data=Array.isArray(historyData)?historyData:[];
-        const now=new Date();
-        const todayDate=now.getDate();
-        const todayMonth=now.getMonth();
-        const todayYear=now.getFullYear();
-        const today= data.find(item=>Number(item.date)===todayDate && Number(item.monthIndex)===todayMonth && Number(item.year)===todayYear);
-        const latest=today || data[0] || null;
-        incomeEl.textContent=formatMobileAdminCurrency(latest?.income);
-        expenseEl.textContent=formatMobileAdminCurrency(latest?.expense);
-        profitEl.textContent=formatMobileAdminCurrency(latest?.profit);
-      }
-            (function(){let mode="daily";function rp(n){return "Rp "+(Number(n)||0).toLocaleString("id-ID")}function kasir(){let t=[],p=[];try{let ph=(typeof currentSessionUser!=="undefined"&&currentSessionUser&&currentSessionUser.phone)?currentSessionUser.phone:"guest";t=JSON.parse(localStorage.getItem("finance_kasir_transactions_"+ph)||"[]");p=JSON.parse(localStorage.getItem("finance_kasir_products_"+ph)||"[]")}catch(e){}let pm={};p.forEach(x=>pm[String(x.id)]=x);let omzet=t.reduce((a,x)=>a+(Number(x.total)||0),0),profit=0; t.forEach(x=>{let items=Array.isArray(x.cart)?x.cart:(Array.isArray(x.itemsDetail)?x.itemsDetail:null);if(items)profit+=items.reduce((s,i)=>{let q=Number(i.qty)||1, pr=Number(i.price)||0, c=Number((pm[String(i.id)]||i).cost??i.hpp)||0;return s+Math.max(pr-c,0)*q},0)});return{omzet,profit,count:t.length}}function setMode(m){mode=m==="kasir"?"kasir":"daily";let a=document.getElementById("mobile-admin-card-income-label"),b=document.getElementById("mobile-admin-card-expense-label"),c=document.getElementById("mobile-admin-card-profit-label"),x=document.getElementById("mobile-admin-income"),y=document.getElementById("mobile-admin-expense"),z=document.getElementById("mobile-admin-profit"),sub=document.querySelector(".mobile-admin-subtitle");if(mode==="kasir"){let s=kasir();if(a)a.textContent="Pendapatan Kasir";if(b)b.textContent="Total Laba/Profit";if(c)c.textContent="Total transaksi";if(x)x.textContent=rp(s.omzet);if(y)y.textContent=rp(s.profit);if(z)z.textContent=s.count;if(sub)sub.textContent="Ringkasan pendapatan kasir"}else{if(a)a.textContent="Pendapatan";if(b)b.textContent="Total Belanja";if(c)c.textContent="Total Profit";if(sub)sub.textContent="Ringkasan input terbaru hari ini";if(typeof renderMobileAdminSummary==="function")renderMobileAdminSummary()}}function close(){let p=document.getElementById("mobile-admin-income-chooser");if(p)p.remove()}function open(){close();let b=document.getElementById("mobile-admin-settings-button");if(!b)return;let p=document.createElement("div");p.id="mobile-admin-income-chooser";p.className="mobile-admin-income-chooser";p.innerHTML="<button type=\"button\" data-mobile-admin-mode=\"kasir\"><i class=\"fa-solid fa-cash-register\"></i><span>Pendapatan Kasir</span></button><button type=\"button\" data-mobile-admin-mode=\"daily\"><i class=\"fa-solid fa-calendar-day\"></i><span>Pendapatan Harian</span></button>";document.body.appendChild(p);let r=b.getBoundingClientRect();p.style.top=Math.min(innerHeight-120,r.bottom+8)+"px";p.style.right=Math.max(8,innerWidth-r.right)+"px";p.querySelectorAll("[data-mobile-admin-mode]").forEach(q=>q.onclick=()=>{setMode(q.dataset.mobileAdminMode);close()});setTimeout(()=>{let f=e=>{if(!p.contains(e.target)&&e.target!==b){close();document.removeEventListener("click",f)}};document.addEventListener("click",f)},0)}function initMobileAdminIncomeChooser(){let b=document.getElementById("mobile-admin-settings-button");if(!b||b.dataset.bound)return;b.dataset.bound="1";b.onclick=e=>{e.stopPropagation();open()};setMode("daily")}window.__mobileAdminSetMode=setMode;document.addEventListener("DOMContentLoaded",initMobileAdminIncomeChooser);setTimeout(initMobileAdminIncomeChooser,300)})();
-      function syncMobileProfileButton(){
-                const button=document.getElementById('mobile-profile-button');
-                if(!button)return;
-                const photo=currentSessionUser&&currentSessionUser.photo;
-                button.innerHTML=photo?`<img src="${photo}" alt="Foto profil">`:'<i class="fa-solid fa-user"></i>';
-            }
-            window.toggleMobileProfileMenu=function(e){if(e)e.stopPropagation();const menu=document.getElementById('mobile-profile-menu');if(menu)menu.classList.toggle('hidden')};
-            window.closeMobileProfileMenu=function(){const menu=document.getElementById('mobile-profile-menu');if(menu)menu.classList.add('hidden')};
-      window.renderMobileAdminSummary=renderMobileAdminSummary;
-      const originalSwitchTab=window.switchTab;
-      function active(id){['nav-mobile-home','nav-mobile-input','nav-mobile-history'].forEach(x=>{const e=document.getElementById(x);if(!e)return;const a=x===id;e.className=a?'flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition':'flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';const t=e.querySelector('span');if(t)t.className=a?'text-[11px] font-semibold':'text-[11px] font-medium'})}
-    function home(){if(!window.matchMedia('(max-width:767px)').matches)return;['input','pengeluaran','kasbon','history','report','backup'].forEach(v=>{const e=document.getElementById('view-'+v);if(e)e.classList.add('hidden')});['pengeluaran-sticky-container','kasbon-sticky-container','backup-sticky-container'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden')});const h=document.getElementById('mobile-home-view');if(h)h.classList.remove('hidden');const t=document.getElementById('page-title-header'),s=document.getElementById('page-subtitle-header');if(t)t.innerText='Beranda';if(s)s.innerText='Pilih menu yang ingin Anda gunakan.';active('nav-mobile-home');renderMobileAdminSummary()}
-      window.switchTab=function(tab){if(tab==='home'){if(window.matchMedia('(max-width:767px)').matches)home();else originalSwitchTab('input');return}originalSwitchTab(tab);if(window.matchMedia('(max-width:767px)').matches){active(tab==='input'?'nav-mobile-input':tab==='history'?'nav-mobile-history':'nav-mobile-home');const h=document.getElementById('mobile-home-view');if(h)h.classList.add('hidden')}};
-    document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
-    function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
-    })();
-    </script>
-<!-- HISTORY LAYOUT: posisi tepat di bawah header dengan jarak kecil -->
-<style id="history-layout-single">
-#view-history{
-  width:100%!important;
-  max-width:100%!important;
-  flex:1 1 auto!important;
-  min-height:0!important;
-  margin:6px 0 0!important;
-  padding:0!important;
-  box-sizing:border-box!important;
-}
-#history-grid{
-  width:100%!important;
-  max-width:100%!important;
-  margin:0!important;
-  padding:0!important;
-  align-items:center!important;
-  box-sizing:border-box!important;
-}
-#history-grid > div{
-  width:100%!important;
-  max-width:900px!important;
-  margin-left:auto!important;
-  margin-right:auto!important;
-  box-sizing:border-box!important;
-}
-</style>
-<!-- REKAPIN HISTORY FILTER + IMPORT/EXPORT FLOATING -->
-<style id="history-filter-popup-css">
-@media (min-width:768px){
-}
-#history-io-floating{
-  position:fixed;
-  right:18px;
-  bottom:78px;
-  z-index:45;
-  display:none;
-  flex-direction:column;
-  gap:10px;
-  align-items:center;
-}
-#history-io-floating.history-io-visible{display:flex!important}
-#history-io-floating.history-io-hidden{display:none!important}
-#history-io-floating button{
-  width:54px;
-  height:54px;
-  flex:0 0 54px;
-  border-radius:9999px;
-  border:1px solid #e2e8f0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  box-shadow:0 8px 20px rgba(15,23,42,.18);
-  cursor:pointer;
-  transition:transform .18s,box-shadow .18s;
-}
-#history-io-floating button:hover{
-  transform:translateY(-1px);
-  box-shadow:0 10px 24px rgba(15,23,42,.22);
-}
-#history-filter-button{
-  background:#f0fdf4;
-  color:#16a34a;
-  border-color:#bbf7d0!important;
-}
-#history-io-import{
-  background:#eff6ff;
-  color:#2563eb;
-  border-color:#bfdbfe;
-}
-#history-io-export{
-  background:#fff;
-  color:#0d235a;
-}
-#history-filter-popup{
-  position:fixed;
-  left:50%;
-  top:50%;
-  right:auto;
-  bottom:auto;
-  transform:translate(-50%,-50%);
-  z-index:46;
-  width:min(330px,calc(100vw - 36px));
-  padding:14px;
-  background:#fff;
-  border:1px solid #e2e8f0;
-  border-radius:18px;
-  box-shadow:0 18px 45px rgba(15,23,42,.20);
-  display:none;
-}
-#history-filter-popup.is-open{display:block}
-#history-filter-popup .history-filter-title{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:10px;
-}
-#history-filter-popup .history-filter-title strong{
-  color:#334155;
-  font-size:12px;
-  font-weight:800;
-}
-#history-filter-popup .history-filter-close{
-  width:28px;
-  height:28px;
-  border:0;
-  border-radius:9999px;
-  background:#f1f5f9;
-  color:#64748b;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-}
-#history-filter-popup .history-filter-grid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:8px;
-}
-#history-filter-popup input,
-#history-filter-popup select{
-  width:100%;
-  background:#f8fafc;
-  border:1px solid #e2e8f0;
-  border-radius:12px;
-  padding:9px 11px;
-  color:#334155;
-  font-size:11px;
-  font-weight:600;
-  outline:none;
-}
-#history-filter-popup input:focus,
-#history-filter-popup select:focus{
-  border-color:#10b981;
-  box-shadow:0 0 0 3px rgba(16,185,129,.10);
-}
-#history-filter-popup .history-filter-reset{
-  width:100%;
-  margin-top:8px;
-  padding:9px 11px;
-  border:0;
-  border-radius:12px;
-  background:#f1f5f9;
-  color:#475569;
-  font-size:11px;
-  font-weight:800;
-  cursor:pointer;
-}
-@media (max-width:767px){
-  #history-io-floating{right:14px;bottom:76px}
-  #history-io-floating button{width:50px;height:50px;flex-basis:50px}
-  #history-filter-popup{
-    left:50%;
-    top:50%;
-    right:auto;
-    bottom:auto;
-    transform:translate(-50%,-50%);
-    width:min(320px,calc(100vw - 28px));
-  }
-}
-</style>
-<div aria-label="Filter, Import dan Backup History" id="history-io-floating">
-<button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
-<button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
-<button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
-</div>
-<div aria-hidden="true" id="history-filter-popup">
-<div class="history-filter-title">
-<strong><i class="fa-solid fa-filter mr-1 text-emerald-600"></i> Filter History</strong>
-<button aria-label="Tutup Filter History" class="history-filter-close" id="history-filter-close" type="button"><i class="fa-solid fa-xmark"></i></button>
-</div>
-<div class="history-filter-grid">
-<input id="history-filter-search" oninput="renderHistory()" placeholder="Cari History..." type="text"/>
-<select id="history-filter-date" onchange="renderHistory()"><option value="">Semua Tgl</option></select>
-<select id="history-filter-month" onchange="renderHistory()"><option value="">Semua Bln</option></select>
-<select id="history-filter-year" onchange="renderHistory()"><option value="">Semua Thn</option></select>
-</div>
-<button class="history-filter-reset" id="history-filter-reset" type="button"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter</button>
-</div>
-<input accept=".json,application/json" hidden="" id="history-io-file" type="file">
-<script>
-(function(){
-  'use strict';
-
-  let xlsxLoading=null;
-
-  function ensureXLSX(){
-    if(typeof window.XLSX!=='undefined') return Promise.resolve(window.XLSX);
-    if(xlsxLoading) return xlsxLoading;
-    const urls=[
-      'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
-      'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-      'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
-    ];
-    xlsxLoading=new Promise((resolve,reject)=>{
-      let i=0;
-      const load=()=>{
-        if(typeof window.XLSX!=='undefined'){resolve(window.XLSX);return}
-        if(i>=urls.length){reject(new Error('Library Excel tidak dapat dimuat. Pastikan koneksi internet aktif.'));return}
-        const sc=document.createElement('script');
-        sc.src=urls[i++];
-        sc.async=true;
-        sc.onload=()=>typeof window.XLSX!=='undefined'?resolve(window.XLSX):load();
-        sc.onerror=load;
-        document.head.appendChild(sc);
-      };
-      load();
-    }).catch(err=>{xlsxLoading=null;throw err});
-    return xlsxLoading;
-  }
-
-  function updateFloating(){const panel=document.getElementById('history-io-floating'),history=document.getElementById('view-history');if(!panel||!history)return;panel.style.display=history.classList.contains('hidden')?'none':'flex'}
-  function initHistoryIO(){
-    updateFloating();
-    if(typeof window.switchTab==='function'&&!window.switchTab.__historyIOWrapped){
-      const originalSwitch=window.switchTab;
-      function sw(tab){const r=originalSwitch.apply(this,arguments);setTimeout(updateFloating,0);return r}
-      sw.__historyIOWrapped=true;window.switchTab=sw;
-    }
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initHistoryIO);else initHistoryIO();
-  setInterval(()=>{init();updateFloating()},700);
-})();
+)();
 </script>
 <script>
 (function(){
@@ -4652,10 +3865,9 @@ async function hydrate(uid){
 
 function redraw(){
  try{loadUserData()}catch{}
- try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{}
+ try{populateHistoryFilters?.();renderHistory?.()}catch{}
  try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{}
  try{renderKasbonGrid?.()}catch{}
- try{populateBackupFilters?.();renderBackupGrid?.()}catch{}
  try{window.__initKasirViews?.()}catch{}
  try{window.__renderLaporanKasir?.()}catch{}
  try{renderMobileAdminSummary?.()}catch{}
@@ -5246,237 +4458,7 @@ onAuthStateChanged(auth,async u=>{
   }
 });
 </script>
-<script>
-/* PATCH TAMBAHAN: Pengaturan kartu Backup Otomatis.
-   Tidak mengubah fungsi asli; hanya menambahkan UI dan wrapper setelah fungsi asli. */
-(function () {
-  const originalBackupRender = window.renderBackupGrid;
-  const originalDailyBackup = window.triggerDailyAutoBackup;
 
-  function backupStorageKey() {
-    return (typeof currentSessionUser !== 'undefined' && currentSessionUser && currentSessionUser.phone)
-      ? `finance_backup_desktop_${currentSessionUser.phone}` : null;
-  }
-  function persistBackupData() {
-    const key = backupStorageKey();
-    if (key) { localStorage.setItem(key, JSON.stringify(backupOtomatisData)); window.__markDataPending?.('backup',backupOtomatisData); window.__requestDataCloudSync?.(); }
-  }
-  function closeBackupSettings() {
-    document.querySelectorAll('.backup-settings-popup').forEach(m => m.classList.add('hidden'));
-  }
-
-  /* Pertahankan perubahan manual ketika backup otomatis berikutnya berjalan. */
-  window.triggerDailyAutoBackup = function () {
-    const oldValues = new Map((backupOtomatisData || []).map(b => [String(b.id), {
-      customName: b.customName,
-      manualDate: b.manualDate,
-      manualDay: b.manualDay,
-      manualDateNumber: b.manualDateNumber,
-      manualMonthIndex: b.manualMonthIndex,
-      manualMonth: b.manualMonth,
-      manualYear: b.manualYear
-    }]));
-    const result = originalDailyBackup ? originalDailyBackup.apply(this, arguments) : undefined;
-
-    const restoreManual = function () {
-      (backupOtomatisData || []).forEach(b => {
-        const old = oldValues.get(String(b.id));
-        if (!old) return;
-        if (old.customName !== undefined) b.customName = old.customName;
-        if (old.manualDate) {
-          b.manualDate = true;
-          b.manualDay = old.manualDay;
-          b.manualDateNumber = old.manualDateNumber;
-          b.manualMonthIndex = old.manualMonthIndex;
-          b.manualMonth = old.manualMonth;
-          b.manualYear = old.manualYear;
-          b.day = old.manualDay;
-          b.date = old.manualDateNumber;
-          b.monthIndex = old.manualMonthIndex;
-          b.month = old.manualMonth;
-          b.year = old.manualYear;
-          b.dateKey = `${b.date}-${b.monthIndex}-${b.year}`;
-        }
-        if (b.customName) b.historyName = b.customName;
-      });
-      persistBackupData();
-    };
-    if (result && typeof result.then === 'function') return result.then(restoreManual);
-    restoreManual();
-    return result;
-  };
-
-  window.toggleBackupSettings = function (event, backupId) {
-    if (event) { event.preventDefault(); event.stopPropagation(); }
-    const id = String(backupId);
-    document.querySelectorAll('.backup-settings-popup').forEach(menu => {
-      if (menu.dataset.backupId !== id) menu.classList.add('hidden');
-    });
-    const menu = document.querySelector(`.backup-settings-popup[data-backup-id="${CSS.escape(id)}"]`);
-    if (menu) menu.classList.toggle('hidden');
-  };
-
-  /* EDIT: memakai modal edit History yang asli, bukan prompt. */
-  window.editBackupDate = function (event, backupId) {
-    if (event) { event.preventDefault(); event.stopPropagation(); }
-    closeBackupSettings();
-
-    const backup = backupOtomatisData.find(b => String(b.id) === String(backupId));
-    if (!backup) return;
-
-    const modal = document.getElementById('edit-modal');
-    const modalTitle = document.getElementById('edit-modal-title');
-    const modalBody = document.getElementById('edit-modal-body');
-    const saveBtn = document.getElementById('save-edit-btn');
-    if (!modal || !modalTitle || !modalBody || !saveBtn) return;
-
-    const daysOptions = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-    const monthsOptions = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-
-    /* SAMA dengan struktur popup Edit Waktu & Tanggal pada History. */
-    modalTitle.innerText = `Edit Waktu & Tanggal Backup (ID: ${String(backup.id).slice(-4)})`;
-    modalBody.innerHTML = `
-      <div>
-        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Hari</label>
-        <select id="backup-edit-val-day" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-          ${daysOptions.map(d => `<option value="${d}" ${d === backup.day ? 'selected' : ''}>${d}</option>`).join('')}
-        </select>
-      </div>
-      <div class="grid grid-cols-3 gap-2">
-        <div>
-          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
-          <input type="number" id="backup-edit-val-date" min="1" max="31" value="${Number(backup.date) || 1}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-        </div>
-        <div>
-          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
-          <select id="backup-edit-val-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-            ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${m === backup.month ? 'selected' : ''}>${m}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
-          <input type="number" id="backup-edit-val-year" value="${Number(backup.year) || new Date().getFullYear()}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-        </div>
-      </div>
-    `;
-
-    saveBtn.onclick = function () {
-      const day = document.getElementById('backup-edit-val-day').value;
-      const date = parseInt(document.getElementById('backup-edit-val-date').value, 10);
-      const monthSelect = document.getElementById('backup-edit-val-month');
-      const month = monthSelect.value;
-      const monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'), 10);
-      const year = parseInt(document.getElementById('backup-edit-val-year').value, 10);
-
-      if (!day || !Number.isInteger(date) || date < 1 || date > 31 ||
-          !month || !Number.isInteger(monthIndex) || !Number.isInteger(year) || year < 1900 || year > 9999) {
-        showModal("Gagal", "Tanggal dan waktu backup tidak valid.", "fa-solid fa-circle-exclamation text-rose-600");
-        return;
-      }
-
-      backup.manualDate = true;
-      backup.manualDay = day;
-      backup.manualDateNumber = date;
-      backup.manualMonthIndex = monthIndex;
-      backup.manualMonth = month;
-      backup.manualYear = year;
-
-      backup.day = day;
-      backup.date = date;
-      backup.monthIndex = monthIndex;
-      backup.month = month;
-      backup.year = year;
-      backup.dateKey = `${date}-${monthIndex}-${year}`;
-      if (!backup.customName) backup.historyName = `${day}, ${date} ${month} ${year}`;
-
-      persistBackupData();
-      closeEditModal();
-      renderBackupGrid();
-      showModal("Berhasil", "Tanggal dan waktu backup berhasil diperbarui.");
-    };
-
-    modal.classList.remove('hidden');
-  };
-
-  window.deleteBackupCard = function (event, backupId) {
-    if (event) { event.preventDefault(); event.stopPropagation(); }
-    const backup = backupOtomatisData.find(b => String(b.id) === String(backupId));
-    if (!backup) return;
-
-    const label = backup.customName || backup.historyName || `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;
-    if (!confirm(`Hapus data Backup "${label}"?\n\nData History utama tidak akan ikut terhapus.`)) return;
-
-    backupOtomatisData = backupOtomatisData.filter(b => String(b.id) !== String(backupId));
-    persistBackupData();
-    closeBackupSettings();
-    if (typeof populateBackupFilters === 'function') populateBackupFilters();
-    renderBackupGrid();
-    showModal("Berhasil", "Data Backup berhasil dihapus.");
-  };
-
-  document.addEventListener('click', function (e) {
-    if (!e.target.closest('.backup-settings-wrap')) closeBackupSettings();
-  });
-
-  /* Render ulang dengan fungsi asli, lalu tambahkan gear. */
-  window.renderBackupGrid = function () {
-    if (typeof originalBackupRender === 'function') originalBackupRender.apply(this, arguments);
-
-    const container = document.getElementById('backup-grid');
-    if (!container) return;
-
-    /* Bersihkan patch UI lama jika ada agar tidak dobel. */
-    container.querySelectorAll('.backup-settings-wrap').forEach(el => el.remove());
-
-    const restoreButtons = Array.from(container.querySelectorAll('button[onclick*="restoreHistoryFromBackup("]'));
-    restoreButtons.forEach(restoreBtn => {
-      const match = restoreBtn.getAttribute('onclick')?.match(/restoreHistoryFromBackup\(([^)]+)\)/);
-      if (!match) return;
-
-      const backupId = String(match[1]).trim();
-      const card = restoreBtn.closest('.bg-white');
-      if (!card) return;
-
-      const header = card.querySelector('.flex.items-center.justify-between.mb-3');
-      if (!header) return;
-
-      const oldStatus = header.querySelector('span.text-\\[10px\\]');
-      const wrap = document.createElement('div');
-      wrap.className = 'backup-settings-wrap relative ml-auto flex items-center gap-1';
-
-      wrap.innerHTML = `
-        <button type="button"
-          onclick="toggleBackupSettings(event, ${backupId})"
-          class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition"
-          title="Pengaturan Backup" aria-label="Pengaturan Backup">
-          <i class="fa-solid fa-gear text-xs"></i>
-        </button>
-
-        <div class="backup-settings-popup hidden absolute right-0 top-10 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50"
-             data-backup-id="${backupId}">
-          <button type="button" onclick="editBackupDate(event, ${backupId})"
-            class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-            <i class="fa-solid fa-calendar-days text-blue-500 w-4"></i>
-            <span>Edit Waktu & Tanggal</span>
-          </button>
-          <button type="button" onclick="deleteBackupCard(event, ${backupId})"
-            class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-            <i class="fa-solid fa-trash-can text-rose-500 w-4"></i>
-            <span>Hapus Data</span>
-          </button>
-        </div>
-      `;
-
-      if (oldStatus) oldStatus.remove();
-      header.appendChild(wrap);
-
-      const backup = backupOtomatisData.find(b => String(b.id) === backupId);
-      const title = card.querySelector('h4');
-      if (title && backup && backup.customName) title.textContent = backup.customName;
-    });
-  };
-})();
-</script>
 <!-- PATCH FINAL: filter Kasbon dan Import/Export History berbentuk tombol bulat. -->
 <style>
     #history-io-export { order: 1 !important; }
@@ -5687,7 +4669,6 @@ onAuthStateChanged(auth,async u=>{
             }
             populateHistoryFilters();
             renderHistory();
-            renderReport();
             switchTab('history');
             showModal('Import Berhasil', `${imported.length} data backup berhasil ditambahkan ke History.`);
         }).catch(error => showModal('Import Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
