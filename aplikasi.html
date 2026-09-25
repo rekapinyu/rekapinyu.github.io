@@ -977,7 +977,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 .app-settings-panel.is-active{display:block}
 .app-settings-content .receipt-settings-card,.app-settings-content .printer-settings-card{max-width:none}
 .printer-settings-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden}
-.printer-settings-body{display:grid;gap:100px;padding:18px}
+.printer-settings-body{display:grid;gap:100px;padding:18px;position:relative;top:0px}
 .printer-status-box{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:11px;background:#f8fafc}
 .printer-status-dot{width:10px;height:10px;border-radius:50%;background:#dc2626;box-shadow:0 0 0 4px rgba(220,38,38,.1);flex:0 0 10px}
 .printer-status-box.is-connected .printer-status-dot{background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.1)}
@@ -1416,21 +1416,58 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
-<style id="report-monthly-empty-position">
-#view-report { margin-top: -10px; }
-#view-report .report-monthly-area { width: 100%; }
-#view-report .report-monthly-empty {
-    width: 100%;
-    min-height: 220px;
-    margin: 0;
-    padding: 4rem 1rem;
-    background: #fff;
-    border-radius: 1rem;
-    box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.10), 0 4px 6px -4px rgb(15 23 42 / 0.10);
-    border: 1px dashed #e2e8f0;
-    color: #94a3b8;
-    text-align: center;
-    box-sizing: border-box;
+<style id="rekapinyu-menu-spacing-up-final">
+/* SPACING SAJA — Laporan Bulanan, Backup Otomatis, dan Pengeluaran.
+   Fungsi, ukuran kartu, warna, isi, event, dan data tidak diubah. */
+#view-report .report-monthly-area{width:100%;}
+#view-report .report-monthly-empty{
+  width:100%;
+  min-height:220px;
+  margin:0;
+  padding:4rem 1rem;
+  background:#fff;
+  border-radius:1rem;
+  box-shadow:0 10px 15px -3px rgb(15 23 42 / 0.10),0 4px 6px -4px rgb(15 23 42 / 0.10);
+  border:1px dashed #e2e8f0;
+  color:#94a3b8;
+  text-align:center;
+  box-sizing:border-box;
+}
+
+/* Hilangkan ruang vertikal otomatis dari wrapper hanya ketika menu terkait aktif. */
+main > .max-w-4xl.mx-auto.w-full.my-auto:has(#view-report:not(.hidden)),
+main > .max-w-4xl.mx-auto.w-full.my-auto:has(#view-backup:not(.hidden)){
+  margin-top:0!important;
+  margin-bottom:0!important;
+}
+
+/* Laporan Bulanan: naik sedikit dari posisi sebelumnya. */
+#view-report:not(.hidden){
+  margin-top:-10px!important;
+}
+
+/* Backup Otomatis: filter dan isi naik tanpa mengubah bentuk komponennya. */
+#backup-sticky-container:not(.hidden){
+  margin-bottom:8px!important;
+}
+#view-backup:not(.hidden){
+  margin-top:-8px!important;
+}
+
+/* Pengeluaran: rapatkan jarak antara filter sticky dan daftar, sehingga area tidak turun. */
+#pengeluaran-sticky-container:not(.hidden){
+  margin-bottom:8px!important;
+}
+#view-pengeluaran:not(.hidden){
+  margin-top:-8px!important;
+}
+
+@media(max-width:767px){
+  #view-report:not(.hidden){margin-top:-6px!important;}
+  #backup-sticky-container:not(.hidden){margin-bottom:6px!important;}
+  #view-backup:not(.hidden){margin-top:-6px!important;}
+  #pengeluaran-sticky-container:not(.hidden){margin-bottom:6px!important;}
+  #view-pengeluaran:not(.hidden){margin-top:-6px!important;}
 }
 </style>
 </head>
@@ -6213,8 +6250,8 @@ function initKasirViews(){
     const b=e.target.closest('[data-settings-panel]');if(b){e.preventDefault();activateSettingsPanel(b.dataset.settingsPanel);return}
     const open=e.target.closest('[data-settings-open]');if(open){e.preventDefault();activateSettingsPanel(open.dataset.settingsOpen);return}
     if(e.target.closest('#settings-printer-connect')){e.preventDefault();connectKasirBluetoothPrinter().finally(updateSettingsPrinterPanel);return}
-    if(e.target.closest('#settings-printer-disconnect')){e.preventDefault();kasirBluetoothDisconnect();updateSettingsPrinterPanel();return}
-    if(e.target.closest('#settings-printer-save')){e.preventDefault();saveKasirPrinterSettings();notify('Berhasil Disimpan','Pengaturan printer berhasil disimpan.','fa-solid fa-circle-check text-emerald-600');return}
+    if(e.target.closest('#settings-printer-disconnect')){e.preventDefault();kasirBluetoothDisconnect();updateSettingsPrinterPanel();showModal('Berhasil','Printer Bluetooth berhasil diputuskan.','fa-solid fa-link-slash text-emerald-600');return}
+    if(e.target.closest('#settings-printer-save')){e.preventDefault();saveKasirPrinterSettings();showModal('Berhasil Disimpan','Pengaturan berhasil disimpan.','fa-solid fa-circle-check text-emerald-600');return}
     if(e.target.closest('#settings-kasir-save')){e.preventDefault();const phone=(typeof currentSessionUser!=='undefined'&&currentSessionUser&&currentSessionUser.phone)?String(currentSessionUser.phone).replace(/\D/g,''):'guest';const data={confirmCancel:!!document.getElementById('kasir-confirm-cancel')?.checked,focusSearch:!!document.getElementById('kasir-focus-search')?.checked};localStorage.setItem(`finance_kasir_settings_${phone||'guest'}`,JSON.stringify(data));notify('Berhasil Disimpan','Pengaturan kasir berhasil disimpan.','fa-solid fa-circle-check text-emerald-600');return}
     if(e.target.closest('#settings-printer-test')){e.preventDefault();const characteristic=kasirBluetooth?.characteristic;if(!kasirBluetooth?.device?.gatt?.connected||!characteristic){showModal('Printer Belum Tersambung','Hubungkan printer Bluetooth terlebih dahulu.','fa-brands fa-bluetooth-b text-rose-600');return}const data=new TextEncoder().encode('\x1B\x40\x1B\x61\x01TEST PRINT REKAPINYU\n\x1B\x61\x00Printer siap digunakan.\n\n');(async()=>{try{if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(data);else await characteristic.writeValue(data);showModal('Berhasil','Test print berhasil dikirim ke printer.','fa-solid fa-print text-emerald-600')}catch(err){showModal('Test Print Gagal',err?.message||'Data test print tidak dapat dikirim.','fa-solid fa-print text-rose-600')}})();return}
   });
