@@ -1416,63 +1416,73 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
-<style id="spacing-laporan-backup-kasbon-final">
-/* PERBAIKAN SPACING TERFOKUS: hanya posisi Laporan Bulanan, Backup Otomatis, dan aturan Kasbon yang sudah ada. */
+
+
+<style id="laporan-backup-layout-single-implementation">
+/* SATU IMPLEMENTASI POSISI: hanya Laporan Bulanan + Backup Otomatis. */
 @media (min-width:768px){
+  /* Keduanya mulai langsung dari bawah header, tanpa margin-auto yang mendorong isi ke tengah. */
   main > .max-w-4xl:has(#view-report:not(.hidden)),
-  main > .max-w-4xl:has(#view-backup:not(.hidden)),
-  main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
+  main > .max-w-4xl:has(#view-backup:not(.hidden)){
+    width:100%!important;
+    max-width:1044px!important;
     margin-top:0!important;
-    margin-bottom:auto!important;
-  }
-
-  /* Laporan Bulanan: posisi mengikuti foto referensi. */
-  #view-report{
-    margin-top:-14px!important;
-  }
-  #view-report .report-monthly-area{
-    width:100%!important;
-  }
-
-  /* Backup Otomatis: filter selebar area konten seperti foto referensi. */
-  #backup-sticky-container{
-    width:100%!important;
-    max-width:1100px!important;
-    margin-left:auto!important;
     margin-right:auto!important;
+    margin-bottom:auto!important;
+    margin-left:auto!important;
+  }
+
+  /* Laporan Bulanan: kartu tepat di bawah header seperti foto referensi. */
+  #view-report{
+    width:100%!important;
+    max-width:1044px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  #view-report .report-monthly-area,
+  #report-grid{
+    width:100%!important;
+    max-width:1044px!important;
+    margin:0!important;
+  }
+
+  /* Backup Otomatis: filter sedikit lebih sempit dari kartu isi, lalu daftar langsung di bawahnya. */
+  #backup-sticky-container{
+    width:calc(100% - 40px)!important;
+    max-width:1012px!important;
+    margin:0 auto 24px!important;
+    flex:0 0 auto!important;
+  }
+  #view-backup{
+    width:100%!important;
+    max-width:1044px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  #view-backup > div:first-child{
     margin-bottom:24px!important;
   }
-
-  #kasbon-sticky-container{
-    margin-bottom:8px!important;
+  #backup-grid{
+    width:100%!important;
+    max-width:1044px!important;
+    margin:0!important;
   }
 }
 
 @media (max-width:767px){
-  main > .max-w-4xl:has(#view-report:not(.hidden)),
-  main > .max-w-4xl:has(#view-backup:not(.hidden)),
-  main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
-    margin-top:0!important;
-    margin-bottom:0!important;
-  }
-
-  #view-report{
-    margin-top:0!important;
-  }
-  #view-report .report-monthly-area{
+  #view-report,
+  #view-report .report-monthly-area,
+  #report-grid,
+  #view-backup,
+  #backup-grid{
     width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
   }
-
-  #kasbon-sticky-container,
   #backup-sticky-container{
-    margin-bottom:8px!important;
-  }
-
-  #backup-sticky-container{
-    width:100%!important;
-    max-width:calc(100vw - 24px)!important;
-    margin-left:auto!important;
-    margin-right:auto!important;
+    width:calc(100% - 24px)!important;
+    max-width:none!important;
+    margin:0 auto 8px!important;
   }
 }
 </style>
@@ -1952,7 +1962,7 @@ bind();
 </div>
 </div>
 <!-- BACKUP OTOMATIS STICKY FILTER -->
-<div class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-30" id="backup-sticky-container">
+<div class="w-full mx-auto hidden sticky top-0 z-30" id="backup-sticky-container">
 <div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
 <div class="grid grid-cols-12 gap-2 items-center">
 <div class="col-span-4 relative">
@@ -3175,6 +3185,8 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                     </div>
                 `;
             }).join('');
+
+            if (typeof window.__decorateBackupCards === 'function') window.__decorateBackupCards();
         }
 
         function restoreHistoryFromBackup(backupId) {
@@ -5244,10 +5256,8 @@ onAuthStateChanged(auth,async u=>{
 });
 </script>
 <script>
-/* PATCH TAMBAHAN: Pengaturan kartu Backup Otomatis.
-   Tidak mengubah fungsi asli; hanya menambahkan UI dan wrapper setelah fungsi asli. */
+/* SATU IMPLEMENTASI: Pengaturan kartu Backup Otomatis. */
 (function () {
-  const originalBackupRender = window.renderBackupGrid;
   const originalDailyBackup = window.triggerDailyAutoBackup;
 
   function backupStorageKey() {
@@ -5415,14 +5425,11 @@ onAuthStateChanged(auth,async u=>{
     if (!e.target.closest('.backup-settings-wrap')) closeBackupSettings();
   });
 
-  /* Render ulang dengan fungsi asli, lalu tambahkan gear. */
-  window.renderBackupGrid = function () {
-    if (typeof originalBackupRender === 'function') originalBackupRender.apply(this, arguments);
-
+  /* Satu helper dekorasi kartu Backup; renderBackupGrid tetap satu-satunya fungsi render. */
+  window.__decorateBackupCards = function () {
     const container = document.getElementById('backup-grid');
     if (!container) return;
 
-    /* Bersihkan patch UI lama jika ada agar tidak dobel. */
     container.querySelectorAll('.backup-settings-wrap').forEach(el => el.remove());
 
     const restoreButtons = Array.from(container.querySelectorAll('button[onclick*="restoreHistoryFromBackup("]'));
@@ -5437,7 +5444,7 @@ onAuthStateChanged(auth,async u=>{
       const header = card.querySelector('.flex.items-center.justify-between.mb-3');
       if (!header) return;
 
-      const oldStatus = header.querySelector('span.text-\\[10px\\]');
+      const oldStatus = header.querySelector('span.text-\[10px\]');
       const wrap = document.createElement('div');
       wrap.className = 'backup-settings-wrap relative ml-auto flex items-center gap-1';
 
@@ -5454,7 +5461,7 @@ onAuthStateChanged(auth,async u=>{
           <button type="button" onclick="editBackupDate(event, ${backupId})"
             class="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
             <i class="fa-solid fa-calendar-days text-blue-500 w-4"></i>
-            <span>Edit Waktu & Tanggal</span>
+            <span>Edit Waktu &amp; Tanggal</span>
           </button>
           <button type="button" onclick="deleteBackupCard(event, ${backupId})"
             class="w-full text-left px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
