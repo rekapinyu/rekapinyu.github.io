@@ -1850,21 +1850,7 @@ function bindUserActionActivityTracking(){
       if(window.__rekapinyuPk3EditPhotoChanged)addActivity('Merubah Foto Produk di menu Produk Kasir','Produk Kasir');
       window.__rekapinyuPk3EditInitial=null;window.__rekapinyuPk3EditPhotoChanged=false;return;
     }
-    if(id==='receipt-settings-form'){
-      const form=e.target;
-      const current={
-        name:String(form.querySelector('#receipt-setting-store-name')?.value||'').trim(),
-        address:String(form.querySelector('#receipt-setting-store-address')?.value||'').trim(),
-        phone:String(form.querySelector('#receipt-setting-store-phone')?.value||'').trim(),
-        footer:String(form.querySelector('#receipt-setting-footer')?.value||'').trim()
-      };
-      const p=phone();
-      let previous={};
-      try{previous=JSON.parse(localStorage.getItem(`finance_kasir_receipt_settings_${p}`)||'{}')||{}}catch(e){}
-      const changed=['name','address','phone','footer'].some(k=>String(current[k]??'')!==String(previous[k]??''));
-      if(changed)addActivity('Mengubah Tampilan Struk di menu Seting','Seting');
-      return
-    }
+    if(id==='receipt-settings-form'){addActivity('Mengubah Tampilan Struk di menu Seting','Seting');return}
   },true);
   document.addEventListener('input',e=>{
     if(e.target?.id==='pk3-edit-photo')window.__rekapinyuPk3EditPhotoChanged=true;
@@ -2164,7 +2150,7 @@ bind();
 <div class="pk3-field pk3-barcode-field"><label for="pk3-barcode">Multi Barcode+</label><input id="pk3-barcode" placeholder="Ketik, Enter" type="text" autocomplete="off"/><div class="pk3-barcode-list" id="pk3-barcode-list"></div></div>
 <div class="pk3-field"><label for="pk3-cost">HPP / Grosir</label><input id="pk3-cost" inputmode="numeric" placeholder="0" type="text"/></div>
 <div class="pk3-field"><label for="pk3-price">Harga Jual</label><input id="pk3-price" inputmode="numeric" placeholder="0" required="" type="text"/></div>
-<div class="pk3-field"><label for="pk3-stock">Stok</label><input id="pk3-stock" inputmode="numeric" placeholder="0" type="text"/></div>
+<div class="pk3-field"><label for="pk3-stock">Stok Otomatis</label><input id="pk3-stock" inputmode="numeric" placeholder="0" readonly="" type="text"/></div>
 <div class="pk3-photo-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-photo"><i class="fa-solid fa-camera"></i><span id="pk3-photo-name">Pilih foto</span></label><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-photo" type="file"/></div>
 <button class="pk3-add" id="pk3-submit" type="submit"><i class="fa-solid fa-plus"></i><span>Tambah Produk</span></button>
 </form>
@@ -2196,44 +2182,8 @@ bind();
 <input accept=".json,application/json" hidden="" id="pk3-import-file" type="file"/>
 </div>
 </section>
-<style id="kasir-stock-zero-fix-css">
-#kasir-stock-zero-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.55)}
-#kasir-stock-zero-modal.is-open{display:flex}
-#kasir-stock-zero-modal .kasir-stock-zero-card{position:relative;width:min(420px,96vw);background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(15,23,42,.25);padding:20px;box-sizing:border-box}
-#kasir-stock-zero-modal .kasir-stock-zero-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
-#kasir-stock-zero-modal .kasir-stock-zero-head h3{margin:0;color:#0f172a;font-size:17px;font-weight:900}
-#kasir-stock-zero-modal .kasir-stock-zero-head p{margin:5px 0 0;color:#64748b;font-size:11px;line-height:1.45}
-#kasir-stock-zero-modal .kasir-stock-zero-close{width:34px;height:34px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#64748b;cursor:pointer}
-#kasir-stock-zero-modal .kasir-stock-zero-field{display:grid;gap:6px}
-#kasir-stock-zero-modal .kasir-stock-zero-field label{color:#475569;font-size:11px;font-weight:800}
-#kasir-stock-zero-modal .kasir-stock-zero-field input{width:100%;height:40px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#0f172a;padding:0 11px;outline:none;font-size:13px;font-weight:700}
-#kasir-stock-zero-modal .kasir-stock-zero-field input:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.12);background:#fff}
-#kasir-stock-zero-modal .kasir-stock-zero-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-#kasir-stock-zero-modal .kasir-stock-zero-actions button{height:38px;padding:0 15px;border-radius:9px;font-size:11px;font-weight:800;cursor:pointer}
-#kasir-stock-zero-modal .kasir-stock-zero-cancel{border:1px solid #e2e8f0;background:#fff;color:#64748b}
-#kasir-stock-zero-modal .kasir-stock-zero-save{border:1px solid #059669;background:#059669;color:#fff}
-</style>
 <!-- VIEW KASIR -->
-<section class="hidden kasir-view space-y-4" id="view-kasir"><div aria-hidden="true" id="kasir-stock-zero-modal">
-  <div class="kasir-stock-zero-card" role="dialog" aria-modal="true" aria-labelledby="kasir-stock-zero-title">
-    <div class="kasir-stock-zero-head">
-      <div>
-        <h3 id="kasir-stock-zero-title">Stok habis</h3>
-        <p id="kasir-stock-zero-message">Stok habis silahkan perbaharui stok.</p>
-      </div>
-      <button aria-label="Tutup" class="kasir-stock-zero-close" id="kasir-stock-zero-close" type="button"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="kasir-stock-zero-field">
-      <label for="kasir-stock-zero-input">Perbarui Stok</label>
-      <input id="kasir-stock-zero-input" inputmode="numeric" min="0" type="text" value="0"/>
-    </div>
-    <div class="kasir-stock-zero-actions">
-      <button class="kasir-stock-zero-cancel" id="kasir-stock-zero-cancel" type="button">Batal</button>
-      <button class="kasir-stock-zero-save" id="kasir-stock-zero-save" type="button"><i class="fa-solid fa-floppy-disk"></i> Simpan Stok</button>
-    </div>
-  </div>
-</div>
-
+<section class="hidden kasir-view space-y-4" id="view-kasir">
 <div class="kasir-shell">
 <div class="kasir-products-panel">
 <div class="kasir-transaction-tabs" id="kasir-transaction-tabs" aria-label="Tab transaksi"></div>
@@ -4643,14 +4593,6 @@ async function saveCloudData(){
  ]);
 }
 
-/* LAPORAN KASIR FIRESTORE BRIDGE — SATU IMPLEMENTASI */
-window.__rekapinyuSaveLaporanKasir=async(items)=>{
- const uid=cloudUid();
- if(!uid)return;
- const payload=Array.isArray(items)?items:[];
- await setDoc(lref(uid),{LaporanKasir:payload,updatedAt:serverTimestamp()},{merge:true});
-};
-
 window.__rekapinyuSaveCloudData=()=>{
  if(applyingFirestoreRealtime)return Promise.resolve();
  cloudSaveChain=cloudSaveChain.then(async()=>{
@@ -4671,8 +4613,8 @@ async function hydrate(uid){
  const u=us.exists()?us.data():{};
  const phone=phoneOf(u.phone||currentSessionUser?.phone);if(!phone)return;
  localSession({...u,uid});
- const [ds,txSnap,lapSnap,actSnap,inputSnap,histSnap,kasbonSnap,pengeluaranSnap,bulananSnap,backupSnap]=await Promise.all([
-  getDoc(dref(uid)),getDoc(tref(uid)),getDoc(lref(uid)),getDoc(aref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid))
+ const [txSnap,lapSnap,actSnap,inputSnap,histSnap,kasbonSnap,pengeluaranSnap,bulananSnap,backupSnap]=await Promise.all([
+  getDoc(tref(uid)),getDoc(lref(uid)),getDoc(aref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid))
  ]);
  applyingFirestoreRealtime=true;
  try{
@@ -4683,19 +4625,14 @@ async function hydrate(uid){
   const history=histSnap.exists()?histSnap.data()?.LaporanHistory:null;
   const kasbon=kasbonSnap.exists()?kasbonSnap.data()?.DataKasbon:null;
   const pengeluaran=pengeluaranSnap.exists()?pengeluaranSnap.data()?.DataPengeluaran:null;
-  const bulanan=bulananSnap.exists()?bulananSnap.data()?.DataLaporanBulanan:null;
   const backup=backupSnap.exists()?backupSnap.data()?.LaporanBackupOtomatis:null;
-  const receiptSettings=ds.exists()?ds.data()?.receiptSettings:null;
   if(Array.isArray(tx))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(tx));
   if(Array.isArray(laporan))nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(laporan));
-  else if(Array.isArray(tx))nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(tx));
   if(Array.isArray(input))nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(input));
   else if(Array.isArray(history))nativeSet.call(localStorage,`finance_history_desktop_${phone}`,JSON.stringify(history));
   if(Array.isArray(kasbon))nativeSet.call(localStorage,`finance_kasbon_desktop_${phone}`,JSON.stringify(kasbon));
   if(Array.isArray(pengeluaran))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(pengeluaran));
-  if(Array.isArray(bulanan))nativeSet.call(localStorage,`finance_laporan_bulanan_${phone}`,JSON.stringify(bulanan));
   if(Array.isArray(backup))nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(backup));
-  if(receiptSettings&&typeof receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(receiptSettings));
   if(Array.isArray(aktivitas)){
    window.__rekapinyuSetActivityData?.(aktivitas);
    nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(aktivitas));
@@ -5890,7 +5827,7 @@ onAuthStateChanged(auth,async u=>{
   function money(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function safeSession(){try{return JSON.parse(localStorage.getItem('finance_active_session')||'null')}catch{return null}}
   function read(){try{const v=JSON.parse(localStorage.getItem(phoneKey())||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
-  function write(){const data=JSON.stringify(products);localStorage.setItem(phoneKey(),data);try{localStorage.setItem(`finance_kasir_products_${String((typeof currentSessionUser!=='undefined'&&currentSessionUser?.phone)||'guest').replace(/\D/g,'')||'guest'}`,data)}catch(e){};try{window.__initKasirViews?.()}catch(e){}}
+  function write(){localStorage.setItem(phoneKey(),JSON.stringify(products))}
   function num(id){return Number(String($(id)?.value||'').replace(/\D/g,''))||0}
   function uid(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
   function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,' ')}
@@ -5899,18 +5836,18 @@ onAuthStateChanged(auth,async u=>{
   function normalizeAll(){products=products.map(normalizeProduct);}
   function load(){const raw=read();const normalized=raw.map(normalizeProduct);products=normalized;if(JSON.stringify(raw)!==JSON.stringify(normalized))write()}
   function resetForm(){ $('pk3-form')?.reset(); addPhoto='';addBarcodes=[];renderBarcodeChips('add');syncBarcodeStock('add');if($('pk3-photo-name'))$('pk3-photo-name').textContent='Pilih foto';if($('pk3-category'))$('pk3-category').value='Lainnya' }
-  function syncBarcodeStock(target){return}
+  function syncBarcodeStock(target){const arr=target==='edit'?editBarcodes:addBarcodes;const input=$(target==='edit'?'pk3-edit-stock':'pk3-stock');if(input)input.value=String(arr.length)}
   function addBarcode(target,value){const clean=String(value||'').trim();if(!clean){syncBarcodeStock(target);return}const arr=target==='edit'?editBarcodes:addBarcodes;clean.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(!arr.includes(x))arr.push(x)});renderBarcodeChips(target);syncBarcodeStock(target)}
   function renderBarcodeChips(target){const arr=target==='edit'?editBarcodes:addBarcodes;const box=$(target==='edit'?'pk3-edit-barcode-list':'pk3-barcode-list');if(!box)return;box.innerHTML=arr.map((b,i)=>`<span class="pk3-barcode-chip"><span>${String(b).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}</span><button type="button" data-remove-barcode="${i}" data-barcode-target="${target}" aria-label="Hapus barcode">×</button></span>`).join('');box.scrollTop=box.scrollHeight}
   function finishPendingBarcode(target){const id=target==='edit'?'pk3-edit-barcode':'pk3-barcode';const input=$(id);if(input?.value.trim()){addBarcode(target,input.value);input.value=''}}
   function closeEdit(){const m=$('pk3-edit-modal');if(m){m.hidden=true;m.setAttribute('aria-hidden','true')}editingId=null;editPhoto='';editBarcodes=[]}
-  function openEdit(p){editingId=String(p.id);editPhoto=p.photo||'';editBarcodes=normalizeBarcodes(p);$('pk3-edit-name').value=p.name||'';$('pk3-edit-category').value=CATEGORIES.includes(p.category)?p.category:'Lainnya';$('pk3-edit-barcode').value='';renderBarcodeChips('edit');$('pk3-edit-stock').value=String(Number(p.stock)||0);$('pk3-edit-cost').value=Number(p.cost??p.grosir)||0;$('pk3-edit-price').value=Number(p.price)||0;formatNominalInput($('pk3-edit-cost'));formatNominalInput($('pk3-edit-price'));$('pk3-edit-photo-name').textContent=p.photo?'Pertahankan foto':'Pilih foto';const m=$('pk3-edit-modal');m.hidden=false;m.setAttribute('aria-hidden','false');setTimeout(()=>$('pk3-edit-name')?.focus(),0)}
+  function openEdit(p){editingId=String(p.id);editPhoto=p.photo||'';editBarcodes=normalizeBarcodes(p);$('pk3-edit-name').value=p.name||'';$('pk3-edit-category').value=CATEGORIES.includes(p.category)?p.category:'Lainnya';$('pk3-edit-barcode').value='';renderBarcodeChips('edit');syncBarcodeStock('edit');$('pk3-edit-cost').value=Number(p.cost??p.grosir)||0;$('pk3-edit-price').value=Number(p.price)||0;formatNominalInput($('pk3-edit-cost'));formatNominalInput($('pk3-edit-price'));$('pk3-edit-photo-name').textContent=p.photo?'Pertahankan foto':'Pilih foto';const m=$('pk3-edit-modal');m.hidden=false;m.setAttribute('aria-hidden','false');setTimeout(()=>$('pk3-edit-name')?.focus(),0)}
   function card(p){const el=document.createElement('article');el.className='pk3-card';el.dataset.id=String(p.id);const photo=document.createElement('div');photo.className='pk3-photo';if(p.photo){const img=document.createElement('img');img.src=p.photo;img.alt=p.name||'';photo.appendChild(img)}else photo.innerHTML='<i class="fa-solid fa-image"></i>';const info=document.createElement('div');info.className='pk3-info';const name=document.createElement('div');name.className='pk3-product-name';name.textContent=p.name||'';name.title=p.name||'';const cat=document.createElement('div');cat.className='pk3-category';cat.textContent=(p.category||'Lainnya')+(normalizeBarcodes(p).length?' • '+normalizeBarcodes(p).length+' barcode':'');const data=document.createElement('div');data.className='pk3-data';const box=(label,value,cls='')=>{const d=document.createElement('div');d.className='pk3-data-box'+(cls?' '+cls:'');const sm=document.createElement('small');sm.textContent=label;const b=document.createElement('strong');b.textContent=value;d.append(sm,b);return d};data.append(box('STOK',String(Number(p.stock)||0)),box('HPP',money(p.cost??p.grosir)),box('HARGA JUAL',money(p.price),'sell'));const actions=document.createElement('div');actions.className='pk3-actions';const edit=document.createElement('button');edit.type='button';edit.className='pk3-edit';edit.dataset.action='edit';edit.dataset.id=String(p.id);edit.innerHTML='<i class="fa-solid fa-pen"></i> Edit';const del=document.createElement('button');del.type='button';del.className='pk3-delete';del.dataset.action='delete';del.dataset.id=String(p.id);del.innerHTML='<i class="fa-solid fa-trash-can"></i> Hapus';actions.append(edit,del);info.append(name,cat,data,actions);el.append(photo,info);return el}
   function render(){const grid=$('pk3-grid');if(!grid)return;const q=String($('pk3-search')?.value||'').trim().toLowerCase();const list=products.filter(p=>`${p.name||''} ${p.category||''} ${normalizeBarcodes(p).join(' ')}`.toLowerCase().includes(q));if($('pk3-count'))$('pk3-count').textContent=`${products.length} produk`;grid.replaceChildren();if(!list.length){const e=document.createElement('div');e.className='pk3-empty';e.innerHTML=`<i class="fa-solid fa-box-open"></i><strong>${products.length?'Produk tidak ditemukan':'Belum ada produk'}</strong><span>${products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.'}</span>`;grid.appendChild(e);return}const frag=document.createDocumentFragment();list.forEach(p=>frag.appendChild(card(p)));grid.appendChild(frag)}
   function compress(file,max=900,quality=.78){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{let w=img.naturalWidth,h=img.naturalHeight;if(w>max||h>max){const scale=Math.min(max/w,max/h);w=Math.max(1,Math.round(w*scale));h=Math.max(1,Math.round(h*scale))}const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');if(!ctx)return reject(new Error('canvas'));ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=r.result};r.readAsDataURL(file)})}
-  async function add(e){e.preventDefault();finishPendingBarcode('add');const name=$('pk3-name').value.trim(),price=num('pk3-price'),category=$('pk3-category').value||'Lainnya',cost=num('pk3-cost');if(!name||price<=0){if(typeof showModal==='function')showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return}const btn=$('pk3-submit');if(btn?.disabled)return;btn.disabled=true;const incoming=[...addBarcodes];const same=products.find(p=>norm(p.name)===norm(name));if(same){const existingBars=normalizeBarcodes(same);const newBars=incoming.filter(b=>!existingBars.includes(b));same.category=category;same.cost=cost;same.grosir=cost;same.price=price;same.barcodes=[...existingBars,...newBars];same.barcode=same.barcodes[0]||'';same.stock=(Number(same.stock)||0)+num('pk3-stock');if(addPhoto)same.photo=addPhoto;products=products.filter(p=>p!==same);products.unshift(same)}else{const stock=num('pk3-stock');const item={id:uid(),name,category,barcodes:incoming,barcode:incoming[0]||'',cost,grosir:cost,price,stock,photo:addPhoto};products.unshift(item)}write();render();resetForm();btn.disabled=false;if(typeof window.__initKasirViews==='function')window.__initKasirViews();if(typeof showModal==='function')showModal('Berhasil',same?'Stok bertambah sesuai barcode baru.':'Produk berhasil ditambahkan.')}
+  async function add(e){e.preventDefault();finishPendingBarcode('add');const name=$('pk3-name').value.trim(),price=num('pk3-price'),category=$('pk3-category').value||'Lainnya',cost=num('pk3-cost');if(!name||price<=0){if(typeof showModal==='function')showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return}const btn=$('pk3-submit');if(btn?.disabled)return;btn.disabled=true;const incoming=[...addBarcodes];const same=products.find(p=>norm(p.name)===norm(name));if(same){const existingBars=normalizeBarcodes(same);const newBars=incoming.filter(b=>!existingBars.includes(b));same.category=category;same.cost=cost;same.grosir=cost;same.price=price;same.barcodes=[...existingBars,...newBars];same.barcode=same.barcodes[0]||'';same.stock=(Number(same.stock)||0)+newBars.length;if(addPhoto)same.photo=addPhoto;products=products.filter(p=>p!==same);products.unshift(same)}else{const stock=incoming.length;const item={id:uid(),name,category,barcodes:incoming,barcode:incoming[0]||'',cost,grosir:cost,price,stock,photo:addPhoto};products.unshift(item)}write();render();resetForm();btn.disabled=false;if(typeof window.__initKasirViews==='function')window.__initKasirViews();if(typeof showModal==='function')showModal('Berhasil',same?'Stok bertambah sesuai barcode baru.':'Produk berhasil ditambahkan.')}
   function remove(id){const before=products.length;products=products.filter(p=>String(p.id)!==String(id));if(products.length===before)return;write();render();if(typeof window.__initKasirViews==='function')window.__initKasirViews()}
-  function saveEdit(e){e.preventDefault();finishPendingBarcode('edit');const i=products.findIndex(p=>String(p.id)===String(editingId));if(i<0){closeEdit();return}const old=products[i];const bars=[...new Set(editBarcodes)];products[i]={...old,name:$('pk3-edit-name').value.trim(),category:$('pk3-edit-category').value||'Lainnya',barcodes:bars,barcode:bars[0]||'',cost:num('pk3-edit-cost'),grosir:num('pk3-edit-cost'),price:num('pk3-edit-price'),stock:num('pk3-edit-stock'),photo:editPhoto};write();render();closeEdit();if(typeof window.__initKasirViews==='function')window.__initKasirViews();if(typeof showModal==='function')showModal('Berhasil','Produk berhasil diperbarui.')}
+  function saveEdit(e){e.preventDefault();finishPendingBarcode('edit');const i=products.findIndex(p=>String(p.id)===String(editingId));if(i<0){closeEdit();return}const old=products[i];const bars=[...new Set(editBarcodes)];products[i]={...old,name:$('pk3-edit-name').value.trim(),category:$('pk3-edit-category').value||'Lainnya',barcodes:bars,barcode:bars[0]||'',cost:num('pk3-edit-cost'),grosir:num('pk3-edit-cost'),price:num('pk3-edit-price'),stock:bars.length,photo:editPhoto};write();render();closeEdit();if(typeof window.__initKasirViews==='function')window.__initKasirViews();if(typeof showModal==='function')showModal('Berhasil','Produk berhasil diperbarui.')}
   function backupProducts(){const latest=read();products=latest.map(normalizeProduct);if(!products.length){if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');return}try{const backup={format:'Rekapinyu Produk Kasir',version:2,exportedAt:new Date().toISOString(),products};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup.`)}catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}}
   function importProducts(file){if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const parsed=JSON.parse(String(reader.result||''));const source=Array.isArray(parsed)?parsed:parsed?.products;if(!Array.isArray(source)||!source.length)throw new Error('File backup tidak berisi daftar produk yang valid.');const imported=source.map((p,i)=>normalizeProduct({...p,id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8))})).filter(p=>p.name&&p.price>0);if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');products=imported;write();render();if(typeof window.__initKasirViews==='function')window.__initKasirViews();if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`)}catch(err){if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.')}finally{if($('pk3-import-file'))$('pk3-import-file').value=''}};reader.onerror=()=>{if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');if($('pk3-import-file'))$('pk3-import-file').value=''};reader.readAsText(file)}
   function bind(){if(bound)return;bound=true;$('pk3-form')?.addEventListener('submit',add);$('pk3-search')?.addEventListener('input',render);$('pk3-grid')?.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const p=products.find(x=>String(x.id)===String(b.dataset.id));if(!p)return;if(b.dataset.action==='edit')openEdit(p);if(b.dataset.action==='delete')remove(p.id)});['pk3-barcode','pk3-edit-barcode'].forEach(id=>$(id)?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();const target=id==='pk3-edit-barcode'?'edit':'add';addBarcode(target,e.currentTarget.value);e.currentTarget.value='';return}if(e.key===','||e.key===';'){e.preventDefault();e.stopPropagation();const target=id==='pk3-edit-barcode'?'edit':'add';addBarcode(target,e.currentTarget.value);e.currentTarget.value=''}}));document.addEventListener('click',e=>{const btn=e.target.closest('[data-remove-barcode]');if(btn){const target=btn.dataset.barcodeTarget==='edit'?'edit':'add';const arr=target==='edit'?editBarcodes:addBarcodes;arr.splice(Number(btn.dataset.removeBarcode),1);renderBarcodeChips(target);return}if(e.target.closest('[data-pk3-close]'))closeEdit()});$('pk3-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{addPhoto=await compress(f);$('pk3-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-photo-name').textContent='Gagal memproses foto'}});$('pk3-edit-photo')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{editPhoto=await compress(f);$('pk3-edit-photo-name').textContent=f.name+' (terkompres)'}catch{$('pk3-edit-photo-name').textContent='Gagal memproses foto'}});$('pk3-edit-form')?.addEventListener('submit',saveEdit);$('pk3-backup')?.addEventListener('click',backupProducts);$('pk3-import')?.addEventListener('click',()=>$('pk3-import-file')?.click());$('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()})}
@@ -5979,27 +5916,9 @@ onAuthStateChanged(auth,async u=>{
     try{kasirTransactions=JSON.parse(localStorage.getItem(kasirUserKey('transactions'))||'[]');if(!Array.isArray(kasirTransactions))kasirTransactions=[]}catch(e){kasirTransactions=[]}
   }
   function saveKasirStore(){
-    const productKey=kasirUserKey('products');
-    const transactionKey=kasirUserKey('transactions');
-    const laporanKey=`finance_laporan_kasir_desktop_${String(currentSessionUser?.phone||'').replace(/\D/g,'')}`;
-    const oldProducts=localStorage.getItem(productKey);
-    const oldTransactions=localStorage.getItem(transactionKey);
-    const oldLaporan=localStorage.getItem(laporanKey);
-    try{
-      localStorage.setItem(productKey,JSON.stringify(kasirProducts));
-      localStorage.setItem(transactionKey,JSON.stringify(kasirTransactions));
-      localStorage.setItem(laporanKey,JSON.stringify(kasirTransactions));
-    }catch(e){
-      try{
-        if(oldProducts===null)localStorage.removeItem(productKey);else localStorage.setItem(productKey,oldProducts);
-        if(oldTransactions===null)localStorage.removeItem(transactionKey);else localStorage.setItem(transactionKey,oldTransactions);
-        if(oldLaporan===null)localStorage.removeItem(laporanKey);else localStorage.setItem(laporanKey,oldLaporan);
-      }catch(restoreError){}
-      return false;
-    }
-    try{window.__rekapinyuSaveLaporanKasir?.(kasirTransactions).catch?.(e=>console.warn('Rekapinyu: LaporanKasir gagal disimpan.',e));}catch(e){}
+    localStorage.setItem(kasirUserKey('products'),JSON.stringify(kasirProducts));
+    localStorage.setItem(kasirUserKey('transactions'),JSON.stringify(kasirTransactions));
     try{window.__rekapinyuSaveCloudData?.();}catch(e){}
-    return true;
   }
   function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
@@ -6093,94 +6012,13 @@ onAuthStateChanged(auth,async u=>{
     }).join('')}</div>`;
   }
 
-  let kasirStockZeroProductId=null;
-  function openKasirStockZeroModal(p){
-    kasirStockZeroProductId=String(p?.id||'');
-    const modal=document.getElementById('kasir-stock-zero-modal');
-    const input=document.getElementById('kasir-stock-zero-input');
-    const message=document.getElementById('kasir-stock-zero-message');
-    if(!modal||!input)return;
-    if(message)message.textContent=`Stok ${String(p?.name||'produk')} habis silahkan perbaharui stok.`;
-    input.value=String(Math.max(0,Number(p?.stock)||0));
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden','false');
-    setTimeout(()=>{input.focus();input.select()},30);
-  }
-  function closeKasirStockZeroModal(){
-    const modal=document.getElementById('kasir-stock-zero-modal');
-    if(modal){modal.classList.remove('is-open');modal.setAttribute('aria-hidden','true')}
-    kasirStockZeroProductId=null;
-  }
-  function saveKasirStockZero(){
-    const id=String(kasirStockZeroProductId||'');
-    if(!id)return;
-    const input=document.getElementById('kasir-stock-zero-input');
-    const stock=Math.max(0,Number(String(input?.value||'').replace(/\D/g,''))||0);
-    const product=kasirProducts.find(x=>String(x.id)===id);
-    if(!product)return;
-    product.stock=stock;
-    try{
-      const phone=String(currentSessionUser?.phone||'').replace(/\D/g,'');
-      const key=`finance_kasir_products_${phone||'guest'}`;
-      const saved=JSON.parse(localStorage.getItem(key)||'[]');
-      const next=Array.isArray(saved)?saved:[];
-      const i=next.findIndex(x=>String(x?.id)===id);
-      if(i>=0)next[i]={...next[i],stock};
-      else next.push({...product,stock});
-      localStorage.setItem(key,JSON.stringify(next));
-      try{localStorage.setItem(`finance_kasir_products_${phone||'guest'}`,JSON.stringify(next))}catch(e){}
-    }catch(e){}
-    closeKasirStockZeroModal();
-    renderKasirProducts();
-    try{window.__initProdukKasir?.()}catch(e){}
-    try{window.__rekapinyuSaveCloudData?.()}catch(e){}
-    if(typeof showModal==='function')showModal('Berhasil','Stok produk berhasil diperbarui.','fa-solid fa-circle-check text-emerald-600');
-  }
-  // SATU IMPLEMENTASI BATAS QTY KERANJANG:
-  // semua penambahan/pengurangan qty wajib melewati fungsi ini.
-  function setKasirCartQty(id, requestedQty){
-    const key=String(id);
-    const index=kasirCart.findIndex(x=>String(x.id)===key);
-    if(index<0)return 0;
-    const item=kasirCart[index];
-    const product=kasirProducts.find(p=>String(p.id)===key);
-    const stock=Math.max(0,Number(product?.stock)||0);
-    let qty=Math.max(0,Number(requestedQty)||0);
-    if(stock<=0){
-      qty=0;
-    }else{
-      qty=Math.min(qty,stock);
-    }
-    if(qty<=0){
-      kasirCart.splice(index,1);
-      if(kasirCartSelectedIndex>=kasirCart.length)kasirCartSelectedIndex=kasirCart.length-1;
-      return 0;
-    }
-    item.qty=qty;
-    return qty;
-  }
-
   function addKasirProductToCart(p){
     const id=String(p.id);
     const stock=Math.max(0,Number(p.stock)||0);
     const index=kasirCart.findIndex(x=>String(x.id)===id);
     const current=index!==-1?Math.max(0,Number(kasirCart[index].qty)||0):0;
-    if(stock<=0){openKasirStockZeroModal(p);return false}
-    if(current>=stock){
-      if(typeof showModal==='function')showModal('Stok Habis','Jumlah keranjang sudah mencapai stok tersedia.','fa-solid fa-box-open text-rose-600');
-      return false;
-    }
-    if(index===-1){
-      kasirCart.unshift({...p,qty:1});
-    }else{
-      setKasirCartQty(id,current+1);
-      const x=kasirCart.find(v=>String(v.id)===id);
-      if(x){
-        const i=kasirCart.indexOf(x);
-        kasirCart.splice(i,1);
-        kasirCart.unshift(x);
-      }
-    }
+    if(stock<=current){if(typeof showModal==='function')showModal('Stok Habis','Stok produk tidak mencukupi.','fa-solid fa-box-open text-rose-600');return false}
+    if(index!==-1){const x=kasirCart.splice(index,1)[0];x.qty++;kasirCart.unshift(x)}else{kasirCart.unshift({...p,qty:1})}
     return true;
   }
 function initKasirViews(){
@@ -6189,92 +6027,20 @@ function initKasirViews(){
     renderKasirTransactionTabs(); renderKasirProducts(); renderCart(); renderTransactions();
   }
 
-  // SATU IMPLEMENTASI TRANSAKSI + VALIDASI STOK:
-  // Semua item divalidasi lebih dahulu. Stok baru dikurangi setelah validasi
-  // selesai, lalu seluruh perubahan lokal disimpan sebagai satu commit.
   function saveKasirTransaction(paymentData){
-    if(!kasirCart.length){
-      showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');
-      return false;
-    }
-
-    const prepared=[];
-    for(const item of kasirCart){
-      const product=kasirProducts.find(p=>String(p.id)===String(item.id));
-      if(!product)continue;
-      const qty=Math.max(0,Number(item.qty)||0);
-      if(qty<=0)continue;
-
-      const liveStock=Math.max(0,Number(product.stock)||0);
-      const cartStock=Math.max(0,Number(item.stock)||0);
-      const available=liveStock>0?liveStock:cartStock;
-      if(available<qty){
-        showModal('Gagal','Stok produk di keranjang sudah habis.','fa-solid fa-box-open text-rose-600');
-        return false;
-      }
-      prepared.push({item,product,qty,available,originalStock:liveStock});
-    }
-
-    if(!prepared.length){
-      showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');
-      return false;
-    }
-
-    const total=prepared.reduce((a,x)=>a+x.qty*(Number(x.item.price)||0),0);
+    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const discount=Math.max(0,Number(String(paymentData?.discount||'').replace(/[^0-9]/g,''))||0);
     const paid=Math.max(0,Number(String(paymentData?.paid||'').replace(/[^0-9]/g,''))||0);
     const finalTotal=Math.max(0,total-discount);
-    if(paid<finalTotal){
-      showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
-      return false;
-    }
-
-    const transactionCart=prepared.map(x=>({...x.item,qty:x.qty}));
-    const transaction={
-      id:Date.now(),
-      date:new Date().toLocaleString('id-ID'),
-      items:transactionCart.reduce((a,x)=>a+(Number(x.qty)||0),0),
-      total:finalTotal,
-      paid,
-      change:paid-finalTotal,
-      discount,
-      itemsDetail:transactionCart.map(x=>({
-        id:String(x.id),
-        name:String(x.name||''),
-        qty:Number(x.qty)||1,
-        price:Number(x.price)||0,
-        cost:Number(x.cost??x.grosir)||0,
-        photo:String(x.photo||'')
-      }))
-    };
-
-    prepared.forEach(x=>{
-      const base=x.originalStock>0?x.originalStock:x.available;
-      x.product.stock=Math.max(0,base-x.qty);
-    });
-
-    const previousCart=kasirCart;
-    kasirCart=transactionCart;
-    kasirTransactions.push(transaction);
-
-    if(!saveKasirStore()){
-      prepared.forEach(x=>{x.product.stock=x.originalStock;});
-      kasirTransactions.pop();
-      kasirCart=previousCart;
-      renderKasirProducts();
-      try{window.__initProdukKasir?.()}catch(e){}
-      return false;
-    }
-
+    if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return false}
+    if(paid<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return false}
+    const stockUpdates=[];for(const item of kasirCart){const product=kasirProducts.find(p=>String(p.id)===String(item.id));const qty=Math.max(0,Number(item.qty)||0);if(!product||Math.max(0,Number(product.stock)||0)<qty){showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');return false}stockUpdates.push({product,qty})}stockUpdates.forEach(({product,qty})=>{product.stock=Math.max(0,(Number(product.stock)||0)-qty)});kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total:finalTotal,paid,change:paid-finalTotal,discount,itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||'')}))});
+    saveKasirStore();
     renderKasirProducts();
-    try{window.__initProdukKasir?.()}catch(e){}
     kasirCart=[];
     syncKasirActiveTransactionTab();
-    renderCart();
-    renderKasirTransactionTabs();
-    renderTransactions();
-    try{window.__renderLaporanKasir?.()}catch(e){}
-    return transaction;
+    renderCart(); renderKasirTransactionTabs(); renderTransactions(); try{window.__renderLaporanKasir?.()}catch(e){}
+    return true;
   }
 
   /* KEMBALIAN KASIR — SATU IMPLEMENTASI BARU, SATU SUMBER PERHITUNGAN */
@@ -6312,7 +6078,7 @@ function initKasirViews(){
     const button=document.getElementById('kasir-refresh-btn');
     const status=document.getElementById('kasir-payment-bluetooth-status');
     const printButton=document.getElementById('kasir-save-print-btn');
-    const connected=state==='connected'&&!!kasirBluetooth.device?.gatt?.connected&&!!kasirBluetooth.characteristic;
+    const connected=state==='connected';
     const connecting=state==='connecting';
     if(button){
       button.classList.toggle('is-bluetooth-connected',connected);
@@ -6330,7 +6096,7 @@ function initKasirViews(){
     }
     if(printButton){
       printButton.disabled=!connected;
-      printButton.title=connected?'Simpan transaksi dan cetak melalui printer Bluetooth':'Hubungkan printer Bluetooth terlebih dahulu';
+      printButton.title=connected?'Simpan transaksi dan cetak melalui printer Bluetooth':'Sambungkan printer Bluetooth terlebih dahulu';
     }
     if(typeof updateSettingsPrinterPanel==='function')updateSettingsPrinterPanel();
   }
@@ -6577,27 +6343,6 @@ function initKasirViews(){
     if(e.target.closest('#kasir-refresh-btn')){e.preventDefault();connectKasirBluetoothPrinter();return}
   });
 
-  // TOMBOL PEMBAYARAN — SATU IMPLEMENTASI, SATU JALUR.
-  function bindKasirPaymentButtons(){
-    const saveBtn=document.getElementById('kasir-save-btn-popup');
-    const savePrintBtn=document.getElementById('kasir-save-print-btn');
-    if(saveBtn){
-      saveBtn.disabled=false;
-      saveBtn.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();saveKasirPaymentOnly();return false;};
-    }
-    if(savePrintBtn){
-      savePrintBtn.disabled=!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic;
-      savePrintBtn.onclick=function(e){
-        e.preventDefault();e.stopImmediatePropagation();
-        if(savePrintBtn.disabled)return false;
-        saveAndPrintKasirPayment();
-        return false;
-      };
-    }
-  }
-  bindKasirPaymentButtons();
-
-
   function renderKasirReceiptPreview(){
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
@@ -6654,70 +6399,50 @@ function initKasirViews(){
     popup?.classList.remove('is-open');
     popup?.setAttribute('aria-hidden','true');
   }
-  let kasirPaymentActionBusy=false;
-
   function saveKasirPaymentOnly(){
-    if(kasirPaymentActionBusy||!kasirCart.length)return;
-    kasirPaymentActionBusy=true;
+    if(!kasirCart.length)return;
     updateKasirPaymentSummary();
     const paid=document.getElementById('kasir-popup-paid')?.value||'';
     const discount=document.getElementById('kasir-popup-discount')?.value||'';
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const finalTotal=Math.max(0,total-(Number(String(discount).replace(/[^0-9]/g,''))||0));
-    if((Number(String(paid).replace(/[^0-9]/g,''))||0)<finalTotal){
-      kasirPaymentActionBusy=false;
-      showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
-      return;
-    }
+    if((Number(String(paid).replace(/[^0-9]/g,''))||0)<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return}
     const saved=saveKasirTransaction({paid,discount});
-    if(!saved){kasirPaymentActionBusy=false;return;}
-    commitKasirReceiptInvoiceId();
-    window.__kasirCurrentInvoiceId=null;
-    closeKasirPaymentPopup();
+    if(!saved)return;
+    commitKasirReceiptInvoiceId();window.__kasirCurrentInvoiceId=null;closeKasirPaymentPopup();try{window.__renderLaporanKasir?.()}catch(e){}
     showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir.','fa-solid fa-circle-check text-emerald-600');
-    kasirPaymentActionBusy=false;
   }
 
   async function saveAndPrintKasirPayment(){
-    if(kasirPaymentActionBusy||!kasirCart.length)return;
-    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      return;
-    }
-    kasirPaymentActionBusy=true;
+    if(!kasirCart.length)return;
     updateKasirPaymentSummary();
     const paid=document.getElementById('kasir-popup-paid')?.value||'';
     const discount=document.getElementById('kasir-popup-discount')?.value||'';
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const finalTotal=Math.max(0,total-(Number(String(discount).replace(/[^0-9]/g,''))||0));
     if((Number(String(paid).replace(/[^0-9]/g,''))||0)<finalTotal){
-      kasirPaymentActionBusy=false;
       showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
       return;
     }
-
-    const receiptCart=kasirCart.map(x=>({...x}));
-    const saved=saveKasirTransaction({paid,discount});
-    if(!saved){kasirPaymentActionBusy=false;return;}
-    commitKasirReceiptInvoiceId();
-    window.__kasirCurrentInvoiceId=null;
-    closeKasirPaymentPopup();
-
-    kasirCart=receiptCart;
+    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
+      showModal('Printer Belum Tersambung','Sambungkan printer Bluetooth terlebih dahulu sebelum menekan Simpan dan Cetak.','fa-brands fa-bluetooth-b text-rose-600');
+      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
+      return;
+    }
     renderKasirReceiptPreview();
     try{
       await printKasirReceiptBluetooth();
-      showModal('Berhasil','Transaksi berhasil disimpan, masuk ke Laporan Kasir, dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
     }catch(err){
       updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak.','fa-solid fa-circle-check text-emerald-600');
-    }finally{
-      kasirCart=[];
-      syncKasirActiveTransactionTab();
-      renderCart();
-      renderKasirTransactionTabs();
-      kasirPaymentActionBusy=false;
+      showModal('Cetak Gagal',err?.message||'Struk tidak dapat dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-rose-600');
+      return;
     }
+    commitKasirReceiptInvoiceId();
+    const saved=saveKasirTransaction({paid,discount});
+    if(!saved)return;
+    window.__kasirCurrentInvoiceId=null;
+    closeKasirPaymentPopup();
+    showModal('Berhasil','Transaksi berhasil disimpan dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
   }
 
   function focusKasirSearch(){
@@ -6845,9 +6570,10 @@ function initKasirViews(){
     const qty=Math.max(0,Number(kasirQtyKeyBuffer)||0);
     kasirQtyKeyBuffer='';
     if(!selected)return;
-    setKasirCartQty(selected.id,qty);
-    kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);
-    syncKasirActiveTransactionTab();
+    if(qty<=0){
+      kasirCart.splice(kasirCartSelectedIndex,1);
+      kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);
+    }else selected.qty=qty;
     renderCart();
     requestAnimationFrame(updateKasirCartSelection);
   }
@@ -6906,18 +6632,7 @@ function initKasirViews(){
       e.preventDefault();e.stopPropagation();
       const id=String(inc.dataset.cartInc||'');
       const x=kasirCart.find(v=>String(v.id)===id);
-      const product=kasirProducts.find(v=>String(v.id)===id);
-      if(x&&product){
-        const current=Math.max(0,Number(x.qty)||0);
-        const stock=Math.max(0,Number(product.stock)||0);
-        if(current<stock){
-          setKasirCartQty(id,current+1);
-          kasirCartSelectedIndex=Math.max(0,kasirCart.findIndex(v=>String(v.id)===id));
-          syncKasirActiveTransactionTab();
-          renderCart();
-          updateKasirCartSelection();
-        }
-      }
+      if(x){x.qty++;kasirCartSelectedIndex=Math.max(0,kasirCart.findIndex(v=>String(v.id)===id));renderCart();updateKasirCartSelection();}
       return;
     }
     const dec=e.target.closest('#kasir-cart-list .kasir-qty [data-cart-dec]');
@@ -6925,25 +6640,16 @@ function initKasirViews(){
       e.preventDefault();e.stopPropagation();
       const id=String(dec.dataset.cartDec||'');
       const i=kasirCart.findIndex(v=>String(v.id)===id);
-      if(i>-1){
-        setKasirCartQty(id,Math.max(0,Number(kasirCart[i].qty)||0)-1);
-        const nextIndex=kasirCart.findIndex(v=>String(v.id)===id);
-        kasirCartSelectedIndex=nextIndex>-1?nextIndex:Math.min(kasirCartSelectedIndex,kasirCart.length-1);
-      }
+      if(i>-1){kasirCart[i].qty--;if(kasirCart[i].qty<=0){kasirCart.splice(i,1);kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);}else kasirCartSelectedIndex=i;}
       renderCart();updateKasirCartSelection();
       return;
     }
     if(e.target.closest('#kasir-payment-close')){closeKasirPaymentPopup();return}
     if(e.target.id==='kasir-payment-popup'&&!e.target.closest('.kasir-payment-dialog')){closeKasirPaymentPopup();return}
+    if(e.target.closest('#kasir-save-btn-popup')){saveKasirPaymentOnly();return}
+    if(e.target.closest('#kasir-save-print-btn')){saveAndPrintKasirPayment();return}
     if(e.target.closest('#kasir-cancel-btn')){kasirCart=[];kasirCartSelectedIndex=-1;syncKasirActiveTransactionTab();renderCart();renderKasirTransactionTabs();return}
     if(e.target.closest('#kasir-save-btn')){openKasirPaymentPopup();return}
-    if(e.target.closest('#kasir-stock-zero-close,#kasir-stock-zero-cancel')){closeKasirStockZeroModal();return}
-    if(e.target.closest('#kasir-stock-zero-save')){saveKasirStockZero();return}
-    if(e.target.id==='kasir-stock-zero-modal'){closeKasirStockZeroModal();return}
-  });
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'&&!document.getElementById('kasir-stock-zero-modal')?.classList.contains('is-open'))return;
-    if(e.key==='Escape')closeKasirStockZeroModal();
   });
 
   // Keyboard: suggest memakai Atas/Bawah; setelah produk ditambah dengan mouse,
@@ -6989,11 +6695,8 @@ function initKasirViews(){
       const selected=kasirCart[kasirCartSelectedIndex];
       if(selected){
         e.preventDefault();
-        const current=Math.max(0,Number(selected.qty)||0);
-        setKasirCartQty(selected.id,e.key==='ArrowRight'?current+1:current-1);
-        const nextIndex=kasirCart.findIndex(v=>String(v.id)===String(selected.id));
-        kasirCartSelectedIndex=nextIndex>-1?nextIndex:Math.min(kasirCartSelectedIndex,kasirCart.length-1);
-        syncKasirActiveTransactionTab();
+        if(e.key==='ArrowRight')selected.qty++;
+        else{selected.qty--;if(selected.qty<=0){kasirCart.splice(kasirCartSelectedIndex,1);kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);}}
         renderCart();
         requestAnimationFrame(updateKasirCartSelection);
         return;
