@@ -6147,7 +6147,7 @@ function initKasirViews(){
     const finalTotal=Math.max(0,total-discount);
     if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return false}
     if(paid<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return false}
-    const stockUpdates=[];for(const item of kasirCart){const product=kasirProducts.find(p=>String(p.id)===String(item.id));const qty=Math.max(0,Number(item.qty)||0);if(!product||Math.max(0,Number(product.stock)||0)<qty){showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');return false}stockUpdates.push({product,qty})}stockUpdates.forEach(({product,qty})=>{product.stock=Math.max(0,(Number(product.stock)||0)-qty)});kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total:finalTotal,paid,change:paid-finalTotal,discount,itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||'')}))});
+    const stockUpdates=[];for(const item of kasirCart){const product=kasirProducts.find(p=>String(p.id)===String(item.id));const stock=Math.max(0,Number(product?.stock)||0);const qty=Math.max(0,Number(item.qty)||0);if(!product||qty>stock){showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');return false}stockUpdates.push({product,qty})}stockUpdates.forEach(({product,qty})=>{product.stock=Math.max(0,(Number(product.stock)||0)-qty)});kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total:finalTotal,paid,change:paid-finalTotal,discount,itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||'')}))});
     saveKasirStore();
     renderKasirProducts();
     try{window.__initProdukKasir?.()}catch(e){}
@@ -6748,7 +6748,18 @@ function initKasirViews(){
       e.preventDefault();e.stopPropagation();
       const id=String(inc.dataset.cartInc||'');
       const x=kasirCart.find(v=>String(v.id)===id);
-      if(x){x.qty++;kasirCartSelectedIndex=Math.max(0,kasirCart.findIndex(v=>String(v.id)===id));renderCart();updateKasirCartSelection();}
+      const product=kasirProducts.find(v=>String(v.id)===id);
+      if(x&&product){
+        const stock=Math.max(0,Number(product.stock)||0);
+        const current=Math.max(0,Number(x.qty)||0);
+        if(current<stock){
+          x.qty=current+1;
+          kasirCartSelectedIndex=Math.max(0,kasirCart.findIndex(v=>String(v.id)===id));
+          syncKasirActiveTransactionTab();
+          renderCart();
+          updateKasirCartSelection();
+        }
+      }
       return;
     }
     const dec=e.target.closest('#kasir-cart-list .kasir-qty [data-cart-dec]');
