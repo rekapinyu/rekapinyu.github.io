@@ -723,8 +723,7 @@ html.rk-dashboard-session #auth-container{display:none!important;}
     border-radius:11px!important;
     font-size:12px!important;
   }
-
-  /* Kartu Pengeluaran/Kasbon/History/Laporan/Backup tidak memotong isi. */
+  /* Kartu Pengeluaran/Kasbon/History tidak memotong isi. */
   #pengeluaran-grid > div,
   #kasbon-grid > div{
     width:100%!important;
@@ -1403,23 +1402,28 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   }
 }
 </style>
-
-<style id="spacing-kasbon-final">
+<style id="spacing-laporan-backup-kasbon-final">
+/* PERBAIKAN SPACING TERFOKUS: hanya area Kasbon. */
 @media (min-width:768px){
   main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
     margin-top:0!important;
     margin-bottom:auto!important;
   }
-  #kasbon-sticky-container{
+
+  #kasbon-sticky-container,
+  #backup-sticky-container{
     margin-bottom:8px!important;
   }
 }
+
 @media (max-width:767px){
   main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
     margin-top:0!important;
     margin-bottom:0!important;
   }
-  #kasbon-sticky-container{
+
+  #kasbon-sticky-container,
+  #backup-sticky-container{
     margin-bottom:8px!important;
   }
 }
@@ -1813,8 +1817,6 @@ function bindUserActionActivityTracking(){
       const oc=t.getAttribute('onclick')||'';
       if(/deleteHistoryItem\(/.test(oc)){addActivity('Menghapus Data di menu History','History');return}
       if(/toggleLunasKasbon\(/.test(oc)){addActivity('Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Kasbon');return}
-      if(/restoreHistoryFromBackup\(/.test(oc)){addActivity('Memulihkan Data Backup di menu Backup Otomatis','Backup Otomatis');return}
-      if(/deleteBackupCard\(/.test(oc)){addActivity('Menghapus Data Backup di menu Backup Otomatis','Backup Otomatis');return}
     }
     if(e.target?.closest?.('#kasir-save-btn,#kasir-save-btn-popup,#kasir-save-print-btn')){addActivity('Melakukan transaksi di menu KASIR','KASIR');return}
     if(e.target?.closest?.('#save-edit-btn')){
@@ -1907,20 +1909,20 @@ bind();
 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
 <i class="fa-solid fa-magnifying-glass"></i>
 </span>
-<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-backup-search" placeholder="Search" type="text"/>
+<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-backup-search" oninput="renderBackupGrid()" placeholder="Search" type="text"/>
 </div>
 <div class="col-span-2">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-date">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-date" onchange="renderBackupGrid()">
 <option value="">Tgl</option>
 </select>
 </div>
 <div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-month">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-month" onchange="renderBackupGrid()">
 <option value="">Bulan</option>
 </select>
 </div>
 <div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-year">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-year" onchange="renderBackupGrid()">
 <option value="">Tahun</option>
 </select>
 </div>
@@ -2173,10 +2175,6 @@ bind();
 <section class="hidden space-y-4 w-full" id="view-history">
 <div class="flex flex-col items-center gap-4 w-full" id="history-grid"></div>
 </section>
-<!-- VIEW 3: LAPORAN BULANAN -->
-
-<!-- VIEW NEW: BACKUP OTOMATIS -->
-
 </main></div>
 <!-- Mobile Bottom Dock Menu -->
 <!-- Custom Modal Notifikasi -->
@@ -2991,6 +2989,7 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             }
 
             if (tab === 'input' || tab === 'backup' || tab === 'laporan-kasir' || tab === 'settings') {
+                
             } else if (tab === 'kasir') {
             } else {
                 if (tab === 'history' && window.matchMedia('(max-width:767px)').matches) {
@@ -3009,10 +3008,9 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 } else if (tab === 'history') {
                     populateHistoryFilters();
                     renderHistory();
+                }
             }
-        }
-
-        function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
+        }        function showModal(title, message, iconClass = "fa-solid fa-circle-check") {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-message').innerText = message;
             document.getElementById('modal-icon').innerHTML = `<i class="${iconClass}"></i>`;
@@ -3531,6 +3529,35 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
             showModal("Sukses Disimpan", "Data keuangan harian berhasil ditambahkan ke riwayat secara realtime.");
         });
 
+        function populateBackupFilters() {
+            const dateSelect = document.getElementById('filter-backup-date');
+            const monthSelect = document.getElementById('filter-backup-month');
+            const yearSelect = document.getElementById('filter-backup-year');
+            if (!dateSelect || !monthSelect || !yearSelect) return;
+
+            const currentDate = dateSelect.value;
+            const currentMonth = monthSelect.value;
+            const currentYear = yearSelect.value;
+            const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+            dateSelect.innerHTML = '<option value="">Tgl</option>' + Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+            monthSelect.innerHTML = '<option value="">Bulan</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+            const years = [...new Set(backupOtomatisData.map(b=>Number(b.year)).filter(y=>y))].sort((a,b)=>b-a);
+            if (!years.length) {
+                const currentYearNow = new Date().getFullYear();
+                for(let y=2000;y<=2030;y++) years.push(y);
+                years.sort((a,b)=>b-a);
+            }
+            yearSelect.innerHTML = '<option value="">Tahun</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+
+            dateSelect.value = currentDate;
+            monthSelect.value = currentMonth;
+            yearSelect.value = currentYear;
+        }
+
+        function renderBackupGrid() { /* isi kartu Backup Otomatis telah dihapus; sticky filter tetap utuh. */ }
+
         function populateHistoryFilters() {
             const dateSelect = document.getElementById('history-filter-date');
             const monthSelect = document.getElementById('history-filter-month');
@@ -3676,11 +3703,9 @@ const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'lapor
                 `;
             }).join('');
         }
-
         // RENDER LAPORAN PER BULAN & TAHUN.
         // Default: semua kombinasi Bulan + Tahun yang tersedia di History.
-        // Jika filter tanggal/bulan/tahun dipilih, data tetap diringkas sesuai filter aktif.
-)();
+        // Jika filter tanggal/bulan/tahun dipilih, data tetap diringkas sesuai filter aktif.)();
 </script>
 <script>
 (function(){
@@ -3865,7 +3890,7 @@ async function hydrate(uid){
 
 function redraw(){
  try{loadUserData()}catch{}
- try{populateHistoryFilters?.();renderHistory?.()}catch{}
+  try{populateHistoryFilters?.();renderHistory?.()}catch{}
  try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{}
  try{renderKasbonGrid?.()}catch{}
  try{window.__initKasirViews?.()}catch{}
