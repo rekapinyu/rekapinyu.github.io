@@ -1731,6 +1731,42 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </header>
 <!-- Scrollable Main View Area -->
 <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-100 pb-28 md:pb-24 relative flex flex-col">
+<!-- AKTIFITAS — IMPLEMENTASI BARU: seluruh UI langsung di area MAIN. -->
+<section class="hidden" id="view-activity"></section>
+<div aria-label="Area Aktifitas" class="hidden" id="activity-main-container">
+<style id="rekapinyu-activity-24h-css">
+#activity-main-container{width:100%;max-width:900px;margin:10px auto 0;box-sizing:border-box;position:relative;display:flex;flex-direction:column;gap:14px}
+#activity-main-container.hidden{display:none!important}
+#activity-main-container .rk-activity-final-filter{width:100%;box-sizing:border-box;position:sticky;top:10px;z-index:40}
+#activity-main-container .rk-activity-final-filter-box{width:100%;box-sizing:border-box;padding:10px;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.07)}
+#activity-main-container .rk-activity-final-filter-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(78px,1.2fr) minmax(105px,1.8fr) minmax(92px,1.4fr);gap:7px;align-items:center}
+#activity-main-container .rk-activity-search-wrap{position:relative;min-width:0}
+#activity-main-container .rk-activity-search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:11px;pointer-events:none}
+#activity-main-container .rk-activity-final-filter input,#activity-main-container .rk-activity-final-filter select{width:100%;height:38px;min-width:0;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9999px;background:#f8fafc;color:#334155;padding:0 10px;outline:none;font-size:12px}
+#activity-main-container .rk-activity-final-filter input{padding-left:32px}
+#activity-main-container .rk-activity-final-filter input:focus,#activity-main-container .rk-activity-final-filter select:focus{border-color:#cbd5e1;box-shadow:0 0 0 2px rgba(148,163,184,.12)}
+#activity-main-container .rk-activity-grid{width:100%;max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;height:clamp(170px,30vh,240px);min-height:0;max-height:none;overflow-y:auto;padding:2px}
+#activity-main-container .rk-activity-24h-card{position:relative;display:flex;align-items:center;min-width:0;height:72px;aspect-ratio:auto;padding:8px 10px;background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;box-sizing:border-box;overflow:hidden}
+#activity-main-container .rk-activity-24h-card.is-current{border-color:#cbd5e1}
+#activity-main-container .rk-activity-24h-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+#activity-main-container .rk-activity-24h-title{min-width:0;padding-right:38px;color:#334155;font-size:11px;font-weight:800;line-height:1.4;overflow-wrap:anywhere}
+#activity-main-container .rk-activity-view-btn{position:absolute;right:9px;top:9px;width:30px;height:30px;border:0;border-radius:9px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#activity-main-container .rk-activity-view-btn:hover{background:#dbeafe;color:#2563eb}
+#activity-main-container .rk-activity-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:160px;padding:24px;text-align:center;color:#94a3b8;font-size:11px}
+#activity-main-container .rk-activity-popup{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.62)}
+#activity-main-container .rk-activity-popup.is-open{display:flex}
+#activity-main-container .rk-activity-popup-box{width:min(520px,96vw);max-height:88vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;display:flex;flex-direction:column}
+#activity-main-container .rk-activity-popup-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0}
+#activity-main-container .rk-activity-popup-title{font-size:14px;font-weight:900;color:#0f172a}
+#activity-main-container .rk-activity-popup-close{width:34px;height:34px;border:0;border-radius:9px;background:#f1f5f9;color:#475569;cursor:pointer}
+#activity-main-container .rk-activity-popup-list{padding:12px;overflow:auto;display:grid;gap:7px}
+#activity-main-container .rk-activity-item{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:9px 10px;border:1px solid #eef2f7;border-radius:11px;background:#f8fafc}
+#activity-main-container .rk-activity-time{font-size:10px;font-weight:400;color:#2563eb}
+#activity-main-container .rk-activity-action{font-size:11px;font-weight:400;color:#334155;line-height:1.4}
+#activity-main-container .rk-activity-list-empty{padding:24px 16px;text-align:center;color:#94a3b8;font-size:11px}
+@media(max-width:900px){#activity-main-container .rk-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#activity-main-container .rk-activity-grid{grid-template-columns:1fr}#activity-main-container .rk-activity-final-filter-grid{grid-template-columns:1fr 1fr}.rk-activity-search-wrap{grid-column:1/-1}}
+</style>
 
 <div class="rk-activity-final-filter">
   <div class="rk-activity-final-filter-box">
