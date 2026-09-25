@@ -1416,78 +1416,66 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 
-<style id="report-backup-layout-final">
-/* SATU IMPLEMENTASI FINAL: hanya posisi dan struktur Laporan Bulanan + Backup Otomatis. */
-#report-backup-layout{
-  width:100%;
-  max-width:100%;
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
-  gap:0;
+<style id="report-monthly-empty-position">
+#view-report .report-monthly-area { width: 100%; }
+#view-report .report-monthly-empty {
+    width: 100%;
+    min-height: 220px;
+    margin: 0;
+    padding: 4rem 1rem;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.10), 0 4px 6px -4px rgb(15 23 42 / 0.10);
+    border: 1px dashed #e2e8f0;
+    color: #94a3b8;
+    text-align: center;
+    box-sizing: border-box;
 }
+</style>
+
+<style id="laporan-backup-position-final">
+/* SATU IMPLEMENTASI FINAL: posisi isi Laporan Bulanan + Backup Otomatis. */
 @media (min-width:768px){
-  main > .max-w-4xl:has(#report-backup-layout #view-report:not(.hidden)),
-  main > .max-w-4xl:has(#report-backup-layout #view-backup:not(.hidden)){
-    width:100%;
-    max-width:1100px;
+  main > .max-w-4xl:has(#view-report:not(.hidden)),
+  main > .max-w-4xl:has(#view-backup:not(.hidden)){
+    margin-top:0!important;
+    margin-bottom:auto!important;
+  }
+
+  /* Backup sticky dipertahankan persis pada posisi/spacing sebelumnya. */
+  #backup-sticky-container{
+    margin-bottom:8px!important;
+  }
+
+  /* Perilaku posisi Kasbon dipertahankan; tidak diubah. */
+  main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
+    margin-top:0!important;
+    margin-bottom:auto!important;
+  }
+  #kasbon-sticky-container{
+    margin-bottom:8px!important;
+  }
+}
+
+@media (max-width:767px){
+  main > .max-w-4xl:has(#view-report:not(.hidden)),
+  main > .max-w-4xl:has(#view-backup:not(.hidden)){
     margin-top:0!important;
     margin-bottom:0!important;
   }
-  #report-backup-layout #backup-sticky-container{
-    width:100%;
-    max-width:100%;
-    margin:0 0 14px 0;
-    position:sticky;
-    top:0;
-    z-index:30;
+
+  /* Backup sticky dipertahankan persis pada posisi/spacing sebelumnya. */
+  #backup-sticky-container{
+    margin-bottom:8px!important;
   }
-  #report-backup-layout #view-report,
-  #report-backup-layout #view-backup{
-    width:100%;
-    max-width:100%;
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+
+  /* Perilaku posisi Kasbon dipertahankan; tidak diubah. */
+  main > .max-w-4xl:has(#view-kasbon:not(.hidden)){
+    margin-top:0!important;
+    margin-bottom:0!important;
   }
-  #report-backup-layout #view-report{
-    margin-top:-10px;
-  }
-  #report-backup-layout #view-report .report-monthly-area,
-  #report-backup-layout #view-backup #backup-grid{
-    width:100%;
-    max-width:100%;
-    margin-left:auto;
-    margin-right:auto;
-    box-sizing:border-box;
-  }
-}
-@media (max-width:767px){
-  #report-backup-layout{
-    width:100%;
-    max-width:100%;
-    margin:0;
-    padding:0;
-  }
-  #report-backup-layout #backup-sticky-container{
-    width:100%;
-    max-width:100%;
-    margin:0 0 10px 0;
-    position:sticky;
-    top:0;
-    z-index:30;
-  }
-  #report-backup-layout #view-report,
-  #report-backup-layout #view-backup,
-  #report-backup-layout #view-report .report-monthly-area,
-  #report-backup-layout #view-backup #backup-grid{
-    width:100%;
-    max-width:100%;
-    margin-left:auto;
-    margin-right:auto;
-    box-sizing:border-box;
+  #kasbon-sticky-container{
+    margin-bottom:8px!important;
   }
 }
 </style>
@@ -1966,6 +1954,34 @@ bind();
 </form>
 </div>
 </div>
+<!-- BACKUP OTOMATIS STICKY FILTER -->
+<div class="w-full max-w-4xl mx-auto hidden mb-6 sticky top-0 z-30" id="backup-sticky-container">
+<div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
+<div class="grid grid-cols-12 gap-2 items-center">
+<div class="col-span-4 relative">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
+<i class="fa-solid fa-magnifying-glass"></i>
+</span>
+<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-backup-search" oninput="renderBackupGrid()" placeholder="Search" type="text"/>
+</div>
+<div class="col-span-2">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-date" onchange="renderBackupGrid()">
+<option value="">Tgl</option>
+</select>
+</div>
+<div class="col-span-3">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-month" onchange="renderBackupGrid()">
+<option value="">Bulan</option>
+</select>
+</div>
+<div class="col-span-3">
+<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-year" onchange="renderBackupGrid()">
+<option value="">Tahun</option>
+</select>
+</div>
+</div>
+</div>
+</div>
 <div class="max-w-4xl mx-auto w-full my-auto">
 <!-- MOBILE ONLY: BERANDA -->
 <section class="hidden md:hidden space-y-4" id="mobile-home-view">
@@ -2212,39 +2228,11 @@ bind();
 <section class="hidden space-y-4 w-full" id="view-history">
 <div class="flex flex-col items-center gap-4 w-full" id="history-grid"></div>
 </section>
-<!-- LAPORAN BULANAN + BACKUP OTOMATIS: satu blok layout khusus -->
-<div id="report-backup-layout">
+<!-- VIEW 3: LAPORAN BULANAN -->
 <section class="hidden" id="view-report">
 <div class="report-monthly-area" id="report-grid"></div>
 </section>
-<!-- BACKUP OTOMATIS STICKY FILTER -->
-<div class="w-full hidden sticky top-0 z-30" id="backup-sticky-container">
-<div class="bg-white p-3 md:p-4 rounded-3xl shadow-xl border border-slate-200">
-<div class="grid grid-cols-12 gap-2 items-center">
-<div class="col-span-4 relative">
-<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs md:text-sm">
-<i class="fa-solid fa-magnifying-glass"></i>
-</span>
-<input class="w-full pl-8 md:pl-10 pr-2 md:pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-[11px] md:text-xs font-semibold transition" id="filter-backup-search" oninput="renderBackupGrid()" placeholder="Search" type="text"/>
-</div>
-<div class="col-span-2">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-date" onchange="renderBackupGrid()">
-<option value="">Tgl</option>
-</select>
-</div>
-<div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-month" onchange="renderBackupGrid()">
-<option value="">Bulan</option>
-</select>
-</div>
-<div class="col-span-3">
-<select class="w-full bg-slate-50 border border-slate-200 rounded-full px-2.5 py-2.5 text-[11px] md:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-700" id="filter-backup-year" onchange="renderBackupGrid()">
-<option value="">Tahun</option>
-</select>
-</div>
-</div>
-</div>
-</div>
+<!-- VIEW NEW: BACKUP OTOMATIS -->
 <section class="hidden space-y-4" id="view-backup">
 <div class="flex items-center justify-between mb-2">
 <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Daftar Backup Data Harian Otomatis</h3>
@@ -2252,7 +2240,6 @@ bind();
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="backup-grid"></div>
 </section>
-</div>
 </main></div>
 <!-- Mobile Bottom Dock Menu -->
 <!-- Custom Modal Notifikasi -->
