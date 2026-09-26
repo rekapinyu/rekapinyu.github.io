@@ -2932,7 +2932,7 @@ function updateUserAvatarUI() {
             const saveButton = document.getElementById('shop-cover-save');
             const editHint = document.getElementById('shop-cover-edit-hint');
             if (!input || !image || !placeholder) return;
-            const key = currentSessionUser ? `finance_shop_cover_${currentSessionUser.phone}` : 'finance_shop_cover_guest';
+            const key = currentSessionUser ? `finance_shop_cover_${phoneOf(currentSessionUser.phone)}` : 'finance_shop_cover_guest';
             try {
                 const raw = localStorage.getItem(key) || '';
                 if (raw) {
@@ -4826,7 +4826,13 @@ async function firebaseRegister(){
       console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
     }
     // Cache lokal hanya untuk kompatibilitas UI lama; bukan sumber autentikasi.
-    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
+    // Akun BARU selalu dimulai tanpa foto profil dan tanpa foto sampul.
+    // Hapus cache foto berdasarkan nomor HP agar akun baru tidak pernah mewarisi
+    // foto dari sesi/cache sebelumnya.
+    nativeRemove.call(localStorage,`finance_profile_photo_${phone}`);
+    nativeRemove.call(localStorage,`finance_shop_cover_${phone}`);
+    nativeRemove.call(localStorage,"finance_shop_cover_guest");
+    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password,photo:""}]));
     currentSessionUser=null;
     nativeRemove.call(localStorage,"finance_active_session");
     try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
@@ -5292,7 +5298,6 @@ onAuthStateChanged(auth,async u=>{
   try{
     await hydrate(u.uid);
     realtime(u);
-    try{await window.__rekapinyuMigrateCloudFocusedData?.()}catch(e){console.warn("Rekapinyu: migrasi data fokus cloud belum selesai.",e)}
     try{window.__rekapinyuStartProdukKasirRealtime?.()}catch(e){console.warn("Rekapinyu: ProdukKasir realtime belum aktif.",e)}
     window.__rekapinyuLandingHandoffActive=false;
     window.__rekapinyuAuthBooting=false;
@@ -5310,33 +5315,20 @@ onAuthStateChanged(auth,async u=>{
 /* REKAPINYU: CLOUD PRODUK KASIR — fokus ProdukKasir */
 (function(){
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
-
-  async function dataUriToCompressedBlob(src){
+  async function dataUriToBlob(src){
     const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);
     if(!m)return null;
-    const img=new Image();
-    img.src=src;
-    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});
-    const maxSide=1200;
-    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth||img.width||1,img.naturalHeight||img.height||1));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
-    canvas.height=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
-    const ctx=canvas.getContext('2d',{alpha:false});
-    if(!ctx)return null;
-    ctx.fillStyle='#fff';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    return await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.78));
+    const bin=atob(m[2]); const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new Blob([bytes],{type:m[1]||'image/jpeg'});
   }
-
   async function saveProdukKasir(products){
     const uid=auth.currentUser?.uid;if(!uid)return [];
     const source=Array.isArray(products)?products:[]; const payload=[];
     for(const raw of source){
       const p={...raw};
       if(/^data:image\//i.test(String(p.photo||''))){
-        const blob=await dataUriToCompressedBlob(p.photo);
+        const blob=await dataUriToBlob(p.photo);
         if(blob){
           const r=ref(storage,`users/${uid}/produk-kasir/${encodeURIComponent(String(p.id))}.jpg`);
           await uploadBytes(r,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});
@@ -5348,7 +5340,6 @@ onAuthStateChanged(auth,async u=>{
     await setDoc(doc(db,'ProdukKasir',uid),{ProdukKasir:payload,updatedAt:serverTimestamp()},{merge:true});
     return payload;
   }
-
   window.__rekapinyuSaveProdukKasir=saveProdukKasir;
   window.__rekapinyuLoadProdukKasir=async function(){
     const uid=auth.currentUser?.uid;if(!uid)return null;
@@ -5367,44 +5358,6 @@ onAuthStateChanged(auth,async u=>{
       try{nativeSet.call(localStorage,`finance_kasir_products_${phone}`,JSON.stringify(value));}finally{applyingFirestoreRealtime=false;}
       try{window.__initProdukKasir?.();window.__initKasirViews?.()}catch{}
     },err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err));
-  };
-})();
-</script>
-<script>
-/* REKAPINYU: MIGRASI DATA LOKAL KE FIRESTORE — hanya ProdukKasir + GaleriFoto */
-(function(){
-  async function migrateProdukKasir(){
-    const uid=auth.currentUser?.uid, phone=phoneOf(currentSessionUser?.phone);
-    if(!uid||!phone||typeof window.__rekapinyuSaveProdukKasir!=='function')return;
-    try{
-      const local=JSON.parse(localStorage.getItem(`finance_kasir_products_${phone}`)||'[]');
-      if(!Array.isArray(local)||!local.length)return;
-      const snap=await getDoc(doc(db,'ProdukKasir',uid));
-      const cloud= snap.exists() && Array.isArray(snap.data()?.ProdukKasir) ? snap.data().ProdukKasir : [];
-      if(!cloud.length) await window.__rekapinyuSaveProdukKasir(local);
-    }catch(e){console.warn('Rekapinyu: migrasi ProdukKasir ke Firestore gagal.',e)}
-  }
-
-  async function migrateGaleriFoto(){
-    const uid=auth.currentUser?.uid, phone=phoneOf(currentSessionUser?.phone);
-    if(!uid||!phone)return;
-    try{
-      const profile=String(localStorage.getItem(`finance_profile_photo_${phone}`)||'');
-      const coverRaw=localStorage.getItem(`finance_shop_cover_${phone}`)||'';
-      let cover='';
-      try{cover=String(JSON.parse(coverRaw)?.src||'')}catch{cover=coverRaw}
-      const data={};
-      if(profile)data.FotoProfil=profile;
-      if(cover)data.FotoSampul=cover;
-      if(!Object.keys(data).length)return;
-      data.updatedAt=serverTimestamp();
-      await setDoc(gref(uid),data,{merge:true});
-    }catch(e){console.warn('Rekapinyu: migrasi GaleriFoto ke Firestore gagal.',e)}
-  }
-
-  window.__rekapinyuMigrateCloudFocusedData=async function(){
-    await migrateProdukKasir();
-    await migrateGaleriFoto();
   };
 })();
 </script>
