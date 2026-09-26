@@ -2887,7 +2887,7 @@ function updateUserAvatarUI() {
                             const url=await getDownloadURL(r);
                             const cloudData={src:url,x:data.x,y:data.y};
                             if(phone)localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));
-                            try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
+                            try{await setDoc(dref(auth.currentUser.uid),{FotoSampul:url,shopCoverX:data.x,shopCoverY:data.y,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
                             renderShopCover(cloudData,false);
                         } catch(storageErr) {
                             console.warn('Sampul tersimpan lokal; Firebase Storage belum mengizinkan upload.',storageErr);
@@ -2901,7 +2901,7 @@ function updateUserAvatarUI() {
                                 const url=await getDownloadURL(r);
                                 const cloudData={src:url,x:data.x,y:data.y};
                                 if(phone)localStorage.setItem(`finance_shop_cover_${phone}`,JSON.stringify(cloudData));
-                                try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
+                                try{await setDoc(dref(auth.currentUser.uid),{FotoSampul:url,shopCoverX:data.x,shopCoverY:data.y,updatedAt:serverTimestamp()},{merge:true});}catch(dbErr){console.warn('URL sampul tersimpan di Storage, Firestore belum menerima.',dbErr)}
                                 renderShopCover(cloudData,false);
                             } catch(storageErr) { console.warn('Sinkronisasi sampul Firebase gagal; versi lokal tetap tersimpan.',storageErr); }
                         });
@@ -4685,7 +4685,6 @@ async function hydrate(uid){
   const pengeluaran=pengeluaranSnap.exists()?pengeluaranSnap.data()?.DataPengeluaran:null;
   const bulanan=bulananSnap.exists()?bulananSnap.data()?.DataLaporanBulanan:null;
   const backup=backupSnap.exists()?backupSnap.data()?.LaporanBackupOtomatis:null;
-  const receiptSettings=ds.exists()?ds.data()?.receiptSettings:null;
   if(Array.isArray(tx))nativeSet.call(localStorage,`finance_kasir_transactions_${phone}`,JSON.stringify(tx));
   if(Array.isArray(laporan))nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(laporan));
   else if(Array.isArray(tx))nativeSet.call(localStorage,`finance_laporan_kasir_desktop_${phone}`,JSON.stringify(tx));
@@ -4695,7 +4694,6 @@ async function hydrate(uid){
   if(Array.isArray(pengeluaran))nativeSet.call(localStorage,`finance_pengeluaran_desktop_${phone}`,JSON.stringify(pengeluaran));
   if(Array.isArray(bulanan))nativeSet.call(localStorage,`finance_laporan_bulanan_${phone}`,JSON.stringify(bulanan));
   if(Array.isArray(backup))nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(backup));
-  if(receiptSettings&&typeof receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(receiptSettings));
   if(Array.isArray(aktivitas)){
    window.__rekapinyuSetActivityData?.(aktivitas);
    nativeSet.call(localStorage,`finance_activity_desktop_${phone}`,JSON.stringify(aktivitas));
@@ -4721,7 +4719,7 @@ function redraw(){
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
  const old=(await getDoc(uref(u.uid))).data()||{};
- await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),photo:extra.photo??currentSessionUser?.photo??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
+ await setDoc(uref(u.uid),{...old,uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),FotoProfil:extra.FotoProfil??currentSessionUser?.photo??old.FotoProfil??old.photo??"",email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
 }
 function localSession(u){
  currentSessionUser={uid:u.uid,name:u.name||"",phone:phoneOf(u.phone),photo:u.photo||"",email:u.email||auth.currentUser?.email||""};
@@ -4748,7 +4746,6 @@ if(!Storage.prototype.__rekapinyuFirebaseFull){
     `finance_kasir_transactions_${p}`,
     `finance_laporan_kasir_desktop_${p}`,
     `finance_activity_desktop_${p}`,
-    `finance_kasir_receipt_settings_${p}`
    ];
    if(watched.includes(k)){
     clearTimeout(window.__rfSaveTimer);
@@ -4805,11 +4802,11 @@ async function firebaseRegister(){
     await authReadyPromise;
     const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
     await updateProfile(credential.user,{displayName:name});
-    const userData={uid:credential.user.uid,name,phone,email:credential.user.email,photo:""};
+    const userData={uid:credential.user.uid,name,phone,email:credential.user.email,FotoProfil:""};
     // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
     try{
       await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
+      await setDoc(dref(credential.user.uid),{updatedAt:serverTimestamp()},{merge:true});
       await Promise.all([
         setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
         setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
@@ -4874,7 +4871,7 @@ async function firebaseLogin(){
         try{
           await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
           let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
-          await setDoc(dref(credential.user.uid),{shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()},{merge:true});
+          await setDoc(dref(credential.user.uid),{FotoSampul:shop,shopCoverX:50,shopCoverY:50,migratedFromLegacy:true,updatedAt:serverTimestamp()},{merge:true});
           await Promise.all([
             setDoc(tref(credential.user.uid),{TransaksiKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
             setDoc(lref(credential.user.uid),{LaporanKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),updatedAt:serverTimestamp()},{merge:true}),
@@ -4959,7 +4956,7 @@ if(profileSave)profileSave.addEventListener("click",async e=>{
       currentSessionUser.photo=url;
       nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
       nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-      await saveCloudUser({photo:url});
+      await saveCloudUser({FotoProfil:url});
       updateUserAvatarUI();
     }catch(storageErr){console.warn("Storage profil belum mengizinkan upload; cache lokal tetap digunakan.",storageErr)}
     closeProfileModal();
@@ -5011,7 +5008,7 @@ window.__rekapinyuSaveProfilePhoto=async function(){
 
     // Sinkronisasi Firebase berjalan di belakang layar dan tidak menahan popup/tombol.
     Promise.resolve().then(async()=>{
-      try{await saveCloudUser({photo:localUrl});}catch(err){console.warn("Firestore foto profil:",err)}
+      try{await saveCloudUser({FotoProfil:localUrl});}catch(err){console.warn("Firestore foto profil:",err)}
       try{
         const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
         await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
@@ -5019,7 +5016,7 @@ window.__rekapinyuSaveProfilePhoto=async function(){
         currentSessionUser.photo=url;
         nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
         if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-        try{await saveCloudUser({photo:url});}catch(err){console.warn("Firestore URL foto profil:",err)}
+        try{await saveCloudUser({FotoProfil:url});}catch(err){console.warn("Firestore URL foto profil:",err)}
         updateUserAvatarUI();
       }catch(err){console.warn("Storage foto profil:",err)}
     });
@@ -5093,7 +5090,7 @@ window.__rekapinyuSaveCoverPhoto=async function(){
           const url=await getDownloadURL(r);
           // Simpan URL cloud hanya untuk data Firebase. Tampilan yang sudah benar
           // tetap memakai preview lokal beserta posisi x/y yang dipilih pengguna.
-          try{await setDoc(dref(auth.currentUser.uid),{shopCover:url,shopCoverX:x,shopCoverY:y,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
+          try{await setDoc(dref(auth.currentUser.uid),{FotoSampul:url,shopCoverX:x,shopCoverY:y,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
         }catch(err){console.warn("Storage sampul:",err)}
       });
     }
@@ -5192,11 +5189,10 @@ function realtime(u){
   const d=snap.data(),phone=phoneOf(currentSessionUser?.phone);if(!phone)return;
   applyingFirestoreRealtime=true;
   try{
-   if(d.receiptSettings&&typeof d.receiptSettings==='object')nativeSet.call(localStorage,`finance_kasir_receipt_settings_${phone}`,JSON.stringify(d.receiptSettings));
-   if(d.shopCover&&!String(d.shopCover).startsWith('data:')){
+   if(d.FotoSampul&&!String(d.FotoSampul).startsWith('data:')){
     try{
      const existing=JSON.parse(localStorage.getItem(`finance_shop_cover_${phone}`)||'null');
-     if(!existing||!existing.src||String(existing.src).startsWith('http'))nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:d.shopCover,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
+     if(!existing||!existing.src||String(existing.src).startsWith('http'))nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:d.FotoSampul,x:Number.isFinite(Number(d.shopCoverX))?Number(d.shopCoverX):50,y:Number.isFinite(Number(d.shopCoverY))?Number(d.shopCoverY):50}));
     }catch{}
    }
   }finally{applyingFirestoreRealtime=false;}
@@ -5206,7 +5202,7 @@ function realtime(u){
   if(!snap.exists()||!currentSessionUser)return;
   const d=snap.data();
   currentSessionUser.name=d.name||currentSessionUser.name;
-  currentSessionUser.photo=d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||''}catch{return''}})();
+  currentSessionUser.photo=d.FotoProfil||d.photo||currentSessionUser.photo||(()=>{try{return localStorage.getItem(`finance_profile_photo_${phoneOf(currentSessionUser.phone)}`)||''}catch{return''}})();
   currentSessionUser.phone=phoneOf(d.phone||currentSessionUser.phone);
   nativeSet.call(localStorage,'finance_active_session',JSON.stringify(currentSessionUser));
   document.getElementById('sidebar-user-name')?.replaceChildren(document.createTextNode(currentSessionUser.name));
