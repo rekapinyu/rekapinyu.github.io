@@ -4786,38 +4786,60 @@ function firebaseLogin(){
   const stored=safe(localStorage.getItem("finance_registered_users"),[]);
   const list=Array.isArray(stored)?stored:[];
   const localUser=list.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-  if(!localUser){
+
+  // Jika akun sudah tersimpan lokal, aktifkan sesi tanpa menunggu Firebase.
+  if(localUser){
+    activateLocalAuthSession(localUser);
+    form.reset();
     if(submit)delete submit.dataset.busy;
-    notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");
+    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+    setTimeout(()=>{
+      (async()=>{
+        try{
+          await authReadyPromise;
+          const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
+          const uid=credential.user.uid;
+          currentSessionUser={...currentSessionUser,uid,email:credential.user.email,name:credential.user.displayName||currentSessionUser.name};
+          nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+          const fresh=safe(localStorage.getItem("finance_registered_users"),[]);
+          const freshList=Array.isArray(fresh)?fresh:[];
+          const index=freshList.findIndex(x=>phoneOf(x.phone)===phone);
+          if(index>=0)freshList[index]={...freshList[index],...currentSessionUser,password};
+          nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
+          await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
+        }catch(err){console.warn("Rekapinyu: login Firebase belum tersinkron; sesi localStorage tetap aktif.",err)}
+      })();
+    },0);
     return;
   }
 
-  activateLocalAuthSession(localUser);
-  form.reset();
-  if(submit)delete submit.dataset.busy;
-  notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
-
+  // Akun lama yang belum mempunyai salinan lokal tetap bisa masuk melalui Firebase.
   setTimeout(()=>{
     (async()=>{
       try{
         await authReadyPromise;
         const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-        const uid=credential.user.uid;
-        currentSessionUser={...currentSessionUser,uid,email:credential.user.email,name:credential.user.displayName||currentSessionUser.name};
-        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+        const fbUser=credential.user;
+        const user={uid:fbUser.uid,name:fbUser.displayName||nameFromPhone(phone),phone,email:fbUser.email||emailOf(phone),photo:""};
         const fresh=safe(localStorage.getItem("finance_registered_users"),[]);
         const freshList=Array.isArray(fresh)?fresh:[];
         const index=freshList.findIndex(x=>phoneOf(x.phone)===phone);
-        if(index>=0)freshList[index]={...freshList[index],...currentSessionUser,password};
+        if(index>=0)freshList[index]={...freshList[index],...user,password};
+        else freshList.push({...user,password});
         nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
-        await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
+        activateLocalAuthSession(user);
+        form.reset();
+        if(submit)delete submit.dataset.busy;
+        await setDoc(uref(fbUser.uid),{lastLogin:{status:"login",at:serverTimestamp(),uid:fbUser.uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
+        notify("Masuk Berhasil",`Selamat datang kembali, ${user.name||nameFromPhone(phone)}!`);
       }catch(err){
-        console.warn("Rekapinyu: login Firebase belum tersinkron; sesi localStorage tetap aktif.",err);
+        if(submit)delete submit.dataset.busy;
+        notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
+        console.warn("Rekapinyu: login Firebase gagal.",err);
       }
     })();
   },0);
 }
-
 const rf=document.getElementById("register-form");
 const lf=document.getElementById("login-form");
 if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseRegister();});
