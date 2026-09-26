@@ -4759,95 +4759,45 @@ async function firebaseLogin(){
   const submit=form.querySelector('button[type="submit"]');
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
-
-  // LOGIN CEPAT: ambil cache sesi/user dari localStorage terlebih dahulu.
-  // Firebase tetap menjadi sumber autentikasi; cache lokal hanya dipakai untuk
-  // menampilkan sesi dengan cepat sebelum sinkronisasi Firestore selesai.
-  const localUsers=safe(localStorage.getItem("finance_registered_users"),[]);
-  const localList=Array.isArray(localUsers)?localUsers:[];
-  const localUser=localList.find(x=>phoneOf(x.phone)===phone)||null;
-  const previousSession=safe(localStorage.getItem("finance_active_session"),null);
-  let localApplied=false;
-  if(localUser){
-    currentSessionUser={uid:localUser.uid||"",name:localUser.name||"",phone,email:localUser.email||emailOf(phone),photo:localUser.photo||""};
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    localApplied=true;
-    checkAuth();
-  }
-
   try{
+    // 1. Baca sesi/profil lokal lebih dahulu agar UI dapat bergerak tanpa menunggu Firestore.
+    let localUser=null;
+    try{
+      const active=safe(localStorage.getItem("finance_active_session"),null);
+      if(active && phoneOf(active.phone||"")===phone) localUser={...active,phone};
+    }catch(e){}
+    if(!localUser){
+      const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
+      if(legacy)localUser={uid:legacy.uid||"",name:legacy.name||"",phone,photo:legacy.photo||"",email:legacy.email||emailOf(phone)};
+    }
+
+    // 2. Autentikasi Firebase tetap menjadi validasi utama.
     await authReadyPromise;
     const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-    let user={uid:credential.user.uid,name:credential.user.displayName||"",phone,email:credential.user.email,photo:""};
+    const uid=credential.user.uid;
 
-    // Setelah Auth berhasil, data profil Firestore diteruskan ke cache lokal.
-    try{
-      const snap=await getDoc(uref(credential.user.uid));
-      if(snap.exists())user={...user,...snap.data()};
-    }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca; cache lokal dipakai.",dbErr)}
-
-    const loggedUser={...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email};
-    currentSessionUser={uid:loggedUser.uid,name:loggedUser.name||"",phone:loggedUser.phone,photo:loggedUser.photo||"",email:loggedUser.email||""};
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    nativeSet.call(localStorage,"rekapinyu_session_login",JSON.stringify({...currentSessionUser,status:"login",at:new Date().toISOString()}));
-
-    // Teruskan status login ke Firestore setelah localStorage sudah siap.
-    try{
-      await setDoc(uref(credential.user.uid),{
-        lastLogin:{status:"login",at:serverTimestamp(),uid:credential.user.uid,phone:currentSessionUser.phone},
-        sessionStatus:"login",updatedAt:serverTimestamp()
-      },{merge:true});
-    }catch(sessionErr){console.warn("Rekapinyu: sesi login belum tersimpan ke Firestore.",sessionErr)}
-
-    // Hydrate tetap dilakukan setelah sesi lokal aktif agar tampilan tidak menunggu kosong.
-    try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
+    // 3. Bentuk sesi dari cache lokal terlebih dahulu, lalu lengkapi dari profil Firestore.
+    let user={uid,name:credential.user.displayName||localUser?.name||"",phone,email:credential.user.email,photo:localUser?.photo||""};
+    if(localUser)user={...user,...localUser,uid,phone,email:credential.user.email};
+    await localSession(user);
     checkAuth();
     openDashboardAfterLogin();
     form.reset();
+
+    // 4. Firestore diteruskan setelah sesi lokal/UI sudah aktif.
+    try{
+      const snap=await getDoc(uref(uid));
+      if(snap.exists()){
+        user={...user,...snap.data(),uid,phone:phoneOf(snap.data().phone||user.phone||phone),email:credential.user.email};
+        await localSession(user);
+        checkAuth();
+      }
+      try{await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn("Rekapinyu: status login belum tersimpan ke Firestore.",e)}
+      try{await hydrate(uid)}catch(e){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",e)}
+    }catch(e){console.warn("Rekapinyu: sinkronisasi login Firestore ditunda; cache lokal tetap dipakai.",e)}
     notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
   }catch(err){
     console.error("Rekapinyu Firebase login:",err);
-    // Jika autentikasi gagal, jangan biarkan cache lokal membuat user terlihat login.
-    if(localApplied){
-      currentSessionUser=null;
-      if(previousSession)nativeSet.call(localStorage,"finance_active_session",JSON.stringify(previousSession));
-      else nativeRemove.call(localStorage,"finance_active_session");
-      checkAuth();
-    }
-    // Migrasi satu kali akun lama yang masih tersimpan di versi sebelum Firebase.
-    const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-    if(legacy && (err?.code==="auth/user-not-found" || err?.code==="auth/invalid-credential" || err?.code==="auth/invalid-login-credentials")){
-      try{
-        const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
-        await updateProfile(credential.user,{displayName:legacy.name||""});
-        try{
-          await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||"",migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-          let shop="";
-          await setDoc(dref(credential.user.uid),{shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()},{merge:true});
-          await Promise.all([
-            setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(iref(credential.user.uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(href(credential.user.uid),{LaporanHistory:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(bref(credential.user.uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(pref(credential.user.uid),{DataPengeluaran:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(kref(credential.user.uid),{DataKasbon:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(oref(credential.user.uid),{LaporanBackupOtomatis:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(aref(credential.user.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true})
-          ]);
-        }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
-        currentSessionUser={uid:credential.user.uid,name:legacy.name||"",phone,email:credential.user.email,photo:legacy.photo||""};
-        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-        nativeSet.call(localStorage,"rekapinyu_session_login",JSON.stringify({...currentSessionUser,status:"login",at:new Date().toISOString()}));
-        try{await setDoc(uref(credential.user.uid),{lastLogin:{status:"login",at:serverTimestamp(),uid:credential.user.uid,phone},sessionStatus:"login",updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn("Rekapinyu: sesi login belum tersimpan ke Firestore.",e)}
-        try{await hydrate(credential.user.uid)}catch{}
-        checkAuth();openDashboardAfterLogin();form.reset();
-        notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
-        return;
-      }catch(migrateErr){
-        console.error("Rekapinyu legacy migration:",migrateErr);
-      }
-    }
     notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
   }finally{
     if(submit)delete submit.dataset.busy;
@@ -4860,26 +4810,18 @@ if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropaga
 if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
 window.handleLogout=async()=>{
-  // LOGOUT CEPAT: putuskan sesi lokal dan ubah tampilan terlebih dahulu.
-  // Penulisan status logout ke Firestore diteruskan setelah localStorage selesai.
+  // Logout diputus dari UI/localStorage terlebih dahulu agar terasa langsung.
   const logoutUser=currentSessionUser?{...currentSessionUser}:null;
-  const logoutRecord=logoutUser?{...logoutUser,status:"logout",at:new Date().toISOString()}:null;
-  if(logoutRecord)nativeSet.call(localStorage,"rekapinyu_session_logout",JSON.stringify(logoutRecord));
-  nativeRemove.call(localStorage,"finance_active_session");
   currentSessionUser=null;
+  nativeRemove.call(localStorage,"finance_active_session");
   checkAuth();
   toggleAuthView("login");
 
-  // Firebase Auth dan Firestore diproses sesudah UI sudah kembali ke halaman login.
-  try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
+  // Status logout diteruskan ke Firestore setelah UI sudah selesai.
   if(logoutUser?.uid){
-    try{
-      await setDoc(uref(logoutUser.uid),{
-        lastLogout:{status:"logout",at:serverTimestamp(),uid:logoutUser.uid,phone:logoutUser.phone||""},
-        sessionStatus:"logged_out",updatedAt:serverTimestamp()
-      },{merge:true});
-    }catch(e){console.warn("Rekapinyu: sesi logout belum tersimpan ke Firestore.",e)}
+    try{await setDoc(uref(logoutUser.uid),{lastLogout:{status:"logout",at:serverTimestamp(),uid:logoutUser.uid,phone:logoutUser.phone||""},sessionStatus:"logged_out",updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn("Rekapinyu: status logout belum tersimpan ke Firestore.",e)}
   }
+  try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
 };
 
 // Profile changes save to Firestore instead of only localStorage.
