@@ -4709,42 +4709,50 @@ async function firebaseRegister(){
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
   try{
-    await authReadyPromise;
-    const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
-    await updateProfile(credential.user,{displayName:name});
-    const userData={uid:credential.user.uid,name,phone,email:credential.user.email,photo:""};
-    // Auth adalah sumber identitas. Firestore hanya menyimpan profil/data aplikasi.
-    try{
-      await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      await setDoc(dref(credential.user.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
-      await Promise.all([
-        setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(aref(credential.user.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(iref(credential.user.uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(href(credential.user.uid),{LaporanHistory:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(kref(credential.user.uid),{DataKasbon:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(pref(credential.user.uid),{DataPengeluaran:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(bref(credential.user.uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
-        setDoc(oref(credential.user.uid),{LaporanBackupOtomatis:[],updatedAt:serverTimestamp()},{merge:true})
-      ]);
-    }catch(dbErr){
-      console.warn("Rekapinyu: akun Firebase berhasil dibuat tetapi profil/data Firestore belum tersimpan.",dbErr);
+    const users=safe(localStorage.getItem("finance_registered_users"),[]);
+    const list=Array.isArray(users)?users:[];
+    if(list.some(x=>phoneOf(x.phone)===phone)){
+      notify("Gagal Daftar","Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.","fa-solid fa-circle-exclamation text-rose-600");
+      return;
     }
-    // Sesi/daftar dicatat lokal dan status pendaftaran dicatat pada rekapinyu_users.
-    const registrationRecord={uid:userData.uid,name:userData.name,phone:userData.phone,email:userData.email,status:"registered",at:new Date().toISOString()};
-    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify([{...userData,password}]));
-    nativeSet.call(localStorage,"rekapinyu_registration",JSON.stringify(registrationRecord));
-    try{await setDoc(uref(userData.uid),{lastRegistration:{status:"registered",at:serverTimestamp(),uid:userData.uid,phone:userData.phone},sessionStatus:"logged_out",updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn("Rekapinyu: riwayat pendaftaran belum tersimpan ke Firestore.",e)}
-    currentSessionUser=null;
-    nativeRemove.call(localStorage,"finance_active_session");
-    try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
+    const localUser={uid:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,name,phone,email:emailOf(phone),photo:"",password};
+    list.push(localUser);
+    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
+    nativeSet.call(localStorage,"rekapinyu_registration",JSON.stringify({uid:localUser.uid,name,phone,email:localUser.email,status:"registered",at:new Date().toISOString()}));
     form.reset();
     toggleAuthView("login");
-    notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");
-  }catch(err){
-    console.error("Rekapinyu Firebase registration:",err);
-    notify("Gagal Daftar",authErrorMessage(err,"register"),"fa-solid fa-circle-xmark text-rose-600");
+    notify("Pendaftaran Berhasil","Data akun disimpan di perangkat. Data pengguna baru sedang diteruskan ke Firebase.");
+
+    void (async()=>{
+      try{
+        await authReadyPromise;
+        const credential=await createUserWithEmailAndPassword(auth,localUser.email,password);
+        await updateProfile(credential.user,{displayName:name});
+        const userData={uid:credential.user.uid,name,phone,email:credential.user.email,photo:""};
+        const fresh=safe(localStorage.getItem("finance_registered_users"),[]);
+        const freshList=Array.isArray(fresh)?fresh:[];
+        const index=freshList.findIndex(x=>phoneOf(x.phone)===phone);
+        if(index>=0)freshList[index]={...freshList[index],...userData,password};
+        nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
+        nativeSet.call(localStorage,"rekapinyu_registration",JSON.stringify({uid:userData.uid,name,phone,email:userData.email,status:"registered",at:new Date().toISOString()}));
+        await setDoc(uref(userData.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),lastRegistration:{status:"registered",at:serverTimestamp(),uid:userData.uid,phone:userData.phone},sessionStatus:"logged_out"});
+        await setDoc(dref(userData.uid),{receiptSettings:{name:"",address:"",phone:"",footer:""},shopCover:"",updatedAt:serverTimestamp()});
+        await Promise.all([
+          setDoc(tref(userData.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(lref(userData.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(aref(userData.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(iref(userData.uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(href(userData.uid),{LaporanHistory:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(kref(userData.uid),{DataKasbon:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(pref(userData.uid),{DataPengeluaran:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(bref(userData.uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
+          setDoc(oref(userData.uid),{LaporanBackupOtomatis:[],updatedAt:serverTimestamp()},{merge:true})
+        ]);
+        try{await signOut(auth)}catch(e){console.warn("Logout setelah sinkronisasi pendaftaran:",e)}
+      }catch(err){
+        console.warn("Rekapinyu: data pengguna baru belum berhasil diteruskan ke Firebase; akun lokal tetap tersimpan.",err);
+      }
+    })();
   }finally{
     if(submit)delete submit.dataset.busy;
   }
@@ -4760,45 +4768,46 @@ async function firebaseLogin(){
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
   try{
-    // 1. Baca sesi/profil lokal lebih dahulu agar UI dapat bergerak tanpa menunggu Firestore.
-    let localUser=null;
-    try{
-      const active=safe(localStorage.getItem("finance_active_session"),null);
-      if(active && phoneOf(active.phone||"")===phone) localUser={...active,phone};
-    }catch(e){}
+    const stored=safe(localStorage.getItem("finance_registered_users"),[]);
+    const list=Array.isArray(stored)?stored:[];
+    const localUser=list.find(x=>phoneOf(x.phone)===phone&&x.password===password);
     if(!localUser){
-      const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-      if(legacy)localUser={uid:legacy.uid||"",name:legacy.name||"",phone,photo:legacy.photo||"",email:legacy.email||emailOf(phone)};
+      notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");
+      return;
     }
-
-    // 2. Autentikasi Firebase tetap menjadi validasi utama.
-    await authReadyPromise;
-    const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-    const uid=credential.user.uid;
-
-    // 3. Bentuk sesi dari cache lokal terlebih dahulu, lalu lengkapi dari profil Firestore.
-    let user={uid,name:credential.user.displayName||localUser?.name||"",phone,email:credential.user.email,photo:localUser?.photo||""};
-    if(localUser)user={...user,...localUser,uid,phone,email:credential.user.email};
-    await localSession(user);
+    currentSessionUser={uid:localUser.uid||"",name:localUser.name||"",phone,email:localUser.email||emailOf(phone),photo:localUser.photo||""};
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+    nativeSet.call(localStorage,"rekapinyu_session_login",JSON.stringify({...currentSessionUser,status:"login",at:new Date().toISOString()}));
     checkAuth();
     openDashboardAfterLogin();
     form.reset();
 
-    // 4. Firestore diteruskan setelah sesi lokal/UI sudah aktif.
-    try{
-      const snap=await getDoc(uref(uid));
-      if(snap.exists()){
-        user={...user,...snap.data(),uid,phone:phoneOf(snap.data().phone||user.phone||phone),email:credential.user.email};
-        await localSession(user);
-        checkAuth();
+    void (async()=>{
+      try{
+        await authReadyPromise;
+        const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
+        const uid=credential.user.uid;
+        currentSessionUser={...currentSessionUser,uid,email:credential.user.email,name:credential.user.displayName||currentSessionUser.name};
+        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+        const fresh=safe(localStorage.getItem("finance_registered_users"),[]);
+        const freshList=Array.isArray(fresh)?fresh:[];
+        const index=freshList.findIndex(x=>phoneOf(x.phone)===phone);
+        if(index>=0)freshList[index]={...freshList[index],...currentSessionUser,password};
+        nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
+        try{
+          const snap=await getDoc(uref(uid));
+          if(snap.exists()){
+            currentSessionUser={...currentSessionUser,...snap.data(),uid,phone:phoneOf(snap.data().phone||phone),email:credential.user.email};
+            nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+          }
+          await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
+          try{await hydrate(uid)}catch(e){console.warn("Rekapinyu: data Firestore belum dapat dimuat; sesi lokal tetap dipakai.",e)}
+        }catch(e){console.warn("Rekapinyu: sinkronisasi login Firestore belum selesai; sesi lokal tetap aktif.",e)}
+      }catch(err){
+        console.warn("Rekapinyu: login Firebase belum tersinkron; sesi localStorage tetap aktif.",err);
       }
-      try{await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn("Rekapinyu: status login belum tersimpan ke Firestore.",e)}
-      try{await hydrate(uid)}catch(e){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",e)}
-    }catch(e){console.warn("Rekapinyu: sinkronisasi login Firestore ditunda; cache lokal tetap dipakai.",e)}
+    })();
     notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
-  }catch(err){
-    console.error("Rekapinyu Firebase login:",err);
-    notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
   }finally{
     if(submit)delete submit.dataset.busy;
   }
@@ -4810,16 +4819,16 @@ if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropaga
 if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
 window.handleLogout=async()=>{
-  // Logout diputus dari UI/localStorage terlebih dahulu agar terasa langsung.
   const logoutUser=currentSessionUser?{...currentSessionUser}:null;
   currentSessionUser=null;
   nativeRemove.call(localStorage,"finance_active_session");
   checkAuth();
   toggleAuthView("login");
-
-  // Status logout diteruskan ke Firestore setelah UI sudah selesai.
   if(logoutUser?.uid){
-    try{await setDoc(uref(logoutUser.uid),{lastLogout:{status:"logout",at:serverTimestamp(),uid:logoutUser.uid,phone:logoutUser.phone||""},sessionStatus:"logged_out",updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn("Rekapinyu: status logout belum tersimpan ke Firestore.",e)}
+    try{
+      await authReadyPromise;
+      await setDoc(uref(logoutUser.uid),{lastLogout:{status:"logout",at:serverTimestamp(),uid:logoutUser.uid,phone:logoutUser.phone||""},sessionStatus:"logged_out",updatedAt:serverTimestamp()},{merge:true});
+    }catch(e){console.warn("Rekapinyu: status logout belum tersimpan ke Firestore.",e)}
   }
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
 };
