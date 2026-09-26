@@ -2,20 +2,131 @@
 
 <html lang="id">
 <head>
-<style id="rekapinyu-auth-reload-final">
+<style id="rekapinyu-auth-single-css">
+/* AUTH — satu implementasi CSS bersih. Tidak ada override/duplikasi auth lain. */
 html.rk-dashboard-session #auth-container{display:none!important;}
+#auth-container{
+  position:fixed!important;
+  inset:0!important;
+  z-index:99990!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:16px!important;
+  box-sizing:border-box!important;
+  overflow:auto!important;
+  background:#f8fafc url('https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoBannerLogin.jpg?raw=true') right center/auto 100% no-repeat!important;
+}
+#auth-container::after{
+  content:"";
+  position:absolute;
+  inset:0 0 0 45%;
+  background:linear-gradient(90deg,rgba(248,250,252,.12),rgba(15,23,42,.08));
+  pointer-events:none;
+}
+#login-card,#register-card{
+  position:relative!important;
+  z-index:1!important;
+  width:min(45%,500px)!important;
+  max-width:500px!important;
+  min-width:320px!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:40px!important;
+  box-sizing:border-box!important;
+  background:#fff!important;
+  border:1px solid #e5eaf0!important;
+  border-radius:20px!important;
+  box-shadow:0 24px 60px rgba(15,23,42,.14)!important;
+}
+#login-card.hidden,#register-card.hidden{display:none!important;}
+#login-card .login-brand-header,#register-card .login-brand-header{
+  width:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  text-align:left!important;
+  margin:0 0 24px!important;
+}
+#login-card .login-brand-logo,#register-card .login-brand-logo{
+  display:block!important;
+  width:min(100%,320px)!important;
+  max-width:320px!important;
+  height:auto!important;
+  max-height:82px!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  margin:0 0 9px!important;
+}
+#login-card .login-brand-tagline,#register-card .login-brand-tagline{
+  display:block!important;
+  width:min(100%,285px)!important;
+  max-width:285px!important;
+  margin:0!important;
+  padding:0!important;
+  color:#94a3b8!important;
+  font-size:11px!important;
+  line-height:1.45!important;
+  font-weight:500!important;
+  text-align:left!important;
+}
+#login-card form,#register-card form{width:100%!important;margin:0!important;}
+#login-card input,#register-card input{
+  min-height:53px!important;
+  box-sizing:border-box!important;
+  background:#f8fafc!important;
+  border-color:#dbe4ee!important;
+  border-radius:13px!important;
+}
+#login-card form button[type="submit"],#register-card form button[type="submit"]{
+  min-height:53px!important;
+  border-radius:13px!important;
+  box-shadow:0 10px 22px rgba(5,150,105,.18)!important;
+}
+#login-card .auth-switch,#register-card .auth-switch{
+  margin-top:20px!important;
+  text-align:center!important;
+  font-size:12px!important;
+  color:#64748b!important;
+}
+@media (min-width:768px){
+  #auth-container{align-items:stretch!important;justify-content:flex-start!important;padding:0!important;overflow:hidden!important;}
+  #login-card,#register-card{
+    width:45%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:100vh!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:18px 0 45px rgba(15,23,42,.12)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+  }
+  #login-card>div,#register-card>div{width:100%!important;max-width:500px!important;}
+  #login-card form,#register-card form{max-width:500px!important;}
+}
+@media (max-width:767px){
+  #auth-container{background:#f8fafc!important;}
+  #auth-container::after{display:none!important;}
+  #login-card,#register-card{width:100%!important;min-width:0!important;max-width:430px!important;padding:28px 22px!important;}
+  #login-card .login-brand-header,#register-card .login-brand-header{align-items:center!important;text-align:center!important;}
+  #login-card .login-brand-logo,#register-card .login-brand-logo{width:min(100%,245px)!important;max-width:245px!important;max-height:64px!important;margin:0 auto 8px!important;}
+  #login-card .login-brand-tagline,#register-card .login-brand-tagline{width:min(100%,225px)!important;max-width:225px!important;margin:0 auto!important;font-size:10px!important;text-align:center!important;}
+}
 </style>
 <script>
 (function(){
   try{
     var raw=localStorage.getItem("finance_active_session");
     var session=raw?JSON.parse(raw):null;
-    if(session&&(session.uid||session.phone)){
-      document.documentElement.classList.add("rk-dashboard-session");
-    }
+    if(session&&(session.uid||session.phone)) document.documentElement.classList.add("rk-dashboard-session");
   }catch(e){}
 })();
 </script>
+
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <title>Aplikasi Keuangan - Toko</title>
@@ -85,137 +196,12 @@ html.rk-dashboard-session #auth-container{display:none!important;}
       }
     </style>
 <!-- PATCH LOGIN: desktop full-screen seperti banner referensi, tanpa mengubah markup/event form. -->
-<style>
-            @media (min-width:768px){
-                #auth-container{
-                    align-items:stretch!important;
-                    justify-content:flex-start!important;
-                    padding:0!important;
-                    overflow:hidden!important;
-                    background:#f8fafc url('https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoBannerLogin.jpg?raw=true') right center / auto 100% no-repeat!important;
-                }
-                #auth-container::after{
-                    content:"";
-                    position:absolute;
-                    inset:0 0 0 45%!important;
-                    background:linear-gradient(90deg,rgba(248,250,252,.12),rgba(15,23,42,.08));
-                    pointer-events:none;
-                }
-                #login-card,#register-card{
-                    position:relative!important;
-                    z-index:1!important;
-                    display:flex;
-                    flex-direction:column;
-                    justify-content:center;
-                    align-items:center!important;
-                    width:45%!important;
-                    min-width:0!important;
-                    max-width:none!important;
-                    height:100vh!important;
-                    margin:0!important;
-                    padding:clamp(2.5rem,6vw,6rem) clamp(2rem,5vw,5rem)!important;
-                    border:0!important;
-                    border-radius:0!important;
-                    box-shadow:18px 0 45px rgba(15,23,42,.12)!important;
-                }
-                #login-card > div,
-                #register-card > div{
-                    width:100%!important;
-                    max-width:500px!important;
-                }
-                #login-card form,
-                #register-card form{
-                    width:100%!important;
-                }
-                #login-card.hidden,#register-card.hidden{display:none!important}
-                #login-card h2,#register-card h2{font-size:clamp(1.6rem,2.2vw,2.25rem)!important}
-                #login-card input,#register-card input{
-                    min-height:3.35rem;
-                    background:#f8fafc!important;
-                    border-color:#dbe4ee!important;
-                    border-radius:.85rem!important;
-                }
-                #login-card form button[type="submit"],#register-card form button[type="submit"]{
-                    min-height:3.35rem;
-                    border-radius:.85rem!important;
-                    box-shadow:0 10px 22px rgba(5,150,105,.18)!important;
-                }
-            }
-        </style>
+
 <!-- PATCH MINIMAL: rapikan logo + tagline login/daftar, desktop & mobile -->
-<style>
-      @media (min-width:768px){
-        #login-card .login-brand-header,
-        #register-card .login-brand-header{
-          width:100%!important;
-          display:flex!important;
-          flex-direction:column!important;
-          align-items:flex-start!important;
-          justify-content:center!important;
-          text-align:left!important;
-          margin-left:0!important;
-          margin-right:auto!important;
-        }
-        #login-card .login-brand-logo,
-        #register-card .login-brand-logo{
-          display:block!important;
-          width:min(100%, 320px)!important;
-          max-width:320px!important;
-          height:auto!important;
-          max-height:82px!important;
-          object-fit:contain!important;
-          object-position:center!important;
-          margin:0 0 9px 0!important;
-        }
-        #login-card .login-brand-tagline,
-        #register-card .login-brand-tagline{
-          display:block!important;
-          width:min(100%, 285px)!important;
-          max-width:285px!important;
-          margin:0 0 0 0!important;
-          padding:0!important;
-          color:#94a3b8!important;
-          font-size:11px!important;
-          line-height:1.45!important;
-          font-weight:500!important;
-          text-align:left!important;
-        }
-      }
-      @media (max-width:767px){
-        #login-card .login-brand-header,
-        #register-card .login-brand-header{
-          align-items:center!important;
-          text-align:center!important;
-        }
-        #login-card .login-brand-logo,
-        #register-card .login-brand-logo{
-          width:min(100%, 245px)!important;
-          max-width:245px!important;
-          max-height:64px!important;
-          margin:0 auto 8px!important;
-        }
-        #login-card .login-brand-tagline,
-        #register-card .login-brand-tagline{
-          width:min(100%, 225px)!important;
-          max-width:225px!important;
-          margin:0 auto!important;
-          font-size:10px!important;
-          line-height:1.4!important;
-          text-align:center!important;
-        }
-      }
-    </style>
+
 <!-- PATCH MINIMAL: koreksi posisi Photo Banner hanya saat dibuka langsung di browser desktop.
          Mode installed/standalone dibiarkan memakai tampilan original yang sudah benar. -->
-<style>
-      @media (min-width:768px) and (display-mode: browser){
-        #auth-container{
-          background-position:right center!important;
-          background-size:55vw auto!important;
-          background-repeat:no-repeat!important;
-        }
-      }
-    </style>
+
 <!-- PATCH STYLE REFERENSI: hanya tampilan visual dashboard.
          Menu, ID, event, fungsi, data, dan logika aplikasi tidak diubah. -->
 <style id="rekapinyu-reference-design">
@@ -1491,83 +1477,63 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 </div>
 <div id="kasir-print-area" style="display:none"></div>
-<!-- AUTHENTICATION OVERLAY / PAGES -->
-<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
-<!-- CARD LOGIN -->
-<div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 transition-all" id="login-card">
-<div class="text-center mb-6 login-brand-header">
-<img alt="REKAPINYU" class="login-brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoRekpinyuBiru.jpg?raw=true"/>
-<p class="login-brand-tagline">Kelola Keuangan Anda Dengan Mudah</p>
-</div>
-<form class="space-y-4" id="login-form">
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nomor HP</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-phone"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-phone" inputmode="numeric" pattern="[0-9]*" placeholder="" required="" type="text">
-</input></div>
-</div>
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-lock"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-password" placeholder="" required="" type="password">
-</input></div>
-</div>
-<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm" type="submit">
-                    Masuk ke Aplikasi
-                </button>
-</form>
-<div class="mt-6 text-center text-xs text-slate-500">
-                Belum punya akun? <button class="text-emerald-600 font-bold hover:underline" onclick="toggleAuthView('register')">Daftar di sini</button>
-</div>
-</div>
-<!-- CARD REGISTER -->
-<div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 hidden transition-all" id="register-card">
-<div class="text-center mb-6 login-brand-header">
-<img alt="REKAPINYU" class="login-brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoRekpinyuBiru.jpg?raw=true"/>
-<p class="login-brand-tagline">Kelola Keuangan Anda Dengan Mudah</p>
-</div>
-<form class="space-y-4" id="register-form">
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nama Toko</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-user"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-name" placeholder="Nama Toko Anda" required="" type="text"/>
-</div>
-</div>
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nomor HP</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-phone"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-phone" inputmode="numeric" pattern="[0-9]*" placeholder="" required="" type="text"/>
-</div>
-</div>
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-lock"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-password" placeholder="" required="" type="password"/>
-</div>
-</div>
-<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm" type="submit">
-                    Daftar Sekarang
-                </button>
-</form>
-<div class="mt-6 text-center text-xs text-slate-500">
-                Sudah punya akun? <button class="text-emerald-600 font-bold hover:underline" onclick="toggleAuthView('login')">Masuk</button>
-</div>
-</div>
+<!-- AUTHENTICATION OVERLAY / PAGES — satu markup bersih -->
+<div id="auth-container" class="fixed inset-0">
+  <div id="login-card" class="bg-white">
+    <div class="login-brand-header">
+      <img class="login-brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoRekpinyuBiru.jpg?raw=true" alt="REKAPINYU">
+      <p class="login-brand-tagline">Kelola Keuangan Anda Dengan Mudah</p>
+    </div>
+    <form id="login-form" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nomor HP</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm"><i class="fa-solid fa-phone"></i></span>
+          <input id="login-phone" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold transition" inputmode="numeric" pattern="[0-9]*" required type="text">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm"><i class="fa-solid fa-lock"></i></span>
+          <input id="login-password" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold transition" required type="password">
+        </div>
+      </div>
+      <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl text-sm" type="submit">Masuk ke Aplikasi</button>
+    </form>
+    <div class="auth-switch">Belum punya akun? <button class="text-emerald-600 font-bold hover:underline" type="button" onclick="toggleAuthView('register')">Daftar di sini</button></div>
+  </div>
+  <div id="register-card" class="bg-white hidden">
+    <div class="login-brand-header">
+      <img class="login-brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoRekpinyuBiru.jpg?raw=true" alt="REKAPINYU">
+      <p class="login-brand-tagline">Kelola Keuangan Anda Dengan Mudah</p>
+    </div>
+    <form id="register-form" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nama Toko</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm"><i class="fa-solid fa-user"></i></span>
+          <input id="reg-name" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold transition" placeholder="Nama Toko Anda" required type="text">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nomor HP</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm"><i class="fa-solid fa-phone"></i></span>
+          <input id="reg-phone" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold transition" inputmode="numeric" pattern="[0-9]*" required type="text">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm"><i class="fa-solid fa-lock"></i></span>
+          <input id="reg-password" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold transition" required type="password">
+        </div>
+      </div>
+      <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl text-sm" type="submit">Daftar Sekarang</button>
+    </form>
+    <div class="auth-switch">Sudah punya akun? <button class="text-emerald-600 font-bold hover:underline" type="button" onclick="toggleAuthView('login')">Masuk</button></div>
+  </div>
 </div>
 <aside class="w-64 flex flex-col z-20 shrink-0 md:flex relative" id="sidebar">
 <!-- Foto Sampul Toko: menggantikan area Logo + REKAPINYU sebelumnya -->
@@ -4778,7 +4744,10 @@ function firebaseLogin(){
   if(!form)return;
   const phone=phoneOf(document.getElementById("login-phone")?.value||"");
   const password=document.getElementById("login-password")?.value||"";
-  if(!phone||!password){notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
+  if(!phone||!password){
+    notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");
+    return;
+  }
   const submit=form.querySelector('button[type="submit"]');
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
@@ -4787,11 +4756,12 @@ function firebaseLogin(){
   const list=Array.isArray(stored)?stored:[];
   const localUser=list.find(x=>phoneOf(x.phone)===phone&&x.password===password);
 
-  // Jika akun sudah tersimpan lokal, aktifkan sesi tanpa menunggu Firebase.
+  const finish=()=>{if(submit)delete submit.dataset.busy;};
+
   if(localUser){
     activateLocalAuthSession(localUser);
     form.reset();
-    if(submit)delete submit.dataset.busy;
+    finish();
     notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
     setTimeout(()=>{
       (async()=>{
@@ -4799,21 +4769,21 @@ function firebaseLogin(){
           await authReadyPromise;
           const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
           const uid=credential.user.uid;
-          currentSessionUser={...currentSessionUser,uid,email:credential.user.email,name:credential.user.displayName||currentSessionUser.name};
-          nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+          const sessionUser={...currentSessionUser,uid,email:credential.user.email,name:credential.user.displayName||currentSessionUser.name};
+          currentSessionUser=sessionUser;
+          nativeSet.call(localStorage,"finance_active_session",JSON.stringify(sessionUser));
           const fresh=safe(localStorage.getItem("finance_registered_users"),[]);
           const freshList=Array.isArray(fresh)?fresh:[];
           const index=freshList.findIndex(x=>phoneOf(x.phone)===phone);
-          if(index>=0)freshList[index]={...freshList[index],...currentSessionUser,password};
+          if(index>=0)freshList[index]={...freshList[index],...sessionUser,password};
           nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
           await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
-        }catch(err){console.warn("Rekapinyu: login Firebase belum tersinkron; sesi localStorage tetap aktif.",err)}
+        }catch(err){console.warn("Rekapinyu: sinkronisasi Firebase login belum selesai; sesi localStorage tetap aktif.",err)}
       })();
     },0);
     return;
   }
 
-  // Akun lama yang belum mempunyai salinan lokal tetap bisa masuk melalui Firebase.
   setTimeout(()=>{
     (async()=>{
       try{
@@ -4829,17 +4799,18 @@ function firebaseLogin(){
         nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
         activateLocalAuthSession(user);
         form.reset();
-        if(submit)delete submit.dataset.busy;
         await setDoc(uref(fbUser.uid),{lastLogin:{status:"login",at:serverTimestamp(),uid:fbUser.uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
+        finish();
         notify("Masuk Berhasil",`Selamat datang kembali, ${user.name||nameFromPhone(phone)}!`);
       }catch(err){
-        if(submit)delete submit.dataset.busy;
+        finish();
         notify("Gagal Masuk",authErrorMessage(err,"login"),"fa-solid fa-circle-xmark text-rose-600");
         console.warn("Rekapinyu: login Firebase gagal.",err);
       }
     })();
   },0);
 }
+
 const rf=document.getElementById("register-form");
 const lf=document.getElementById("login-form");
 if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseRegister();});
