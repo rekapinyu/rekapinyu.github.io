@@ -4696,7 +4696,20 @@ function authErrorMessage(err, mode){
   return "Login gagal. Periksa nomor HP, kata sandi, dan koneksi Firebase.";
 }
 
-async function firebaseRegister(){
+function activateLocalAuthSession(user){
+  currentSessionUser={uid:user.uid||"",name:user.name||"",phone:phoneOf(user.phone||""),email:user.email||emailOf(user.phone||""),photo:user.photo||""};
+  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+  nativeSet.call(localStorage,"rekapinyu_session_login",JSON.stringify({...currentSessionUser,status:"login",at:new Date().toISOString()}));
+  document.documentElement.classList.add("rk-dashboard-session");
+  const authContainer=document.getElementById("auth-container");
+  if(authContainer)authContainer.classList.add("hidden");
+  const nameEl=document.getElementById("sidebar-user-name");
+  if(nameEl)nameEl.innerText=currentSessionUser.name||"";
+  try{updateUserAvatarUI?.()}catch{}
+  try{openDashboardAfterLogin?.()}catch{}
+}
+
+function firebaseRegister(){
   const form=document.getElementById("register-form");
   if(!form)return;
   const name=document.getElementById("reg-name")?.value.trim()||"";
@@ -4708,22 +4721,25 @@ async function firebaseRegister(){
   const submit=form.querySelector('button[type="submit"]');
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
-  try{
-    const users=safe(localStorage.getItem("finance_registered_users"),[]);
-    const list=Array.isArray(users)?users:[];
-    if(list.some(x=>phoneOf(x.phone)===phone)){
-      notify("Gagal Daftar","Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.","fa-solid fa-circle-exclamation text-rose-600");
-      return;
-    }
-    const localUser={uid:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,name,phone,email:emailOf(phone),photo:"",password};
-    list.push(localUser);
-    nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
-    nativeSet.call(localStorage,"rekapinyu_registration",JSON.stringify({uid:localUser.uid,name,phone,email:localUser.email,status:"registered",at:new Date().toISOString()}));
-    form.reset();
-    toggleAuthView("login");
-    notify("Pendaftaran Berhasil","Data akun disimpan di perangkat. Data pengguna baru sedang diteruskan ke Firebase.");
+  const users=safe(localStorage.getItem("finance_registered_users"),[]);
+  const list=Array.isArray(users)?users:[];
+  if(list.some(x=>phoneOf(x.phone)===phone)){
+    if(submit)delete submit.dataset.busy;
+    notify("Gagal Daftar","Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.","fa-solid fa-circle-exclamation text-rose-600");
+    return;
+  }
 
-    void (async()=>{
+  const localUser={uid:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,name,phone,email:emailOf(phone),photo:"",password};
+  list.push(localUser);
+  nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
+  nativeSet.call(localStorage,"rekapinyu_registration",JSON.stringify({uid:localUser.uid,name,phone,email:localUser.email,status:"registered",at:new Date().toISOString()}));
+  form.reset();
+  toggleAuthView("login");
+  notify("Pendaftaran Berhasil","Data akun disimpan di perangkat. Data pengguna baru diteruskan ke Firebase di latar belakang.");
+  if(submit)delete submit.dataset.busy;
+
+  setTimeout(()=>{
+    (async()=>{
       try{
         await authReadyPromise;
         const credential=await createUserWithEmailAndPassword(auth,localUser.email,password);
@@ -4748,17 +4764,16 @@ async function firebaseRegister(){
           setDoc(bref(userData.uid),{DataLaporanBulanan:[],updatedAt:serverTimestamp()},{merge:true}),
           setDoc(oref(userData.uid),{LaporanBackupOtomatis:[],updatedAt:serverTimestamp()},{merge:true})
         ]);
-        try{await signOut(auth)}catch(e){console.warn("Logout setelah sinkronisasi pendaftaran:",e)}
       }catch(err){
         console.warn("Rekapinyu: data pengguna baru belum berhasil diteruskan ke Firebase; akun lokal tetap tersimpan.",err);
+      }finally{
+        try{await signOut(auth)}catch(e){}
       }
     })();
-  }finally{
-    if(submit)delete submit.dataset.busy;
-  }
+  },0);
 }
 
-async function firebaseLogin(){
+function firebaseLogin(){
   const form=document.getElementById("login-form");
   if(!form)return;
   const phone=phoneOf(document.getElementById("login-phone")?.value||"");
@@ -4767,22 +4782,23 @@ async function firebaseLogin(){
   const submit=form.querySelector('button[type="submit"]');
   if(submit?.dataset.busy==="1")return;
   if(submit)submit.dataset.busy="1";
-  try{
-    const stored=safe(localStorage.getItem("finance_registered_users"),[]);
-    const list=Array.isArray(stored)?stored:[];
-    const localUser=list.find(x=>phoneOf(x.phone)===phone&&x.password===password);
-    if(!localUser){
-      notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");
-      return;
-    }
-    currentSessionUser={uid:localUser.uid||"",name:localUser.name||"",phone,email:localUser.email||emailOf(phone),photo:localUser.photo||""};
-    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    nativeSet.call(localStorage,"rekapinyu_session_login",JSON.stringify({...currentSessionUser,status:"login",at:new Date().toISOString()}));
-    checkAuth();
-    openDashboardAfterLogin();
-    form.reset();
 
-    void (async()=>{
+  const stored=safe(localStorage.getItem("finance_registered_users"),[]);
+  const list=Array.isArray(stored)?stored:[];
+  const localUser=list.find(x=>phoneOf(x.phone)===phone&&x.password===password);
+  if(!localUser){
+    if(submit)delete submit.dataset.busy;
+    notify("Gagal Masuk","Nomor HP atau Kata Sandi yang Anda masukkan salah.","fa-solid fa-circle-xmark text-rose-600");
+    return;
+  }
+
+  activateLocalAuthSession(localUser);
+  form.reset();
+  if(submit)delete submit.dataset.busy;
+  notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+
+  setTimeout(()=>{
+    (async()=>{
       try{
         await authReadyPromise;
         const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
@@ -4794,23 +4810,12 @@ async function firebaseLogin(){
         const index=freshList.findIndex(x=>phoneOf(x.phone)===phone);
         if(index>=0)freshList[index]={...freshList[index],...currentSessionUser,password};
         nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(freshList));
-        try{
-          const snap=await getDoc(uref(uid));
-          if(snap.exists()){
-            currentSessionUser={...currentSessionUser,...snap.data(),uid,phone:phoneOf(snap.data().phone||phone),email:credential.user.email};
-            nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-          }
-          await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
-          try{await hydrate(uid)}catch(e){console.warn("Rekapinyu: data Firestore belum dapat dimuat; sesi lokal tetap dipakai.",e)}
-        }catch(e){console.warn("Rekapinyu: sinkronisasi login Firestore belum selesai; sesi lokal tetap aktif.",e)}
+        await setDoc(uref(uid),{lastLogin:{status:"login",at:serverTimestamp(),uid,phone},sessionStatus:"logged_in",updatedAt:serverTimestamp()},{merge:true});
       }catch(err){
         console.warn("Rekapinyu: login Firebase belum tersinkron; sesi localStorage tetap aktif.",err);
       }
     })();
-    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
-  }finally{
-    if(submit)delete submit.dataset.busy;
-  }
+  },0);
 }
 
 const rf=document.getElementById("register-form");
@@ -4818,19 +4823,25 @@ const lf=document.getElementById("login-form");
 if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseRegister();});
 if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
 
-window.handleLogout=async()=>{
+window.handleLogout=function(){
   const logoutUser=currentSessionUser?{...currentSessionUser}:null;
   currentSessionUser=null;
   nativeRemove.call(localStorage,"finance_active_session");
-  checkAuth();
+  document.documentElement.classList.remove("rk-dashboard-session");
+  const authContainer=document.getElementById("auth-container");
+  if(authContainer)authContainer.classList.remove("hidden");
   toggleAuthView("login");
-  if(logoutUser?.uid){
-    try{
-      await authReadyPromise;
-      await setDoc(uref(logoutUser.uid),{lastLogout:{status:"logout",at:serverTimestamp(),uid:logoutUser.uid,phone:logoutUser.phone||""},sessionStatus:"logged_out",updatedAt:serverTimestamp()},{merge:true});
-    }catch(e){console.warn("Rekapinyu: status logout belum tersimpan ke Firestore.",e)}
-  }
-  try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
+
+  setTimeout(()=>{
+    (async()=>{
+      if(logoutUser?.uid){
+        try{
+          await setDoc(uref(logoutUser.uid),{lastLogout:{status:"logout",at:serverTimestamp(),uid:logoutUser.uid,phone:logoutUser.phone||""},sessionStatus:"logged_out",updatedAt:serverTimestamp()},{merge:true});
+        }catch(e){console.warn("Rekapinyu: status logout belum tersimpan ke Firestore.",e)}
+      }
+      try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
+    })();
+  },0);
 };
 
 // Profile changes save to Firestore instead of only localStorage.
