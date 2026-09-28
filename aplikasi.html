@@ -4817,7 +4817,9 @@ function authErrorMessage(err, mode){
 
 async function firebaseRegister(){
   const form=document.getElementById("register-form");
-  if(!form)return;
+  const registerCard=document.getElementById("register-card");
+  /* Guard: jangan pernah menjalankan alur daftar saat kartu login sedang aktif. */
+  if(!form || registerCard?.classList.contains("hidden"))return;
   const name=document.getElementById("reg-name")?.value.trim()||"";
   const phone=phoneOf(document.getElementById("reg-phone")?.value||"");
   const password=document.getElementById("reg-password")?.value||"";
@@ -4872,7 +4874,9 @@ async function firebaseRegister(){
 
 async function firebaseLogin(){
   const form=document.getElementById("login-form");
-  if(!form)return;
+  const loginCard=document.getElementById("login-card");
+  /* Guard: hanya jalankan login dari kartu login yang sedang aktif. */
+  if(!form || loginCard?.classList.contains("hidden"))return;
   const phone=phoneOf(document.getElementById("login-phone")?.value||"");
   const password=document.getElementById("login-password")?.value||"";
   if(!phone||!password){notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
@@ -4892,7 +4896,8 @@ async function firebaseLogin(){
     renderDashboardSession();
     openDashboardAfterLogin();
     form.reset();
-    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
+    /* Popup sukses login dipanggil hanya dari alur login yang berhasil. */
+    notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`,`fa-solid fa-circle-check text-emerald-600`);
   }catch(err){
     console.error("Rekapinyu Firebase login:",err);
     // Migrasi satu kali akun lama yang masih tersimpan di versi sebelum Firebase.
@@ -4932,8 +4937,16 @@ async function firebaseLogin(){
 
 const rf=document.getElementById("register-form");
 const lf=document.getElementById("login-form");
-if(rf)rf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseRegister();});
-if(lf)lf.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();firebaseLogin();});
+if(rf)rf.addEventListener("submit",e=>{
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  firebaseRegister();
+});
+if(lf)lf.addEventListener("submit",e=>{
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  firebaseLogin();
+});
 
 window.handleLogout=async()=>{
   try{await saveCloudData()}catch{}
