@@ -69,8 +69,7 @@
         }
       }
     </style>
-<!-- PATCH AUTH RELOAD: sembunyikan overlay login saat sesi dashboard lokal/Firebase sedang dipulihkan. -->
-<style id="rekapinyu-auth-reload-gate">
+<style id="rekapinyu-session-gate">
   html.rk-dashboard-session #auth-container{display:none!important;}
   #foto-sampul-toko{touch-action:none;}
 </style>
@@ -2478,58 +2477,48 @@ bind();
             });
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
-/* REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI FINAL
-   Hanya mengatur tampilan Login/Daftar/Dashboard saat reload.
-   Sesi Firebase tetap menjadi sumber autentikasi.
-*/
-function checkAuth() {
-    const authContainer = document.getElementById('auth-container');
-    if (!authContainer) return;
-
-    // Saat Firebase masih memulihkan sesi, LocalStorage menjadi penahan tampilan agar dashboard
-    // tidak sempat membuka overlay login. Setelah observer auth selesai, Firebase tetap menjadi sumber autentikasi.
-    if(window.__rekapinyuAuthBooting && document.documentElement.classList.contains('rk-dashboard-session')){
-        authContainer.classList.add('hidden');
-        return;
+/* REKAPINYU SESSION RELOAD — SATU IMPLEMENTASI LOKAL */
+function readLocalDashboardSession(){
+    try{
+        const raw=localStorage.getItem('finance_active_session');
+        const data=raw?JSON.parse(raw):null;
+        return data&&typeof data==='object'&&(data.uid||data.phone)?data:null;
+    }catch(_){ return null; }
+}
+function checkAuth(){
+    const authContainer=document.getElementById('auth-container');
+    if(!authContainer)return;
+    if(!currentSessionUser){
+        const local=readLocalDashboardSession();
+        if(local)currentSessionUser=local;
     }
-
-    const hasFirebaseUser = !!currentSessionUser;
-
-    if (hasFirebaseUser) {
+    const hasSession=!!currentSessionUser;
+    if(hasSession){
         document.documentElement.classList.add('rk-dashboard-session');
         authContainer.classList.add('hidden');
-        const nameEl = document.getElementById('sidebar-user-name');
-        if (nameEl) nameEl.innerText = currentSessionUser.name || '';
+        const nameEl=document.getElementById('sidebar-user-name');
+        if(nameEl)nameEl.innerText=currentSessionUser.name||'';
         updateUserAvatarUI();
-        loadUserData();
+        try{loadUserData()}catch(_){}
+        try{window.refreshShopCoverPhoto?.()}catch(_){}
         return;
     }
-
     document.documentElement.classList.remove('rk-dashboard-session');
     authContainer.classList.remove('hidden');
-    historyData = [];
-    pengeluaranData = [];
-    kasbonData = [];
-    backupOtomatisData = [];
-            try { window.refreshShopCoverPhoto?.(); } catch (e) {}
+    historyData=[];
+    pengeluaranData=[];
+    kasbonData=[];
+    backupOtomatisData=[];
 }
-
-/* Saat reload Dashboard, sembunyikan auth overlay sebelum Firebase selesai memulihkan sesi.
-   Saat reload Login/Daftar, tidak ada session marker sehingga auth tetap terlihat. */
-(function initAuthReloadGate() {
-    const raw = localStorage.getItem('finance_active_session');
-    let hasLocalSession = false;
-    try {
-        const parsed = raw ? JSON.parse(raw) : null;
-        hasLocalSession = !!(parsed && (parsed.uid || parsed.phone));
-    } catch (_) {
-        hasLocalSession = false;
-    }
-
-    window.__rekapinyuAuthBooting = true;
-    if (hasLocalSession) {
+(function initRekapinyuSessionReload(){
+    const local=readLocalDashboardSession();
+    window.__rekapinyuAuthBooting=true;
+    if(local){
+        currentSessionUser=local;
         document.documentElement.classList.add('rk-dashboard-session');
-    } else {
+        const authContainer=document.getElementById('auth-container');
+        authContainer?.classList.add('hidden');
+    }else{
         document.documentElement.classList.remove('rk-dashboard-session');
     }
 })();
@@ -2721,205 +2710,6 @@ function updateUserAvatarUI() {
         }
         updateHeaderDate();
 
-        // Foto sampul toko: fitur tambahan yang berdiri sendiri dan tidak mengubah fungsi data lainnya.
-        (function initShopCoverPhoto() {
-            const coverInput = document.getElementById('shop-cover-input');
-            const coverFrame = document.getElementById('foto-sampul-toko');
-            const coverImage = document.getElementById('shop-cover-image');
-            const coverPlaceholder = document.getElementById('shop-cover-placeholder');
-            const saveButton = document.getElementById('shop-cover-save');
-            const editHint = document.getElementById('shop-cover-edit-hint');
-            if (!coverInput || !coverFrame || !coverImage || !coverPlaceholder || !saveButton) return;
-
-            let coverX = 50;
-            let coverY = 50;
-            let coverSaved = true;
-            let coverEditingUnsaved = false;
-            let dragging = false;
-            let startPointerX = 0;
-            let startPointerY = 0;
-            let startCoverX = 50;
-            let startCoverY = 50;
-
-            const storageKey = () => {
-                try {
-                    return (typeof currentSessionUser !== 'undefined' && currentSessionUser)
-                        ? `finance_shop_cover_${currentSessionUser.phone}`
-                        : 'finance_shop_cover_guest';
-                } catch (e) {
-                    return 'finance_shop_cover_guest';
-                }
-            };
-
-            function setObjectPosition() {
-                coverImage.style.objectPosition = `${coverX}% ${coverY}%`;
-            }
-
-            function setEditorState(show) {
-                coverSaved = !show;
-                coverEditingUnsaved = !!show;
-                window.__shopCoverEditingUnsaved = !!show;
-                saveButton.classList.toggle('hidden', !show);
-                editHint.classList.toggle('hidden', !show);
-                coverFrame.classList.toggle('cursor-move', show);
-            }
-
-            function renderShopCover(data, editing) {
-                let src = '', x = 50, y = 50;
-                if (typeof data === 'string') src = data;
-                else if (data) { src = data.src || ''; x = Number.isFinite(Number(data.x)) ? Number(data.x) : 50; y = Number.isFinite(Number(data.y)) ? Number(data.y) : 50; }
-                coverX = Math.max(0, Math.min(100, x));
-                coverY = Math.max(0, Math.min(100, y));
-                if (src) {
-                    coverImage.src = src;
-                    coverImage.classList.remove('hidden');
-                    coverPlaceholder.classList.add('hidden');
-                    setObjectPosition();
-                } else {
-                    coverImage.removeAttribute('src');
-                    coverImage.classList.add('hidden');
-                    coverPlaceholder.classList.remove('hidden');
-                    coverImage.style.objectPosition = '50% 50%';
-                }
-                setEditorState(!!editing);
-            }
-
-            function loadShopCover() {
-                try {
-                    const raw = localStorage.getItem(storageKey());
-                    if (!raw) { renderShopCover('', false); return; }
-                    let data;
-                    try { data = JSON.parse(raw); } catch (e) { data = {src: raw, x: 50, y: 50}; }
-                    renderShopCover(data, false);
-                } catch (e) { renderShopCover('', false); }
-            }
-
-            coverFrame.addEventListener('click', function (e) {
-                if (coverSaved && !e.target.closest('#shop-cover-save')) {
-                    coverInput.click();
-                }
-            });
-
-            coverInput.addEventListener('change', async function () {
-                const file = this.files && this.files[0];
-                this.value = '';
-                if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type)) return;
-                try {
-                    window.__shopCoverPendingFile = file;
-                    if(window.__shopCoverPreviewObjectUrl){
-                        try{URL.revokeObjectURL(window.__shopCoverPreviewObjectUrl)}catch{}
-                    }
-                    window.__shopCoverPreviewObjectUrl=URL.createObjectURL(file);
-                    coverX = 50; coverY = 50;
-                    renderShopCover({src: window.__shopCoverPreviewObjectUrl, x: coverX, y: coverY}, true);
-                } catch (err) {
-                    window.__shopCoverPendingFile = null;
-                    notify('Gagal',err?.message||'Foto sampul tidak dapat dikompres hingga 100 KB.','fa-solid fa-circle-xmark text-rose-600');
-                }
-            });
-
-            coverFrame.addEventListener('pointerdown', function (e) {
-                if (e.target.closest('#shop-cover-save') || coverSaved || coverImage.classList.contains('hidden')) return;
-                dragging = true;
-                coverFrame.setPointerCapture(e.pointerId);
-                startPointerX = e.clientX;
-                startPointerY = e.clientY;
-                startCoverX = coverX;
-                startCoverY = coverY;
-                e.preventDefault();
-            });
-
-            coverFrame.addEventListener('pointermove', function (e) {
-                if (!dragging) return;
-                const rect = coverFrame.getBoundingClientRect();
-                // Geser foto dengan mouse/touch. Dibuat terbalik agar foto bergerak mengikuti arah geseran.
-                coverX = Math.max(0, Math.min(100, startCoverX - ((e.clientX - startPointerX) / rect.width) * 100));
-                coverY = Math.max(0, Math.min(100, startCoverY - ((e.clientY - startPointerY) / rect.height) * 100));
-                setObjectPosition();
-            });
-
-            function stopDrag() { dragging = false; }
-            coverFrame.addEventListener('pointerup', stopDrag);
-            coverFrame.addEventListener('pointercancel', stopDrag);
-            coverFrame.addEventListener('lostpointercapture', stopDrag);
-
-            // Tombol Simpan dibuat sebagai handler langsung agar tidak tertangkap event frame/drag lain.
-            saveButton.onclick = function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                window.saveShopCoverPhoto();
-                return false;
-            };
-
-            window.saveShopCoverPhoto = async function (options = {}) {
-                try {
-                    if (!options.localOnly && typeof window.__rekapinyuSaveCoverPhoto === 'function') {
-                        return await window.__rekapinyuSaveCoverPhoto(options);
-                    }
-                    const src = coverImage.getAttribute('src') || coverImage.src || '';
-                    if (!src || coverImage.classList.contains('hidden')) return false;
-                    let finalSrc = src;
-                    if(window.__shopCoverPendingFile instanceof File && typeof window.compressImageTo100KB==='function') {
-                        finalSrc = await window.compressImageTo100KB(window.__shopCoverPendingFile,102400,2200,1400);
-                    }
-                    const data = { src: finalSrc, x: Math.max(0, Math.min(100, Number(coverX) || 50)), y: Math.max(0, Math.min(100, Number(coverY) || 50)) };
-                    const oldKey = storageKey();
-                    try{localStorage.removeItem(oldKey)}catch{}
-                    localStorage.setItem(oldKey, JSON.stringify(data));
-                    coverX = data.x; coverY = data.y; setObjectPosition(); setEditorState(false);
-                    if (!options.localOnly && typeof notify === 'function') notify('Berhasil','Foto sampul berhasil disimpan.');
-                    return true;
-                } catch (e) {
-                    console.warn('Foto sampul toko tidak dapat disimpan:', e);
-                    if (typeof notify === 'function') notify('Gagal','Foto sampul tidak dapat disimpan.','fa-solid fa-circle-xmark text-rose-600');
-                    return false;
-                }
-            };
-            window.__shopCoverEditingUnsaved = false;
-            window.__setShopCoverPreview = function(src,file){
-                if(!src)return false;
-                window.__shopCoverPendingFile=file||null;
-                renderShopCover({src:src,x:50,y:50},true);
-                return true;
-            };
-            loadShopCover();
-        })();
-
-        window.refreshShopCoverPhoto = function () {
-            if (window.__shopCoverEditingUnsaved) return;
-            const input = document.getElementById('shop-cover-input');
-            const image = document.getElementById('shop-cover-image');
-            const placeholder = document.getElementById('shop-cover-placeholder');
-            const saveButton = document.getElementById('shop-cover-save');
-            const editHint = document.getElementById('shop-cover-edit-hint');
-            if (!input || !image || !placeholder) return;
-            const key = currentSessionUser ? `finance_shop_cover_${phoneOf(currentSessionUser.phone)}` : 'finance_shop_cover_guest';
-            try {
-                const raw = localStorage.getItem(key) || '';
-                if (raw) {
-                    let data;
-                    try { data = JSON.parse(raw); } catch (e) { data = {src: raw, x: 50, y: 50}; }
-                    image.src = data.src || '';
-                    image.style.objectPosition = `${Number.isFinite(Number(data.x)) ? Number(data.x) : 50}% ${Number.isFinite(Number(data.y)) ? Number(data.y) : 50}%`;
-                    image.classList.remove('hidden');
-                    placeholder.classList.add('hidden');
-                    if (saveButton) saveButton.classList.add('hidden');
-                    if (editHint) editHint.classList.add('hidden');
-                    const frame = document.getElementById('foto-sampul-toko');
-                    if (frame) frame.classList.remove('cursor-move');
-                    window.__shopCoverEditingUnsaved = false;
-                } else {
-                    image.removeAttribute('src');
-                    image.classList.add('hidden');
-                    placeholder.classList.remove('hidden');
-                    if (saveButton) saveButton.classList.add('hidden');
-                    if (editHint) editHint.classList.add('hidden');
-                    const frame = document.getElementById('foto-sampul-toko');
-                    if (frame) frame.classList.remove('cursor-move');
-                    window.__shopCoverEditingUnsaved = false;
-                }
-            } catch (e) {}
-        };
         const profitDisplay = document.getElementById('profit-display');
 
         function switchTab(tab) {
@@ -4551,39 +4341,225 @@ const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.remove
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
 
-// FOTO PROFIL & FOTO SAMPUL: LOCALSTORAGE ONLY
-// Sumber awal foto berasal dari LocalStorage; setelah perubahan, salinan foto disinkronkan ke rekapinyu_users.
-function localPhotoKey(phone){ return `finance_profile_photo_${phoneOf(phone)}`; }
-function localCoverKey(phone){ return `finance_shop_cover_${phoneOf(phone)}`; }
-function readLocalCover(phone){
-  const raw=localStorage.getItem(localCoverKey(phone))||"";
-  if(!raw)return null;
-  try{const v=JSON.parse(raw);return v&&typeof v==='object'?v:{src:raw,x:50,y:50};}
-  catch{return {src:raw,x:50,y:50};}
-}
-function hydrateLocalGallery(phone){
-  const p=phoneOf(phone);
-  if(!p||!currentSessionUser)return;
-  const profile=localStorage.getItem(localPhotoKey(p))||"";
-  const cover=readLocalCover(p);
-  currentSessionUser.photo=profile;
-  currentSessionUser.cover=cover?.src||"";
-  currentSessionUser.coverX=Number.isFinite(Number(cover?.x))?Number(cover.x):50;
-  currentSessionUser.coverY=Number.isFinite(Number(cover?.y))?Number(cover.y):50;
-  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-  try{updateUserAvatarUI?.()}catch{}
-  try{window.refreshShopCoverPhoto?.()}catch{}
-}
-function upsertRegisteredLocalUser(patch){
-  const phone=phoneOf(patch?.phone||currentSessionUser?.phone);
-  if(!phone)return;
-  const arr=safe(localStorage.getItem("finance_registered_users"),[]);
-  const list=Array.isArray(arr)?arr:[];
-  const index=list.findIndex(u=>phoneOf(u?.phone)===phone);
-  const merged={...(index>=0?list[index]:{}),...patch,phone};
-  if(index>=0)list[index]=merged; else list.push(merged);
-  nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
-}
+// FOTO PROFIL + FOTO SAMPUL TOKO — SATU IMPLEMENTASI LOCALSTORAGE
+const PHOTO_MAX_BYTES=102400;
+const photoStore={
+  profileKey(phone){return `finance_profile_photo_${phoneOf(phone)}`;},
+  coverKey(phone){return `finance_shop_cover_${phoneOf(phone)}`;},
+  readProfile(phone){return localStorage.getItem(this.profileKey(phone))||"";},
+  readCover(phone){
+    const raw=localStorage.getItem(this.coverKey(phone))||"";
+    if(!raw)return null;
+    try{
+      const v=JSON.parse(raw);
+      return v&&typeof v==="object"?{src:String(v.src||""),x:Number.isFinite(Number(v.x))?Number(v.x):50,y:Number.isFinite(Number(v.y))?Number(v.y):50}:{src:raw,x:50,y:50};
+    }catch{return {src:raw,x:50,y:50};}
+  },
+  dataUrlBytes(data){
+    const base64=String(data||"").split(",")[1]||"";
+    const padding=(base64.match(/=*$/)||[""])[0].length;
+    return Math.max(0,Math.floor((base64.length*3)/4)-padding);
+  },
+  async compress(file,maxBytes=PHOTO_MAX_BYTES,maxWidth=2400,maxHeight=1600){
+    if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type))throw new Error("Format gambar harus JPG, PNG, atau WEBP.");
+    const src=await new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onerror=()=>reject(new Error("File gambar tidak dapat dibaca."));
+      r.onload=()=>resolve(r.result);
+      r.readAsDataURL(file);
+    });
+    const img=await new Promise((resolve,reject)=>{
+      const el=new Image();
+      el.onload=()=>resolve(el);
+      el.onerror=()=>reject(new Error("Format gambar tidak dapat diproses."));
+      el.src=src;
+    });
+    const sourceW=img.naturalWidth||img.width||1;
+    const sourceH=img.naturalHeight||img.height||1;
+    let scale=Math.min(1,maxWidth/sourceW,maxHeight/sourceH);
+    let last="";
+    for(let pass=0;pass<18;pass++){
+      const w=Math.max(320,Math.round(sourceW*scale));
+      const h=Math.max(320,Math.round(sourceH*scale));
+      const canvas=document.createElement("canvas");
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext("2d",{alpha:false});
+      if(!ctx)throw new Error("Browser tidak mendukung pemrosesan gambar.");
+      ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+      ctx.drawImage(img,0,0,w,h);
+      for(let q=.96;q>=.30;q-=.025){
+        const data=canvas.toDataURL("image/jpeg",q);
+        last=data;
+        if(this.dataUrlBytes(data)<=maxBytes)return data;
+      }
+      scale*=.90;
+    }
+    if(last&&this.dataUrlBytes(last)<=maxBytes)return last;
+    throw new Error("Gambar tidak dapat dikompres hingga 100 KB.");
+  },
+  hydrate(phone){
+    if(!currentSessionUser)return;
+    const profile=this.readProfile(phone);
+    const cover=this.readCover(phone);
+    currentSessionUser.photo=profile;
+    currentSessionUser.cover=cover?.src||"";
+    currentSessionUser.coverX=Number.isFinite(Number(cover?.x))?Number(cover.x):50;
+    currentSessionUser.coverY=Number.isFinite(Number(cover?.y))?Number(cover.y):50;
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+    upsertRegisteredLocalUser({
+      uid:currentSessionUser.uid,name:currentSessionUser.name,phone:currentSessionUser.phone,
+      email:currentSessionUser.email||"",photo:profile,cover:cover?.src||"",
+      coverX:currentSessionUser.coverX,coverY:currentSessionUser.coverY
+    });
+    try{updateUserAvatarUI?.()}catch(_){}
+    try{this.refreshCover()}catch(_){}
+  },
+  async saveProfile(file){
+    const phone=phoneOf(currentSessionUser?.phone);
+    if(!phone)throw new Error("Sesi pengguna tidak ditemukan.");
+    const data=await this.compress(file,PHOTO_MAX_BYTES,1800,1800);
+    nativeRemove.call(localStorage,this.profileKey(phone));
+    nativeSet.call(localStorage,this.profileKey(phone),data);
+    currentSessionUser.photo=data;
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+    upsertRegisteredLocalUser({
+      uid:currentSessionUser.uid,name:currentSessionUser.name,phone,
+      email:currentSessionUser.email||"",photo:data
+    });
+    updateUserAvatarUI();
+    return data;
+  },
+  async saveCover(file,x=50,y=50){
+    const phone=phoneOf(currentSessionUser?.phone);
+    if(!phone)throw new Error("Sesi pengguna tidak ditemukan.");
+    const data=await this.compress(file,PHOTO_MAX_BYTES,2200,1400);
+    const clean={
+      src:data,
+      x:Math.max(0,Math.min(100,Number(x)||50)),
+      y:Math.max(0,Math.min(100,Number(y)||50))
+    };
+    nativeRemove.call(localStorage,this.coverKey(phone));
+    nativeSet.call(localStorage,this.coverKey(phone),JSON.stringify(clean));
+    currentSessionUser.cover=clean.src;
+    currentSessionUser.coverX=clean.x;
+    currentSessionUser.coverY=clean.y;
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+    upsertRegisteredLocalUser({
+      uid:currentSessionUser.uid,name:currentSessionUser.name,phone,
+      email:currentSessionUser.email||"",cover:clean.src,coverX:clean.x,coverY:clean.y
+    });
+    this.refreshCover();
+    return clean;
+  },
+  coverUi:null,
+  initCover(){
+    if(this.coverUi)return;
+    const input=document.getElementById("shop-cover-input");
+    const frame=document.getElementById("foto-sampul-toko");
+    const image=document.getElementById("shop-cover-image");
+    const placeholder=document.getElementById("shop-cover-placeholder");
+    const save=document.getElementById("shop-cover-save");
+    const hint=document.getElementById("shop-cover-edit-hint");
+    if(!input||!frame||!image||!placeholder||!save)return;
+    const state={x:50,y:50,drag:false,saved:true,startX:0,startY:0,startPX:50,startPY:50,pending:null,objectUrl:null};
+    const render=(src,x=50,y=50,editing=false)=>{
+      state.x=Math.max(0,Math.min(100,Number(x)||50));
+      state.y=Math.max(0,Math.min(100,Number(y)||50));
+      if(src){
+        image.src=src;
+        image.style.objectPosition=`${state.x}% ${state.y}%`;
+        image.classList.remove("hidden");
+        placeholder.classList.add("hidden");
+      }else{
+        image.removeAttribute("src");
+        image.classList.add("hidden");
+        placeholder.classList.remove("hidden");
+      }
+      state.saved=!editing;
+      save.classList.toggle("hidden",!editing);
+      hint?.classList.toggle("hidden",!editing);
+      frame.classList.toggle("cursor-move",!!editing);
+    };
+    const startEdit=(file)=>{
+      if(state.objectUrl){try{URL.revokeObjectURL(state.objectUrl)}catch{}}
+      state.objectUrl=URL.createObjectURL(file);
+      state.pending=file;
+      render(state.objectUrl,50,50,true);
+    };
+    input.addEventListener("change",()=>{
+      const file=input.files?.[0];input.value="";
+      if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type)){if(file)notify("Gagal","Format gambar harus JPG, PNG, atau WEBP.","fa-solid fa-circle-xmark text-rose-600");return;}
+      startEdit(file);
+    });
+    frame.addEventListener("click",e=>{
+      if(e.target.closest("#shop-cover-save")||!state.saved)return;
+      input.click();
+    });
+    frame.addEventListener("pointerdown",e=>{
+      if(state.saved||image.classList.contains("hidden")||e.target.closest("#shop-cover-save"))return;
+      state.drag=true;state.startX=e.clientX;state.startY=e.clientY;state.startPX=state.x;state.startPY=state.y;
+      frame.setPointerCapture?.(e.pointerId);e.preventDefault();
+    });
+    frame.addEventListener("pointermove",e=>{
+      if(!state.drag)return;
+      const rect=frame.getBoundingClientRect();
+      state.x=Math.max(0,Math.min(100,state.startPX-((e.clientX-state.startX)/Math.max(1,rect.width))*100));
+      state.y=Math.max(0,Math.min(100,state.startPY-((e.clientY-state.startY)/Math.max(1,rect.height))*100));
+      image.style.objectPosition=`${state.x}% ${state.y}%`;
+    });
+    const stop=()=>{state.drag=false;};
+    frame.addEventListener("pointerup",stop);frame.addEventListener("pointercancel",stop);frame.addEventListener("lostpointercapture",stop);
+    save.addEventListener("click",async e=>{
+      e.preventDefault();e.stopPropagation();
+      if(!state.pending||save.dataset.saving==="1")return;
+      save.disabled=true;save.dataset.saving="1";save.textContent="Menyimpan...";
+      try{
+        await this.saveCover(state.pending,state.x,state.y);
+        state.pending=null;
+        if(state.objectUrl){try{URL.revokeObjectURL(state.objectUrl)}catch{}state.objectUrl=null;}
+        state.saved=true;
+        this.refreshCover();
+        notify("Berhasil","Foto sampul toko disimpan di LocalStorage (maksimal 100 KB).","fa-solid fa-circle-check text-emerald-600");
+      }catch(err){
+        notify("Gagal",err?.message||"Foto sampul toko gagal disimpan.","fa-solid fa-circle-xmark text-rose-600");
+      }finally{
+        save.disabled=false;save.dataset.saving="";save.textContent="Simpan";
+      }
+    });
+    this.coverUi={input,frame,image,placeholder,save,hint,state,render};
+    this.refreshCover();
+  },
+  refreshCover(){
+    const ui=this.coverUi;
+    if(!ui||ui.state.pending)return;
+    const phone=phoneOf(currentSessionUser?.phone);
+    const data=phone?this.readCover(phone):null;
+    ui.render(data?.src||"",data?.x??50,data?.y??50,false);
+  }
+};
+window.__rekapinyuPhotoStore=photoStore;
+window.compressImageTo100KB=(file,maxBytes=PHOTO_MAX_BYTES,maxWidth=2400,maxHeight=1600)=>photoStore.compress(file,maxBytes,maxWidth,maxHeight);
+window.__rekapinyuSaveProfilePhoto=async()=>{
+  const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
+  if(!file){showModal("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return false;}
+  const btn=document.getElementById("save-profile-btn");
+  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";}
+  try{
+    await photoStore.saveProfile(file);
+    closeProfileModal();
+    showModal("Berhasil","Foto profil disimpan di LocalStorage (maksimal 100 KB).","fa-solid fa-circle-check text-emerald-600");
+    return true;
+  }catch(err){
+    showModal("Gagal",err?.message||"Foto profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600");
+    return false;
+  }finally{
+    if(btn){btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";}
+  }
+};
+window.refreshShopCoverPhoto=()=>photoStore.refreshCover();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>photoStore.initCover(),{once:true});else photoStore.initCover();
+
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
 function openDashboardAfterLogin(){
  const tab=window.matchMedia("(max-width:767px)").matches?"home":"input";
@@ -4723,7 +4699,7 @@ async function hydrate(uid){
     if(Array.isArray(backup))nativeSet.call(localStorage,`finance_backup_desktop_${phone}`,JSON.stringify(backup));
   }finally{applyingFirestoreRealtime=false;}
   loadUserData();
-  hydrateLocalGallery(phone);
+  photoStore.hydrate(phone);
   try{window.refreshShopCoverPhoto?.()}catch{}
   try{updateUserAvatarUI?.()}catch{}
 }
@@ -4745,17 +4721,11 @@ async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
  const old=(await getDoc(uref(u.uid))).data()||{};
  const phone=phoneOf(extra.phone??currentSessionUser?.phone??old.phone??"");
- const cover=readLocalCover(phone);
- const localProfile=localStorage.getItem(localPhotoKey(phone))||currentSessionUser?.photo||"";
  const payload={
    uid:u.uid,
    name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",
    phone,
    email:u.email||old.email||emailOf(phone),
-   FotoProfil:localProfile||old.FotoProfil||"",
-   FotoSampul:cover?.src||currentSessionUser?.cover||old.FotoSampul||"",
-   FotoSampulX:Number.isFinite(Number(cover?.x))?Number(cover.x):Number.isFinite(Number(currentSessionUser?.coverX))?Number(currentSessionUser.coverX):Number(old.FotoSampulX??50),
-   FotoSampulY:Number.isFinite(Number(cover?.y))?Number(cover.y):Number.isFinite(Number(currentSessionUser?.coverY))?Number(currentSessionUser.coverY):Number(old.FotoSampulY??50),
    updatedAt:serverTimestamp()
  };
  await setDoc(uref(u.uid),payload,{merge:true});
@@ -4770,11 +4740,19 @@ function localSession(u){
  const phone=phoneOf(u.phone);
  const registered=safe(localStorage.getItem("finance_registered_users"),[]);
  const old=Array.isArray(registered)?registered.find(item=>phoneOf(item?.phone)===phone)||{}:{};
- const localProfile=localStorage.getItem(localPhotoKey(phone))||old.photo||"";
- const localCover=readLocalCover(phone)||((old.cover)?{src:old.cover,x:old.coverX??50,y:old.coverY??50}:null);
- if(localProfile && !localStorage.getItem(localPhotoKey(phone))) nativeSet.call(localStorage,localPhotoKey(phone),localProfile);
- if(localCover?.src && !localStorage.getItem(localCoverKey(phone))) nativeSet.call(localStorage,localCoverKey(phone),JSON.stringify({src:localCover.src,x:localCover.x??50,y:localCover.y??50}));
- currentSessionUser={uid:u.uid,name:u.name||old.name||"",phone,email:u.email||auth.currentUser?.email||old.email||"",password:u.password??old.password,photo:localProfile||"",cover:localCover?.src||"",coverX:Number.isFinite(Number(localCover?.x))?Number(localCover.x):50,coverY:Number.isFinite(Number(localCover?.y))?Number(localCover.y):50};
+ const localProfile=photoStore.readProfile(phone)||old.photo||"";
+ const localCover=photoStore.readCover(phone)||((old.cover)?{src:old.cover,x:old.coverX??50,y:old.coverY??50}:null);
+ currentSessionUser={
+   uid:u.uid,
+   name:u.name||old.name||"",
+   phone,
+   email:u.email||auth.currentUser?.email||old.email||"",
+   password:u.password??old.password,
+   photo:localProfile||"",
+   cover:localCover?.src||"",
+   coverX:Number.isFinite(Number(localCover?.x))?Number(localCover.x):50,
+   coverY:Number.isFinite(Number(localCover?.y))?Number(localCover.y):50
+ };
  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
  upsertRegisteredLocalUser(currentSessionUser);
 }
@@ -4810,7 +4788,7 @@ if(!Storage.prototype.__rekapinyuFirebaseFull){
  Storage.prototype.__rekapinyuFirebaseFull=true;
 }
 
-// REKAPINYU AUTH RELOAD — SATU IMPLEMENTASI FIREBASE
+// REKAPINYU FIREBASE AUTH PERSISTENCE — SATU IMPLEMENTASI
 // Persistensi sesi diaktifkan sebelum observer auth dipasang.
 const authReadyPromise = setPersistence(auth, browserLocalPersistence).catch(err => {
   console.warn("Rekapinyu: persistensi sesi Firebase tidak dapat diaktifkan.", err);
@@ -4968,171 +4946,7 @@ window.handleLogout=async()=>{
 };
 
 // Profile changes save to Firestore instead of only localStorage.
-window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone,photo:currentSessionUser.photo||""});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan ke Firebase.","fa-solid fa-circle-xmark text-rose-600")}};
-
-// FOTO PROFIL & FOTO SAMPUL — LOCALSTORAGE + FIRESTORE REKAPINYU_USERS, MAKSIMAL 100 KB PER FOTO.
-// Foto dikompres lokal dahulu agar kualitas tetap cukup tajam, lalu disimpan ke LocalStorage
-// dan salinannya diteruskan ke dokumen rekapinyu_users milik akun Firebase.
-async function compressImageTo100KB(file,maxBytes=102400,maxWidth=2400,maxHeight=1600){
-  if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error("Format gambar harus JPG, PNG, atau WEBP.");
-  const src=await new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onerror=()=>reject(new Error("File gambar tidak dapat dibaca."));
-    reader.onload=()=>resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
-  const img=await new Promise((resolve,reject)=>{
-    const el=new Image();
-    el.onload=()=>resolve(el);
-    el.onerror=()=>reject(new Error("Format gambar tidak dapat diproses."));
-    el.src=src;
-  });
-
-  const sourceW=img.naturalWidth||img.width||1;
-  const sourceH=img.naturalHeight||img.height||1;
-  let scale=Math.min(1,maxWidth/sourceW,maxHeight/sourceH);
-  let last="";
-  const dataUrlByteSize=dataUrl=>{
-    const base64=String(dataUrl||'').split(',')[1]||'';
-    const padding=(base64.match(/=*$/)||[''])[0].length;
-    return Math.max(0,Math.floor((base64.length*3)/4)-padding);
-  };
-
-  // Mulai dari kualitas tinggi. Turunkan kualitas dulu, baru ukuran, agar foto tidak cepat pecah.
-  for(let pass=0;pass<18;pass++){
-    const w=Math.max(160,Math.round(sourceW*scale));
-    const h=Math.max(160,Math.round(sourceH*scale));
-    const canvas=document.createElement('canvas');
-    canvas.width=w; canvas.height=h;
-    const ctx=canvas.getContext('2d',{alpha:false});
-    if(!ctx)throw new Error("Browser tidak mendukung pemrosesan gambar.");
-    ctx.fillStyle='#fff';
-    ctx.fillRect(0,0,w,h);
-    ctx.imageSmoothingEnabled=true;
-    ctx.imageSmoothingQuality='high';
-    ctx.drawImage(img,0,0,w,h);
-
-    for(let q=0.94;q>=0.28;q-=0.035){
-      const data=canvas.toDataURL('image/jpeg',q);
-      last=data;
-      if(dataUrlByteSize(data)<=maxBytes)return data;
-    }
-    scale*=0.90;
-  }
-
-  if(last && dataUrlByteSize(last)<=maxBytes)return last;
-  throw new Error("Gambar tidak dapat dikompres hingga 100 KB.");
-}
-window.compressImageTo100KB=compressImageTo100KB;
-
-async function persistLocalProfilePhoto(dataUrl){
-  const phone=phoneOf(currentSessionUser?.phone);
-  if(!phone)return;
-  // Hapus foto lama terlebih dahulu agar tidak ada salinan foto sebelumnya yang tertinggal pada key aktif.
-  nativeRemove.call(localStorage,localPhotoKey(phone));
-  nativeSet.call(localStorage,localPhotoKey(phone),dataUrl||"");
-  currentSessionUser.photo=dataUrl||"";
-  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-  upsertRegisteredLocalUser({uid:currentSessionUser.uid,name:currentSessionUser.name,phone,email:currentSessionUser.email||"",photo:dataUrl||""});
-  updateUserAvatarUI();
-  await syncLocalSessionToFirestore();
-}
-
-async function persistLocalCover(data){
-  const phone=phoneOf(currentSessionUser?.phone);
-  if(!phone)return;
-  const clean={src:String(data?.src||""),x:Number.isFinite(Number(data?.x))?Number(data.x):50,y:Number.isFinite(Number(data?.y))?Number(data.y):50};
-  // Hapus sampul lama terlebih dahulu sebelum menulis sampul baru.
-  nativeRemove.call(localStorage,localCoverKey(phone));
-  nativeSet.call(localStorage,localCoverKey(phone),JSON.stringify(clean));
-  currentSessionUser.cover=clean.src;
-  currentSessionUser.coverX=clean.x;
-  currentSessionUser.coverY=clean.y;
-  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-  upsertRegisteredLocalUser({uid:currentSessionUser.uid,name:currentSessionUser.name,phone,email:currentSessionUser.email||"",cover:clean.src,coverX:clean.x,coverY:clean.y});
-  await syncLocalSessionToFirestore();
-}
-
-window.__rekapinyuSaveProfilePhoto=async function(){
-  const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
-  if(!file){showModal("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return false;}
-  const btn=document.getElementById("save-profile-btn");
-  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";}
-  try{
-    const data=await compressImageTo100KB(file,102400,1800,1800);
-    await persistLocalProfilePhoto(data);
-    closeProfileModal();
-    showModal("Berhasil","Foto profil disimpan di LocalStorage dan disinkronkan ke rekapinyu_users (≤100 KB).","fa-solid fa-circle-check text-emerald-600");
-    return true;
-  }catch(err){
-    console.error("Simpan foto profil lokal:",err);
-    showModal("Gagal",err?.message||"Foto profil tidak dapat dikompres hingga 100 KB.","fa-solid fa-circle-xmark text-rose-600");
-    return false;
-  }finally{
-    if(btn){btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";}
-  }
-};
-
-window.__rekapinyuSaveCoverPhoto=async function(){
-  const btn=document.getElementById("shop-cover-save");
-  const img=document.getElementById("shop-cover-image");
-  if(!btn||btn.classList.contains("hidden")||btn.dataset.saving==="1")return false;
-  if(!img||img.classList.contains("hidden")||!img.src)return false;
-  btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";
-  try{
-    const src=img.getAttribute("src")||img.src;
-    const pos=img.style.objectPosition||"50% 50%";
-    const nums=pos.match(/([0-9.]+)%\s+([0-9.]+)%/);
-    const x=nums?Math.max(0,Math.min(100,Number(nums[1]))):50;
-    const y=nums?Math.max(0,Math.min(100,Number(nums[2]))):50;
-    let file=null;
-    if(window.__shopCoverPendingFile instanceof File) file=window.__shopCoverPendingFile;
-    if(!file && /^data:image\//i.test(src)){
-      const blob=await (await fetch(src)).blob();
-      file=new File([blob],'shop-cover.jpg',{type:'image/jpeg'});
-    }
-    if(!file)throw new Error("Foto sampul belum siap.");
-    const data=await compressImageTo100KB(file,102400,2200,1400);
-    await persistLocalCover({src:data,x,y});
-    if(window.__shopCoverPreviewObjectUrl){
-      try{URL.revokeObjectURL(window.__shopCoverPreviewObjectUrl)}catch{}
-      window.__shopCoverPreviewObjectUrl=null;
-    }
-    window.__shopCoverPendingFile=null;
-    window.__shopCoverEditingUnsaved=false;
-    img.src=data;
-    img.style.objectPosition=`${x}% ${y}%`;
-    btn.classList.add("hidden");
-    document.getElementById("shop-cover-edit-hint")?.classList.add("hidden");
-    document.getElementById("foto-sampul-toko")?.classList.remove("cursor-move");
-    showModal("Berhasil","Foto sampul disimpan di LocalStorage dan disinkronkan ke rekapinyu_users (≤100 KB).","fa-solid fa-circle-check text-emerald-600");
-    return true;
-  }catch(err){
-    console.error("Simpan foto sampul lokal:",err);
-    showModal("Gagal",err?.message||"Foto sampul tidak dapat dikompres hingga 100 KB.","fa-solid fa-circle-xmark text-rose-600");
-    return false;
-  }finally{
-    btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";
-  }
-};
-
-// Satu pintu untuk klik tombol Simpan. Event capture menghentikan onclick lama sebelum berjalan,
-// tetapi tidak mengganggu tombol Simpan Nama/Kata Sandi.
-document.addEventListener("click",function(e){
-  const target=e.target?.closest?.("#save-profile-btn, #shop-cover-save");
-  if(!target)return;
-  if(target.id==="save-profile-btn"){
-    if(!document.getElementById("input-new-photo"))return;
-    if(target.dataset.saving==="1")return;
-    e.preventDefault();e.stopImmediatePropagation();
-    window.__rekapinyuSaveProfilePhoto();
-  }else if(target.id==="shop-cover-save"){
-    if(target.classList.contains("hidden")||target.dataset.saving==="1")return;
-    e.preventDefault();e.stopImmediatePropagation();
-    window.__rekapinyuSaveCoverPhoto();
-  }
-},true);
-
+window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await saveCloudData()}catch(e){console.error(e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
 let userUnsub=null;
 let collectionUnsubs=[];
@@ -5244,12 +5058,22 @@ onAuthStateChanged(auth,async u=>{
   window.RekapinyuFirebase.uid=u?.uid||null;
 
   if(!u){
-    if(userUnsub)userUnsub();
+    if(userUnsub){try{userUnsub()}catch{} userUnsub=null;}
+    stopCollectionRealtime();
     try{window.__rekapinyuStopProdukKasirRealtime?.()}catch{}
     window.__rekapinyuLandingHandoffActive=false;
+    const local=readLocalDashboardSession();
+    if(local){
+      currentSessionUser=local;
+      window.__rekapinyuAuthBooting=false;
+      document.documentElement.classList.add('rk-dashboard-session');
+      try{photoStore.hydrate(phoneOf(local.phone));}catch{}
+      checkAuth();
+      redraw();
+      return;
+    }
     window.__rekapinyuAuthBooting=false;
     currentSessionUser=null;
-    nativeRemove.call(localStorage,"finance_active_session");
     checkAuth();
     return;
   }
