@@ -4723,11 +4723,31 @@ function redraw(){
  try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}
 }
 
-// Profil cloud menyimpan identitas saja; FotoProfil/FotoSampul sengaja tidak lagi tersambung ke Firebase.
+// Profil/foto disimpan lokal terlebih dahulu, lalu salinan sesi lokal diteruskan ke rekapinyu_users.
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
  const old=(await getDoc(uref(u.uid))).data()||{};
- await setDoc(uref(u.uid),{uid:u.uid,name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",phone:phoneOf(extra.phone??currentSessionUser?.phone??old.phone??""),email:u.email||old.email||emailOf(currentSessionUser?.phone),updatedAt:serverTimestamp()},{merge:true});
+ const phone=phoneOf(extra.phone??currentSessionUser?.phone??old.phone??"");
+ const cover=readLocalCover(phone);
+ const localProfile=localStorage.getItem(localPhotoKey(phone))||currentSessionUser?.photo||"";
+ const payload={
+   uid:u.uid,
+   name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",
+   phone,
+   email:u.email||old.email||emailOf(phone),
+   FotoProfil:localProfile||old.FotoProfil||"",
+   FotoSampul:cover?.src||currentSessionUser?.cover||old.FotoSampul||"",
+   FotoSampulX:Number.isFinite(Number(cover?.x))?Number(cover.x):Number.isFinite(Number(currentSessionUser?.coverX))?Number(currentSessionUser.coverX):Number(old.FotoSampulX??50),
+   FotoSampulY:Number.isFinite(Number(cover?.y))?Number(cover.y):Number.isFinite(Number(currentSessionUser?.coverY))?Number(currentSessionUser.coverY):Number(old.FotoSampulY??50),
+   updatedAt:serverTimestamp()
+ };
+ await setDoc(uref(u.uid),payload,{merge:true});
+}
+async function syncLocalSessionToFirestore(){
+ if(!auth.currentUser||!currentSessionUser)return;
+ try{
+   await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone});
+ }catch(e){console.warn("Rekapinyu: sinkronisasi sesi/foto lokal ke rekapinyu_users gagal.",e)}
 }
 function localSession(u){
  const phone=phoneOf(u.phone);
@@ -4833,6 +4853,8 @@ async function firebaseRegister(){
     const existingProfile=localStorage.getItem(localPhotoKey(phone))||"";
     const existingCover=readLocalCover(phone);
     upsertRegisteredLocalUser({...userData,password,photo:existingProfile,cover:existingCover?.src||"",coverX:existingCover?.x??50,coverY:existingCover?.y??50});
+    localSession({...userData,password,photo:existingProfile,cover:existingCover?.src||"",coverX:existingCover?.x??50,coverY:existingCover?.y??50});
+    await syncLocalSessionToFirestore();
     currentSessionUser=null;
     nativeRemove.call(localStorage,"finance_active_session");
     try{await signOut(auth)}catch(e){console.warn("Logout setelah pendaftaran:",e)}
@@ -4893,6 +4915,7 @@ async function firebaseLogin(){
         }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
         localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
         try{await hydrate(credential.user.uid)}catch{}
+        await syncLocalSessionToFirestore();
         checkAuth();openDashboardAfterLogin();form.reset();
         notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
         return;
@@ -4977,6 +5000,7 @@ function persistLocalProfilePhoto(dataUrl){
   nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
   upsertRegisteredLocalUser({uid:currentSessionUser.uid,name:currentSessionUser.name,phone,email:currentSessionUser.email||"",photo:dataUrl||""});
   updateUserAvatarUI();
+  syncLocalSessionToFirestore();
 }
 
 function persistLocalCover(data){
@@ -4989,6 +5013,7 @@ function persistLocalCover(data){
   currentSessionUser.coverY=clean.y;
   nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
   upsertRegisteredLocalUser({uid:currentSessionUser.uid,name:currentSessionUser.name,phone,email:currentSessionUser.email||"",cover:clean.src,coverX:clean.x,coverY:clean.y});
+  syncLocalSessionToFirestore();
 }
 
 window.__rekapinyuSaveProfilePhoto=async function(){
@@ -5113,6 +5138,7 @@ function realtime(u){
     document.getElementById('sidebar-user-name')?.replaceChildren(document.createTextNode(currentSessionUser.name));
     updateUserAvatarUI();
   },err=>console.warn('Rekapinyu: realtime profil pengguna gagal.',err));
+}
 
 // PATCH FOKUS DATA: saat aplikasi kembali aktif, kirim lagi input lokal yang belum terkonfirmasi cloud.
 (function(){
@@ -5189,6 +5215,7 @@ onAuthStateChanged(auth,async u=>{
 
   try{
     await hydrate(u.uid);
+    await syncLocalSessionToFirestore();
     realtime(u);
     try{window.__rekapinyuStartProdukKasirRealtime?.()}catch(e){console.warn("Rekapinyu: ProdukKasir realtime belum aktif.",e)}
     window.__rekapinyuLandingHandoffActive=false;
