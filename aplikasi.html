@@ -3639,9 +3639,26 @@ function updateUserAvatarUI() {
                 return matchSearch && matchDate && matchMonth && matchYear;
             });
 
-            // Satu-satunya aturan urutan History: input terbaru selalu di posisi paling atas.
-            // Data baru disimpan dengan ID Date.now(), sehingga ID terbesar adalah input terbaru.
-            filtered.sort((a, b) => Number(b.id) - Number(a.id));
+            // Urutan History selalu berdasarkan tanggal sebenarnya: Tahun > Bulan > Tanggal > Waktu.
+            // ID hanya menjadi tie-breaker bila tanggal dan waktu benar-benar sama.
+            const historySortKey = (item) => {
+                const year = Number(item.year) || 0;
+                let monthIndex = Number.isFinite(Number(item.monthIndex)) ? Number(item.monthIndex) : ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].indexOf(item.month);
+                if (monthIndex < 0) monthIndex = 0;
+                const date = Number(item.date) || 0;
+                const time = String(item.time || '00:00').trim();
+                const match = time.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                const hour = match ? Number(match[1]) || 0 : 0;
+                const minute = match ? Number(match[2]) || 0 : 0;
+                const second = match ? Number(match[3]) || 0 : 0;
+                return new Date(year, monthIndex, date, hour, minute, second).getTime();
+            };
+            filtered.sort((a, b) => {
+                const bKey = historySortKey(b);
+                const aKey = historySortKey(a);
+                if (bKey !== aKey) return bKey - aKey;
+                return (Number(b.id) || 0) - (Number(a.id) || 0);
+            });
 
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -5550,6 +5567,16 @@ onAuthStateChanged(auth,async u=>{
             const imported = buildHistoryRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }));
             if (!imported.length) throw new Error('Tidak ada data History yang valid pada file backup Excel.');
             historyData = [...imported, ...(Array.isArray(historyData) ? historyData : [])];
+            // Setelah import, simpan kembali dalam urutan kronologis agar urutan tetap sama
+            // meskipun History dimuat ulang dari LocalStorage.
+            historyData.sort((a, b) => {
+                const monthA = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : monthNames.indexOf(a.month);
+                const monthB = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : monthNames.indexOf(b.month);
+                const dateA = new Date(Number(a.year) || 0, monthA >= 0 ? monthA : 0, Number(a.date) || 0, ...String(a.time || '00:00').split(':').map(Number));
+                const dateB = new Date(Number(b.year) || 0, monthB >= 0 ? monthB : 0, Number(b.date) || 0, ...String(b.time || '00:00').split(':').map(Number));
+                const diff = dateB.getTime() - dateA.getTime();
+                return diff !== 0 ? diff : (Number(b.id) || 0) - (Number(a.id) || 0);
+            });
             if (currentSessionUser && currentSessionUser.phone) {
                 localStorage.setItem(`finance_history_desktop_${currentSessionUser.phone}`, JSON.stringify(historyData));
                 if (typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
