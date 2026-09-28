@@ -2599,7 +2599,7 @@ function updateUserAvatarUI() {
                 bodyEl.innerHTML = `
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pilih File Gambar</label>
-                        <input type="file" id="input-new-photo" accept="image/jpeg,image/png,image/webp" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        <input type="file" id="input-new-photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                     </div>
                 `;
                 saveBtn.onclick = function() {
@@ -4367,7 +4367,7 @@ const photoStore={
     return Math.max(0,Math.floor((base64.length*3)/4)-padding);
   },
   async compress(file,maxBytes=PHOTO_MAX_BYTES,maxWidth=2400,maxHeight=1600){
-    if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type))throw new Error("Format gambar harus JPG, PNG, atau WEBP.");
+    if(!file||!String(file.type||"").toLowerCase().startsWith("image/"))throw new Error("File harus berupa gambar yang didukung browser.");
     const src=await new Promise((resolve,reject)=>{
       const r=new FileReader();
       r.onerror=()=>reject(new Error("File gambar tidak dapat dibaca."));
@@ -4495,7 +4495,7 @@ const photoStore={
     };
     input.addEventListener("change",()=>{
       const file=input.files?.[0];input.value="";
-      if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type)){if(file)notify("Gagal","Format gambar harus JPG, PNG, atau WEBP.","fa-solid fa-circle-xmark text-rose-600");return;}
+      if(!file||!String(file.type||"").toLowerCase().startsWith("image/")){if(file)notify("Gagal","File harus berupa gambar yang didukung browser.","fa-solid fa-circle-xmark text-rose-600");return;}
       startEdit(file);
     });
     frame.addEventListener("click",e=>{
