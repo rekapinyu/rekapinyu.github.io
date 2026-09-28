@@ -4873,7 +4873,8 @@ async function firebaseLogin(){
   }catch(err){
     console.error("Rekapinyu Firebase login:",err);
     // Migrasi satu kali akun lama yang masih tersimpan di versi sebelum Firebase.
-    const legacy=registeredUsers.find(x=>phoneOf(x.phone)===phone&&x.password===password);
+    const legacyUsers=safe(localStorage.getItem("finance_registered_users"),[]);
+    const legacy=(Array.isArray(legacyUsers)?legacyUsers:[]).find(x=>phoneOf(x?.phone)===phone&&String(x?.password||"")===String(password));
     if(legacy && (err?.code==="auth/user-not-found" || err?.code==="auth/invalid-credential" || err?.code==="auth/invalid-login-credentials")){
       try{
         const credential=await createUserWithEmailAndPassword(auth,emailOf(phone),password);
