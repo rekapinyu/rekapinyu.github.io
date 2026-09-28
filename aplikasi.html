@@ -4569,9 +4569,52 @@ async function ensureGaleriFoto(uid){
     FotoProfil:typeof old.FotoProfil==="string"?old.FotoProfil:"",
     FotoSampul:typeof old.FotoSampul==="string"?old.FotoSampul:""
   };
-  // overwrite agar dokumen GaleriFoto benar-benar hanya berisi FotoProfil dan FotoSampul.
-  await setDoc(gref(uid),data);
+  // Pastikan dokumen ada dan hanya memiliki dua field canonical.
+  const currentKeys=Object.keys(old||{});
+  const needsCreate=!snap.exists();
+  const needsNormalize=currentKeys.some(k=>k!=="FotoProfil"&&k!=="FotoSampul");
+  if(needsCreate||needsNormalize||currentKeys.length!==2){
+    await setDoc(gref(uid),data);
+  }
   return data;
+}
+
+function applyGalleryCloudData(data,phone){
+  const p=phoneOf(phone||currentSessionUser?.phone);
+  const gallery=data||{};
+  const profile=typeof gallery.FotoProfil==="string"?gallery.FotoProfil:"";
+  const cover=typeof gallery.FotoSampul==="string"?gallery.FotoSampul:"";
+  if(currentSessionUser){
+    currentSessionUser.photo=profile;
+    nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
+  }
+  if(p){
+    if(profile) nativeSet.call(localStorage,`finance_profile_photo_${p}`,profile);
+    else nativeRemove.call(localStorage,`finance_profile_photo_${p}`);
+    if(cover) nativeSet.call(localStorage,`finance_shop_cover_${p}`,JSON.stringify({src:cover,x:50,y:50}));
+    else nativeRemove.call(localStorage,`finance_shop_cover_${p}`);
+  }
+  try{updateUserAvatarUI?.()}catch{}
+  try{
+    const image=document.getElementById("shop-cover-image");
+    const placeholder=document.getElementById("shop-cover-placeholder");
+    const saveButton=document.getElementById("shop-cover-save");
+    const editHint=document.getElementById("shop-cover-edit-hint");
+    if(image&&placeholder){
+      if(cover){
+        image.src=cover;
+        image.style.objectPosition="50% 50%";
+        image.classList.remove("hidden");
+        placeholder.classList.add("hidden");
+        saveButton?.classList.add("hidden");
+        editHint?.classList.add("hidden");
+      }else{
+        image.removeAttribute("src");
+        image.classList.add("hidden");
+        placeholder.classList.remove("hidden");
+      }
+    }
+  }catch{}
 }
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(t+"\n"+m);}
 function openDashboardAfterLogin(){
@@ -4700,13 +4743,7 @@ async function hydrate(uid){
     const laporanBulanan=laporanBulananSnap.exists()?laporanBulananSnap.data()?.DataLaporanBulanan:null;
     const backup=backupSnap.exists()?backupSnap.data()?.LaporanBackupOtomatis:null;
     const galeri=galeriData||{};
-    if(galeri.FotoProfil){ currentSessionUser.photo=String(galeri.FotoProfil); nativeSet.call(localStorage,`finance_profile_photo_${phone}`,String(galeri.FotoProfil)); }
-    if(galeri.FotoSampul&&!String(galeri.FotoSampul).startsWith('data:')) {
-      const localCover=safe(localStorage.getItem(`finance_shop_cover_${phone}`),{});
-      const x=Number.isFinite(Number(localCover?.x))?Number(localCover.x):50;
-      const y=Number.isFinite(Number(localCover?.y))?Number(localCover.y):50;
-      nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:String(galeri.FotoSampul),x,y}));
-    }
+    applyGalleryCloudData(galeri,phone);
     const canonicalTx=Array.isArray(tx)?tx:null;
     const canonicalKasirReport=Array.isArray(laporanKasir)?laporanKasir:canonicalTx;
     const canonicalHistory=Array.isArray(input)?input:(Array.isArray(legacyHistory)?legacyHistory:null);
@@ -4956,43 +4993,38 @@ function imageToDataURL(file,maxSide=1600,quality=0.88){return new Promise((reso
 window.__rekapinyuSaveProfilePhoto=async function(){
   const inp=document.getElementById("input-new-photo"),file=inp?.files?.[0];
   if(!file){showModal("Gagal","Silakan pilih foto terlebih dahulu.","fa-solid fa-circle-exclamation text-rose-600");return false;}
-  if(!/^image\/(jpeg|png)$/i.test(file.type)){showModal("Gagal","Format yang didukung hanya JPG dan PNG.","fa-solid fa-circle-exclamation text-rose-600");return false;}
+  if(!/^image\/(jpeg|png)$/i.test(file.type)){showModal("Gagal","Format yang didukung hanya JPG atau PNG.","fa-solid fa-circle-exclamation text-rose-600");return false;}
   if(!auth.currentUser){showModal("Gagal","Sesi Firebase belum siap. Silakan coba lagi.","fa-solid fa-circle-exclamation text-rose-600");return false;}
   const btn=document.getElementById("save-profile-btn");
-  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Simpan";}
+  if(btn){btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";}
   try{
-    // Simpan ke tampilan/cache lokal terlebih dahulu agar hasil terasa instan.
-    const localUrl=await imageToDataURL(file,900,0.88);
+    // Cloud menjadi sumber kebenaran. Upload Storage harus sukses lebih dulu.
+    const previewUrl=await imageToDataURL(file,900,0.88);
+    const parts=previewUrl.split(',');
+    const mime=(parts[0].match(/^data:([^;]+);base64$/i)||[])[1]||'image/jpeg';
+    const binary=atob(parts[1]||'');
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    const uploadBlob=new Blob([bytes],{type:mime});
+    const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
+    await uploadBytes(r,uploadBlob,{contentType:mime,cacheControl:"public,max-age=31536000"});
+    const url=await getDownloadURL(r);
+    await setDoc(gref(auth.currentUser.uid),{FotoProfil:url},{merge:true});
+
+    // Hanya setelah Storage + Firestore berhasil, update cache/UI.
     const phone=phoneOf(currentSessionUser?.phone);
-    currentSessionUser.photo=localUrl;
+    currentSessionUser.photo=url;
     nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-    if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,localUrl);
+    if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
     const idx=registeredUsers.findIndex(u=>phoneOf(u.phone)===phone);
-    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:localUrl};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
+    if(idx!==-1){registeredUsers[idx]={...registeredUsers[idx],photo:url};nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(registeredUsers));}
     updateUserAvatarUI();
     closeProfileModal();
-
-    // Popup sukses langsung setelah foto berhasil diproses/disimpan ke perangkat.
-    showModal("Berhasil","Foto profil berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
-    setTimeout(()=>{try{closeModal();}catch{}},1600);
-
-    // Sinkronisasi Firebase berjalan di belakang layar dan tidak menahan popup/tombol.
-    Promise.resolve().then(async()=>{
-        try{
-        const r=ref(storage,`users/${auth.currentUser.uid}/profile`);
-        await uploadBytes(r,file,{contentType:file.type,cacheControl:"public,max-age=31536000"});
-        const url=await getDownloadURL(r);
-        currentSessionUser.photo=url;
-        nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));
-        if(phone)nativeSet.call(localStorage,`finance_profile_photo_${phone}`,url);
-        try{await setDoc(gref(auth.currentUser.uid),{FotoProfil:url,updatedAt:serverTimestamp()},{merge:true});}catch(err){console.warn("Firestore URL foto profil:",err)}
-        updateUserAvatarUI();
-      }catch(err){console.warn("Storage foto profil:",err)}
-    });
+    showModal("Berhasil","Foto profil tersimpan di Firebase.","fa-solid fa-circle-check text-emerald-600");
     return true;
   }catch(err){
     console.error("Simpan foto profil:",err);
-    showModal("Gagal","Foto profil tidak dapat disimpan. Gunakan JPG atau PNG.","fa-solid fa-circle-xmark text-rose-600");
+    showModal("Gagal","Foto profil tidak dapat disimpan ke Firebase. Cek koneksi dan Firebase Storage/Firestore Rules.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }finally{
     if(btn){btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";}
@@ -5004,6 +5036,7 @@ window.__rekapinyuSaveCoverPhoto=async function(){
   const img=document.getElementById("shop-cover-image");
   if(!btn||btn.classList.contains("hidden")||btn.dataset.saving==="1")return false;
   if(!img||img.classList.contains("hidden")||!img.src)return false;
+  if(!auth.currentUser){showModal("Gagal","Sesi Firebase belum siap. Silakan coba lagi.","fa-solid fa-circle-exclamation text-rose-600");return false;}
   btn.disabled=true;btn.dataset.saving="1";btn.textContent="Menyimpan...";
   try{
     const src=img.getAttribute("src")||img.src;
@@ -5011,62 +5044,41 @@ window.__rekapinyuSaveCoverPhoto=async function(){
     const nums=pos.match(/([0-9.]+)%\s+([0-9.]+)%/);
     const x=nums?Math.max(0,Math.min(100,Number(nums[1]))):50;
     const y=nums?Math.max(0,Math.min(100,Number(nums[2]))):50;
-    const data={src:src,x:x,y:y};
-    const phone=(typeof currentSessionUser!=="undefined"&&currentSessionUser)?phoneOf(currentSessionUser.phone):"";
-    const key=phone?`finance_shop_cover_${phone}`:"finance_shop_cover_guest";
-    try{localStorage.setItem(key,JSON.stringify(data));}catch(localErr){
-      console.warn("Cache foto sampul lokal gagal:",localErr);
+    let uploadBlob=null;
+    if(/^data:image\/[^;]+;base64,/i.test(src)){
+      const parts=src.split(',');
+      const mime=(parts[0].match(/^data:([^;]+);base64$/i)||[])[1]||'image/jpeg';
+      const binary=atob(parts[1]||'');
+      const bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      uploadBlob=new Blob([bytes],{type:mime});
     }
+    if(!uploadBlob){
+      const pending=window.__shopCoverPendingFile||null;
+      if(pending instanceof Blob)uploadBlob=pending;
+    }
+    if(!uploadBlob)throw new Error("Preview foto sampul tidak tersedia untuk upload.");
+
+    // Cloud menjadi sumber kebenaran. Upload harus sukses sebelum Firestore ditulis.
+    const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
+    await uploadBytes(r,uploadBlob,{contentType:uploadBlob.type||"image/jpeg",cacheControl:"public,max-age=31536000"});
+    const url=await getDownloadURL(r);
+    await setDoc(gref(auth.currentUser.uid),{FotoSampul:url},{merge:true});
+
+    const phone=phoneOf(currentSessionUser?.phone);
+    if(phone)nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:url,x,y}));
+    window.__shopCoverPendingFile=null;
     window.__shopCoverEditingUnsaved=false;
+    img.src=url;
     img.style.objectPosition=`${x}% ${y}%`;
     btn.classList.add("hidden");
-    const hint=document.getElementById("shop-cover-edit-hint");
-    if(hint)hint.classList.add("hidden");
-    const frame=document.getElementById("shop-cover-frame");
-    if(frame)frame.classList.remove("cursor-move");
-
-    // Popup sukses ditampilkan segera; proses Firebase tidak menahan tombol.
-    showModal("Berhasil","Foto sampul berhasil disimpan.","fa-solid fa-circle-check text-emerald-600");
-    setTimeout(()=>{try{closeModal();}catch{}},1600);
-
-    // Sinkronisasi Firebase dilakukan di belakang layar.
-    const pending=window.__shopCoverPendingFile||null;
-    window.__shopCoverPendingFile=null;
-    if(pending&&typeof auth!=="undefined"&&auth.currentUser){
-      Promise.resolve().then(async()=>{
-        try{
-          const r=ref(storage,`users/${auth.currentUser.uid}/shop-cover`);
-          // Upload salinan yang SAMA dengan preview yang sudah diproses browser,
-          // bukan File asli. Ini mencegah file sampul menjadi rusak setelah sinkronisasi Firebase.
-          // Gunakan HASIL PREVIEW yang sedang tampil sebagai sumber upload.
-          // Jangan pernah mengganti tampilan lokal dengan URL Firebase setelah klik Simpan,
-          // karena itu dapat membuat gambar terlihat rusak/berubah sebelum URL siap.
-          let uploadData=null;
-          if(/^data:image\/[^;]+;base64,/i.test(src)){
-            const parts=src.split(',');
-            const mime=(parts[0].match(/^data:([^;]+);base64$/i)||[])[1]||'image/jpeg';
-            const binary=atob(parts[1]||'');
-            const bytes=new Uint8Array(binary.length);
-            for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-            uploadData=new Blob([bytes],{type:mime});
-          }
-          if(!uploadData){
-            uploadData=pending;
-          }
-          if(!uploadData)throw new Error('Data foto sampul tidak tersedia.');
-          const uploadType=uploadData.type||'image/jpeg';
-          await uploadBytes(r,uploadData,{contentType:uploadType,cacheControl:"public,max-age=31536000"});
-          const url=await getDownloadURL(r);
-          // Simpan URL cloud hanya untuk data Firebase. Tampilan yang sudah benar
-          // tetap memakai preview lokal beserta posisi x/y yang dipilih pengguna.
-          try{await setDoc(gref(auth.currentUser.uid),{FotoSampul:url},{merge:true});}catch(err){console.warn("Firestore sampul:",err)}
-        }catch(err){console.warn("Storage sampul:",err)}
-      });
-    }
+    document.getElementById("shop-cover-edit-hint")?.classList.add("hidden");
+    document.getElementById("shop-cover-frame")?.classList.remove("cursor-move");
+    showModal("Berhasil","Foto sampul tersimpan di Firebase.","fa-solid fa-circle-check text-emerald-600");
     return true;
   }catch(err){
     console.error("Simpan foto sampul:",err);
-    showModal("Gagal","Foto sampul tidak dapat disimpan.","fa-solid fa-circle-xmark text-rose-600");
+    showModal("Gagal","Foto sampul tidak dapat disimpan ke Firebase. Cek koneksi dan Firebase Storage/Firestore Rules.","fa-solid fa-circle-xmark text-rose-600");
     return false;
   }finally{
     btn.disabled=false;btn.dataset.saving="";btn.textContent="Simpan";
@@ -5144,21 +5156,8 @@ function realtime(u){
     }
     const d=snap.data()||{},phone=phoneOf(currentSessionUser.phone);
     applyingFirestoreRealtime=true;
-    try{
-      if(typeof d.FotoProfil==="string"){
-        currentSessionUser.photo=d.FotoProfil;
-        nativeSet.call(localStorage,`finance_profile_photo_${phone}`,d.FotoProfil);
-      }
-      if(typeof d.FotoSampul==="string"&&d.FotoSampul&&!d.FotoSampul.startsWith('data:')){
-        const localCover=safe(localStorage.getItem(`finance_shop_cover_${phone}`),{});
-        const x=Number.isFinite(Number(localCover?.x))?Number(localCover.x):50;
-        const y=Number.isFinite(Number(localCover?.y))?Number(localCover.y):50;
-        nativeSet.call(localStorage,`finance_shop_cover_${phone}`,JSON.stringify({src:d.FotoSampul,x,y}));
-      }
-      nativeSet.call(localStorage,'finance_active_session',JSON.stringify(currentSessionUser));
-    }finally{applyingFirestoreRealtime=false;}
-    updateUserAvatarUI();
-    try{refreshShopCoverPhoto?.()}catch{}
+    try{ applyGalleryCloudData({FotoProfil:d.FotoProfil||"",FotoSampul:d.FotoSampul||""},phone); }
+    finally{applyingFirestoreRealtime=false;}
   },err=>console.warn('Rekapinyu: realtime GaleriFoto gagal.',err));
   collectionUnsubs.push(galleryUnsub);
 }
