@@ -4349,6 +4349,19 @@ function cloudUid(){return auth.currentUser?.uid||null;}
 
 // FOTO PROFIL + FOTO SAMPUL TOKO — SATU IMPLEMENTASI LOCALSTORAGE
 const PHOTO_MAX_BYTES=102400;
+function upsertRegisteredLocalUser(user){
+  const phone=phoneOf(user?.phone);
+  if(!phone)return null;
+  const rows=safe(localStorage.getItem("finance_registered_users"),[]);
+  const list=Array.isArray(rows)?rows:[];
+  const incoming={...(user||{}),phone};
+  const index=list.findIndex(item=>phoneOf(item?.phone)===phone);
+  if(index>=0) list[index]={...list[index],...incoming};
+  else list.unshift(incoming);
+  nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
+  return list[index>=0?index:0];
+}
+
 const photoStore={
   profileKey(phone){return `finance_profile_photo_${phoneOf(phone)}`;},
   coverKey(phone){return `finance_shop_cover_${phoneOf(phone)}`;},
@@ -4602,6 +4615,9 @@ window.__requestDataCloudSync=()=>requestDataCloudSync();
 let cloudSaveChain=Promise.resolve();
 let applyingFirestoreRealtime=false;
 
+function localPhotoKey(phone){return photoStore.profileKey(phone);}
+function readLocalCover(phone){return photoStore.readCover(phone);}
+
 function buildLaporanBulanan(rows){
   const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const source=Array.isArray(rows)?rows:[];
@@ -4722,25 +4738,36 @@ function redraw(){
  try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}
 }
 
-// Profil/foto disimpan lokal terlebih dahulu, lalu salinan sesi lokal diteruskan ke rekapinyu_users.
+// Sesi login/logout: sumber sesi tetap LocalStorage, lalu salinan identitas sesi dikirim ke rekapinyu_users.
 async function saveCloudUser(extra={}){
  const u=auth.currentUser;if(!u)return;
- const old=(await getDoc(uref(u.uid))).data()||{};
+ const oldSnap=await getDoc(uref(u.uid));
+ const old=oldSnap.exists()?oldSnap.data()||{}:{};
  const phone=phoneOf(extra.phone??currentSessionUser?.phone??old.phone??"");
  const payload={
    uid:u.uid,
    name:extra.name??currentSessionUser?.name??u.displayName??old.name??"",
    phone,
    email:u.email||old.email||emailOf(phone),
+   sessionStatus:extra.sessionStatus??old.sessionStatus??"active",
    updatedAt:serverTimestamp()
  };
  await setDoc(uref(u.uid),payload,{merge:true});
+ return payload;
 }
-async function syncLocalSessionToFirestore(){
- if(!auth.currentUser||!currentSessionUser)return;
+async function syncLocalSessionToFirestore(sessionStatus="active"){
+ if(!auth.currentUser||!currentSessionUser)return false;
  try{
-   await saveCloudUser({name:currentSessionUser.name,phone:currentSessionUser.phone});
- }catch(e){console.warn("Rekapinyu: sinkronisasi sesi/foto lokal ke rekapinyu_users gagal.",e)}
+   await saveCloudUser({
+     name:currentSessionUser.name,
+     phone:currentSessionUser.phone,
+     sessionStatus
+   });
+   return true;
+ }catch(e){
+   console.warn("Rekapinyu: sinkronisasi sesi LocalStorage ke rekapinyu_users gagal.",e);
+   return false;
+ }
 }
 function localSession(u){
  const phone=phoneOf(u.phone);
@@ -4811,6 +4838,8 @@ function authErrorMessage(err, mode){
   if(code==="auth/weak-password") return "Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
   if(code==="auth/network-request-failed") return "Koneksi ke Firebase gagal. Periksa internet lalu coba lagi.";
   if(code==="auth/too-many-requests") return "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.";
+  if(code==="rekapinyu/firestore-check-failed") return "Login tertahan karena dokumen rekapinyu_users tidak dapat diperiksa. Periksa koneksi dan aturan Firestore.";
+  if(code==="rekapinyu/user-profile-not-found") return "Akun Firebase belum memiliki data pada rekapinyu_users. Selesaikan pendaftaran akun terlebih dahulu.";
   return mode==="register" ? "Pendaftaran gagal. Periksa koneksi dan pengaturan Firebase Authentication." : "Login gagal. Periksa nomor HP, kata sandi, dan koneksi Firebase.";
 }
 
@@ -4872,12 +4901,28 @@ const rekapinyuAuth={
       const password=document.getElementById("login-password")?.value||"";
       if(!phone||!password){notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.","fa-solid fa-circle-exclamation text-rose-600");return;}
       const credential=await signInWithEmailAndPassword(auth,emailOf(phone),password);
-      let user={uid:credential.user.uid,name:credential.user.displayName||"",phone,email:credential.user.email,photo:""};
+      const userRef=uref(credential.user.uid);
+      let snap;
       try{
-        const snap=await getDoc(uref(credential.user.uid));
-        if(snap.exists())user={...user,...snap.data()};
-      }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
-      localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
+        snap=await getDoc(userRef);
+      }catch(dbErr){
+        try{await signOut(auth)}catch(_){}
+        const e=new Error("Profil akun pada Firestore rekapinyu_users tidak dapat diperiksa.");
+        e.code="rekapinyu/firestore-check-failed";
+        e.cause=dbErr;
+        throw e;
+      }
+      if(!snap.exists()){
+        try{await signOut(auth)}catch(_){}
+        const e=new Error("Akun Firebase berhasil diverifikasi, tetapi dokumen rekapinyu_users belum tersedia.");
+        e.code="rekapinyu/user-profile-not-found";
+        throw e;
+      }
+      const cloudUser=snap.data()||{};
+      const user={uid:credential.user.uid,...cloudUser,name:cloudUser.name||credential.user.displayName||"",phone:phoneOf(cloudUser.phone||phone),email:credential.user.email,photo:""};
+      // LocalStorage adalah sumber sesi login UI. Setelah dibuat, salinan identitas sesi diteruskan ke Firestore.
+      localSession({...user,uid:credential.user.uid,phone:user.phone,email:credential.user.email});
+      await syncLocalSessionToFirestore("active");
       try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
       renderDashboardSession();
       openDashboardAfterLogin();
@@ -4936,14 +4981,17 @@ document.addEventListener("submit",rekapinyuAuthSubmitGuard,true);
 window.__rekapinyuAuthController=rekapinyuAuth;
 
 window.handleLogout=async()=>{
+  const session=currentSessionUser||window.__rekapinyuDashboardSession?.read()||null;
   try{await saveCloudData()}catch{}
   try{
-    if(currentSessionUser){
-      const phone=phoneOf(currentSessionUser.phone);
+    if(session){
+      const phone=phoneOf(session.phone);
       const cover=readLocalCover(phone);
-      upsertRegisteredLocalUser({uid:currentSessionUser.uid,name:currentSessionUser.name,phone,email:currentSessionUser.email||"",password:currentSessionUser.password||undefined,photo:localStorage.getItem(localPhotoKey(phone))||currentSessionUser.photo||"",cover:cover?.src||"",coverX:cover?.x??50,coverY:cover?.y??50});
+      upsertRegisteredLocalUser({uid:session.uid,name:session.name,phone,email:session.email||"",password:session.password||undefined,photo:localStorage.getItem(localPhotoKey(phone))||session.photo||"",cover:cover?.src||"",coverX:cover?.x??50,coverY:cover?.y??50});
+      if(currentSessionUser!==session)currentSessionUser=session;
+      await syncLocalSessionToFirestore("logged_out");
     }
-  }catch{}
+  }catch(e){console.warn("Rekapinyu: sesi logout belum tersinkron ke rekapinyu_users.",e)}
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
   currentSessionUser=null;
   nativeRemove.call(localStorage,"finance_active_session");
