@@ -4354,6 +4354,7 @@ tref=uid=>doc(db,"TransaksiKasir",uid),
 lref=uid=>doc(db,"LaporanKasir",uid),
 aref=uid=>doc(db,"LaporanAktifitas",uid),
 iref=uid=>doc(db,"InputData",uid),
+href=uid=>doc(db,"LaporanHistory",uid),
 kref=uid=>doc(db,"DataKasbon",uid),
 pref=uid=>doc(db,"DataPengeluaran",uid),
 bref=uid=>doc(db,"DataLaporanBulanan",uid),
@@ -4681,6 +4682,7 @@ async function saveCloudData(){
     setDoc(lref(uid),{LaporanKasir:data.laporanKasir,updatedAt:serverTimestamp()},{merge:true}),
     setDoc(aref(uid),{LaporanAktifitas:data.aktivitas,updatedAt:serverTimestamp()},{merge:true}),
     setDoc(iref(uid),{InputData:data.inputData,updatedAt:serverTimestamp()},{merge:true}),
+    setDoc(href(uid),{LaporanHistory:data.inputData,updatedAt:serverTimestamp()},{merge:true}),
     setDoc(kref(uid),{DataKasbon:data.kasbon,updatedAt:serverTimestamp()},{merge:true}),
     setDoc(pref(uid),{DataPengeluaran:data.pengeluaran,updatedAt:serverTimestamp()},{merge:true}),
     setDoc(bref(uid),{DataLaporanBulanan:data.laporanBulanan,updatedAt:serverTimestamp()},{merge:true}),
@@ -4719,6 +4721,10 @@ async function hydrate(uid){
     const aktivitas=actSnap.exists()?actSnap.data()?.LaporanAktifitas:null;
     const input=inputSnap.exists()?inputSnap.data()?.InputData:null;
     const legacyHistory=legacyHistorySnap.exists()?legacyHistorySnap.data()?.LaporanHistory:null;
+    // LaporanHistory selalu mengikuti InputData sebagai mirror canonical History.
+    if(Array.isArray(input)){
+      try{await setDoc(href(uid),{LaporanHistory:input,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn("Rekapinyu: sinkronisasi awal InputData ke LaporanHistory gagal.",e)}
+    }
     const kasbon=kasbonSnap.exists()?kasbonSnap.data()?.DataKasbon:null;
     const pengeluaran=pengeluaranSnap.exists()?pengeluaranSnap.data()?.DataPengeluaran:null;
     const laporanBulanan=laporanBulananSnap.exists()?laporanBulananSnap.data()?.DataLaporanBulanan:null;
