@@ -70,9 +70,38 @@
       }
     </style>
 <style id="rekapinyu-session-gate">
-  html.rk-dashboard-session #auth-container{display:none!important;}
+  html[data-rekapinyu-session="active"] #auth-container{display:none!important;}
   #foto-sampul-toko{touch-action:none;}
 </style>
+<script id="rekapinyu-dashboard-session-gate">
+(function(){
+  const KEY="finance_active_session";
+  function read(){
+    try{
+      const raw=localStorage.getItem(KEY);
+      const data=raw?JSON.parse(raw):null;
+      return data&&typeof data==="object"&&(data.uid||data.phone)?data:null;
+    }catch(_){return null;}
+  }
+  function active(){return !!read();}
+  function paint(){
+    document.documentElement.dataset.rekapinyuSession=active()?"active":"guest";
+  }
+  function showDashboard(session){
+    if(session){
+      try{localStorage.setItem(KEY,JSON.stringify(session));}catch(_){}
+    }
+    document.documentElement.dataset.rekapinyuSession="active";
+    document.getElementById("auth-container")?.classList.add("hidden");
+  }
+  function showLogin(){
+    document.documentElement.dataset.rekapinyuSession="guest";
+    document.getElementById("auth-container")?.classList.remove("hidden");
+  }
+  paint();
+  window.__rekapinyuDashboardSession={read,active,paint,showDashboard,showLogin};
+})();
+</script>
 
 <!-- PATCH LOGIN: desktop full-screen seperti banner referensi, tanpa mengubah markup/event form. -->
 <style>
@@ -2340,7 +2369,7 @@ bind();
 </div>
 <script>
         let registeredUsers = JSON.parse(localStorage.getItem('finance_registered_users') || '[]');
-        let currentSessionUser = null;
+        let currentSessionUser = window.__rekapinyuDashboardSession?.read() || null;
 
         let historyData = [];
         let pengeluaranData = [];
@@ -2477,51 +2506,28 @@ bind();
             });
             localStorage.setItem(`finance_backup_desktop_${currentSessionUser.phone}`, JSON.stringify(backupOtomatisData));
         }
-/* REKAPINYU SESSION RELOAD — SATU IMPLEMENTASI LOKAL */
-function readLocalDashboardSession(){
-    try{
-        const raw=localStorage.getItem('finance_active_session');
-        const data=raw?JSON.parse(raw):null;
-        return data&&typeof data==='object'&&(data.uid||data.phone)?data:null;
-    }catch(_){ return null; }
-}
-function checkAuth(){
-    const authContainer=document.getElementById('auth-container');
-    if(!authContainer)return;
-    if(!currentSessionUser){
-        const local=readLocalDashboardSession();
-        if(local)currentSessionUser=local;
-    }
-    const hasSession=!!currentSessionUser;
-    if(hasSession){
-        document.documentElement.classList.add('rk-dashboard-session');
-        authContainer.classList.add('hidden');
+/* REKAPINYU DASHBOARD SESSION — satu implementasi baru */
+function renderDashboardSession(){
+    const gate=window.__rekapinyuDashboardSession;
+    const session=currentSessionUser||gate?.read()||null;
+    if(session){
+        currentSessionUser=session;
+        gate?.showDashboard(session);
         const nameEl=document.getElementById('sidebar-user-name');
-        if(nameEl)nameEl.innerText=currentSessionUser.name||'';
-        updateUserAvatarUI();
+        if(nameEl)nameEl.innerText=session.name||'';
         try{loadUserData()}catch(_){}
+        try{updateUserAvatarUI()}catch(_){}
         try{window.refreshShopCoverPhoto?.()}catch(_){}
-        return;
+        return true;
     }
-    document.documentElement.classList.remove('rk-dashboard-session');
-    authContainer.classList.remove('hidden');
+    gate?.showLogin();
     historyData=[];
     pengeluaranData=[];
     kasbonData=[];
     backupOtomatisData=[];
+    return false;
 }
-(function initRekapinyuSessionReload(){
-    const local=readLocalDashboardSession();
-    window.__rekapinyuAuthBooting=true;
-    if(local){
-        currentSessionUser=local;
-        document.documentElement.classList.add('rk-dashboard-session');
-        const authContainer=document.getElementById('auth-container');
-        authContainer?.classList.add('hidden');
-    }else{
-        document.documentElement.classList.remove('rk-dashboard-session');
-    }
-})();
+renderDashboardSession();
 
 function updateUserAvatarUI() {
             const avatarContainer = document.getElementById('sidebar-user-avatar-container');
@@ -4883,7 +4889,7 @@ async function firebaseLogin(){
     }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
     localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
     try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
-    checkAuth();
+    renderDashboardSession();
     openDashboardAfterLogin();
     form.reset();
     notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(phone)}!`);
@@ -4911,7 +4917,7 @@ async function firebaseLogin(){
         localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
         try{await hydrate(credential.user.uid)}catch{}
         await syncLocalSessionToFirestore();
-        checkAuth();openDashboardAfterLogin();form.reset();
+        renderDashboardSession();openDashboardAfterLogin();form.reset();
         notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
         return;
       }catch(migrateErr){
@@ -4941,7 +4947,7 @@ window.handleLogout=async()=>{
   try{await signOut(auth)}catch(e){console.warn("Firebase logout:",e)}
   currentSessionUser=null;
   nativeRemove.call(localStorage,"finance_active_session");
-  checkAuth();
+  renderDashboardSession();
   toggleAuthView("login");
 };
 
@@ -5048,8 +5054,7 @@ async function consumeLandingLogin(){
 
 const landingHandoffPromise=consumeLandingLogin();
 
-/* SATU titik penyelesaian auth saat reload.
-   Tidak memanggil checkAuth sebelum Firebase menentukan user. */
+/* REKAPINYU AUTH + DASHBOARD RELOAD — satu titik penyelesaian */
 onAuthStateChanged(auth,async u=>{
   await authReadyPromise;
   await landingHandoffPromise;
@@ -5058,40 +5063,38 @@ onAuthStateChanged(auth,async u=>{
   window.RekapinyuFirebase.uid=u?.uid||null;
 
   if(!u){
-    if(userUnsub){try{userUnsub()}catch{} userUnsub=null;}
-    stopCollectionRealtime();
-    try{window.__rekapinyuStopProdukKasirRealtime?.()}catch{}
-    window.__rekapinyuLandingHandoffActive=false;
-    const local=readLocalDashboardSession();
+    /* Firebase dapat mengembalikan null sesaat saat reload.
+       Selama sesi lokal masih ada, dashboard TIDAK boleh kembali ke login. */
+    const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;
     if(local){
       currentSessionUser=local;
-      window.__rekapinyuAuthBooting=false;
-      document.documentElement.classList.add('rk-dashboard-session');
-      try{photoStore.hydrate(phoneOf(local.phone));}catch{}
-      checkAuth();
-      redraw();
+      try{photoStore.hydrate(phoneOf(local.phone));}catch(_){}
+      renderDashboardSession();
+      try{redraw();}catch(_){}
       return;
     }
-    window.__rekapinyuAuthBooting=false;
     currentSessionUser=null;
-    checkAuth();
+    renderDashboardSession();
     return;
   }
 
   try{
     await hydrate(u.uid);
+    const local=window.__rekapinyuDashboardSession?.read();
+    if(!currentSessionUser && local){currentSessionUser=local;}
     await syncLocalSessionToFirestore();
     realtime(u);
     try{window.__rekapinyuStartProdukKasirRealtime?.()}catch(e){console.warn("Rekapinyu: ProdukKasir realtime belum aktif.",e)}
-    window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBooting=false;
-    checkAuth();
-    redraw();
+    renderDashboardSession();
+    try{redraw();}catch(_){}
   }catch(e){
     console.error("Firebase hydrate:",e);
-    window.__rekapinyuLandingHandoffActive=false;
-    window.__rekapinyuAuthBooting=false;
-    checkAuth();
+    /* Gagal memuat Firestore tidak boleh mengembalikan user yang masih punya sesi ke login. */
+    if(window.__rekapinyuDashboardSession?.read()||currentSessionUser){
+      renderDashboardSession();
+    }else{
+      renderDashboardSession();
+    }
   }
 });
 </script>
