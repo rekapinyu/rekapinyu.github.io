@@ -4624,25 +4624,82 @@ window.__rekapinyuSaveSettingCloud=()=>saveSettingCloud();
 // Compatibility only; menu data is saved through granular Firestore functions above.
 window.__rekapinyuSaveCloudData=()=>Promise.resolve();
 async function hydrate(uid){
-  const us=await getDoc(uref(uid));const u=us.exists()?us.data():{};const phone=phoneOf(u.phone||currentSessionUser?.phone);if(!phone)return;localSession({...u,uid});
-  const [txSnap,laporanKasirSnap,actSnap,inputSnap,historySnap,kasbonSnap,pengeluaranSnap,laporanBulananSnap,backupSnap,settingSnap]=await Promise.all([getDoc(tref(uid)),getDoc(lref(uid)),getDoc(aref(uid)),getDoc(iref(uid)),getDoc(href(uid)),getDoc(kref(uid)),getDoc(pref(uid)),getDoc(bref(uid)),getDoc(oref(uid)),getDoc(sref(uid))]);
+  // Baca profil pengguna terlebih dahulu. Jika dokumen profil gagal dibaca,
+  // jangan menebak data pengguna dari dokumen menu. Tampilkan error aslinya.
+  const us=await getDoc(uref(uid));
+  const u=us.exists()?us.data()||{}:{};
+  const phone=phoneOf(u.phone||currentSessionUser?.phone);
+
+  // Jangan hentikan hydrate hanya karena nomor HP kosong. Data menu
+  // menggunakan UID Firestore dan tetap harus bisa dimuat.
+  localSession({...u,uid});
+
+  // Setiap dokumen menu dibaca secara independen. Kegagalan satu collection
+  // tidak boleh membuat seluruh data pengguna gagal tampil.
+  async function readMenuDoc(ref,label){
+    try{
+      return await getDoc(ref);
+    }catch(err){
+      console.warn(`Rekapinyu: Firestore ${label} gagal dibaca.`,err);
+      return null;
+    }
+  }
+
+  const [txSnap,laporanKasirSnap,actSnap,inputSnap,historySnap,kasbonSnap,pengeluaranSnap,laporanBulananSnap,backupSnap,settingSnap]=await Promise.all([
+    readMenuDoc(tref(uid),'TransaksiKasir'),
+    readMenuDoc(lref(uid),'LaporanKasir'),
+    readMenuDoc(aref(uid),'LaporanAktifitas'),
+    readMenuDoc(iref(uid),'InputData'),
+    readMenuDoc(href(uid),'LaporanHistory'),
+    readMenuDoc(kref(uid),'DataKasbon'),
+    readMenuDoc(pref(uid),'DataPengeluaran'),
+    readMenuDoc(bref(uid),'DataLaporanBulanan'),
+    readMenuDoc(oref(uid),'LaporanBackupOtomatis'),
+    readMenuDoc(sref(uid),'Setting')
+  ]);
+
   applyingFirestoreRealtime=true;
   try{
-    const tx=txSnap.exists()&&Array.isArray(txSnap.data()?.TransaksiKasir)?txSnap.data().TransaksiKasir:[];
-    const laporanKasir=laporanKasirSnap.exists()&&Array.isArray(laporanKasirSnap.data()?.LaporanKasir)?laporanKasirSnap.data().LaporanKasir:[];
-    const aktivitas=actSnap.exists()&&Array.isArray(actSnap.data()?.LaporanAktifitas)?actSnap.data().LaporanAktifitas:[];
-    const input=inputSnap.exists()&&Array.isArray(inputSnap.data()?.InputData)?inputSnap.data().InputData:[];
-    const kasbon=kasbonSnap.exists()&&Array.isArray(kasbonSnap.data()?.DataKasbon)?kasbonSnap.data().DataKasbon:[];
-    const pengeluaran=pengeluaranSnap.exists()&&Array.isArray(pengeluaranSnap.data()?.DataPengeluaran)?pengeluaranSnap.data().DataPengeluaran:[];
-    const laporanBulanan=laporanBulananSnap.exists()&&Array.isArray(laporanBulananSnap.data()?.DataLaporanBulanan)?laporanBulananSnap.data().DataLaporanBulanan:[];
-    const backup=backupSnap.exists()&&Array.isArray(backupSnap.data()?.LaporanBackupOtomatis)?backupSnap.data().LaporanBackupOtomatis:[];
-    const sd=settingSnap.exists()?settingSnap.data()||{}:{};
-    window.__rekapinyuKasirTransactionsRealtime=tx;window.__rekapinyuLaporanKasirRealtime=laporanKasir;window.__rekapinyuActivityData=aktivitas;window.__rekapinyuDataLaporanBulanan=laporanBulanan;
-    window.__rekapinyuSettingData={SettingStruk:sd.SettingStruk&&typeof sd.SettingStruk==='object'?sd.SettingStruk:{},SettingPrinter:sd.SettingPrinter&&typeof sd.SettingPrinter==='object'?sd.SettingPrinter:{...SETTING_DEFAULTS.SettingPrinter},SettingKasir:sd.SettingKasir&&typeof sd.SettingKasir==='object'?sd.SettingKasir:{...SETTING_DEFAULTS.SettingKasir},invoiceCounter:Number(sd.invoiceCounter)||0};
-    historyData=input;pengeluaranData=pengeluaran;kasbonData=kasbon;backupOtomatisData=backup;window.__rekapinyuProdukKasirLoaded=false;window.__rekapinyuSetActivityData?.(aktivitas);
-  }finally{applyingFirestoreRealtime=false;}
-  loadUserData();photoStore.hydrate(phone);try{window.refreshShopCoverPhoto?.()}catch{}try{updateUserAvatarUI?.()}catch{}
+    const tx=txSnap?.exists()&&Array.isArray(txSnap.data()?.TransaksiKasir)?txSnap.data().TransaksiKasir:[];
+    const laporanKasir=laporanKasirSnap?.exists()&&Array.isArray(laporanKasirSnap.data()?.LaporanKasir)?laporanKasirSnap.data().LaporanKasir:[];
+    const aktivitas=actSnap?.exists()&&Array.isArray(actSnap.data()?.LaporanAktifitas)?actSnap.data().LaporanAktifitas:[];
+    const input=inputSnap?.exists()&&Array.isArray(inputSnap.data()?.InputData)?inputSnap.data().InputData:[];
+    const kasbon=kasbonSnap?.exists()&&Array.isArray(kasbonSnap.data()?.DataKasbon)?kasbonSnap.data().DataKasbon:[];
+    const pengeluaran=pengeluaranSnap?.exists()&&Array.isArray(pengeluaranSnap.data()?.DataPengeluaran)?pengeluaranSnap.data().DataPengeluaran:[];
+    const laporanBulanan=laporanBulananSnap?.exists()&&Array.isArray(laporanBulananSnap.data()?.DataLaporanBulanan)?laporanBulananSnap.data().DataLaporanBulanan:[];
+    const backup=backupSnap?.exists()&&Array.isArray(backupSnap.data()?.LaporanBackupOtomatis)?backupSnap.data().LaporanBackupOtomatis:[];
+    const sd=settingSnap?.exists()?settingSnap.data()||{}:{};
+
+    window.__rekapinyuKasirTransactionsRealtime=tx;
+    window.__rekapinyuLaporanKasirRealtime=laporanKasir;
+    window.__rekapinyuActivityData=aktivitas;
+    window.__rekapinyuDataLaporanBulanan=laporanBulanan;
+    window.__rekapinyuSettingData={
+      SettingStruk:sd.SettingStruk&&typeof sd.SettingStruk==='object'?sd.SettingStruk:{},
+      SettingPrinter:sd.SettingPrinter&&typeof sd.SettingPrinter==='object'?sd.SettingPrinter:{...SETTING_DEFAULTS.SettingPrinter},
+      SettingKasir:sd.SettingKasir&&typeof sd.SettingKasir==='object'?sd.SettingKasir:{...SETTING_DEFAULTS.SettingKasir},
+      invoiceCounter:Number(sd.invoiceCounter)||0
+    };
+
+    historyData=input;
+    pengeluaranData=pengeluaran;
+    kasbonData=kasbon;
+    backupOtomatisData=backup;
+    window.__rekapinyuProdukKasirLoaded=false;
+    window.__rekapinyuSetActivityData?.(aktivitas);
+  }finally{
+    applyingFirestoreRealtime=false;
+  }
+
+  loadUserData();
+  // Foto tetap mengikuti sistem LocalStorage yang sudah ada.
+  if(phone){
+    photoStore.hydrate(phone);
+    try{window.refreshShopCoverPhoto?.()}catch{}
+  }
+  try{updateUserAvatarUI?.()}catch{}
 }
+
 function redraw(){try{loadUserData()}catch{}try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{}try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{}try{renderKasbonGrid?.()}catch{}try{populateBackupFilters?.();renderBackupGrid?.()}catch{}try{window.__initKasirViews?.()}catch{}try{window.__renderLaporanKasir?.()}catch{}try{renderMobileAdminSummary?.()}catch{}try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
 
 // Sesi login/logout: sumber sesi tetap LocalStorage, lalu salinan identitas sesi dikirim ke rekapinyu_users.
