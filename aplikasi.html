@@ -4563,21 +4563,19 @@ async function saveProdukKasir(products){
   const firestoreProducts=prepared.map((p,i)=>produkKasirToFirestore(p,i));
   const kasirRef=doc(db,"Kasir",user.uid);
 
-  await enqueue(()=>setDoc(kasirRef,{
+  /* ProdukKasir memakai jalur write khusus agar tombol Tambah Produk tidak
+     ikut menunggu antrean penyimpanan menu lain. Realtime onSnapshot tetap
+     menjadi sumber sinkronisasi setelah write berhasil. */
+  await setDoc(kasirRef,{
     ProdukKasir:firestoreProducts,
     NomorHp:currentPhone(),
     updatedAt:serverTimestamp()
-  },{merge:true}));
+  },{merge:true});
 
-  const verify=await getDoc(kasirRef);
-  if(!verify.exists())throw new Error("Dokumen Kasir tidak ditemukan setelah penyimpanan.");
-  const saved=verify.data()?.ProdukKasir;
-  if(!Array.isArray(saved))throw new Error("Field ProdukKasir tidak terbentuk sebagai Array di Firestore.");
-  if(saved.length!==firestoreProducts.length){
-    throw new Error(`Jumlah ProdukKasir di Firestore tidak sesuai (${saved.length}/${firestoreProducts.length}).`);
-  }
-
-  const result=saved.map((p,i)=>produkKasirFromFirestore(p,i));
+  /* Tidak melakukan getDoc kedua setelah setDoc. Write Firestore yang sukses
+     sudah menjadi sumber data; listener realtime akan mengirim hasil yang sama
+     kembali ke aplikasi. */
+  const result=firestoreProducts.map((p,i)=>produkKasirFromFirestore(p,i));
   window.__rekapinyuProdukKasirData=result;
   return result;
 }
