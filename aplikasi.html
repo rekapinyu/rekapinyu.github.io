@@ -4611,7 +4611,7 @@ async function saveHistoryCloud(){const uid=cloudUid();if(!uid)return Promise.re
 async function savePengeluaranCloud(){const uid=cloudUid();if(!uid)return Promise.resolve();return enqueueFirestoreTask(()=>setDoc(pref(uid),{DataPengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[],updatedAt:serverTimestamp()},{merge:true}));}
 async function saveKasbonCloud(){const uid=cloudUid();if(!uid)return Promise.resolve();return enqueueFirestoreTask(()=>setDoc(kref(uid),{DataKasbon:Array.isArray(kasbonData)?kasbonData:[],updatedAt:serverTimestamp()},{merge:true}));}
 async function saveBackupCloud(){const uid=cloudUid();if(!uid)return Promise.resolve();return enqueueFirestoreTask(()=>setDoc(oref(uid),{LaporanBackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],updatedAt:serverTimestamp()},{merge:true}));}
-async function saveKasirTransactionsCloud(data){const uid=cloudUid();if(!uid)return Promise.resolve();const tx=Array.isArray(data)?data:[];window.__rekapinyuKasirTransactionsRealtime=tx;return enqueueFirestoreTask(()=>Promise.all([setDoc(tref(uid),{TransaksiKasir:tx,updatedAt:serverTimestamp()},{merge:true}),setDoc(lref(uid),{LaporanKasir:tx,updatedAt:serverTimestamp()},{merge:true})]));}
+async function saveKasirTransactionsCloud(data){const uid=cloudUid();if(!uid)return Promise.resolve();const tx=Array.isArray(data)?data:[];window.__rekapinyuKasirTransactionsRealtime=tx;return enqueueFirestoreTask(()=>setDoc(tref(uid),{LaporanKasir:tx},{merge:true}));}
 async function saveActivityCloud(){const uid=cloudUid();if(!uid)return Promise.resolve();return enqueueFirestoreTask(()=>setDoc(aref(uid),{LaporanAktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],updatedAt:serverTimestamp()},{merge:true}));}
 async function saveSettingCloud(){const uid=cloudUid();if(!uid)return Promise.resolve();const s=window.__rekapinyuSettingData||SETTING_DEFAULTS;return enqueueFirestoreTask(()=>setDoc(sref(uid),{SettingStruk:s.SettingStruk||{},SettingPrinter:s.SettingPrinter||SETTING_DEFAULTS.SettingPrinter,SettingKasir:s.SettingKasir||SETTING_DEFAULTS.SettingKasir,invoiceCounter:Number(s.invoiceCounter)||0,updatedAt:serverTimestamp()},{merge:true}));}
 window.__rekapinyuSaveHistoryCloud=()=>saveHistoryCloud();
@@ -4645,7 +4645,7 @@ async function hydrate(uid){
     }
   }
 
-  const [txSnap,laporanKasirSnap,actSnap,inputSnap,historySnap,kasbonSnap,pengeluaranSnap,laporanBulananSnap,backupSnap,settingSnap]=await Promise.all([
+  const [kasirSnap,laporanKasirSnap,actSnap,inputSnap,historySnap,kasbonSnap,pengeluaranSnap,laporanBulananSnap,backupSnap,settingSnap]=await Promise.all([
     readMenuDoc(tref(uid),'TransaksiKasir'),
     readMenuDoc(lref(uid),'LaporanKasir'),
     readMenuDoc(aref(uid),'LaporanAktifitas'),
@@ -4660,8 +4660,10 @@ async function hydrate(uid){
 
   applyingFirestoreRealtime=true;
   try{
-    const tx=txSnap?.exists()&&Array.isArray(txSnap.data()?.TransaksiKasir)?txSnap.data().TransaksiKasir:[];
-    const laporanKasir=laporanKasirSnap?.exists()&&Array.isArray(laporanKasirSnap.data()?.LaporanKasir)?laporanKasirSnap.data().LaporanKasir:[];
+    const kasirData=kasirSnap?.exists()?kasirSnap.data()||{}:{};
+    const legacyTx=Array.isArray(kasirData?.TransaksiKasir)?kasirData.TransaksiKasir:[];
+    const tx=Array.isArray(kasirData?.LaporanKasir)?kasirData.LaporanKasir:legacyTx;
+    const laporanKasir=Array.isArray(kasirData?.LaporanKasir)?kasirData.LaporanKasir:(laporanKasirSnap?.exists()&&Array.isArray(laporanKasirSnap.data()?.LaporanKasir)?laporanKasirSnap.data().LaporanKasir:legacyTx);
     const aktivitas=actSnap?.exists()&&Array.isArray(actSnap.data()?.LaporanAktifitas)?actSnap.data().LaporanAktifitas:[];
     const input=inputSnap?.exists()&&Array.isArray(inputSnap.data()?.InputData)?inputSnap.data().InputData:[];
     const kasbon=kasbonSnap?.exists()&&Array.isArray(kasbonSnap.data()?.DataKasbon)?kasbonSnap.data().DataKasbon:[];
@@ -4805,8 +4807,7 @@ const rekapinyuAuth={
         try{
           await setDoc(uref(credential.user.uid),{...userData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
           await Promise.all([
-            setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-            setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
+            setDoc(tref(credential.user.uid),{ProdukKasir:[],StokKasir:[],LaporanKasir:[]},{merge:true}),
             setDoc(aref(credential.user.uid),{LaporanAktifitas:[],updatedAt:serverTimestamp()},{merge:true}),
             setDoc(iref(credential.user.uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
             setDoc(kref(credential.user.uid),{DataKasbon:[],updatedAt:serverTimestamp()},{merge:true}),
@@ -4874,8 +4875,7 @@ const rekapinyuAuth={
             try{
               await setDoc(uref(credential.user.uid),{uid:credential.user.uid,name:legacy.name||"",phone:legacyPhone,email:credential.user.email,migratedFromLegacy:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
               await Promise.all([
-                setDoc(tref(credential.user.uid),{TransaksiKasir:[],updatedAt:serverTimestamp()},{merge:true}),
-                setDoc(lref(credential.user.uid),{LaporanKasir:[],updatedAt:serverTimestamp()},{merge:true}),
+                setDoc(tref(credential.user.uid),{ProdukKasir:[],StokKasir:[],LaporanKasir:[]},{merge:true}),
                 setDoc(iref(credential.user.uid),{InputData:[],updatedAt:serverTimestamp()},{merge:true}),
                 setDoc(href(credential.user.uid),{LaporanHistory:[],updatedAt:serverTimestamp()},{merge:true}),
                 setDoc(pref(credential.user.uid),{DataPengeluaran:[],updatedAt:serverTimestamp()},{merge:true}),
@@ -4955,8 +4955,6 @@ function realtimeCollections(u){
     },err=>console.warn(`Rekapinyu: realtime ${label} gagal.`,err));
     collectionUnsubs.push(unsub);
   };
-  listen(tref(u.uid),'TransaksiKasir',value=>{window.__rekapinyuKasirTransactionsRealtime=value;try{window.__initKasirViews?.()}catch{}},'TransaksiKasir');
-  listen(lref(u.uid),'LaporanKasir',value=>{window.__rekapinyuLaporanKasirRealtime=value;try{window.__renderLaporanKasir?.()}catch{}},'LaporanKasir');
   listen(aref(u.uid),'LaporanAktifitas',value=>{window.__rekapinyuSetActivityData?.(value);},'LaporanAktifitas');
   listen(iref(u.uid),'InputData',value=>{historyData=value;window.__rekapinyuDataLaporanBulanan=buildLaporanBulanan(value);try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{}},'InputData');
   listen(href(u.uid),'LaporanHistory',()=>{},'LaporanHistory');
@@ -5041,8 +5039,9 @@ onAuthStateChanged(auth,async u=>{
     const local=window.__rekapinyuDashboardSession?.read();
     if(!currentSessionUser && local){currentSessionUser=local;}
     await syncLocalSessionToFirestore();
+    try{await window.__rekapinyuMigrateKasirStructure?.()}catch(e){console.warn("Rekapinyu: migrasi Menu Kasir belum selesai.",e)}
     realtime(u);
-    try{window.__rekapinyuStartProdukKasirRealtime?.()}catch(e){console.warn("Rekapinyu: ProdukKasir realtime belum aktif.",e)}
+    try{window.__rekapinyuStartProdukKasirRealtime?.()}catch(e){console.warn("Rekapinyu: TransaksiKasir realtime belum aktif.",e)}
     renderDashboardSession();
     try{redraw();}catch(_){}
   }catch(e){
@@ -5057,38 +5056,34 @@ onAuthStateChanged(auth,async u=>{
 });
 </script>
 <script>
-/* REKAPINYU: CLOUD PRODUK + STOK KASIR — PRODUK dan STOK dipisah, per UID, realtime */
+/* REKAPINYU: MENU KASIR — SATU DOKUMEN FIRESTORE PER UID
+   Collection : TransaksiKasir
+   Document   : {UID}
+   Fields     : ProdukKasir, StokKasir, LaporanKasir
+   Data lama tidak dihapus; hanya dimigrasikan ke struktur baru dan fungsi aktif diarahkan ke dokumen ini. */
 (function(){
   function api(){
     const f=window.RekapinyuFirebase;
     return f?{auth:f.auth,fs:f.firestoreApi,st:f.storageApi}:null;
   }
-  function currentUid(){
-    return api()?.auth?.currentUser?.uid||null;
-  }
+  function currentUid(){return api()?.auth?.currentUser?.uid||null;}
   function cacheKey(prefix){
     const uid=currentUid()||String(currentSessionUser?.phone||'default');
     return `${prefix}_${String(uid).replace(/\D/g,'')||'default'}`;
   }
-  async function dataUriToBlob(src){
-    const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);
-    if(!m)return null;
-    const bin=atob(m[2]),bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-    return new Blob([bytes],{type:m[1]||'image/jpeg'});
-  }
   function normalizeStockRow(p){
-    return {
-      id:String(p?.id??''),
-      stock:Math.max(0,Number(p?.stock)||0),
-      manualStock:Math.max(0,Number(p?.manualStock??p?.stock)||0)
-    };
+    return {id:String(p?.id??''),stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.manualStock??p?.stock)||0)};
   }
   function stockRowsFromProducts(products){
-    return (Array.isArray(products)?products:[])
-      .map(normalizeStockRow)
-      .filter(x=>x.id);
+    return (Array.isArray(products)?products:[]).map(normalizeStockRow).filter(x=>x.id);
   }
+  function cleanProduct(p){
+    const x={...(p||{})};
+    delete x.stock;
+    delete x.manualStock;
+    return x;
+  }
+  function cleanProducts(products){return (Array.isArray(products)?products:[]).map(cleanProduct);}
   function mergeStocks(products,stocks){
     const map=new Map((Array.isArray(stocks)?stocks:[]).map(normalizeStockRow).filter(x=>x.id).map(x=>[x.id,x]));
     return (Array.isArray(products)?products:[]).map(p=>{
@@ -5096,6 +5091,67 @@ onAuthStateChanged(auth,async u=>{
       if(!st)return {...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.manualStock??p?.stock)||0)};
       return {...p,stock:st.stock,manualStock:st.manualStock};
     });
+  }
+
+  async function dataUriToBlob(src){
+    const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);
+    if(!m)return null;
+    const bin=atob(m[2]),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new Blob([bytes],{type:m[1]||'image/jpeg'});
+  }
+
+  /* Migrasi sekali per pengguna:
+     ProdukKasir/{uid} -> TransaksiKasir/{uid}.ProdukKasir
+     StokProduk/{uid}   -> TransaksiKasir/{uid}.StokKasir
+     LaporanKasir/{uid} -> TransaksiKasir/{uid}.LaporanKasir
+     TransaksiKasir/{uid}.TransaksiKasir lama -> LaporanKasir jika field baru belum ada. */
+  async function migrateKasirStructure(){
+    const a=api(),uid=currentUid();
+    if(!a||!uid)return null;
+    try{
+      const targetRef=a.fs.doc('TransaksiKasir',uid);
+      const [targetSnap,oldProdukSnap,oldStokSnap,oldLaporanSnap]=await Promise.all([
+        a.fs.getDoc(targetRef),
+        a.fs.getDoc(a.fs.doc('ProdukKasir',uid)),
+        a.fs.getDoc(a.fs.doc('StokProduk',uid)),
+        a.fs.getDoc(a.fs.doc('LaporanKasir',uid))
+      ]);
+      const target=targetSnap.exists()?targetSnap.data()||{}:{};
+      const oldProduk=oldProdukSnap.exists()&&Array.isArray(oldProdukSnap.data()?.ProdukKasir)?oldProdukSnap.data().ProdukKasir:[];
+      const oldStok=oldStokSnap.exists()&&Array.isArray(oldStokSnap.data()?.StokProduk)?oldStokSnap.data().StokProduk:[];
+      const oldLaporan=oldLaporanSnap.exists()&&Array.isArray(oldLaporanSnap.data()?.LaporanKasir)?oldLaporanSnap.data().LaporanKasir:[];
+      const legacyTx=Array.isArray(target.TransaksiKasir)?target.TransaksiKasir:[];
+      const products=Array.isArray(target.ProdukKasir)?target.ProdukKasir:(oldProduk.length?oldProduk:[]);
+      const stocks=Array.isArray(target.StokKasir)?target.StokKasir:(oldStok.length?oldStok:stockRowsFromProducts(products));
+      const laporan=Array.isArray(target.LaporanKasir)?target.LaporanKasir:(oldLaporan.length?oldLaporan:legacyTx);
+      const payload={ProdukKasir:cleanProducts(products),StokKasir:stockRowsFromProducts(stocks),LaporanKasir:Array.isArray(laporan)?laporan:[]};
+      await a.fs.setDoc(targetRef,payload); // sengaja menormalkan dokumen target menjadi tepat 3 field utama
+      window.__rekapinyuProdukKasirData=mergeStocks(payload.ProdukKasir,payload.StokKasir);
+      window.__rekapinyuStokKasirData=payload.StokKasir;
+      window.__rekapinyuKasirTransactionsRealtime=payload.LaporanKasir;
+      window.__rekapinyuLaporanKasirRealtime=payload.LaporanKasir;
+      window.__rekapinyuProdukKasirLoaded=true;
+      window.__rekapinyuStokKasirLoaded=true;
+      try{localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(window.__rekapinyuProdukKasirData));}catch{}
+      return payload;
+    }catch(e){
+      console.warn('Rekapinyu: migrasi struktur Menu Kasir gagal.',e);
+      return null;
+    }
+  }
+  window.__rekapinyuMigrateKasirStructure=migrateKasirStructure;
+
+  async function saveKasirState(products,stocks){
+    const a=api(),uid=currentUid();
+    if(!a||!uid)throw new Error('Sesi Firebase pengguna belum siap.');
+    const rows=stockRowsFromProducts(stocks||products);
+    const payloadProducts=cleanProducts(products);
+    await a.fs.setDoc(a.fs.doc('TransaksiKasir',uid),{
+      ProdukKasir:payloadProducts,
+      StokKasir:rows
+    },{merge:true});
+    return {products:payloadProducts,stocks:rows};
   }
 
   async function saveProdukKasir(products){
@@ -5114,13 +5170,15 @@ onAuthStateChanged(auth,async u=>{
           }catch(err){console.warn('Upload foto produk gagal:',err);}
         }
       }
-      payload.push(p);
+      payload.push(cleanProduct(p));
     }
-    await a.fs.setDoc(a.fs.doc('ProdukKasir',uid),{
+    const stocks=Array.isArray(window.__rekapinyuStokKasirData)&&window.__rekapinyuStokKasirData.length
+      ?window.__rekapinyuStokKasirData:stockRowsFromProducts(source);
+    await a.fs.setDoc(a.fs.doc('TransaksiKasir',uid),{
       ProdukKasir:payload,
-      updatedAt:a.fs.serverTimestamp()
+      StokKasir:stockRowsFromProducts(stocks)
     },{merge:true});
-    return payload;
+    return mergeStocks(payload,stocks);
   }
   window.__rekapinyuSaveProdukKasir=saveProdukKasir;
 
@@ -5128,135 +5186,86 @@ onAuthStateChanged(auth,async u=>{
     const a=api(),uid=currentUid();
     if(!a||!uid)return null;
     try{
-      const snap=await a.fs.getDoc(a.fs.doc('ProdukKasir',uid));
-      const value=snap.exists()?snap.data()?.ProdukKasir:null;
-      return Array.isArray(value)?value:null;
-    }catch(e){
-      console.warn('Rekapinyu: ProdukKasir gagal dimuat.',e);
-      return null;
-    }
+      const snap=await a.fs.getDoc(a.fs.doc('TransaksiKasir',uid));
+      if(!snap.exists())return null;
+      const d=snap.data()||{};
+      const products=Array.isArray(d.ProdukKasir)?d.ProdukKasir:[];
+      const stocks=Array.isArray(d.StokKasir)?d.StokKasir:[];
+      window.__rekapinyuStokKasirData=stocks.map(normalizeStockRow).filter(x=>x.id);
+      return mergeStocks(products,window.__rekapinyuStokKasirData);
+    }catch(e){console.warn('Rekapinyu: TransaksiKasir ProdukKasir gagal dimuat.',e);return null;}
   };
 
-  /* =========================
-     STOK PRODUK — FIRESTORE
-     Collection : StokProduk
-     Document   : StokProduk/{uid}
-     Field      : StokProduk = [{id,stock,manualStock}]
-     ========================= */
-  async function saveStokProduk(stocksOrProducts){
+  async function saveStokKasir(stocksOrProducts){
     const a=api(),uid=currentUid();
     if(!a||!uid)throw new Error('Sesi Firebase pengguna belum siap.');
     const rows=stockRowsFromProducts(stocksOrProducts);
-    await a.fs.setDoc(a.fs.doc('StokProduk',uid),{
-      StokProduk:rows,
-      updatedAt:a.fs.serverTimestamp()
+    await a.fs.setDoc(a.fs.doc('TransaksiKasir',uid),{
+      StokKasir:rows
     },{merge:true});
+    window.__rekapinyuStokKasirData=rows;
     return rows;
   }
-  window.__rekapinyuSaveStokProduk=saveStokProduk;
+  window.__rekapinyuSaveStokKasir=saveStokKasir;
+  /* Alias kompatibilitas agar bagian aplikasi lama tidak memecahkan transaksi. */
+  window.__rekapinyuSaveStokProduk=saveStokKasir;
 
-  window.__rekapinyuLoadStokProduk=async function(){
+  window.__rekapinyuLoadStokKasir=async function(){
     const a=api(),uid=currentUid();
     if(!a||!uid)return null;
     try{
-      const snap=await a.fs.getDoc(a.fs.doc('StokProduk',uid));
+      const snap=await a.fs.getDoc(a.fs.doc('TransaksiKasir',uid));
       if(!snap.exists())return null;
-      const value=snap.data()?.StokProduk;
-      return Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
-    }catch(e){
-      console.warn('Rekapinyu: StokProduk gagal dimuat.',e);
-      return null;
-    }
+      const value=snap.data()?.StokKasir;
+      const rows=Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
+      window.__rekapinyuStokKasirData=rows;
+      return rows;
+    }catch(e){console.warn('Rekapinyu: StokKasir gagal dimuat.',e);return null;}
   };
+  window.__rekapinyuLoadStokProduk=window.__rekapinyuLoadStokKasir;
 
   window.__rekapinyuStartProdukKasirRealtime=function(){
     const a=api(),uid=currentUid();
     if(!a||!uid)return;
     window.__rekapinyuStopProdukKasirRealtime?.();
-
-    /* Produk master realtime */
     window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(
-      a.fs.doc('ProdukKasir',uid),
+      a.fs.doc('TransaksiKasir',uid),
       snap=>{
-        if(!snap.exists())return;
-        const value=Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];
-        window.__rekapinyuProdukKasirLoadedFromCloud=true;
-        window.__rekapinyuProdukKasirData=value;
         try{
-          localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(value));
-        }catch{}
-        try{
-          window.__rekapinyuSetProdukKasirData?.(value);
-          window.__initKasirViews?.();
-        }catch{}
-      },
-      err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err)
-    );
-
-    /* Stok realtime — sumber kebenaran stok */
-    window.__rekapinyuStokProdukUnsub=a.fs.onSnapshot(
-      a.fs.doc('StokProduk',uid),
-      async snap=>{
-        try{
-          let stocks=[];
-          if(snap.exists()&&Array.isArray(snap.data()?.StokProduk)){
-            stocks=snap.data().StokProduk.map(normalizeStockRow).filter(x=>x.id);
-          }else{
-            /* Dokumen stok baru: migrasi stok lama satu kali dari ProdukKasir. */
-            const products=Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
-            if(products.length){
-              stocks=stockRowsFromProducts(products);
-              await saveStokProduk(stocks);
-            }
-          }
-
-          window.__rekapinyuStokProdukData=stocks;
-          window.__rekapinyuStokProdukLoaded=true;
-          try{localStorage.setItem(cacheKey('rekapinyu_stok_produk_cache'),JSON.stringify(stocks));}catch{}
-
-          const merged=mergeStocks(
-            Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[],
-            stocks
-          );
-          window.__rekapinyuProdukKasirData=merged;
+          const d=snap.exists()?snap.data()||{}:{};
+          const products=Array.isArray(d.ProdukKasir)?d.ProdukKasir:[];
+          const stocks=Array.isArray(d.StokKasir)?d.StokKasir.map(normalizeStockRow).filter(x=>x.id):[];
+          const laporan=Array.isArray(d.LaporanKasir)?d.LaporanKasir:(Array.isArray(d.TransaksiKasir)?d.TransaksiKasir:[]);
+          window.__rekapinyuStokKasirData=stocks;
+          window.__rekapinyuProdukKasirData=mergeStocks(products,stocks);
+          window.__rekapinyuKasirTransactionsRealtime=laporan;
+          window.__rekapinyuLaporanKasirRealtime=laporan;
           window.__rekapinyuProdukKasirLoaded=true;
-          try{localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(merged));}catch{}
-          try{
-            window.__rekapinyuSetProdukKasirData?.(merged);
-            window.__rekapinyuSetStokProdukData?.(stocks);
-            window.__initKasirViews?.();
-            window.__rekapinyuRefreshProdukKasir?.(merged);
-          }catch{}
-        }catch(e){
-          console.warn('Rekapinyu: realtime StokProduk gagal diproses.',e);
-        }
+          window.__rekapinyuStokKasirLoaded=true;
+          try{localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(window.__rekapinyuProdukKasirData));}catch{}
+          try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData);window.__initKasirViews?.();window.__renderLaporanKasir?.();}catch{}
+        }catch(e){console.warn('Rekapinyu: realtime TransaksiKasir gagal diproses.',e);}
       },
-      err=>console.warn('Rekapinyu: realtime StokProduk gagal.',err)
+      err=>console.warn('Rekapinyu: realtime TransaksiKasir gagal.',err)
     );
   };
 
-  window.__rekapinyuSetStokProdukData=window.__rekapinyuSetStokProdukData||function(value){
-    window.__rekapinyuStokProdukData=Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
-    window.__rekapinyuStokProdukLoaded=true;
+  window.__rekapinyuSetStokKasirData=window.__rekapinyuSetStokKasirData||function(value){
+    window.__rekapinyuStokKasirData=Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
+    window.__rekapinyuStokKasirLoaded=true;
   };
+  window.__rekapinyuSetStokProdukData=window.__rekapinyuSetStokKasirData;
 
   window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){
     const products=Array.isArray(value)?value:[];
-    const stocks=Array.isArray(window.__rekapinyuStokProdukData)?window.__rekapinyuStokProdukData:[];
+    const stocks=Array.isArray(window.__rekapinyuStokKasirData)?window.__rekapinyuStokKasirData:[];
     window.__rekapinyuProdukKasirData=stocks.length?mergeStocks(products,stocks):products;
     window.__rekapinyuProdukKasirLoaded=true;
     try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData);}catch{}
   };
 
   window.__rekapinyuStopProdukKasirRealtime=function(){
-    if(window.__rekapinyuProdukKasirUnsub){
-      try{window.__rekapinyuProdukKasirUnsub()}catch{}
-      window.__rekapinyuProdukKasirUnsub=null;
-    }
-    if(window.__rekapinyuStokProdukUnsub){
-      try{window.__rekapinyuStokProdukUnsub()}catch{}
-      window.__rekapinyuStokProdukUnsub=null;
-    }
+    if(window.__rekapinyuProdukKasirUnsub){try{window.__rekapinyuProdukKasirUnsub()}catch{}window.__rekapinyuProdukKasirUnsub=null;}
   };
 })();
 </script>
@@ -5799,7 +5808,7 @@ onAuthStateChanged(auth,async u=>{
   function money(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function produkKasirCacheKey(){const raw=String(currentSessionUser?.phone||window.RekapinyuFirebase?.auth?.currentUser?.uid||'default');return 'rekapinyu_produk_kasir_cache_'+raw.replace(/\D/g,'')||'rekapinyu_produk_kasir_cache_default'}
   function read(){return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];}
-  function write(){products=products.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}try{const r=window.__rekapinyuSaveProdukKasir?.(products);Promise.resolve(r).then(cloud=>{if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}render();try{window.__initKasirViews?.()}catch{}}}).catch(err=>console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',e)}try{const sr=window.__rekapinyuSaveStokProduk?.(products);Promise.resolve(sr).catch(err=>console.warn('Rekapinyu: StokProduk gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: StokProduk gagal disimpan ke Firestore.',e)}}
+  function write(){products=products.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}try{const r=window.__rekapinyuSaveProdukKasir?.(products);Promise.resolve(r).then(cloud=>{if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}render();try{window.__initKasirViews?.()}catch{}}}).catch(err=>console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',e)}try{const sr=window.__rekapinyuSaveStokKasir?.(products);Promise.resolve(sr).catch(err=>console.warn('Rekapinyu: StokProduk gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: StokProduk gagal disimpan ke Firestore.',e)}}
   function num(id){return Number(String($(id)?.value||'').replace(/\D/g,''))||0}
   function uid(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
   function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,' ')}
@@ -5902,7 +5911,7 @@ onAuthStateChanged(auth,async u=>{
     window.__rekapinyuProdukKasirData=kasirProducts;
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
     try{window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan.',e)}
-    try{window.__rekapinyuSaveStokProduk?.(kasirProducts)}catch(e){console.warn('Rekapinyu: StokProduk gagal disimpan.',e)}
+    try{window.__rekapinyuSaveStokKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: StokProduk gagal disimpan.',e)}
     try{window.__rekapinyuSaveKasirTransactionsCloud?.(kasirTransactions)}catch(e){console.warn('Rekapinyu: TransaksiKasir gagal disimpan.',e)}
   }
   window.__rekapinyuSetKasirTransactionsRealtime=function(value){kasirTransactions=Array.isArray(value)?value:[];window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;try{renderTransactions()}catch{}}
@@ -6111,8 +6120,8 @@ function initKasirViews(){
 
     /* Simpan stok final ke Firestore sebelum transaksi dianggap selesai. */
     try{
-      const saved=await window.__rekapinyuSaveStokProduk?.(kasirProducts);
-      if(!Array.isArray(saved))throw new Error('Stok StokProduk tidak berhasil disimpan ke Firestore.');
+      const saved=await window.__rekapinyuSaveStokKasir?.(kasirProducts);
+      if(!Array.isArray(saved))throw new Error('StokKasir tidak berhasil disimpan ke Firestore.');
       const stockMap=new Map(saved.map(x=>[String(x.id),x]));
       kasirProducts=kasirProducts.map(p=>{const st=stockMap.get(String(p.id));return st?{...p,stock:Math.max(0,Number(st.stock)||0),manualStock:Math.max(0,Number(st.manualStock)||0)}:p;});
       window.__rekapinyuProdukKasirData=kasirProducts;
@@ -6122,7 +6131,7 @@ function initKasirViews(){
       updates.forEach(({product,before})=>{product.stock=before;product.manualStock=before});
       window.__rekapinyuProdukKasirData=kasirProducts;
       renderKasirProducts();
-      showModal('Gagal','Transaksi belum diselesaikan karena StokProduk gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
+      showModal('Gagal','Transaksi belum diselesaikan karena StokKasir gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
       return false;
     }
 
