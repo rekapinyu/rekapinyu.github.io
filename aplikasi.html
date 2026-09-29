@@ -4329,6 +4329,7 @@ const refs={pengguna:null,kasir:null,rekap:null};
 const refCache=new Map();
 let cloudSaveChain=Promise.resolve();
 let applyingFirestoreRealtime=false;
+let firestoreDataHydrated=false;
 let collectionUnsubs=[];
 let userUnsub=null;
 const log=(...a)=>console.warn("Rekapinyu Firebase:",...a);
@@ -4482,18 +4483,19 @@ async function writeBaseSchema(uid,p,name){
   return {pengguna:pr,kasir:kr,rekap:rr};
 }
 
-async function saveHistoryCloud(){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const data=Array.isArray(historyData)?historyData:[],monthly=buildLaporanBulanan(data);window.__rekapinyuDataLaporanBulanan=monthly;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{History:data,InputData:data,LaporanBulanan:monthly,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function savePengeluaranCloud(){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveKasbonCloud(){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Kasbon:Array.isArray(kasbonData)?kasbonData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveBackupCloud(){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveKasirTransactionsCloud(data){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const tx=Array.isArray(data)?data:[];window.__rekapinyuKasirTransactionsRealtime=tx;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{TransaksiKasir:tx,LaporanKasir:tx,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveActivityCloud(){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveSettingCloud(){const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const s=normalizeSetting(window.__rekapinyuSettingData);window.__rekapinyuSettingData=s;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Seting:s,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveHistoryCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const data=Array.isArray(historyData)?historyData:[],monthly=buildLaporanBulanan(data);window.__rekapinyuDataLaporanBulanan=monthly;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{History:data,InputData:data,LaporanBulanan:monthly,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function savePengeluaranCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveKasbonCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Kasbon:Array.isArray(kasbonData)?kasbonData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveBackupCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveKasirTransactionsCloud(data){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const tx=Array.isArray(data)?data:[];window.__rekapinyuKasirTransactionsRealtime=tx;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{TransaksiKasir:tx,LaporanKasir:tx,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveActivityCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveSettingCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const s=normalizeSetting(window.__rekapinyuSettingData);window.__rekapinyuSettingData=s;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Seting:s,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengeluaranCloud=savePengeluaranCloud;window.__rekapinyuSaveKasbonCloud=saveKasbonCloud;window.__rekapinyuSaveBackupCloud=saveBackupCloud;window.__rekapinyuSaveKasirTransactionsCloud=saveKasirTransactionsCloud;window.__rekapinyuSaveActivityCloud=saveActivityCloud;window.__rekapinyuSaveSettingCloud=saveSettingCloud;
 window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveHistoryCloud(),savePengeluaranCloud(),saveKasbonCloud(),saveBackupCloud(),saveKasirTransactionsCloud(window.__rekapinyuKasirTransactionsRealtime),saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
 window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolve();
 
 async function saveProdukKasir(products){
+  if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
   const source=Array.isArray(products)?products:[],payload=[];
   for(const raw of source){
@@ -4534,6 +4536,9 @@ async function hydrate(uid){
     window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
     window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);
   }finally{applyingFirestoreRealtime=false}
+  /* Semua data utama sudah dibaca dari Firestore. Mulai sekarang barulah
+     operasi simpan dari aksi pengguna diizinkan menulis ke server. */
+  firestoreDataHydrated=true;
   /* RELOAD: Firestore adalah sumber data utama.
      Jangan menulis ulang state lokal ke Firestore setelah data dibaca,
      karena state lokal bisa masih kosong dan menimpa data yang sudah tersimpan. */
@@ -4589,7 +4594,7 @@ const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("lo
 }};
 const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="register-form")return;e.preventDefault();e.stopImmediatePropagation();rekapinyuAuth.submit(e.target)};document.addEventListener("submit",authSubmitGuard,true);window.__rekapinyuAuthController=rekapinyuAuth;
 
-window.handleLogout=async()=>{try{await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();renderDashboardSession();toggleAuthView("login")}};
+window.handleLogout=async()=>{try{await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();renderDashboardSession();toggleAuthView("login")}};
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
 function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
@@ -4607,7 +4612,7 @@ const landingHandoffPromise=consumeLandingLogin();
 
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
 
-onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}await hydrate(u.uid);realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
+onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
 
 (function(){function redrawOnFocus(){try{redraw?.()}catch{}}window.addEventListener("focus",redrawOnFocus);window.addEventListener("pageshow",redrawOnFocus);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")redrawOnFocus()})})();
 </script>
