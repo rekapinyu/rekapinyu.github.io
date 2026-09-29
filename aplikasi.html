@@ -5722,7 +5722,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const cat=document.createElement('div');cat.className='pk3-category';cat.textContent=(p.category||'Lainnya')+(normalizeBarcodes(p).length?' • '+normalizeBarcodes(p).length+' barcode':'');
     const data=document.createElement('div');data.className='pk3-data';
     const box=(label,value,cls='')=>{const d=document.createElement('div');d.className='pk3-data-box'+(cls?' '+cls:'');const sm=document.createElement('small');sm.textContent=label;const b=document.createElement('strong');b.textContent=value;d.append(sm,b);return d};
-    data.append(box('STOK',String(Number(p.stock)||0)),box('HPP',money(p.cost??p.grosir)),box('HARGA JUAL',money(p.price),'sell'));
+    data.append(box('STOK',String(Math.max(0,Number(p.manualStock)||0)+normalizeBarcodes(p).length)),box('HPP',money(p.cost??p.grosir)),box('HARGA JUAL',money(p.price),'sell'));
     const actions=document.createElement('div');actions.className='pk3-actions';
     const edit=document.createElement('button');edit.type='button';edit.className='pk3-edit';edit.dataset.action='edit';edit.dataset.id=String(p.id);edit.innerHTML='<i class="fa-solid fa-pen"></i> Edit';
     const del=document.createElement('button');del.type='button';del.className='pk3-delete';del.dataset.action='delete';del.dataset.id=String(p.id);del.innerHTML='<i class="fa-solid fa-trash-can"></i> Hapus';
@@ -6148,7 +6148,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!list.length){grid.innerHTML='<div class="kasir-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Belum ada produk yang tersedia untuk kasir.</span></div>';return}
     grid.innerHTML=list.map(p=>{
       const profit=(Number(p.price)||0)-(Number(p.cost??p.grosir)||0);
-      return `<button type="button" class="kasir-product-card" data-add-product="${esc(p.id)}"><div class="kasir-product-photo" data-kasir-local-photo="${esc(p.id)}"><i class="fa-solid fa-image"></i></div><div class="kasir-product-info"><strong>${esc(p.name)}</strong><div class="kasir-product-stats"><div class="kasir-product-stat"><span>Stok</span><strong>${Number(p.stock)||0}</strong></div><div class="kasir-product-stat"><span>Harga HPP</span><strong>${rupiah(p.cost??p.grosir)}</strong></div><div class="kasir-product-stat"><span>Profit</span><strong>${rupiah(profit)}</strong></div></div><span class="kasir-product-sale">${rupiah(p.price)}</span></div></button>`;
+      return `<button type="button" class="kasir-product-card" data-add-product="${esc(p.id)}"><div class="kasir-product-photo" data-kasir-local-photo="${esc(p.id)}"><i class="fa-solid fa-image"></i></div><div class="kasir-product-info"><strong>${esc(p.name)}</strong><div class="kasir-product-stats"><div class="kasir-product-stat"><span>Stok</span><strong>${Math.max(0,Number(p.manualStock)||0)+productBarcodes(p).length}</strong></div><div class="kasir-product-stat"><span>Harga HPP</span><strong>${rupiah(p.cost??p.grosir)}</strong></div><div class="kasir-product-stat"><span>Profit</span><strong>${rupiah(profit)}</strong></div></div><span class="kasir-product-sale">${rupiah(p.price)}</span></div></button>`;
     }).join('');
     if(typeof window.__rekapinyuResolveProdukKasirPhoto==='function'){
       list.forEach(p=>{
@@ -6369,7 +6369,7 @@ function initKasirViews(){
     try{
       const saved=await window.__rekapinyuSaveProdukKasir?.(kasirProducts);
       if(!Array.isArray(saved))throw new Error('Stok ProdukKasir tidak berhasil disimpan ke Firestore.');
-      kasirProducts=saved.map(p=>({...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.stock)||0)}));
+      kasirProducts=saved.map(p=>{const barcodes=productBarcodes(p);const manualStock=Math.max(0,Number(p?.manualStock)||0);return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:Math.max(0,manualStock+barcodes.length)}});
       window.__rekapinyuProdukKasirData=kasirProducts;
     }catch(e){
       /* Rollback lokal jika server menolak penyimpanan stok. */
