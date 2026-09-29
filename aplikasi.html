@@ -5298,9 +5298,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       manualStock:Math.max(0,Number(p?.manualStock??stock)||0),
       stock,
       photoFileName,
-      /* URL lama hanya dipertahankan di memori sebagai fallback sampai produk
-         disentuh/simpan; penyimpanan Firestore baru selalu menghapus field photo. */
-      photo:legacyPhoto
+      photo:''
     };
   }
   function normalizeAll(){products=products.map(normalizeProduct);}
@@ -5365,24 +5363,27 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         return photoDirectoryHandle;
       }
     }catch(_){}
-
     if(!promptUser)return null;
 
-    /* Alur yang diminta:
-       pilih foto terlebih dahulu -> klik Tambah Produk ->
-       browser membuka Documents -> aplikasi langsung membuat
-       subfolder Rekapinyuproduk dan menyimpan foto di sana.
-       Browser tetap mewajibkan satu kali konfirmasi pemilihan Documents. */
+    /* Saat pertama kali menyimpan foto, Chrome/Edge membuka picker di Documents.
+       Pengguna cukup memilih Documents satu kali; Rekapinyuproduk dibuat otomatis.
+       Jika browser mengingat Rekapinyuproduk sebagai lokasi terakhir, folder itu
+       langsung dipakai agar penyimpanan tidak gagal. */
     const picked=await window.showDirectoryPicker({
       mode:'readwrite',
       id:'rekapinyu-produk-documents',
       startIn:'documents'
     });
     const pickedName=String(picked?.name||'').trim().toLowerCase();
-    if(pickedName!=='documents' && pickedName!=='dokumen'){
-      throw new Error('Pilih folder Documents. Setelah itu folder Rekapinyuproduk akan dibuat otomatis.');
+    const folderName=PHOTO_FOLDER.toLowerCase();
+    let dir;
+    if(pickedName===folderName){
+      dir=picked;
+    }else if(pickedName==='documents'||pickedName==='dokumen'||pickedName==='document'){
+      dir=await picked.getDirectoryHandle(PHOTO_FOLDER,{create:true});
+    }else{
+      throw new Error('Pilih folder Documents. Setelah itu folder Rekapinyuproduk akan dibuat otomatis di dalam Documents.');
     }
-    const dir=await picked.getDirectoryHandle(PHOTO_FOLDER,{create:true});
     if(!(await requestDirectoryPermission(dir)))throw new Error('Izin akses folder foto ditolak.');
     photoDirectoryHandle=dir;
     try{await idbSet(dir)}catch(_){}
@@ -5412,12 +5413,38 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       const dir=await getPhotoDirectoryQuiet();
       name=dir?String(dir.name||PHOTO_FOLDER):'';
     }catch(_){}
-    const text=name?`Folder foto aktif: Documents/${name}`:'Folder foto: akan dibuat otomatis di Documents/Rekapinyuproduk saat foto pertama disimpan.';
+    const text=name?`Folder foto aktif: Documents/${name}`:'Klik Tambah Produk; browser meminta akses Documents sekali, lalu Rekapinyuproduk dibuat otomatis.';
     if(addStatus)addStatus.textContent=text;
     if(editStatus)editStatus.textContent=text;
   }
 
-  function fileNameForProduct(id){return `produk_${String(id).replace(/[^a-zA-Z0-9_-]/g,'_')}.jpg`}
+  function fileNameForProduct(productName){
+    let base=String(productName||'').trim()
+      .replace(/[<>:"/\\|?*]/g,' ')
+      .replace(/[\u0000-\u001F]/g,' ')
+      .replace(/\s+/g,' ')
+      .replace(/[. ]+$/g,'')
+      .trim();
+    if(!base)base='Produk';
+    if(/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base))base='Produk '+base;
+    return `${base}.jpg`;
+  }
+
+  async function ensureUniquePhotoName(dir,desiredName,excludeName=''){
+    const clean=String(desiredName||'Produk.jpg');
+    if(clean===excludeName)return clean;
+    try{await dir.getFileHandle(clean,{create:false});}
+    catch(_){return clean;}
+    const dot=clean.lastIndexOf('.');
+    const stem=dot>0?clean.slice(0,dot):clean;
+    const ext=dot>0?clean.slice(dot):'';
+    for(let i=2;i<10000;i++){
+      const candidate=`${stem} (${i})${ext}`;
+      try{await dir.getFileHandle(candidate,{create:false});}
+      catch(_){return candidate;}
+    }
+    throw new Error('Nama file foto sudah terlalu banyak digunakan.');
+  }
 
   async function compressToBlob(file,max=1200,quality=.82){
     return await new Promise((resolve,reject)=>{
@@ -5445,14 +5472,36 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
   }
 
-  async function savePhotoFile(productId,file){
+  async function savePhotoFile(productName,file,replaceFileName=''){
     if(!file)return '';
     const dir=await ensurePhotoDirectory(true);
-    const name=fileNameForProduct(productId);
+    const desired=fileNameForProduct(productName);
+    const name=await ensureUniquePhotoName(dir,desired,String(replaceFileName||''));
     const handle=await dir.getFileHandle(name,{create:true});
     const blob=await compressToBlob(file);
     const writer=await handle.createWritable();
     try{await writer.write(blob)}finally{await writer.close()}
+    return name;
+  }
+
+  async function renameExistingPhoto(oldFileName,newProductName){
+    const oldName=String(oldFileName||'').trim();
+    if(!oldName)return '';
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir)return oldName;
+    const desired=fileNameForProduct(newProductName);
+    if(oldName===desired)return oldName;
+    let source;
+    try{source=await dir.getFileHandle(oldName,{create:false});}
+    catch(_){return ''; }
+    const name=await ensureUniquePhotoName(dir,desired,oldName);
+    if(name===oldName)return oldName;
+    const file=await source.getFile();
+    const target=await dir.getFileHandle(name,{create:true});
+    const writer=await target.createWritable();
+    try{await writer.write(await file.arrayBuffer())}finally{await writer.close()}
+    try{await source.remove()}catch(_){}
+    const u=objectUrls.get(oldName);if(u){URL.revokeObjectURL(u);objectUrls.delete(oldName)}
     return name;
   }
 
@@ -5503,8 +5552,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       const product=products.find(x=>String(x.id)===id);
       if(!product)continue;
       if(!product.photoFileName){
-        if(product.photo)node.innerHTML=`<img src="${escapeHtml(product.photo)}" alt="${escapeHtml(product.name)}">`;
-        else node.innerHTML='<i class="fa-solid fa-image"></i>';
+        node.innerHTML='<i class="fa-solid fa-image"></i>';
         continue;
       }
       const url=await localPhotoUrl(product.photoFileName);
@@ -5671,31 +5719,73 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!name||price<=0){if(typeof showModal==='function')showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return}
     const btn=$('pk3-submit');if(btn?.disabled)return;
     btn.disabled=true;
+    const beforeProducts=JSON.parse(JSON.stringify(products));
+    let savedPhotoName='';
+    let oldPhotoName='';
+    let savedNewPhoto=false;
     try{
       const incoming=[...addBarcodes];
       const same=products.find(p=>norm(p.name)===norm(name));
+
+      /* Akses folder diminta langsung dari klik Tambah Produk, sebelum data produk berubah. */
+      if(addPhotoFile)await ensurePhotoDirectory(true);
+
       let target;
       if(same){
         const existingBars=normalizeBarcodes(same);
         const newBars=incoming.filter(b=>!existingBars.includes(b));
-        same.category=category;same.cost=cost;same.grosir=cost;same.price=price;
-        same.barcodes=[...existingBars,...newBars];same.barcode=same.barcodes[0]||'';
-        same.manualStock=Math.max(0,Number(same.manualStock)||0)+manualToAdd;
-        same.stock=Math.max(0,Number(same.manualStock)||0)+same.barcodes.length;
-        target=same;
+        target={...same};
+        target.category=category;
+        target.cost=cost;
+        target.grosir=cost;
+        target.price=price;
+        target.barcodes=[...existingBars,...newBars];
+        target.barcode=target.barcodes[0]||'';
+        target.manualStock=Math.max(0,Number(target.manualStock)||0)+manualToAdd;
+        target.stock=Math.max(0,Number(target.manualStock)||0)+target.barcodes.length;
+        oldPhotoName=String(same.photoFileName||'').trim();
       }else{
         const id=uid();
-        const item={id,name,category,barcodes:incoming,barcode:incoming[0]||'',cost,grosir:cost,price,manualStock:manualToAdd,stock:manualToAdd+incoming.length,photoFileName:'',photo:''};
-        products.unshift(item);target=item;
+        target={id,name,category,barcodes:incoming,barcode:incoming[0]||'',cost,grosir:cost,price,manualStock:manualToAdd,stock:manualToAdd+incoming.length,photoFileName:'',photo:''};
       }
+
       if(addPhotoFile){
-        target.photoFileName=await savePhotoFile(target.id,addPhotoFile);
+        target.photoFileName=await savePhotoFile(target.name,addPhotoFile,oldPhotoName);
         target.photo='';
+        savedPhotoName=target.photoFileName;
+        savedNewPhoto=true;
       }
+
+      if(same){
+        const index=products.findIndex(p=>String(p.id)===String(same.id));
+        if(index>=0)products[index]=target;
+      }else{
+        products.unshift(target);
+      }
+
       await write();
-      render();resetForm();
+
+      if(oldPhotoName&&oldPhotoName!==target.photoFileName){
+        const dir=await getPhotoDirectoryQuiet();
+        if(dir){try{const fh=await dir.getFileHandle(oldPhotoName,{create:false});await fh.remove()}catch(_) {}}
+        const oldUrl=objectUrls.get(oldPhotoName);
+        if(oldUrl){URL.revokeObjectURL(oldUrl);objectUrls.delete(oldPhotoName)}
+      }
+
+      render();
+      resetForm();
       if(typeof showModal==='function')showModal('Berhasil',same?'Produk berhasil diperbarui.':'Produk berhasil ditambahkan.','fa-solid fa-circle-check text-emerald-600');
     }catch(err){
+      /* Gagal di tengah proses tidak boleh meninggalkan produk setengah jadi di memori. */
+      products=beforeProducts;
+      window.__rekapinyuProdukKasirData=products;
+      if(savedNewPhoto&&savedPhotoName){
+        const dir=await getPhotoDirectoryQuiet();
+        if(dir){try{const fh=await dir.getFileHandle(savedPhotoName,{create:false});await fh.remove()}catch(_) {}}
+        const u=objectUrls.get(savedPhotoName);
+        if(u){URL.revokeObjectURL(u);objectUrls.delete(savedPhotoName)}
+      }
+      render();
       if(typeof showModal==='function')showModal('Gagal Menyimpan Produk',err?.message||'Data produk gagal disimpan.');
     }finally{
       btn.disabled=false;
@@ -5743,11 +5833,14 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       photoFileName:editPhotoFileName,
       photo:''
     };
-    /* Saat edit tanpa memilih foto baru, pertahankan file lama. */
+    /* Saat edit tanpa memilih foto baru, pertahankan foto lama tetapi sesuaikan nama file dengan nama produk baru. */
     if(!editPhotoFile && oldFileName){newProduct.photoFileName=oldFileName}
     try{
       if(editPhotoFile){
-        newProduct.photoFileName=await savePhotoFile(newProduct.id,editPhotoFile);
+        newProduct.photoFileName=await savePhotoFile(newProduct.name,editPhotoFile,oldFileName);
+      }else if(oldFileName && norm(old.name)!==norm(newProduct.name)){
+        const renamed=await renameExistingPhoto(oldFileName,newProduct.name);
+        if(renamed)newProduct.photoFileName=renamed;
       }
       products[i]=newProduct;
       await write();
