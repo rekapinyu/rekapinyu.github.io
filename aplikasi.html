@@ -4501,8 +4501,45 @@ async function saveProdukKasir(products){
 window.__rekapinyuSaveProdukKasir=saveProdukKasir;
 window.__rekapinyuLoadProdukKasir=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return null;const r=await getKasirRef(uid,p),s=await getDoc(r),v=s.exists()?s.data()?.ProdukKasir:[];return Array.isArray(v)?v:[]};
 window.__rekapinyuSetProdukKasirData=v=>{window.__rekapinyuProdukKasirData=Array.isArray(v)?v:[];window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.()}catch{} };
-window.__rekapinyuStartProdukKasirRealtime=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return;if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}const r=await getKasirRef(uid,p);window.__rekapinyuProdukKasirUnsub=onSnapshot(r,s=>{if(!s.exists())return;const v=Array.isArray(s.data()?.ProdukKasir)?s.data().ProdukKasir:[];window.__rekapinyuSetProdukKasirData(v);try{window.__initKasirViews?.()}catch{}},e=>log("realtime ProdukKasir gagal",e));};
-window.__rekapinyuStopProdukKasirRealtime=()=>{if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}};
+/* REALTIME KASIR — tiga listener terpisah, satu dokumen Kasir milik UID aktif. */
+window.__rekapinyuStartKasirRealtimeFields=async()=>{
+  const uid=cloudUid(),p=currentPhone();
+  if(!uid||!p)return;
+  window.__rekapinyuStopKasirRealtimeFields?.();
+  const r=await getKasirRef(uid,p);
+  const listenField=(field,handler,label)=>{
+    const unsub=onSnapshot(r,s=>{
+      if(!s.exists())return;
+      const d=s.data()||{};
+      handler(d);
+    },e=>log(`realtime ${label} gagal`,e));
+    window.__rekapinyuKasirFieldUnsubs.push(unsub);
+  };
+  window.__rekapinyuKasirFieldUnsubs=[];
+  listenField('TransaksiKasir',d=>{
+    const v=arrayFromField(d,'TransaksiKasir',window.__rekapinyuKasirTransactionsRealtime);
+    window.__rekapinyuSetKasirTransactionsRealtime?.(v);
+    try{window.__initKasirViews?.()}catch{}
+  },'TransaksiKasir');
+  listenField('ProdukKasir',d=>{
+    const v=arrayFromField(d,'ProdukKasir',window.__rekapinyuProdukKasirData);
+    window.__rekapinyuSetProdukKasirData?.(v);
+    try{window.__initKasirViews?.()}catch{}
+  },'ProdukKasir');
+  listenField('LaporanKasir',d=>{
+    const v=arrayFromField(d,'LaporanKasir',window.__rekapinyuLaporanKasirRealtime);
+    window.__rekapinyuLaporanKasirRealtime=v;
+    try{window.__renderLaporanKasir?.()}catch{}
+  },'LaporanKasir');
+};
+window.__rekapinyuStopKasirRealtimeFields=()=>{
+  const list=Array.isArray(window.__rekapinyuKasirFieldUnsubs)?window.__rekapinyuKasirFieldUnsubs:[];
+  list.forEach(fn=>{try{fn?.()}catch{}});
+  window.__rekapinyuKasirFieldUnsubs=[];
+};
+window.__rekapinyuKasirFieldUnsubs=[];
+window.__rekapinyuStartProdukKasirRealtime=()=>window.__rekapinyuStartKasirRealtimeFields?.();
+window.__rekapinyuStopProdukKasirRealtime=()=>window.__rekapinyuStopKasirRealtimeFields?.();
 
 async function hydrate(uid){
   const p=currentPhone();
@@ -4589,19 +4626,17 @@ const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="regist
 window.handleLogout=async()=>{try{await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();renderDashboardSession();toggleAuthView("login")}};
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
-function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
+function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopKasirRealtimeFields?.()}
 function realtime(uid){
   stopCollectionRealtime();const p=currentPhone();Promise.all([getPenggunaRef(uid,p),getKasirRef(uid,p),getRekapRef(uid,p)]).then(([pr,kr,rr])=>{
     const listen=(r,cb,label)=>{const un=onSnapshot(r,s=>{if(!s.exists())return;applyingFirestoreRealtime=true;try{cb(s.data()||{})}finally{applyingFirestoreRealtime=false}try{nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser||{}));upsertRegisteredLocalUser(currentSessionUser||{})}catch{}try{redraw()}catch{}},e=>log(`realtime ${label} gagal`,e));collectionUnsubs.push(un)};
     listen(kr,d=>{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
-      if(hasField(d,"TransaksiKasir"))window.__rekapinyuKasirTransactionsRealtime=arrayFromField(d,"TransaksiKasir",window.__rekapinyuKasirTransactionsRealtime);
-      if(hasField(d,"LaporanKasir"))window.__rekapinyuLaporanKasirRealtime=arrayFromField(d,"LaporanKasir",window.__rekapinyuLaporanKasirRealtime);
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
-      if(hasField(d,"ProdukKasir"))window.__rekapinyuProdukKasirData=arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData);
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
-      window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
+      window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
+    window.__rekapinyuStartKasirRealtimeFields?.();
     listen(rr,d=>{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim()&&!currentSessionUser.shopName)currentSessionUser.shopName=String(d.NamaToko).trim();
       if(hasField(d,"History"))historyData=arrayFromField(d,"History",historyData);else if(hasField(d,"InputData"))historyData=arrayFromField(d,"InputData",historyData);
