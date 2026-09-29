@@ -4590,7 +4590,7 @@ async function saveProdukKasir(products){
 }
 window.__rekapinyuSaveProdukKasir=saveProdukKasir;
 window.__rekapinyuLoadProdukKasir=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return null;const r=await getKasirRef(uid,p),s=await getDoc(r),v=s.exists()?s.data()?.ProdukKasir:[];return Array.isArray(v)?v:[]};
-window.__rekapinyuSetProdukKasirData=v=>{window.__rekapinyuProdukKasirData=Array.isArray(v)?v:[];window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.()}catch{} };
+window.__rekapinyuSetProdukKasirData=v=>{window.__rekapinyuProdukKasirData=Array.isArray(v)?v:[];window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData)}catch{} try{window.__initKasirViews?.()}catch{} };
 window.__rekapinyuStartProdukKasirRealtime=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return;if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}const r=await getKasirRef(uid,p);window.__rekapinyuProdukKasirUnsub=onSnapshot(r,s=>{if(!s.exists())return;const v=Array.isArray(s.data()?.ProdukKasir)?s.data().ProdukKasir:[];window.__rekapinyuSetProdukKasirData(v);try{window.__initKasirViews?.()}catch{}},e=>log("realtime ProdukKasir gagal",e));};
 window.__rekapinyuStopProdukKasirRealtime=()=>{if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}};
 
@@ -5252,6 +5252,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   const PHOTO_DB='rekapinyu_produk_photo_handles_v1';
   const PHOTO_STORE='handles';
   const PHOTO_KEY='produk-directory';
+  const PHOTO_NAME_KEY='produk-directory-name';
   let products=[];
   let editingId=null;
   let bound=false;
@@ -5337,6 +5338,25 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
   }
 
+  async function idbSetFolderName(value){
+    const db=await idbOpen();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(PHOTO_STORE,'readwrite'),store=tx.objectStore(PHOTO_STORE),req=store.put(String(value||''),PHOTO_NAME_KEY);
+      req.onsuccess=()=>resolve(true);
+      req.onerror=()=>reject(req.error||new Error('Nama folder foto tidak dapat disimpan.'));
+      tx.oncomplete=()=>db.close();
+    });
+  }
+  async function idbGetFolderName(){
+    const db=await idbOpen();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(PHOTO_STORE,'readonly'),store=tx.objectStore(PHOTO_STORE),req=store.get(PHOTO_NAME_KEY);
+      req.onsuccess=()=>resolve(String(req.result||''));
+      req.onerror=()=>reject(req.error||new Error('Nama folder foto tidak dapat dibaca.'));
+      tx.oncomplete=()=>db.close();
+    });
+  }
+
   async function requestDirectoryPermission(handle,mode='readwrite'){
     try{
       const current=await handle.queryPermission({mode});
@@ -5357,6 +5377,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder foto ditolak.');
     photoDirectoryHandle=picked;
     try{await idbSet(picked)}catch(_){}
+    try{await idbSetFolderName(String(picked.name||''))}catch(_){}
     updateFolderStatus();
     return picked;
   }
@@ -5391,11 +5412,18 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function updateFolderStatus(){
     const btn=$('pk3-folder-pick');
     if(!btn)return;
-    let active=false;
-    try{active=!!(await getPhotoDirectoryQuiet())}catch(_){}
-    btn.classList.toggle('is-active',active);
-    btn.setAttribute('aria-pressed',active?'true':'false');
-    btn.title=active?'Folder foto sudah dipilih. Klik untuk mengganti folder.':'Pilih folder penyimpanan foto produk';
+    let handle=null;
+    let storedName='';
+    try{handle=await getPhotoDirectoryQuiet()}catch(_){}
+    try{storedName=await idbGetFolderName()}catch(_){}
+    const name=String(handle?.name||storedName||'').trim();
+    const active=!!handle;
+    btn.classList.toggle('is-active',active||!!name);
+    btn.setAttribute('aria-pressed',(active||!!name)?'true':'false');
+    btn.title=name?`Folder foto: ${name}`:'Pilih folder penyimpanan foto produk';
+    btn.innerHTML=name
+      ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(name)}</span>`
+      : `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span>`;
   }
 
   function fileNameForProduct(productName){
@@ -5745,6 +5773,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       }
 
       await write();
+      try{window.__initKasirViews?.()}catch(_){}
 
       if(oldPhotoName&&oldPhotoName!==target.photoFileName){
         const dir=await getPhotoDirectoryQuiet();
@@ -5938,6 +5967,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     window.__rekapinyuProdukKasirLoaded=true;
     render();
     updateFolderStatus();
+    try{window.__initKasirViews?.()}catch(_){}
   };
   window.__initProdukKasir=function(){bind();load();};
 })();
