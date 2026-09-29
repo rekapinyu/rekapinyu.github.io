@@ -5650,11 +5650,19 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(target==='edit'){
       const box=$('pk3-edit-barcode-picker-menu');
       const picker=$('pk3-edit-barcode-picker');
+      const btn=$('pk3-edit-barcode-picker-btn');
       if(!box)return;
-      box.innerHTML=arr.length
+      const count=arr.length;
+      if(btn){
+        const label=btn.querySelector('span');
+        if(label)label.textContent=count?`${count} Barcode`:'Barcode';
+        btn.setAttribute('aria-label',count?`Pilih ${count} barcode aktif`:'Tidak ada barcode aktif');
+        btn.title=count?`${count} barcode aktif`:'Tidak ada barcode aktif';
+      }
+      box.innerHTML=count
         ? arr.map(b=>`<button type="button" class="pk3-barcode-picker-option" data-pk3-barcode-select="${escapeHtml(b)}"><i class="fa-solid fa-barcode" aria-hidden="true"></i><span>${escapeHtml(b)}</span></button>`).join('')
         : '<div class="pk3-barcode-picker-empty">Tidak ada barcode aktif</div>';
-      if(picker?.classList.contains('is-open'))box.hidden=false;
+      box.hidden=!picker?.classList.contains('is-open');
       return;
     }
     const box=$('pk3-barcode-list');if(!box)return;
