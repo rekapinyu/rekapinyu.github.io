@@ -5068,7 +5068,7 @@ onAuthStateChanged(auth,async u=>{
   }
   window.__rekapinyuSaveProdukKasir=saveProdukKasir;
   window.__rekapinyuLoadProdukKasir=async function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return null;try{const snap=await a.fs.getDoc(a.fs.doc('ProdukKasir',uid));const value=snap.exists()?snap.data()?.ProdukKasir:null;return Array.isArray(value)?value:null;}catch(e){console.warn('Rekapinyu: ProdukKasir gagal dimuat.',e);return null;}};
-  window.__rekapinyuStartProdukKasirRealtime=function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return;if(window.__rekapinyuProdukKasirUnsub)window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(a.fs.doc('ProdukKasir',uid),snap=>{const value=snap.exists()&&Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];window.__rekapinyuProdukKasirData=value;window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuSetProdukKasirData?.(value);window.__initKasirViews?.()}catch{}},err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err));};
+  window.__rekapinyuStartProdukKasirRealtime=function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return;if(window.__rekapinyuProdukKasirUnsub)window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(a.fs.doc('ProdukKasir',uid),snap=>{const value=snap.exists()&&Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];window.__rekapinyuProdukKasirLoadedFromCloud=true;window.__rekapinyuProdukKasirData=value;window.__rekapinyuProdukKasirLoaded=true;try{const rawPhone=String(currentSessionUser?.phone||uid||'default');const key='rekapinyu_produk_kasir_cache_'+rawPhone.replace(/\D/g,'')||'rekapinyu_produk_kasir_cache_default';localStorage.setItem(key,JSON.stringify(value));}catch{}try{window.__rekapinyuSetProdukKasirData?.(value);window.__initKasirViews?.()}catch{}},err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err));};
 window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){window.__rekapinyuProdukKasirData=Array.isArray(value)?value:[];window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.()}catch{}};
   window.__rekapinyuStopProdukKasirRealtime=function(){if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null;}};
 })();
@@ -5693,14 +5693,70 @@ window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||funct
   }
 
   function loadKasirStore(){
-    kasirProducts=Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
+    /* Produk Kasir adalah sumber daftar produk untuk menu Kasir.
+       Saat reload, Firebase snapshot dapat datang setelah initKasirViews().
+       Gunakan cache pengguna hanya sebagai fallback sementara, lalu sinkronkan
+       kembali dari Firestore begitu data cloud tersedia. */
+    let source=Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:null;
+    if(!source){source=[]}
+    if(!source.length){
+      try{
+        const rawPhone=String(currentSessionUser?.phone||window.RekapinyuFirebase?.auth?.currentUser?.uid||'default');
+        const key='rekapinyu_produk_kasir_cache_'+rawPhone.replace(/\D/g,'')||'rekapinyu_produk_kasir_cache_default';
+        const cached=JSON.parse(localStorage.getItem(key)||'null');
+        if(Array.isArray(cached)&&cached.length)source=cached;
+      }catch{}
+    }
+    kasirProducts=Array.isArray(source)?source:[];
+    if(kasirProducts.length){
+      window.__rekapinyuProdukKasirData=kasirProducts;
+      window.__rekapinyuProdukKasirLoaded=true;
+    }
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
+
+    /* Jangan biarkan reload menampilkan kosong hanya karena snapshot belum tiba.
+       Jika cloud sudah tersedia, hasil cloud menjadi sumber final dan langsung
+       me-render ulang kartu Kasir. */
+    if(typeof window.__rekapinyuLoadProdukKasir==='function' && !window.__rekapinyuProdukKasirLoadedFromCloud){
+      Promise.resolve(window.__rekapinyuLoadProdukKasir()).then(cloud=>{
+        if(!Array.isArray(cloud))return;
+        window.__rekapinyuProdukKasirLoadedFromCloud=true;
+        window.__rekapinyuProdukKasirData=cloud;
+        window.__rekapinyuProdukKasirLoaded=true;
+        kasirProducts=cloud;
+        try{localStorage.setItem('rekapinyu_produk_kasir_cache_'+String(currentSessionUser?.phone||window.RekapinyuFirebase?.auth?.currentUser?.uid||'default').replace(/\D/g,''),JSON.stringify(cloud))}catch{}
+        try{kasirProducts=kasirProducts.map(p=>({...p,barcodes:productBarcodes(p),barcode:productBarcodes(p)[0]||''}));renderKasirProducts();renderCart();}catch{}
+      }).catch(()=>{});
+    }
   }
   function saveKasirStore(){
     window.__rekapinyuProdukKasirData=kasirProducts;
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
     try{window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan.',e)}
     try{window.__rekapinyuSaveKasirTransactionsCloud?.(kasirTransactions)}catch(e){console.warn('Rekapinyu: TransaksiKasir gagal disimpan.',e)}
+  }
+
+  /* PATCH STOK KASIR: commit stok final transaksi secara berurutan.
+     Tujuan: setelah pembayaran sukses, stok final wajib tersimpan ke Firestore
+     sebelum UI melakukan reload/realtime refresh. Bagian lain tetap memakai
+     saveKasirStore() seperti sebelumnya. */
+  async function persistKasirStockAfterTransaction(){
+    window.__rekapinyuProdukKasirData=kasirProducts;
+    try{
+      const save=window.__rekapinyuSaveProdukKasir;
+      if(typeof save==='function'){
+        const saved=await save(kasirProducts);
+        if(Array.isArray(saved)){
+          kasirProducts=saved;
+          window.__rekapinyuProdukKasirData=kasirProducts;
+        }
+      }
+      try{window.__rekapinyuRefreshProdukKasir?.(kasirProducts)}catch(e){}
+      return true;
+    }catch(e){
+      console.warn('Rekapinyu: commit stok transaksi ke Firestore gagal.',e);
+      return false;
+    }
   }
   window.__rekapinyuSetKasirTransactionsRealtime=function(value){kasirTransactions=Array.isArray(value)?value:[];window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;try{renderTransactions()}catch{}}
   function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
@@ -5855,20 +5911,64 @@ function initKasirViews(){
     renderKasirTransactionTabs(); renderKasirProducts(); renderCart(); renderTransactions();
   }
 
-  function saveKasirTransaction(paymentData){
+  async function saveKasirTransaction(paymentData){
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const discount=Math.max(0,Number(String(paymentData?.discount||'').replace(/[^0-9]/g,''))||0);
     const paid=Math.max(0,Number(String(paymentData?.paid||'').replace(/[^0-9]/g,''))||0);
     const finalTotal=Math.max(0,total-discount);
     if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return false}
     if(paid<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return false}
-    const stockUpdates=[];for(const item of kasirCart){const product=kasirProducts.find(p=>String(p.id)===String(item.id));const stock=Math.max(0,Number(product?.stock)||0);const qty=Math.max(0,Number(item.qty)||0);const deducted=Math.min(qty,Math.max(0,Number(item.stockDeducted)||0));const remaining=qty-deducted;if(!product||remaining>stock){showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');return false}stockUpdates.push({product,qty:remaining})}stockUpdates.forEach(({product,qty})=>{product.manualStock=Math.max(0,(Number(product.manualStock)||0)-qty);product.stock=product.manualStock+productBarcodes(product).length});kasirTransactions.push({id:Date.now(),date:new Date().toLocaleString('id-ID'),items:kasirCart.reduce((a,x)=>a+x.qty,0),total:finalTotal,paid,change:paid-finalTotal,discount,itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||'')}))});
+
+    /* Hitung seluruh pengurangan terlebih dahulu. Stok yang sudah di-reserve
+       oleh barcode/scan tidak dikurangi lagi; qty lainnya dikurangi dari stok riil. */
+    const stockUpdates=[];
+    for(const item of kasirCart){
+      const product=kasirProducts.find(p=>String(p.id)===String(item.id));
+      const stock=Math.max(0,Number(product?.stock)||0);
+      const qty=Math.max(0,Number(item.qty)||0);
+      const deducted=Math.min(qty,Math.max(0,Number(item.stockDeducted)||0));
+      const remaining=qty-deducted;
+      if(!product||remaining>stock){
+        showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');
+        return false;
+      }
+      stockUpdates.push({product,qty:remaining});
+    }
+
+    stockUpdates.forEach(({product,qty})=>{
+      product.manualStock=Math.max(0,(Number(product.manualStock)||0)-qty);
+      product.stock=product.manualStock+productBarcodes(product).length;
+    });
+
+    /* Tandai transaksi sebagai selesai hanya setelah stok final sudah dihitung. */
+    const transaction={
+      id:Date.now(),
+      date:new Date().toLocaleString('id-ID'),
+      items:kasirCart.reduce((a,x)=>a+x.qty,0),
+      total:finalTotal,
+      paid,
+      change:paid-finalTotal,
+      discount,
+      itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||'')}))
+    };
+
+    /* Commit stok dahulu ke Firestore. Jika commit gagal, jangan mengosongkan
+       keranjang dan jangan mencatat transaksi sebagai selesai. */
+    const stockSaved=await persistKasirStockAfterTransaction();
+    if(!stockSaved){
+      showModal('Gagal','Transaksi belum diselesaikan karena stok gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
+      return false;
+    }
+
+    kasirTransactions.push(transaction);
     saveKasirStore();
     renderKasirProducts();
-    try{window.__initProdukKasir?.()}catch(e){}
     kasirCart=[];
     syncKasirActiveTransactionTab();
-    renderCart(); renderKasirTransactionTabs(); renderTransactions(); try{window.__renderLaporanKasir?.()}catch(e){}
+    renderCart();
+    renderKasirTransactionTabs();
+    renderTransactions();
+    try{window.__renderLaporanKasir?.()}catch(e){}
     return true;
   }
 
@@ -6199,7 +6299,7 @@ function initKasirViews(){
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const finalTotal=Math.max(0,total-(Number(String(discount).replace(/[^0-9]/g,''))||0));
     if((Number(String(paid).replace(/[^0-9]/g,''))||0)<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return}
-    const saved=saveKasirTransaction({paid,discount});
+    const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
     commitKasirReceiptInvoiceId();window.__kasirCurrentInvoiceId=null;closeKasirPaymentPopup();try{window.__renderLaporanKasir?.()}catch(e){}
     showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir.','fa-solid fa-circle-check text-emerald-600');
@@ -6218,7 +6318,7 @@ function initKasirViews(){
     }
     // Transaksi disimpan terlebih dahulu agar keberhasilan transaksi tidak bergantung pada printer Bluetooth.
     commitKasirReceiptInvoiceId();
-    const saved=saveKasirTransaction({paid,discount});
+    const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
     window.__kasirCurrentInvoiceId=null;
     closeKasirPaymentPopup();
