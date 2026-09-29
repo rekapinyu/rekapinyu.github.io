@@ -1452,16 +1452,6 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   text-overflow:ellipsis!important;
   white-space:nowrap!important;
 }
-.pk3-form .pk3-folder-status{
-  position:absolute!important;
-  left:0!important;
-  right:0!important;
-  top:calc(100% + 3px)!important;
-  width:auto!important;
-  margin:0!important;
-  line-height:1.25!important;
-  pointer-events:none!important;
-}
 .pk3-form .pk3-add{
   width:124px!important;
   min-width:124px!important;
@@ -1481,12 +1471,17 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   .pk3-form .pk3-photo-field,.pk3-form .pk3-add{grid-column:span 1!important;}
 }
 @media(max-width:767px){
+  .pk3-heading{align-items:flex-start!important}
+  .pk3-heading-actions{gap:6px!important}
+  .pk3-folder-pick,#pk3-count{height:32px!important;min-height:32px!important;padding:0 9px!important;font-size:10px!important}
+  .pk3-folder-pick span{display:none!important}
+  .pk3-folder-pick{width:34px!important;padding:0!important}
+  .pk3-heading #pk3-count{min-width:74px!important}
   .pk3-form{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
   .pk3-name,.pk3-photo-field,.pk3-add{grid-column:auto!important;}
   .pk3-form .pk3-field label,.pk3-form .pk3-photo-field>label:first-child{height:18px!important;line-height:18px!important;}
   .pk3-form .pk3-field>input,.pk3-form .pk3-field>select{height:40px!important;min-height:40px!important;max-height:40px!important;}
   .pk3-form .pk3-photo-tools{height:40px!important;min-height:40px!important;}
-  .pk3-form .pk3-folder-status{position:static!important;margin-top:4px!important;}
   .pk3-form .pk3-add{width:100%!important;min-width:0!important;}
 }
 </style>
@@ -2257,7 +2252,10 @@ bind();
 <div class="pk3-form-card">
 <div class="pk3-heading">
 <div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
+<div class="pk3-heading-actions">
+<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Pilih folder penyimpanan foto produk"><i class="fa-solid fa-folder-open"></i><span>Pilih Folder</span></button>
 <span id="pk3-count">0 produk</span>
+</div>
 </div>
 <form autocomplete="off" class="pk3-form" id="pk3-form">
 <div class="pk3-field pk3-name"><label for="pk3-name">Nama Produk</label><input id="pk3-name" placeholder="Contoh: Kopi Susu" required="" type="text"/></div>
@@ -2266,7 +2264,7 @@ bind();
 <div class="pk3-field"><label for="pk3-cost">HPP / Grosir</label><input id="pk3-cost" inputmode="numeric" placeholder="0" type="text"/></div>
 <div class="pk3-field"><label for="pk3-price">Harga Jual</label><input id="pk3-price" inputmode="numeric" placeholder="0" required="" type="text"/></div>
 <div class="pk3-field"><label for="pk3-stock">Stok</label><input id="pk3-stock" inputmode="numeric" min="0" placeholder="0" type="text"/></div>
-<div class="pk3-photo-field"><label>Foto Produk</label><div class="pk3-photo-tools"><label class="pk3-photo-btn" for="pk3-photo"><i class="fa-solid fa-camera"></i><span id="pk3-photo-name">Pilih foto</span></label></div><small class="pk3-folder-status" id="pk3-folder-status">Saat Tambah Produk, foto akan disimpan otomatis ke Documents/Rekapinyuproduk.</small><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-photo" type="file"/></div>
+<div class="pk3-photo-field"><label>Foto Produk</label><div class="pk3-photo-tools"><label class="pk3-photo-btn" for="pk3-photo"><i class="fa-solid fa-camera"></i><span id="pk3-photo-name">Pilih foto</span></label></div><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-photo" type="file"/></div>
 <button class="pk3-add" id="pk3-submit" type="submit"><i class="fa-solid fa-plus"></i><span>Tambah Produk</span></button>
 </form>
 </div>
@@ -2282,7 +2280,7 @@ bind();
 <div class="pk3-field"><label for="pk3-edit-name">Nama Produk</label><input id="pk3-edit-name" required=""/></div>
 <div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-category">Kategori Produk</label><select id="pk3-edit-category"><option value="Makanan">Makanan</option><option value="Minuman">Minuman</option><option value="Snack">Snack</option><option value="Sembako">Sembako</option><option value="Bahan Pokok">Bahan Pokok</option><option value="Frozen Food">Frozen Food</option><option value="Bakery">Bakery</option><option value="Buah">Buah</option><option value="Sayur">Sayur</option><option value="Daging & Seafood">Daging & Seafood</option><option value="Bumbu & Rempah">Bumbu & Rempah</option><option value="Susu & Dairy">Susu & Dairy</option><option value="Kebutuhan Rumah Tangga">Kebutuhan Rumah Tangga</option><option value="Kebersihan">Kebersihan</option><option value="Perawatan Diri">Perawatan Diri</option><option value="Kesehatan">Kesehatan</option><option value="ATK">ATK</option><option value="Elektronik">Elektronik</option><option value="Fashion">Fashion</option><option value="Aksesoris">Aksesoris</option><option value="Pulsa & Token">Pulsa & Token</option><option value="Jasa">Jasa</option><option value="Lainnya">Lainnya</option></select></div><div class="pk3-field pk3-barcode-field"><label for="pk3-edit-barcode">Barcode (bisa banyak)</label><input id="pk3-edit-barcode" placeholder="Ketik barcode lalu Enter" autocomplete="off"/><div class="pk3-barcode-list" id="pk3-edit-barcode-list"></div></div></div>
 <div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-cost">HPP / Grosir</label><input id="pk3-edit-cost" inputmode="numeric"/></div><div class="pk3-field"><label for="pk3-edit-price">Harga Jual</label><input id="pk3-edit-price" inputmode="numeric" required=""/></div><div class="pk3-field"><label for="pk3-edit-stock">Stok</label><input id="pk3-edit-stock" inputmode="numeric" required=""/></div></div>
-<div class="pk3-field"><label>Foto Produk</label><div class="pk3-photo-tools"><label class="pk3-photo-btn" for="pk3-edit-photo"><i class="fa-solid fa-camera"></i><span id="pk3-edit-photo-name">Pertahankan foto</span></label></div><small class="pk3-folder-status" id="pk3-edit-folder-status">Saat Simpan, foto akan disimpan otomatis ke Documents/Rekapinyuproduk.</small><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-edit-photo" type="file"/></div>
+<div class="pk3-field"><label>Foto Produk</label><div class="pk3-photo-tools"><label class="pk3-photo-btn" for="pk3-edit-photo"><i class="fa-solid fa-camera"></i><span id="pk3-edit-photo-name">Pertahankan foto</span></label></div><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-edit-photo" type="file"/></div>
 <div class="pk3-modal-actions"><button class="pk3-cancel" data-pk3-close="" type="button">Batal</button><button class="pk3-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div>
 </form>
 </div>
@@ -5238,7 +5236,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 <style id="produk-kasir-v59-css">
 #view-produk-kasir.pk3-view{position:absolute!important;inset:0!important;width:100%!important;min-width:0!important;margin:0!important;padding:0 16px 90px!important;box-sizing:border-box!important;overflow-y:auto!important;overflow-x:hidden!important;background:#f1f4f8!important;z-index:35!important}
 .pk3-form-card,.pk3-list-card{width:100%;box-sizing:border-box;background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
-.pk3-form-card{position:sticky;top:0;z-index:20;margin:6px 0 12px;padding:15px}.pk3-heading,.pk3-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.pk3-heading{margin-bottom:12px}.pk3-heading h3,.pk3-toolbar h3{margin:0;color:#0f172a;font-weight:800}.pk3-heading h3{font-size:16px}.pk3-heading p,.pk3-toolbar p{margin:3px 0 0;color:#64748b;font-size:11px}.pk3-heading span{white-space:nowrap;padding:6px 9px;border:1px solid #a7f3d0;border-radius:999px;background:#ecfdf5;color:#0f766e;font-size:11px;font-weight:700}
+.pk3-form-card{position:sticky;top:0;z-index:20;margin:6px 0 12px;padding:15px}.pk3-heading,.pk3-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.pk3-heading{margin-bottom:12px}.pk3-heading h3,.pk3-toolbar h3{margin:0;color:#0f172a;font-weight:800}.pk3-heading h3{font-size:16px}.pk3-heading p,.pk3-toolbar p{margin:3px 0 0;color:#64748b;font-size:11px}.pk3-heading-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto}.pk3-folder-pick,#pk3-count{height:34px;min-height:34px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 11px;border:1px solid #a7f3d0;border-radius:9px;background:#ecfdf5;color:#0f766e;font-size:11px;font-weight:800;white-space:nowrap}.pk3-folder-pick{cursor:pointer}.pk3-folder-pick:hover{background:#dff9ee}.pk3-folder-pick i{font-size:12px}.pk3-folder-pick.is-active{box-shadow:0 0 0 2px rgba(16,185,129,.10) inset}.pk3-heading #pk3-count{min-width:86px}
 .pk3-field,.pk3-photo-field,.pk3-add{min-width:0;align-self:end}.pk3-field label,.pk3-photo-field>label{display:block;margin:0 0 5px;color:#475569;font-size:10px;font-weight:800}.pk3-field input{display:block;width:100%;height:38px;box-sizing:border-box;padding:0 10px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#0f172a;font-size:12px;outline:none}.pk3-field input:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.12)}
 .pk3-photo-btn{width:100%;height:38px;box-sizing:border-box;display:flex!important;align-items:center!important;justify-content:center!important;gap:6px;padding:0 8px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#475569;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden}.pk3-photo-btn i{flex:0 0 auto}.pk3-photo-btn span{min-width:0;overflow:hidden;text-overflow:ellipsis}.pk3-add{width:100%;height:38px;border:1px solid #059669;border-radius:10px;background:#059669;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}.pk3-add:disabled,.pk3-save:disabled{opacity:.6;cursor:wait}
 .pk3-list-card{padding:15px}.pk3-toolbar{margin-bottom:12px}.pk3-toolbar h3{font-size:15px}.pk3-search{position:relative;width:240px;flex:0 0 240px}.pk3-search i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:11px}.pk3-search input{width:100%;height:36px;box-sizing:border-box;padding:0 10px 0 30px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;outline:none;font-size:12px}
@@ -5246,13 +5244,11 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 .pk3-modal{position:fixed!important;inset:0!important;z-index:10000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:20px!important;box-sizing:border-box}.pk3-modal[hidden]{display:none!important}.pk3-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.5)}.pk3-modal-card{position:relative;z-index:1;width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;box-sizing:border-box;background:#fff;border-radius:18px;padding:18px;box-shadow:0 20px 60px rgba(15,23,42,.25)}.pk3-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.pk3-modal-head h3{margin:0;font-size:16px;color:#0f172a}.pk3-modal-head p{margin:3px 0 0;font-size:11px;color:#64748b}.pk3-modal-close{width:34px;height:34px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#64748b;cursor:pointer}.pk3-edit-form{display:grid;gap:10px}.pk3-edit-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pk3-edit-row:nth-of-type(3){grid-template-columns:1fr 1fr 1fr}.pk3-edit-form .pk3-photo-btn{height:42px}.pk3-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}.pk3-modal-actions button{height:38px;padding:0 16px;border-radius:9px;font-size:11px;font-weight:800;cursor:pointer}.pk3-cancel{border:1px solid #e2e8f0;background:#fff;color:#64748b}.pk3-save{border:1px solid #059669;background:#059669;color:#fff}
 .pk3-photo-field{display:flex;flex-direction:column;min-width:0}.pk3-photo-field>label:first-child{height:13px;line-height:13px}.pk3-data-tools{position:fixed!important;right:18px!important;bottom:18px!important;left:auto!important;z-index:9990!important;display:flex!important;flex-direction:column!important;align-items:center!important;gap:10px!important}.pk3-data-tool{width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;padding:0!important;border:0!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;box-shadow:0 8px 22px rgba(15,23,42,.18)!important;cursor:pointer!important;font-size:16px!important}.pk3-backup{background:#2563eb!important;color:#fff!important}.pk3-import{background:#059669!important;color:#fff!important}.pk3-data-tool:active{transform:scale(.96)!important}.pk3-data-tool:focus-visible{outline:3px solid rgba(59,130,246,.25)!important;outline-offset:2px!important}@media(max-width:767px){#view-produk-kasir.pk3-view{padding:0 8px 90px!important}.pk3-toolbar{align-items:stretch;flex-direction:column}.pk3-search{width:100%;flex-basis:auto}.pk3-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}.pk3-card{padding:6px!important}.pk3-photo{height:70px!important;flex-basis:70px!important}.pk3-data{gap:5px}.pk3-data-box{padding:7px}.pk3-actions{gap:5px}.pk3-actions button{padding:0 5px}.pk3-edit-row,.pk3-edit-row:nth-of-type(3){grid-template-columns:1fr}.pk3-modal{padding:10px}.pk3-modal-card{max-height:calc(100vh - 20px);padding:14px}}
 .pk3-photo-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.pk3-folder-status{display:block;width:100%;font-size:9px;color:#94a3b8;line-height:1.35}
 </style>
 <script id="produk-kasir-v60-js">
 (function(){
   const $=id=>document.getElementById(id);
   const CATEGORIES=['Makanan','Minuman','Snack','Sembako','Bahan Pokok','Frozen Food','Bakery','Buah','Sayur','Daging & Seafood','Bumbu & Rempah','Susu & Dairy','Kebutuhan Rumah Tangga','Kebersihan','Perawatan Diri','Kesehatan','ATK','Elektronik','Fashion','Aksesoris','Pulsa & Token','Jasa','Lainnya'];
-  const PHOTO_FOLDER='Rekapinyuproduk';
   const PHOTO_DB='rekapinyu_produk_photo_handles_v1';
   const PHOTO_STORE='handles';
   const PHOTO_KEY='produk-directory';
@@ -5350,72 +5346,56 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(_){return false}
   }
 
-  async function ensurePhotoDirectory(promptUser=false){
-    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung penyimpanan foto ke folder komputer. Gunakan Chrome/Edge terbaru di desktop.');
-    if(photoDirectoryHandle){
-      if(await requestDirectoryPermission(photoDirectoryHandle))return photoDirectoryHandle;
-      photoDirectoryHandle=null;
-    }
-    try{
-      const stored=await idbGet();
-      if(stored&&await requestDirectoryPermission(stored)){
-        photoDirectoryHandle=stored;
-        return photoDirectoryHandle;
-      }
-    }catch(_){}
-    if(!promptUser)return null;
-
-    /* Saat pertama kali menyimpan foto, Chrome/Edge membuka picker di Documents.
-       Pengguna cukup memilih Documents satu kali; Rekapinyuproduk dibuat otomatis.
-       Jika browser mengingat Rekapinyuproduk sebagai lokasi terakhir, folder itu
-       langsung dipakai agar penyimpanan tidak gagal. */
+  async function selectPhotoDirectory(){
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pemilihan folder penyimpanan foto. Gunakan Chrome/Edge terbaru di desktop.');
     const picked=await window.showDirectoryPicker({
       mode:'readwrite',
-      id:'rekapinyu-produk-documents',
+      id:'rekapinyu-produk-folder',
       startIn:'documents'
     });
-    const pickedName=String(picked?.name||'').trim().toLowerCase();
-    const folderName=PHOTO_FOLDER.toLowerCase();
-    let dir;
-    if(pickedName===folderName){
-      dir=picked;
-    }else if(pickedName==='documents'||pickedName==='dokumen'||pickedName==='document'){
-      dir=await picked.getDirectoryHandle(PHOTO_FOLDER,{create:true});
-    }else{
-      throw new Error('Pilih folder Documents. Setelah itu folder Rekapinyuproduk akan dibuat otomatis di dalam Documents.');
-    }
-    if(!(await requestDirectoryPermission(dir)))throw new Error('Izin akses folder foto ditolak.');
-    photoDirectoryHandle=dir;
-    try{await idbSet(dir)}catch(_){}
+    if(!picked)throw new Error('Folder foto belum dipilih.');
+    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder foto ditolak.');
+    photoDirectoryHandle=picked;
+    try{await idbSet(picked)}catch(_){}
     updateFolderStatus();
-    return dir;
+    return picked;
+  }
+
+  async function requirePhotoDirectory(){
+    const dir=await getPhotoDirectoryQuiet();
+    if(dir)return dir;
+    throw new Error('Pilih Folder terlebih dahulu untuk menentukan lokasi penyimpanan foto produk.');
   }
 
   async function getPhotoDirectoryQuiet(){
     if(photoDirectoryHandle){
-      if(await requestDirectoryPermission(photoDirectoryHandle))return photoDirectoryHandle;
+      try{
+        const state=await photoDirectoryHandle.queryPermission({mode:'readwrite'});
+        if(state==='granted')return photoDirectoryHandle;
+      }catch(_){}
       photoDirectoryHandle=null;
     }
     try{
       const stored=await idbGet();
-      if(stored&&await requestDirectoryPermission(stored)){
-        photoDirectoryHandle=stored;
-        return stored;
+      if(stored){
+        const state=await stored.queryPermission({mode:'readwrite'});
+        if(state==='granted'){
+          photoDirectoryHandle=stored;
+          return stored;
+        }
       }
     }catch(_){}
     return null;
   }
 
   async function updateFolderStatus(){
-    const addStatus=$('pk3-folder-status'),editStatus=$('pk3-edit-folder-status');
-    let name='';
-    try{
-      const dir=await getPhotoDirectoryQuiet();
-      name=dir?String(dir.name||PHOTO_FOLDER):'';
-    }catch(_){}
-    const text=name?`Folder foto aktif: Documents/${name}`:'Klik Tambah Produk; browser meminta akses Documents sekali, lalu Rekapinyuproduk dibuat otomatis.';
-    if(addStatus)addStatus.textContent=text;
-    if(editStatus)editStatus.textContent=text;
+    const btn=$('pk3-folder-pick');
+    if(!btn)return;
+    let active=false;
+    try{active=!!(await getPhotoDirectoryQuiet())}catch(_){}
+    btn.classList.toggle('is-active',active);
+    btn.setAttribute('aria-pressed',active?'true':'false');
+    btn.title=active?'Folder foto sudah dipilih. Klik untuk mengganti folder.':'Pilih folder penyimpanan foto produk';
   }
 
   function fileNameForProduct(productName){
@@ -5474,7 +5454,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
   async function savePhotoFile(productName,file,replaceFileName=''){
     if(!file)return '';
-    const dir=await ensurePhotoDirectory(true);
+    const dir=await requirePhotoDirectory();
     const desired=fileNameForProduct(productName);
     const name=await ensureUniquePhotoName(dir,desired,String(replaceFileName||''));
     const handle=await dir.getFileHandle(name,{create:true});
@@ -5727,8 +5707,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       const incoming=[...addBarcodes];
       const same=products.find(p=>norm(p.name)===norm(name));
 
-      /* Akses folder diminta langsung dari klik Tambah Produk, sebelum data produk berubah. */
-      if(addPhotoFile)await ensurePhotoDirectory(true);
+      /* Folder foto harus sudah dipilih melalui tombol Pilih Folder.
+         Tombol Tambah Produk tidak pernah membuka folder picker. */
+      if(addPhotoFile)await requirePhotoDirectory();
 
       let target;
       if(same){
@@ -5918,6 +5899,18 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         renderBarcodeChips(target);return;
       }
       if(e.target.closest('[data-pk3-close]'))closeEdit();
+    });
+    $('pk3-folder-pick')?.addEventListener('click',async()=>{
+      try{
+        const btn=$('pk3-folder-pick');
+        if(btn){btn.disabled=true;}
+        await selectPhotoDirectory();
+      }catch(err){
+        if(err?.name!=='AbortError' && typeof showModal==='function')showModal('Folder Foto',err?.message||'Folder foto belum dipilih.');
+      }finally{
+        const btn=$('pk3-folder-pick');
+        if(btn){btn.disabled=false;}
+      }
     });
     $('pk3-photo')?.addEventListener('change',e=>{
       addPhotoFile=e.target.files?.[0]||null;
