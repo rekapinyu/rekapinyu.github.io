@@ -4474,36 +4474,46 @@ window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveHistoryCloud(),savePen
 window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolve();
 
 /* ================================================================
-   PRODUK KASIR — FIRESTORE CANONICAL
-   Satu jalur tulis untuk menu Produk Kasir, import backup, edit/hapus,
-   dan perubahan stok dari menu Kasir.
-   Firestore path: Kasir/{UID}
-   Field: ProdukKasir = Array<Map> dengan HANYA 7 field produk.
+   PRODUK KASIR — SATU IMPLEMENTASI FIRESTORE
+   Satu-satunya tujuan blok ini:
+   Menu Produk Kasir -> Kasir/{UID}.ProdukKasir
+
+   Struktur Firestore yang ditulis:
+   ProdukKasir: [
+     {
+       "nama produk": "Indomie Goreng",
+       "harga hpp": 2500,
+       "harga jual": 3500,
+       "profit": 1000,
+       "stok": 13,
+       "category": "Makanan",
+       "photo url": "https://..."
+     }
+   ]
+
+   Import dan Backup menu TIDAK disentuh oleh blok ini. Keduanya
+   tetap memakai alur Menu Produk Kasir yang sudah ada.
    ================================================================ */
 function produkKasirFromFirestore(raw,index=0){
   const x=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
-  const hasNewFields=Object.prototype.hasOwnProperty.call(x,'nama produk')||
-    Object.prototype.hasOwnProperty.call(x,'harga hpp')||
-    Object.prototype.hasOwnProperty.call(x,'harga jual')||
-    Object.prototype.hasOwnProperty.call(x,'stok')||
-    Object.prototype.hasOwnProperty.call(x,'photo url');
-  const name=String(hasNewFields?(x['nama produk']??''):(x.name??'')).trim();
-  const hpp=Number(hasNewFields?(x['harga hpp']??0):(x.cost??x.grosir??0))||0;
-  const jual=Number(hasNewFields?(x['harga jual']??0):(x.price??0))||0;
-  const stok=Math.max(0,Number(hasNewFields?(x.stok??0):(x.stock??x.manualStock??0))||0);
-  const category=String(x.category??'Lainnya').trim()||'Lainnya';
-  const photo=String(hasNewFields?(x['photo url']??''):(x.photo??'')).trim();
-  const bars=Array.isArray(x.barcodes)
-    ? [...new Set(x.barcodes.map(v=>String(v??'').trim()).filter(Boolean))]
-    : (x.barcode? [String(x.barcode).trim()].filter(Boolean):[]);
+  const name=String(x['nama produk']??x.name??'').trim();
+  const hpp=Number(x['harga hpp']??x.cost??x.grosir??0)||0;
+  const jual=Number(x['harga jual']??x.price??0)||0;
+  const stok=Math.max(0,Number(x.stok??x.stock??x.manualStock??0)||0);
   return {
-    id:String(x.id||stableProdukKasirId(name,index)),
-    name, category, cost:hpp, grosir:hpp, price:jual,
-    manualStock:stok, stock:stok, photo,
-    barcodes:bars, barcode:bars[0]||''
+    id:String(x.id||`pk3-${Date.now()}-${index}-${Math.random().toString(36).slice(2,8)}`),
+    name,
+    category:String(x.category??'Lainnya').trim()||'Lainnya',
+    cost:hpp,
+    grosir:hpp,
+    price:jual,
+    manualStock:stok,
+    stock:stok,
+    photo:String(x['photo url']??x.photo??''),
+    barcodes:Array.isArray(x.barcodes)?x.barcodes.map(v=>String(v??'').trim()).filter(Boolean):[],
+    barcode:String(x.barcode??'').trim()
   };
 }
-
 function produkKasirToFirestore(raw){
   const x=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
   const hpp=Number(x.cost??x.grosir??x['harga hpp']??0)||0;
@@ -4516,66 +4526,52 @@ function produkKasirToFirestore(raw){
     profit:jual-hpp,
     stok,
     category:String(x.category??'Lainnya').trim()||'Lainnya',
-    'photo url':String(x.photo??x['photo url']??'').trim()
+    'photo url':String(x.photo??x['photo url']??'')
   };
 }
-
-function stableProdukKasirId(name,index=0){
-  const seed=String(name||'').trim().toLowerCase()||`produk-${index}`;
-  let hash=2166136261;
-  for(let i=0;i<seed.length;i++){hash^=seed.charCodeAt(i);hash=Math.imul(hash,16777619)}
-  return `pk3-${(hash>>>0).toString(36)}`;
-}
-
-function normalizeProdukKasirList(list){
-  return (Array.isArray(list)?list:[]).map((x,i)=>produkKasirFromFirestore(x,i));
-}
-
 async function uploadProdukKasirPhoto(uid,item){
-  const photo=String(item?.photo||'');
-  if(!/^data:image\//i.test(photo))return photo;
+  const src=String(item.photo??'');
+  if(!/^data:image\//i.test(src))return item;
   try{
-    const m=photo.match(/^data:([^;]+);base64,(.*)$/);
-    if(!m)return photo;
+    const m=src.match(/^data:([^;]+);base64,(.*)$/);
+    if(!m)return item;
     const bin=atob(m[2]);
     const bytes=new Uint8Array(bin.length);
     for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
     const blob=new Blob([bytes],{type:m[1]||'image/jpeg'});
-    const id=encodeURIComponent(String(item?.id||Date.now()));
-    const sr=ref(storage,`users/${uid}/produk-kasir/${id}.jpg`);
-    await uploadBytes(sr,blob,{contentType:blob.type,cacheControl:'public,max-age=31536000'});
-    return await getDownloadURL(sr);
+    const id=encodeURIComponent(String(item.id||Date.now()));
+    const storageRef=ref(storage,`users/${uid}/produk-kasir/${id}.jpg`);
+    await uploadBytes(storageRef,blob,{contentType:blob.type,cacheControl:'public,max-age=31536000'});
+    item.photo=await getDownloadURL(storageRef);
   }catch(e){
     log('upload foto ProdukKasir gagal',e);
-    return '';
+    throw new Error('Foto Produk Kasir gagal disimpan ke Firebase Storage.');
   }
+  return item;
 }
-
 async function saveProdukKasir(products){
   const user=auth.currentUser;
   if(!user?.uid)throw new Error('Sesi Firebase belum siap. Silakan login kembali.');
-  const uid=user.uid;
-  const p=currentPhone();
-  const prepared=[];
-  const source=Array.isArray(products)?products:[];
 
-  for(let i=0;i<source.length;i++){
-    const item=produkKasirFromFirestore(source[i],i);
-    item.photo=await uploadProdukKasirPhoto(uid,item);
-    prepared.push(item);
+  const source=(Array.isArray(products)?products:[]).map((p,i)=>produkKasirFromFirestore(p,i));
+  const prepared=[];
+  for(const item of source){
+    const uploaded=await uploadProdukKasirPhoto(user.uid,{...item});
+    prepared.push(uploaded);
   }
 
-  /* SATU-SATUNYA format yang ditulis ke Firestore. */
   const firestoreProducts=prepared.map(produkKasirToFirestore);
-  const kasirRef=doc(db,COLLECTION.KASIR,uid);
+  const kasirRef=doc(db,'Kasir',user.uid);
 
+  // Satu-satunya penulisan ProdukKasir.
   await setDoc(kasirRef,{
     ProdukKasir:firestoreProducts,
-    NomorHp:p,
+    NomorHp:currentPhone(),
     updatedAt:serverTimestamp()
   },{merge:true});
 
-  /* Pastikan write benar-benar sudah diterima Firestore sebelum UI dianggap berhasil. */
+  // Verifikasi langsung dari Firestore supaya tombol Tambah/Import
+  // hanya dianggap berhasil jika field ProdukKasir benar-benar tersimpan.
   const verify=await getDoc(kasirRef);
   if(!verify.exists())throw new Error('Dokumen Kasir tidak ditemukan setelah penyimpanan.');
   const saved=verify.data()?.ProdukKasir;
@@ -4584,55 +4580,51 @@ async function saveProdukKasir(products){
     throw new Error(`Jumlah ProdukKasir di Firestore tidak sesuai (${saved.length}/${firestoreProducts.length}).`);
   }
   for(let i=0;i<firestoreProducts.length;i++){
-    const a=saved[i]||{},b=firestoreProducts[i]||{};
-    const ok=a['nama produk']===b['nama produk']
-      &&Number(a['harga hpp'])===Number(b['harga hpp'])
-      &&Number(a['harga jual'])===Number(b['harga jual'])
-      &&Number(a.profit)===Number(b.profit)
-      &&Number(a.stok)===Number(b.stok)
-      &&String(a.category??'')===String(b.category??'')
-      &&String(a['photo url']??'')===String(b['photo url']??'');
+    const got=saved[i]||{},want=firestoreProducts[i]||{};
+    const ok=
+      String(got['nama produk']??'')===String(want['nama produk']??'') &&
+      Number(got['harga hpp']??0)===Number(want['harga hpp']??0) &&
+      Number(got['harga jual']??0)===Number(want['harga jual']??0) &&
+      Number(got.profit??0)===Number(want.profit??0) &&
+      Number(got.stok??0)===Number(want.stok??0) &&
+      String(got.category??'')===String(want.category??'') &&
+      String(got['photo url']??'')===String(want['photo url']??'');
     if(!ok)throw new Error(`Verifikasi ProdukKasir gagal pada produk ke-${i+1}.`);
   }
 
-  window.__rekapinyuProdukKasirData=prepared;
+  const result=prepared.map((item,i)=>({...item,photo:String(firestoreProducts[i]?.['photo url']??item.photo??'')}));
+  window.__rekapinyuProdukKasirData=result;
   window.__rekapinyuProdukKasirLoaded=true;
-  return prepared;
+  return result;
 }
-
 window.__rekapinyuSaveProdukKasir=saveProdukKasir;
-
 window.__rekapinyuLoadProdukKasir=async()=>{
   const user=auth.currentUser;
-  if(!user?.uid)throw new Error('Sesi Firebase belum siap.');
-  const r=doc(db,COLLECTION.KASIR,user.uid);
-  const snap=await getDoc(r);
+  if(!user?.uid)return null;
+  const snap=await getDoc(doc(db,'Kasir',user.uid));
   const value=snap.exists()?snap.data()?.ProdukKasir:[];
-  return normalizeProdukKasirList(value);
+  return Array.isArray(value)?value.map(produkKasirFromFirestore):[];
 };
-
 window.__rekapinyuSetProdukKasirData=value=>{
-  window.__rekapinyuProdukKasirData=normalizeProdukKasirList(value);
+  window.__rekapinyuProdukKasirData=Array.isArray(value)?value.map(produkKasirFromFirestore):[];
   window.__rekapinyuProdukKasirLoaded=true;
   try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData)}catch{}
 };
-
 window.__rekapinyuStartProdukKasirRealtime=async()=>{
   const user=auth.currentUser;
   if(!user?.uid)return;
-  const r=doc(db,COLLECTION.KASIR,user.uid);
   if(window.__rekapinyuProdukKasirUnsub){
     try{window.__rekapinyuProdukKasirUnsub()}catch{}
     window.__rekapinyuProdukKasirUnsub=null;
   }
-  window.__rekapinyuProdukKasirUnsub=onSnapshot(r,snap=>{
+  const kasirRef=doc(db,'Kasir',user.uid);
+  window.__rekapinyuProdukKasirUnsub=onSnapshot(kasirRef,snap=>{
     if(!snap.exists())return;
     const value=Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];
     window.__rekapinyuSetProdukKasirData(value);
     try{window.__initKasirViews?.()}catch{}
   },e=>log('realtime ProdukKasir gagal',e));
 };
-
 window.__rekapinyuStopProdukKasirRealtime=()=>{
   if(window.__rekapinyuProdukKasirUnsub){
     try{window.__rekapinyuProdukKasirUnsub()}catch{}
@@ -5279,7 +5271,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
 })();
 </script>
-<style id="produk-kasir-final-css">
+<style id="produk-kasir-canonical-css">
 .pk3-form{display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;gap:8px!important;align-items:end!important;}
 .pk3-form .pk3-field,.pk3-form .pk3-photo-field,.pk3-form .pk3-add{width:100%!important;min-width:0!important;margin:0!important;align-self:end!important;box-sizing:border-box!important;}
 .pk3-form .pk3-field label,.pk3-form .pk3-photo-field>label:first-child{display:block!important;height:18px!important;line-height:18px!important;margin:0 0 4px!important;box-sizing:border-box!important;overflow:hidden!important;white-space:nowrap!important;}
@@ -5306,7 +5298,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
 .pk3-field select{display:block;width:100%;height:38px;box-sizing:border-box;padding:0 10px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#0f172a;font-size:12px;outline:none}.pk3-field select:focus{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.12)}
 .pk3-barcode-field{position:relative!important}.pk3-barcode-list:empty{display:none!important}.pk3-barcode-list{position:absolute!important;left:0!important;right:0!important;top:calc(100% + 4px)!important;display:flex!important;flex-direction:column!important;gap:2px!important;margin:0!important;padding:4px!important;max-height:132px!important;overflow-y:auto!important;overflow-x:hidden!important;background:#fff!important;border:1px solid #cbd5e1!important;border-radius:10px!important;box-shadow:0 10px 24px rgba(15,23,42,.12)!important;z-index:200!important;box-sizing:border-box!important}.pk3-barcode-chip{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:100%!important;min-height:30px!important;box-sizing:border-box!important;padding:6px 8px!important;border:0!important;border-radius:7px!important;background:#f8fafc!important;color:#1e3a8a!important;font-size:10px!important;font-weight:800!important}.pk3-barcode-chip:hover{background:#eff6ff!important}.pk3-barcode-chip span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}.pk3-barcode-chip button{flex:0 0 auto!important;border:0!important;background:transparent!important;color:#dc2626!important;font-size:14px!important;line-height:1!important;cursor:pointer!important;padding:2px 4px!important;border-radius:5px!important}.pk3-barcode-chip button:hover{background:#fee2e2!important}.pk3-edit-row .pk3-barcode-field{position:relative!important}.pk3-edit-row .pk3-barcode-list{z-index:300!important}</style>
-<script id="produk-kasir-final-js">
+<script id="produk-kasir-canonical-js">
 (function(){
   const $=id=>document.getElementById(id);
   const CATEGORIES=['Makanan','Minuman','Snack','Sembako','Bahan Pokok','Frozen Food','Bakery','Buah','Sayur','Daging & Seafood','Bumbu & Rempah','Susu & Dairy','Kebutuhan Rumah Tangga','Kebersihan','Perawatan Diri','Kesehatan','ATK','Elektronik','Fashion','Aksesoris','Pulsa & Token','Jasa','Lainnya'];
@@ -5319,12 +5311,14 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   let editBarcodes=[];
 
   function money(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
-  function makeId(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
+  function uid(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
   function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,' ')}
   function read(){return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[]}
   function normalizeBarcodes(p){
-    if(Array.isArray(p?.barcodes))return [...new Set(p.barcodes.map(v=>String(v??'').trim()).filter(Boolean))];
-    return p?.barcode?[String(p.barcode).trim()]:[];
+    let arr=[];
+    if(Array.isArray(p?.barcodes))arr=p.barcodes;
+    else if(p?.barcode)arr=String(p.barcode).split(/[\n,;]+/);
+    return [...new Set(arr.map(v=>String(v||'').trim()).filter(Boolean))]
   }
   function normalizeProduct(p){
     const x=p&&typeof p==='object'?p:{};
@@ -5332,168 +5326,94 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const cost=Number(x.cost??x.grosir??x['harga hpp']??0)||0;
     const price=Number(x.price??x['harga jual']??0)||0;
     const stock=Math.max(0,Number(x.stock??x.manualStock??x.stok??0)||0);
-    const category=CATEGORIES.includes(String(x.category??''))?String(x.category):'Lainnya';
     const bars=normalizeBarcodes(x);
-    return {id:String(x.id||makeId()),name,category,barcodes:bars,barcode:bars[0]||'',cost,grosir:cost,price,manualStock:stock,stock,photo:String(x.photo??x['photo url']??'')};
+    return {...x,id:String(x.id||uid()),name,category:CATEGORIES.includes(String(x.category||''))?String(x.category):'Lainnya',barcodes:bars,barcode:bars[0]||'',cost,grosir:cost,price,manualStock:stock,stock,photo:String(x.photo??x['photo url']??'')}
   }
-  function snapshotProducts(){return products.map(normalizeProduct)}
-  function renderBarcodeChips(target){
-    const arr=target==='edit'?editBarcodes:addBarcodes;
-    const box=$(target==='edit'?'pk3-edit-barcode-list':'pk3-barcode-list');
-    if(!box)return;
-    box.innerHTML=arr.map((b,i)=>`<span class="pk3-barcode-chip"><span>${String(b).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}</span><button type="button" data-remove-barcode="${i}" data-barcode-target="${target}" aria-label="Hapus barcode">×</button></span>`).join('');
-    box.scrollTop=box.scrollHeight;
-  }
-  function setProducts(next){
-    products=(Array.isArray(next)?next:[]).map(normalizeProduct);
-    window.__rekapinyuProdukKasirData=products.map(normalizeProduct);
-    window.__rekapinyuProdukKasirLoaded=true;
-    render();
-  }
-  async function commitProducts(next,successMessage){
+  function snapshotProducts(){return products.map(p=>normalizeProduct({...p,barcodes:[...normalizeBarcodes(p)]}))}
+  function setLocalProducts(next){products=(Array.isArray(next)?next:[]).map(normalizeProduct);window.__rekapinyuProdukKasirData=snapshotProducts();window.__rekapinyuProdukKasirLoaded=true}
+
+  async function commitProducts(next,successTitle,successMessage){
+    const previous=snapshotProducts();
     const candidate=(Array.isArray(next)?next:[]).map(normalizeProduct);
+    setLocalProducts(candidate);
+    render();
     try{
       const saved=await window.__rekapinyuSaveProdukKasir(candidate);
       if(!Array.isArray(saved))throw new Error('Firestore tidak mengembalikan ProdukKasir yang tersimpan.');
-      setProducts(saved);
+      setLocalProducts(saved);
+      render();
       try{window.__initKasirViews?.()}catch{}
-      if(typeof showModal==='function')showModal('Berhasil',successMessage,'fa-solid fa-circle-check text-emerald-600');
+      if(typeof showModal==='function')showModal(successTitle,successMessage||'Data Produk Kasir berhasil disimpan ke Firestore.','fa-solid fa-circle-check text-emerald-600');
       return true;
     }catch(err){
+      setLocalProducts(previous);
+      render();
+      try{window.__initKasirViews?.()}catch{}
       console.error('Rekapinyu ProdukKasir:',err);
-      if(typeof showModal==='function')showModal('Gagal Menyimpan Produk Kasir',err?.message||'Data Produk Kasir gagal disimpan ke Firestore.','fa-solid fa-circle-xmark text-rose-600');
+      if(typeof showModal==='function')showModal('Gagal Menyimpan Produk Kasir',err?.message||'Data Produk Kasir gagal disimpan ke Firestore. Tidak ada perubahan lokal yang dipertahankan.','fa-solid fa-circle-xmark text-rose-600');
       return false;
     }
   }
+
   async function load(){
     try{
       const cloud=await window.__rekapinyuLoadProdukKasir?.();
-      setProducts(Array.isArray(cloud)?cloud:[]);
-    }catch(e){
-      console.error('Rekapinyu: gagal membaca ProdukKasir dari Firestore.',e);
-      setProducts([]);
-      if(typeof showModal==='function')showModal('Produk Kasir','Data Produk Kasir belum dapat dibaca dari Firestore. Silakan periksa login dan Security Rules.','fa-solid fa-cloud text-amber-600');
-    }
-  }
-  function resetForm(){
-    $('pk3-form')?.reset();
-    addPhoto='';addBarcodes=[];renderBarcodeChips('add');
-    if($('pk3-stock'))$('pk3-stock').value='';
-    if($('pk3-photo-name'))$('pk3-photo-name').textContent='Pilih foto';
-    if($('pk3-category'))$('pk3-category').value='Lainnya';
-  }
-  function num(id){return Number(String($(id)?.value||'').replace(/\D/g,''))||0}
-  function addBarcode(target,value){
-    const clean=String(value||'').trim();if(!clean)return;
-    const arr=target==='edit'?editBarcodes:addBarcodes;
-    clean.split(/[\n,;]+/).map(v=>v.trim()).filter(Boolean).forEach(v=>{
-      if(!arr.includes(v)){
-        arr.push(v);
-        if(target==='edit'){
-          const input=$('pk3-edit-stock');
-          if(input)input.value=String(Math.max(0,num('pk3-edit-stock')+1));
-        }
+      if(Array.isArray(cloud)){
+        setLocalProducts(cloud);
+        render();
+        return;
       }
-    });
-    renderBarcodeChips(target);
+    }catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}
+    setLocalProducts(read());
+    render();
   }
-  function finishPendingBarcode(target){
-    const input=$(target==='edit'?'pk3-edit-barcode':'pk3-barcode');
-    if(input?.value.trim()){addBarcode(target,input.value);input.value=''}
-  }
-  function closeEdit(){
-    const m=$('pk3-edit-modal');
-    if(m){m.hidden=true;m.setAttribute('aria-hidden','true')}
-    editingId=null;editPhoto='';editBarcodes=[];
-  }
-  function openEdit(p){
-    editingId=String(p.id);editPhoto=p.photo||'';editBarcodes=normalizeBarcodes(p);
-    $('pk3-edit-name').value=p.name||'';
-    $('pk3-edit-category').value=CATEGORIES.includes(p.category)?p.category:'Lainnya';
-    $('pk3-edit-barcode').value='';renderBarcodeChips('edit');
-    $('pk3-edit-stock').value=String(Math.max(0,Number(p.stock)||0));
-    $('pk3-edit-cost').value=Number(p.cost??p.grosir)||0;
-    $('pk3-edit-price').value=Number(p.price)||0;
-    formatNominalInput($('pk3-edit-cost'));formatNominalInput($('pk3-edit-price'));
-    $('pk3-edit-photo-name').textContent=p.photo?'Pertahankan foto':'Pilih foto';
-    const m=$('pk3-edit-modal');if(!m)return;
-    m.hidden=false;m.setAttribute('aria-hidden','false');
-    setTimeout(()=>$('pk3-edit-name')?.focus(),0);
-  }
-  function card(p){
-    const el=document.createElement('article');el.className='pk3-card';el.dataset.id=String(p.id);
-    const photo=document.createElement('div');photo.className='pk3-photo';
-    if(p.photo){const img=document.createElement('img');img.src=p.photo;img.alt=p.name||'';photo.appendChild(img)}else photo.innerHTML='<i class="fa-solid fa-image"></i>';
-    const info=document.createElement('div');info.className='pk3-info';
-    const name=document.createElement('div');name.className='pk3-product-name';name.textContent=p.name||'';name.title=p.name||'';
-    const cat=document.createElement('div');cat.className='pk3-category';cat.textContent=(p.category||'Lainnya')+(normalizeBarcodes(p).length?' • '+normalizeBarcodes(p).length+' barcode':'');
-    const data=document.createElement('div');data.className='pk3-data';
-    const box=(label,value,cls='')=>{const d=document.createElement('div');d.className='pk3-data-box'+(cls?' '+cls:'');const sm=document.createElement('small');sm.textContent=label;const b=document.createElement('strong');b.textContent=value;d.append(sm,b);return d};
-    data.append(box('STOK',String(Number(p.stock)||0)),box('HPP',money(p.cost??p.grosir)),box('HARGA JUAL',money(p.price),'sell'));
-    const actions=document.createElement('div');actions.className='pk3-actions';
-    const edit=document.createElement('button');edit.type='button';edit.className='pk3-edit';edit.dataset.action='edit';edit.dataset.id=String(p.id);edit.innerHTML='<i class="fa-solid fa-pen"></i> Edit';
-    const del=document.createElement('button');del.type='button';del.className='pk3-delete';del.dataset.action='delete';del.dataset.id=String(p.id);del.innerHTML='<i class="fa-solid fa-trash-can"></i> Hapus';
-    actions.append(edit,del);info.append(name,cat,data,actions);el.append(photo,info);return el;
-  }
-  function render(){
-    const grid=$('pk3-grid');if(!grid)return;
-    const q=String($('pk3-search')?.value||'').trim().toLowerCase();
-    const list=products.filter(p=>`${p.name||''} ${p.category||''} ${normalizeBarcodes(p).join(' ')}`.toLowerCase().includes(q));
-    if($('pk3-count'))$('pk3-count').textContent=`${products.length} produk`;
-    grid.replaceChildren();
-    if(!list.length){const e=document.createElement('div');e.className='pk3-empty';e.innerHTML=`<i class="fa-solid fa-box-open"></i><strong>${products.length?'Produk tidak ditemukan':'Belum ada produk'}</strong><span>${products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.'}</span>`;grid.appendChild(e);return}
-    const frag=document.createDocumentFragment();list.forEach(p=>frag.appendChild(card(p)));grid.appendChild(frag);
-  }
-  function compress(file,max=900,quality=.78){
-    return new Promise((resolve,reject)=>{
-      const r=new FileReader();r.onerror=reject;r.onload=()=>{
-        const img=new Image();img.onerror=reject;img.onload=()=>{
-          let w=img.naturalWidth,h=img.naturalHeight;
-          if(w>max||h>max){const scale=Math.min(max/w,max/h);w=Math.max(1,Math.round(w*scale));h=Math.max(1,Math.round(h*scale))}
-          const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');if(!ctx)return reject(new Error('Browser tidak mendukung pemrosesan foto.'));
-          ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality));
-        };img.src=r.result;
-      };r.readAsDataURL(file);
-    });
-  }
+  function resetForm(){ $('pk3-form')?.reset();addPhoto='';addBarcodes=[];renderBarcodeChips('add');if($('pk3-stock'))$('pk3-stock').value='';if($('pk3-photo-name'))$('pk3-photo-name').textContent='Pilih foto';if($('pk3-category'))$('pk3-category').value='Lainnya' }
+  function num(id){return Number(String($(id)?.value||'').replace(/\D/g,''))||0}
+  function addBarcode(target,value){const clean=String(value||'').trim();if(!clean)return;const arr=target==='edit'?editBarcodes:addBarcodes;clean.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(!arr.includes(x)){arr.push(x);if(target==='edit'){const input=$('pk3-edit-stock');if(input)input.value=String(Math.max(0,num('pk3-edit-stock')+1))}}});renderBarcodeChips(target)}
+  function renderBarcodeChips(target){const arr=target==='edit'?editBarcodes:addBarcodes;const box=$(target==='edit'?'pk3-edit-barcode-list':'pk3-barcode-list');if(!box)return;box.innerHTML=arr.map((b,i)=>`<span class="pk3-barcode-chip"><span>${String(b).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}</span><button type="button" data-remove-barcode="${i}" data-barcode-target="${target}" aria-label="Hapus barcode">×</button></span>`).join('');box.scrollTop=box.scrollHeight}
+  function finishPendingBarcode(target){const id=target==='edit'?'pk3-edit-barcode':'pk3-barcode';const input=$(id);if(input?.value.trim()){addBarcode(target,input.value);input.value=''}}
+  function closeEdit(){const m=$('pk3-edit-modal');if(m){m.hidden=true;m.setAttribute('aria-hidden','true')}editingId=null;editPhoto='';editBarcodes=[]}
+  function openEdit(p){editingId=String(p.id);editPhoto=p.photo||'';editBarcodes=normalizeBarcodes(p);$('pk3-edit-name').value=p.name||'';$('pk3-edit-category').value=CATEGORIES.includes(p.category)?p.category:'Lainnya';$('pk3-edit-barcode').value='';renderBarcodeChips('edit');$('pk3-edit-stock').value=String(Math.max(0,Number(p.stock)||0));$('pk3-edit-cost').value=Number(p.cost??p.grosir)||0;$('pk3-edit-price').value=Number(p.price)||0;formatNominalInput($('pk3-edit-cost'));formatNominalInput($('pk3-edit-price'));$('pk3-edit-photo-name').textContent=p.photo?'Pertahankan foto':'Pilih foto';const m=$('pk3-edit-modal');if(!m)return;m.hidden=false;m.setAttribute('aria-hidden','false');setTimeout(()=>$('pk3-edit-name')?.focus(),0)}
+  function card(p){const el=document.createElement('article');el.className='pk3-card';el.dataset.id=String(p.id);const photo=document.createElement('div');photo.className='pk3-photo';if(p.photo){const img=document.createElement('img');img.src=p.photo;img.alt=p.name||'';photo.appendChild(img)}else photo.innerHTML='<i class="fa-solid fa-image"></i>';const info=document.createElement('div');info.className='pk3-info';const name=document.createElement('div');name.className='pk3-product-name';name.textContent=p.name||'';name.title=p.name||'';const cat=document.createElement('div');cat.className='pk3-category';cat.textContent=(p.category||'Lainnya')+(normalizeBarcodes(p).length?' • '+normalizeBarcodes(p).length+' barcode':'');const data=document.createElement('div');data.className='pk3-data';const box=(label,value,cls='')=>{const d=document.createElement('div');d.className='pk3-data-box'+(cls?' '+cls:'');const sm=document.createElement('small');sm.textContent=label;const b=document.createElement('strong');b.textContent=value;d.append(sm,b);return d};data.append(box('STOK',String(Number(p.stock)||0)),box('HPP',money(p.cost??p.grosir)),box('HARGA JUAL',money(p.price),'sell'));const actions=document.createElement('div');actions.className='pk3-actions';const edit=document.createElement('button');edit.type='button';edit.className='pk3-edit';edit.dataset.action='edit';edit.dataset.id=String(p.id);edit.innerHTML='<i class="fa-solid fa-pen"></i> Edit';const del=document.createElement('button');del.type='button';del.className='pk3-delete';del.dataset.action='delete';del.dataset.id=String(p.id);del.innerHTML='<i class="fa-solid fa-trash-can"></i> Hapus';actions.append(edit,del);info.append(name,cat,data,actions);el.append(photo,info);return el}
+  function render(){const grid=$('pk3-grid');if(!grid)return;const q=String($('pk3-search')?.value||'').trim().toLowerCase();const list=products.filter(p=>`${p.name||''} ${p.category||''} ${normalizeBarcodes(p).join(' ')}`.toLowerCase().includes(q));if($('pk3-count'))$('pk3-count').textContent=`${products.length} produk`;grid.replaceChildren();if(!list.length){const e=document.createElement('div');e.className='pk3-empty';e.innerHTML=`<i class="fa-solid fa-box-open"></i><strong>${products.length?'Produk tidak ditemukan':'Belum ada produk'}</strong><span>${products.length?'Coba gunakan kata pencarian lain.':'Tambahkan produk melalui form di atas.'}</span>`;grid.appendChild(e);return}const frag=document.createDocumentFragment();list.forEach(p=>frag.appendChild(card(p)));grid.appendChild(frag)}
+  function compress(file,max=900,quality=.78){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{let w=img.naturalWidth,h=img.naturalHeight;if(w>max||h>max){const scale=Math.min(max/w,max/h);w=Math.max(1,Math.round(w*scale));h=Math.max(1,Math.round(h*scale))}const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');if(!ctx)return reject(new Error('Browser tidak mendukung pemrosesan foto.'));ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=r.result};r.readAsDataURL(file)})}
+
   async function add(e){
-    e.preventDefault();finishPendingBarcode('add');
-    const name=$('pk3-name')?.value.trim()||'';const price=num('pk3-price');const category=$('pk3-category')?.value||'Lainnya';const cost=num('pk3-cost');const stockToAdd=num('pk3-stock');
+    e.preventDefault();
+    finishPendingBarcode('add');
+    const name=$('pk3-name')?.value.trim()||'';
+    const price=num('pk3-price');
+    const category=$('pk3-category')?.value||'Lainnya';
+    const cost=num('pk3-cost');
+    const stockToAdd=num('pk3-stock');
     if(!name||price<=0){if(typeof showModal==='function')showModal('Data belum lengkap','Nama Produk dan Harga Jual wajib diisi.');return}
-    const btn=$('pk3-submit');if(btn?.disabled)return;if(btn)btn.disabled=true;
+    const btn=$('pk3-submit');if(btn?.disabled)return; if(btn)btn.disabled=true;
     try{
-      const candidate=snapshotProducts();const incoming=[...addBarcodes];
+      const candidate=snapshotProducts();
+      const incoming=[...addBarcodes];
       const same=candidate.find(p=>norm(p.name)===norm(name));
       if(same){
-        const existingBars=normalizeBarcodes(same);same.category=category;same.cost=cost;same.grosir=cost;same.price=price;same.barcodes=[...new Set([...existingBars,...incoming])];same.barcode=same.barcodes[0]||'';same.stock=Math.max(0,Number(same.stock)||0)+stockToAdd;same.manualStock=same.stock;if(addPhoto)same.photo=addPhoto;
+        const existingBars=normalizeBarcodes(same);same.category=category;same.cost=cost;same.grosir=cost;same.price=price;same.barcodes=[...new Set([...existingBars,...incoming])];same.barcode=same.barcodes[0]||'';same.stock=Math.max(0,Number(same.stock)||0)+stockToAdd;same.manualStock=same.stock;if(addPhoto)same.photo=addPhoto;const i=candidate.findIndex(p=>p===same);candidate.splice(i,1);candidate.unshift(same);
       }else{
-        candidate.unshift({id:makeId(),name,category,barcodes:incoming,barcode:incoming[0]||'',cost,grosir:cost,price,manualStock:stockToAdd,stock:stockToAdd,photo:addPhoto});
+        candidate.unshift({id:uid(),name,category,barcodes:incoming,barcode:incoming[0]||'',cost,grosir:cost,price,manualStock:stockToAdd,stock:stockToAdd,photo:addPhoto});
       }
-      const ok=await commitProducts(candidate,same?'Stok produk berhasil ditambahkan dan disimpan ke Firestore.':'Produk berhasil ditambahkan dan disimpan ke Firestore.');
-      if(ok)resetForm();
+      const ok=await commitProducts(candidate,'Berhasil',same?'Stok produk berhasil ditambahkan.':'Produk berhasil ditambahkan.');
+      if(ok){resetForm();}
     }finally{if(btn)btn.disabled=false}
   }
-  async function remove(id){
-    const candidate=snapshotProducts().filter(p=>String(p.id)!==String(id));
-    if(candidate.length===products.length)return;
-    await commitProducts(candidate,'Produk berhasil dihapus dari Firestore.');
-  }
+  async function remove(id){const candidate=snapshotProducts().filter(p=>String(p.id)!==String(id));if(candidate.length===products.length)return;await commitProducts(candidate,'Berhasil','Produk berhasil dihapus.')}
   async function saveEdit(e){
-    e.preventDefault();finishPendingBarcode('edit');
-    const i=products.findIndex(p=>String(p.id)===String(editingId));if(i<0){closeEdit();return}
-    const candidate=snapshotProducts();const old=candidate[i];
+    e.preventDefault();
+    finishPendingBarcode('edit');
+    const i=products.findIndex(p=>String(p.id)===String(editingId));
+    if(i<0){closeEdit();return}
+    const candidate=snapshotProducts();
+    const old=candidate[i];
     candidate[i]={...old,name:$('pk3-edit-name').value.trim(),category:$('pk3-edit-category').value||'Lainnya',barcodes:[...new Set(editBarcodes)],barcode:editBarcodes[0]||'',cost:num('pk3-edit-cost'),grosir:num('pk3-edit-cost'),price:num('pk3-edit-price'),manualStock:Math.max(0,num('pk3-edit-stock')),stock:Math.max(0,num('pk3-edit-stock')),photo:editPhoto};
     const btn=e.target.querySelector('button[type="submit"]');if(btn)btn.disabled=true;
-    try{if(await commitProducts(candidate,'Produk berhasil diperbarui dan disimpan ke Firestore.'))closeEdit()}finally{if(btn)btn.disabled=false}
+    try{if(await commitProducts(candidate,'Berhasil','Produk berhasil diperbarui.'))closeEdit()}finally{if(btn)btn.disabled=false}
   }
-  function backupProducts(){
-    const latest=read().map(normalizeProduct);if(!latest.length){if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');return}
-    try{
-      const backup={format:'Rekapinyu Produk Kasir',version:2,exportedAt:new Date().toISOString(),products:latest};
-      const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-      if(typeof showModal==='function')showModal('Backup Berhasil',`${latest.length} produk berhasil dibackup.`);
-    }catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}
-  }
+  function backupProducts(){const latest=read().map(normalizeProduct);if(!latest.length){if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');return}try{const backup={format:'Rekapinyu Produk Kasir',version:2,exportedAt:new Date().toISOString(),products:latest};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);if(typeof showModal==='function')showModal('Backup Berhasil',`${latest.length} produk berhasil dibackup.`)}catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}}
   async function importProducts(file){
     if(!file)return;
     const reader=new FileReader();
@@ -5502,9 +5422,10 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         const parsed=JSON.parse(String(reader.result||''));
         const source=Array.isArray(parsed)?parsed:parsed?.products;
         if(!Array.isArray(source)||!source.length)throw new Error('File backup tidak berisi daftar produk yang valid.');
-        const imported=source.map((p,i)=>normalizeProduct({...p,id:String(p?.id||`import-${Date.now()}-${i}-${Math.random().toString(36).slice(2,7)}`)})).filter(p=>p.name&&p.price>0);
+        const imported=source.map((p,i)=>normalizeProduct({...p,id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8))})).filter(p=>p.name&&p.price>0);
         if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
-        await commitProducts(imported,`${imported.length} produk berhasil diimport dan langsung disimpan ke Firestore.`);
+        const ok=await commitProducts(imported,'Import Berhasil',`${imported.length} produk berhasil diimport dan disimpan ke Firestore.`);
+        if(!ok)return;
       }catch(err){if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.')}
       finally{if($('pk3-import-file'))$('pk3-import-file').value=''}
     };
@@ -5512,7 +5433,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     reader.readAsText(file);
   }
   function bind(){
-    if(bound)return;bound=true;
+    if(bound)return;
+    bound=true;
     $('pk3-form')?.addEventListener('submit',add);
     $('pk3-search')?.addEventListener('input',render);
     $('pk3-grid')?.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const p=products.find(x=>String(x.id)===String(b.dataset.id));if(!p)return;if(b.dataset.action==='edit')openEdit(p);if(b.dataset.action==='delete')remove(p.id)});
@@ -5526,8 +5448,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     $('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()});
   }
-  window.__rekapinyuRefreshProdukKasir=value=>setProducts(value);
-  window.__initProdukKasir=()=>{bind();load()};
+  window.__rekapinyuRefreshProdukKasir=function(value){setLocalProducts(value);render()};
+  window.__initProdukKasir=function(){bind();load()};
 })();
 </script>
 <script id="kasir-final-js">
