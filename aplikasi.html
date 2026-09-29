@@ -2136,7 +2136,7 @@ bind();
 <section class="hidden pk3-view" id="view-produk-kasir">
 <div class="pk3-form-card">
 <div class="pk3-heading">
-<div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
+<div><h3>Produk Kasir</h3><p>Data produk tersimpan di Firestore dan tersinkron realtime.</p></div>
 <span id="pk3-count">0 produk</span>
 </div>
 <form autocomplete="off" class="pk3-form" id="pk3-form">
@@ -2145,7 +2145,7 @@ bind();
 <div class="pk3-field pk3-barcode-field"><label for="pk3-barcode">Multi Barcode+</label><input id="pk3-barcode" placeholder="Ketik, Enter" type="text" autocomplete="off"/><div class="pk3-barcode-list" id="pk3-barcode-list"></div></div>
 <div class="pk3-field"><label for="pk3-cost">HPP / Grosir</label><input id="pk3-cost" inputmode="numeric" placeholder="0" type="text"/></div>
 <div class="pk3-field"><label for="pk3-price">Harga Jual</label><input id="pk3-price" inputmode="numeric" placeholder="0" required="" type="text"/></div>
-<div class="pk3-field"><label for="pk3-stock">Stok</label><input id="pk3-stock" inputmode="numeric" min="0" placeholder="0" type="text"/></div>
+<div class="pk3-field"><label for="pk3-stock">Stok Manual</label><input id="pk3-stock" inputmode="numeric" min="0" placeholder="0" type="text"/></div>
 <div class="pk3-photo-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-photo"><i class="fa-solid fa-camera"></i><span id="pk3-photo-name">Pilih foto</span></label><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-photo" type="file"/></div>
 <button class="pk3-add" id="pk3-submit" type="submit"><i class="fa-solid fa-plus"></i><span>Tambah Produk</span></button>
 </form>
@@ -2161,13 +2161,13 @@ bind();
 <form autocomplete="off" class="pk3-edit-form" id="pk3-edit-form">
 <div class="pk3-field"><label for="pk3-edit-name">Nama Produk</label><input id="pk3-edit-name" required=""/></div>
 <div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-category">Kategori Produk</label><select id="pk3-edit-category"><option value="Makanan">Makanan</option><option value="Minuman">Minuman</option><option value="Snack">Snack</option><option value="Sembako">Sembako</option><option value="Bahan Pokok">Bahan Pokok</option><option value="Frozen Food">Frozen Food</option><option value="Bakery">Bakery</option><option value="Buah">Buah</option><option value="Sayur">Sayur</option><option value="Daging & Seafood">Daging & Seafood</option><option value="Bumbu & Rempah">Bumbu & Rempah</option><option value="Susu & Dairy">Susu & Dairy</option><option value="Kebutuhan Rumah Tangga">Kebutuhan Rumah Tangga</option><option value="Kebersihan">Kebersihan</option><option value="Perawatan Diri">Perawatan Diri</option><option value="Kesehatan">Kesehatan</option><option value="ATK">ATK</option><option value="Elektronik">Elektronik</option><option value="Fashion">Fashion</option><option value="Aksesoris">Aksesoris</option><option value="Pulsa & Token">Pulsa & Token</option><option value="Jasa">Jasa</option><option value="Lainnya">Lainnya</option></select></div><div class="pk3-field pk3-barcode-field"><label for="pk3-edit-barcode">Barcode (bisa banyak)</label><input id="pk3-edit-barcode" placeholder="Ketik barcode lalu Enter" autocomplete="off"/><div class="pk3-barcode-list" id="pk3-edit-barcode-list"></div></div></div>
-<div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-cost">HPP / Grosir</label><input id="pk3-edit-cost" inputmode="numeric"/></div><div class="pk3-field"><label for="pk3-edit-price">Harga Jual</label><input id="pk3-edit-price" inputmode="numeric" required=""/></div><div class="pk3-field"><label for="pk3-edit-stock">Stok</label><input id="pk3-edit-stock" inputmode="numeric" required=""/></div></div>
+<div class="pk3-edit-row"><div class="pk3-field"><label for="pk3-edit-cost">HPP / Grosir</label><input id="pk3-edit-cost" inputmode="numeric"/></div><div class="pk3-field"><label for="pk3-edit-price">Harga Jual</label><input id="pk3-edit-price" inputmode="numeric" required=""/></div><div class="pk3-field"><label for="pk3-edit-stock">Stok Manual</label><input id="pk3-edit-stock" inputmode="numeric" required=""/></div></div>
 <div class="pk3-field"><label>Foto Produk</label><label class="pk3-photo-btn" for="pk3-edit-photo"><i class="fa-solid fa-camera"></i><span id="pk3-edit-photo-name">Pertahankan foto</span></label><input accept="image/jpeg,image/png,image/webp" hidden="" id="pk3-edit-photo" type="file"/></div>
 <div class="pk3-modal-actions"><button class="pk3-cancel" data-pk3-close="" type="button">Batal</button><button class="pk3-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div>
 </form>
 </div>
 </div>
-<div aria-label="Backup dan Import Produk" class="pk3-data-tools hidden" id="pk3-data-tools">
+<div aria-label="Backup dan Import Produk" class="pk3-data-tools" id="pk3-data-tools">
 <button aria-label="Backup semua produk" class="pk3-data-tool pk3-backup" id="pk3-backup" title="Backup semua produk" type="button">
 <i class="fa-solid fa-download"></i>
 </button>
@@ -4434,62 +4434,86 @@ window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolv
 
 /* ================================================================
    PRODUK KASIR — SATU IMPLEMENTASI FIRESTORE
-   Satu-satunya tujuan blok ini:
-   Menu Produk Kasir -> Kasir/{UID}.ProdukKasir
+   Jalur data tunggal:
+   Aplikasi -> Kasir/{UID}.ProdukKasir -> Aplikasi (onSnapshot realtime)
 
-   Struktur Firestore yang ditulis:
-   ProdukKasir: [
-     {
-       "nama produk": "Indomie Goreng",
-       "harga hpp": 2500,
-       "harga jual": 3500,
-       "profit": 1000,
-       "stok": 13,
-       "category": "Makanan",
-       "photo url": "https://..."
-     }
-   ]
-
-   Import dan Backup menu TIDAK disentuh oleh blok ini. Keduanya
-   tetap memakai alur Menu Produk Kasir yang sudah ada.
+   Stok real = stok manual + jumlah barcode tersimpan.
+   Tidak ada batas jumlah barcode pada sisi UI/JavaScript.
+   Backup dan Import tetap memakai window.__rekapinyuSaveProdukKasir.
    ================================================================ */
+
+function produkKasirStableId(raw,index=0){
+  const x=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{};
+  const existing=String(x.id??"").trim();
+  if(existing)return existing;
+  const seed=[
+    String(x["nama produk"]??x.name??"").trim(),
+    String(x.category??"").trim(),
+    Number(x["harga hpp"]??x.cost??x.grosir??0)||0,
+    Number(x["harga jual"]??x.price??0)||0,
+    String(x["photo url"]??x.photo??"")
+  ].join("|");
+  let h=2166136261;
+  for(let i=0;i<seed.length;i++){h^=seed.charCodeAt(i);h=Math.imul(h,16777619)}
+  return `pk-${(h>>>0).toString(36)}-${index}`;
+}
+
+function produkKasirNormalizeBarcodes(raw){
+  const x=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{};
+  const list=Array.isArray(x.barcodes)
+    ? x.barcodes
+    : (x.barcode!==undefined&&x.barcode!==null&&String(x.barcode).trim()?[x.barcode]:[]);
+  return [...new Set(list.map(v=>String(v??"").trim()).filter(Boolean))];
+}
+
 function produkKasirFromFirestore(raw,index=0){
-  const x=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
-  const name=String(x['nama produk']??x.name??'').trim();
-  const hpp=Number(x['harga hpp']??x.cost??x.grosir??0)||0;
-  const jual=Number(x['harga jual']??x.price??0)||0;
-  const stok=Math.max(0,Number(x.stok??x.stock??x.manualStock??0)||0);
+  const x=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{};
+  const name=String(x["nama produk"]??x.name??"").trim();
+  const hpp=Math.max(0,Number(x["harga hpp"]??x.cost??x.grosir??0)||0);
+  const jual=Math.max(0,Number(x["harga jual"]??x.price??0)||0);
+  const barcodes=produkKasirNormalizeBarcodes(x);
+  const storedManual=x["stok manual"]??x.manualStock;
+  let manual;
+  if(storedManual!==undefined&&storedManual!==null&&storedManual!==""){
+    manual=Math.max(0,Math.floor(Number(storedManual)||0));
+  }else{
+    const legacyStock=Math.max(0,Math.floor(Number(x.stok??x.stock??0)||0));
+    manual=Math.max(0,legacyStock-barcodes.length);
+  }
+  const stock=manual+barcodes.length;
   return {
-    id:String(x.id||`product-${Date.now()}-${index}-${Math.random().toString(36).slice(2,8)}`),
+    id:produkKasirStableId(x,index),
     name,
-    category:String(x.category??'Lainnya').trim()||'Lainnya',
+    category:String(x.category??"Lainnya").trim()||"Lainnya",
     cost:hpp,
     grosir:hpp,
     price:jual,
-    manualStock:stok,
-    stock:stok,
-    photo:String(x['photo url']??x.photo??''),
-    barcodes:Array.isArray(x.barcodes)?x.barcodes.map(v=>String(v??'').trim()).filter(Boolean):[],
-    barcode:String(x.barcode??'').trim()
+    manualStock:manual,
+    stock,
+    photo:String(x["photo url"]??x.photo??""),
+    barcodes,
+    barcode:barcodes[0]||""
   };
 }
-function produkKasirToFirestore(raw){
-  const x=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
-  const hpp=Number(x.cost??x.grosir??x['harga hpp']??0)||0;
-  const jual=Number(x.price??x['harga jual']??0)||0;
-  const stok=Math.max(0,Number(x.stock??x.manualStock??x.stok??0)||0);
+
+function produkKasirToFirestore(raw,index=0){
+  const x=produkKasirFromFirestore(raw,index);
   return {
-    'nama produk':String(x.name??x['nama produk']??'').trim(),
-    'harga hpp':hpp,
-    'harga jual':jual,
-    profit:jual-hpp,
-    stok,
-    category:String(x.category??'Lainnya').trim()||'Lainnya',
-    'photo url':String(x.photo??x['photo url']??'')
+    id:String(x.id),
+    "nama produk":String(x.name||"").trim(),
+    "harga hpp":Number(x.cost)||0,
+    "harga jual":Number(x.price)||0,
+    profit:(Number(x.price)||0)-(Number(x.cost)||0),
+    "stok manual":Math.max(0,Math.floor(Number(x.manualStock)||0)),
+    stok:Math.max(0,Math.floor(Number(x.manualStock)||0))+x.barcodes.length,
+    barcodes:[...x.barcodes],
+    category:String(x.category||"Lainnya").trim()||"Lainnya",
+    "photo url":String(x.photo||"")
   };
 }
+
 async function uploadProdukKasirPhoto(uid,item){
-  const src=String(item.photo??'');
+  const src=String(item.photo??"");
   if(!/^data:image\//i.test(src))return item;
   try{
     const m=src.match(/^data:([^;]+);base64,(.*)$/);
@@ -4497,65 +4521,68 @@ async function uploadProdukKasirPhoto(uid,item){
     const bin=atob(m[2]);
     const bytes=new Uint8Array(bin.length);
     for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-    const blob=new Blob([bytes],{type:m[1]||'image/jpeg'});
+    const blob=new Blob([bytes],{type:m[1]||"image/jpeg"});
     const id=encodeURIComponent(String(item.id||Date.now()));
     const storageRef=ref(storage,`users/${uid}/produk-kasir/${id}.jpg`);
-    await uploadBytes(storageRef,blob,{contentType:blob.type,cacheControl:'public,max-age=31536000'});
+    await uploadBytes(storageRef,blob,{contentType:blob.type,cacheControl:"public,max-age=31536000"});
     item.photo=await getDownloadURL(storageRef);
   }catch(e){
-    log('upload foto ProdukKasir gagal',e);
-    throw new Error('Foto Produk Kasir gagal disimpan ke Firebase Storage.');
+    log("upload foto ProdukKasir gagal",e);
+    throw new Error("Foto Produk Kasir gagal disimpan ke Firebase Storage.");
   }
   return item;
 }
+
 async function saveProdukKasir(products){
   const user=auth.currentUser;
-  if(!user?.uid)throw new Error('Sesi Firebase belum siap. Silakan login kembali.');
+  if(!user?.uid)throw new Error("Sesi Firebase belum siap. Silakan login kembali.");
+  if(!firestoreDataHydrated)throw new Error("Data Firestore belum selesai dimuat. Tunggu sebentar lalu coba lagi.");
 
   const source=(Array.isArray(products)?products:[]).map((p,i)=>produkKasirFromFirestore(p,i));
   const prepared=[];
+  const barcodeOwner=new Map();
+
   for(const item of source){
+    item.barcodes=produkKasirNormalizeBarcodes(item);
+    item.manualStock=Math.max(0,Math.floor(Number(item.manualStock)||0));
+    item.stock=item.manualStock+item.barcodes.length;
+
+    for(const code of item.barcodes){
+      const key=code.toLowerCase();
+      const owner=barcodeOwner.get(key);
+      if(owner&&owner!==String(item.id)){
+        throw new Error(`Barcode ${code} sudah digunakan oleh produk lain.`);
+      }
+      barcodeOwner.set(key,String(item.id));
+    }
+
     const uploaded=await uploadProdukKasirPhoto(user.uid,{...item});
     prepared.push(uploaded);
   }
 
-  const firestoreProducts=prepared.map(produkKasirToFirestore);
-  const kasirRef=doc(db,'Kasir',user.uid);
+  const firestoreProducts=prepared.map((p,i)=>produkKasirToFirestore(p,i));
+  const kasirRef=doc(db,"Kasir",user.uid);
 
-  // Satu-satunya penulisan ProdukKasir.
-  await setDoc(kasirRef,{
+  await enqueue(()=>setDoc(kasirRef,{
     ProdukKasir:firestoreProducts,
     NomorHp:currentPhone(),
     updatedAt:serverTimestamp()
-  },{merge:true});
+  },{merge:true}));
 
-  // Verifikasi langsung dari Firestore supaya tombol Tambah/Import
-  // hanya dianggap berhasil jika field ProdukKasir benar-benar tersimpan.
   const verify=await getDoc(kasirRef);
-  if(!verify.exists())throw new Error('Dokumen Kasir tidak ditemukan setelah penyimpanan.');
+  if(!verify.exists())throw new Error("Dokumen Kasir tidak ditemukan setelah penyimpanan.");
   const saved=verify.data()?.ProdukKasir;
-  if(!Array.isArray(saved))throw new Error('Field ProdukKasir tidak terbentuk sebagai Array di Firestore.');
+  if(!Array.isArray(saved))throw new Error("Field ProdukKasir tidak terbentuk sebagai Array di Firestore.");
   if(saved.length!==firestoreProducts.length){
     throw new Error(`Jumlah ProdukKasir di Firestore tidak sesuai (${saved.length}/${firestoreProducts.length}).`);
   }
-  for(let i=0;i<firestoreProducts.length;i++){
-    const got=saved[i]||{},want=firestoreProducts[i]||{};
-    const ok=
-      String(got['nama produk']??'')===String(want['nama produk']??'') &&
-      Number(got['harga hpp']??0)===Number(want['harga hpp']??0) &&
-      Number(got['harga jual']??0)===Number(want['harga jual']??0) &&
-      Number(got.profit??0)===Number(want.profit??0) &&
-      Number(got.stok??0)===Number(want.stok??0) &&
-      String(got.category??'')===String(want.category??'') &&
-      String(got['photo url']??'')===String(want['photo url']??'');
-    if(!ok)throw new Error(`Verifikasi ProdukKasir gagal pada produk ke-${i+1}.`);
-  }
 
-  const result=prepared.map((item,i)=>({...item,photo:String(firestoreProducts[i]?.['photo url']??item.photo??'')}));
+  const result=saved.map((p,i)=>produkKasirFromFirestore(p,i));
   window.__rekapinyuProdukKasirData=result;
   return result;
 }
 window.__rekapinyuSaveProdukKasir=saveProdukKasir;
+
 async function hydrate(uid){
   const p=currentPhone();
   const [pr,kr,rr]=await Promise.all([getPenggunaRef(uid,p),getKasirRef(uid,p),getRekapRef(uid,p)]);
@@ -4648,7 +4675,7 @@ function realtime(uid){
       if(hasField(d,"TransaksiKasir"))window.__rekapinyuKasirTransactionsRealtime=arrayFromField(d,"TransaksiKasir",window.__rekapinyuKasirTransactionsRealtime);
       if(hasField(d,"LaporanKasir"))window.__rekapinyuLaporanKasirRealtime=arrayFromField(d,"LaporanKasir",window.__rekapinyuLaporanKasirRealtime);
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
-      if(hasField(d,"ProdukKasir"))window.__rekapinyuProdukKasirData=arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData).map(produkKasirFromFirestore);
+      if(hasField(d,"ProdukKasir")){window.__rekapinyuProdukKasirData=arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData).map(produkKasirFromFirestore);try{window.__rekapinyuRenderProdukKasir?.()}catch{}}
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
@@ -5230,11 +5257,12 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const name=String(x.name??x['nama produk']??'').trim();
     const cost=Number(x.cost??x.grosir??x['harga hpp']??0)||0;
     const price=Number(x.price??x['harga jual']??0)||0;
-    const stock=Math.max(0,Number(x.stock??x.manualStock??x.stok??0)||0);
+    const stock=Math.max(0,Number(x.stock??x.stok??0)||0);
     const category=String(x.category??'Lainnya').trim()||'Lainnya';
     const bars=Array.isArray(x.barcodes)?x.barcodes:(x.barcode?[String(x.barcode)]:[]);
     const barcodes=[...new Set(bars.map(v=>String(v||'').trim()).filter(Boolean))];
-    return {...x,id:String(x.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8)),name,category,barcodes,barcode:barcodes[0]||'',cost,grosir:cost,price,manualStock:stock,stock,photo:String(x.photo??x['photo url']??'')};
+    const manualStock=Math.max(0,Math.floor(Number(x.manualStock??x['stok manual']??Math.max(0,stock-barcodes.length))||0));
+    return {...x,id:String(x.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8)),name,category,barcodes,barcode:barcodes[0]||'',cost,grosir:cost,price,manualStock,stock:manualStock+barcodes.length,photo:String(x.photo??x['photo url']??'')};
   }
   function backupProducts(){
     const latest=currentProducts();
@@ -5333,7 +5361,11 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
   function loadKasirStore(){
     const source=Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
-    kasirProducts=source.map(p=>({...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.stock)||0)}));
+    kasirProducts=source.map(p=>{
+      const barcodes=productBarcodes(p);
+      const manual=Math.max(0,Math.floor(Number(p?.manualStock??p?.["stok manual"]??p?.stock??p?.stok??0)||0));
+      return {...p,barcodes,barcode:barcodes[0]||"",manualStock:manual,stock:manual+barcodes.length};
+    });
     window.__rekapinyuProdukKasirData=kasirProducts;
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
   }
@@ -5491,9 +5523,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const stock=Math.max(0,Number(String(input?.value||'').replace(/\D/g,''))||0);
     const product=kasirProducts.find(x=>String(x.id)===id);
     if(!product)return;
-    product.stock=stock;
-    product.manualStock=stock;
     product.barcodes=productBarcodes(product);
+    product.manualStock=stock;
+    product.stock=product.manualStock+product.barcodes.length;
     product.barcode=product.barcodes[0]||'';
     window.__rekapinyuProdukKasirData=kasirProducts;
     try{window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: stok ProdukKasir gagal disimpan.',e)}
@@ -5503,7 +5535,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
 function initKasirViews(){
-    loadKasirStore(); kasirProducts=kasirProducts.map(p=>({...p,barcodes:productBarcodes(p),barcode:productBarcodes(p)[0]||''}));
+    loadKasirStore(); kasirProducts=kasirProducts.map(p=>{p.barcodes=productBarcodes(p);p.manualStock=Math.max(0,Math.floor(Number(p.manualStock??p.stock??0)||0));p.stock=p.manualStock+p.barcodes.length;p.barcode=p.barcodes[0]||"";return p;});
     const active=kasirTransactionTabs.find(x=>x.id===kasirActiveTransactionTabId); kasirCart=active&&Array.isArray(active.cart)?active.cart:[];
     renderKasirTransactionTabs(); renderKasirProducts(); renderCart(); renderTransactions();
   }
@@ -5516,23 +5548,47 @@ function initKasirViews(){
     if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return false}
     if(paid<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return false}
 
-    /* Validasi dulu seluruh Qty terhadap stok saat ini. */
+    /* Validasi stok real dan siapkan pengurangan satu kali saat pembayaran berhasil.
+       Stok real = stok manual + jumlah barcode. Barcode yang dipindai dikonsumsi
+       terlebih dahulu sebagai barcode fisik; sisa qty mengurangi stok manual,
+       lalu barcode lain bila stok manual tidak cukup. */
     const updates=[];
     for(const item of kasirCart){
       const product=kasirProducts.find(p=>String(p.id)===String(item.id));
-      const stock=Math.max(0,Number(product?.stock)||0);
-      const qty=Math.max(0,Number(item.qty)||0);
-      if(!product||qty>stock){
+      if(!product){
+        showModal('Gagal','Produk pada transaksi tidak ditemukan.','fa-solid fa-box-open text-rose-600');
+        return false;
+      }
+      product.barcodes=productBarcodes(product);
+      product.manualStock=Math.max(0,Math.floor(Number(product.manualStock??product.stock??0)||0));
+      product.stock=product.manualStock+product.barcodes.length;
+      const qty=Math.max(0,Math.floor(Number(item.qty)||0));
+      const scanned=Array.isArray(item.scannedBarcodes)?item.scannedBarcodes.map(String):[];
+      const validScanned=scanned.filter(code=>product.barcodes.some(b=>String(b)===String(code)));
+      if(validScanned.length>qty){
+        showModal('Gagal','Jumlah barcode yang dipindai melebihi jumlah produk pada transaksi.','fa-solid fa-barcode text-rose-600');
+        return false;
+      }
+      if(qty>product.stock){
         showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');
         return false;
       }
-      updates.push({product,qty,before:stock});
+      updates.push({product,qty,scanned:validScanned,beforeManual:product.manualStock,beforeBarcodes:[...product.barcodes]});
     }
 
-    /* Satu-satunya titik pengurangan stok: transaksi berhasil dibayar. */
-    updates.forEach(({product,qty,before})=>{
-      product.stock=Math.max(0,before-qty);
-      product.manualStock=product.stock;
+    updates.forEach(({product,qty,scanned,beforeBarcodes})=>{
+      const scannedSet=new Set(scanned.map(String));
+      let remainingBarcodes=beforeBarcodes.filter(code=>!scannedSet.has(String(code)));
+      let remainingQty=Math.max(0,qty-scanned.length);
+      const manualBefore=Math.max(0,Math.floor(Number(product.manualStock)||0));
+      const manualUsed=Math.min(manualBefore,remainingQty);
+      const manualAfter=manualBefore-manualUsed;
+      remainingQty-=manualUsed;
+      if(remainingQty>0)remainingBarcodes=remainingBarcodes.slice(remainingQty);
+      product.barcodes=remainingBarcodes;
+      product.manualStock=manualAfter;
+      product.barcode=product.barcodes[0]||'';
+      product.stock=product.manualStock+product.barcodes.length;
     });
 
     const transaction={
@@ -5543,7 +5599,7 @@ function initKasirViews(){
       paid,
       change:paid-finalTotal,
       discount,
-      itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||'')}))
+      itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||''),scannedBarcodes:Array.isArray(x.scannedBarcodes)?x.scannedBarcodes.map(String):[]}))
     };
 
     /* Simpan stok final ke Firestore sebelum transaksi dianggap selesai. */
@@ -5554,7 +5610,12 @@ function initKasirViews(){
       window.__rekapinyuProdukKasirData=kasirProducts;
     }catch(e){
       /* Rollback lokal jika server menolak penyimpanan stok. */
-      updates.forEach(({product,before})=>{product.stock=before;product.manualStock=before});
+      updates.forEach(({product,beforeManual,beforeBarcodes})=>{
+        product.manualStock=beforeManual;
+        product.barcodes=[...beforeBarcodes];
+        product.barcode=product.barcodes[0]||'';
+        product.stock=product.manualStock+product.barcodes.length;
+      });
       window.__rekapinyuProdukKasirData=kasirProducts;
       renderKasirProducts();
       showModal('Gagal','Transaksi belum diselesaikan karena stok gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
@@ -6028,7 +6089,25 @@ function initKasirViews(){
     const value=String(code||'').trim();if(!value)return;
     input.value=value;
     const p=findKasirProductByBarcode(value);
-    if(p){consumeKasirProductForScan(p,value);resetKasirSearchAndSelectCart(p.id);input.value='';return}
+    if(p){
+      const already=kasirCart.some(item=>Array.isArray(item.scannedBarcodes)&&item.scannedBarcodes.some(code=>String(code).toLowerCase()===value.toLowerCase()));
+      if(already){
+        if(typeof showModal==='function')showModal("Barcode Sudah Dipindai","Barcode ini sudah ada di transaksi yang sedang berjalan.","fa-solid fa-barcode text-amber-600");
+        input.value="";
+        return;
+      }
+      if(consumeKasirProductForScan(p,value)){
+        const item=kasirCart.find(x=>String(x.id)===String(p.id));
+        if(item){
+          item.scannedBarcodes=Array.isArray(item.scannedBarcodes)?item.scannedBarcodes:[];
+          item.scannedBarcodes.push(value);
+          syncKasirActiveTransactionTab();
+        }
+        resetKasirSearchAndSelectCart(p.id);
+      }
+      input.value='';
+      return;
+    }
     openKasirUnknownBarcodePopup(value);
   }
   async function startKasirBarcodeScanner(){
@@ -6364,5 +6443,190 @@ function initKasirViews(){
   btn.addEventListener('click',function(e){e.preventDefault();popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')});
 })();
 </script>
+
+<script id="produk-kasir-single-implementation">
+(function(){
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const state={editingId:null,formBarcodes:[],editBarcodes:[]};
+
+  function escapeHtml(value){
+    return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+  }
+  function money(value){return "Rp "+(Number(value)||0).toLocaleString("id-ID");}
+  function products(){return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];}
+  function uniqueBars(list){return [...new Set((Array.isArray(list)?list:[]).map(v=>String(v??"").trim()).filter(Boolean))];}
+  function normalizeProduct(p,index=0){
+    const x=p&&typeof p==="object"?p:{};
+    const bars=uniqueBars(x.barcodes??(x.barcode?[x.barcode]:[]));
+    const manual=Math.max(0,Math.floor(Number(x.manualStock??x["stok manual"]??x.stock??x.stok??0)||0));
+    return {id:String(x.id||`pk-${Date.now()}-${index}-${Math.random().toString(36).slice(2,8)}`),name:String(x.name??x["nama produk"]??"").trim(),category:String(x.category??"Lainnya").trim()||"Lainnya",cost:Math.max(0,Number(x.cost??x.grosir??x["harga hpp"]??0)||0),price:Math.max(0,Number(x.price??x["harga jual"]??0)||0),manualStock:manual,stock:manual+bars.length,barcodes:bars,barcode:bars[0]||"",photo:String(x.photo??x["photo url"]??"")};
+  }
+  function allBarcodeOwners(excludeId=""){
+    const map=new Map();
+    products().forEach(p=>{
+      const n=normalizeProduct(p);
+      if(String(n.id)===String(excludeId))return;
+      n.barcodes.forEach(code=>map.set(code.toLowerCase(),n.name||"produk lain"));
+    });
+    return map;
+  }
+  function setPhotoName(id,name,fallback){const el=$(id);if(el)el.textContent=name||fallback;}
+  function renderBarcodeChips(listId,values,removeFn){
+    const box=$(listId);if(!box)return;
+    const bars=uniqueBars(values);
+    box.innerHTML=bars.map((code,i)=>`<div class="pk3-barcode-chip"><span title="${escapeHtml(code)}">${escapeHtml(code)}</span><button type="button" data-pk3-remove-bar="${i}" aria-label="Hapus barcode">×</button></div>`).join("");
+    box.querySelectorAll("[data-pk3-remove-bar]").forEach(btn=>btn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();removeFn(Number(btn.dataset.pk3RemoveBar));}));
+  }
+  function renderFormBarcodes(){renderBarcodeChips("pk3-barcode-list",state.formBarcodes,i=>{state.formBarcodes.splice(i,1);renderFormBarcodes();});}
+  function renderEditBarcodes(){renderBarcodeChips("pk3-edit-barcode-list",state.editBarcodes,i=>{state.editBarcodes.splice(i,1);renderEditBarcodes();});}
+  function addBarcodeTo(list,raw,excludeId=""){
+    const code=String(raw??"").trim();if(!code)return{ok:false,empty:true};
+    if(list.some(v=>String(v).toLowerCase()===code.toLowerCase()))return{ok:false,duplicate:true};
+    const owner=allBarcodeOwners(excludeId).get(code.toLowerCase());
+    if(owner)return{ok:false,owner};
+    list.push(code);return{ok:true};
+  }
+  function notifyError(message){if(typeof showModal==="function")showModal("Gagal",message,"fa-solid fa-circle-exclamation text-rose-600");else alert(message);}
+  function notifyOk(message){if(typeof showModal==="function")showModal("Berhasil",message,"fa-solid fa-circle-check text-emerald-600");}
+  function readInteger(id){return Math.max(0,Math.floor(Number(String($(id)?.value||"").replace(/[^\d]/g,""))||0));}
+
+  function renderProducts(){
+    const grid=$("pk3-grid"),count=$("pk3-count");if(!grid)return;
+    const q=String($("pk3-search")?.value||"").trim().toLowerCase();
+    const list=products().map(normalizeProduct).filter(p=>!q||`${p.name} ${p.category} ${p.barcodes.join(" ")}`.toLowerCase().includes(q));
+    if(count)count.textContent=`${products().length} produk`;
+    if(!list.length){grid.innerHTML=`<div class="pk3-empty"><i class="fa-solid fa-box-open"></i><strong>Belum ada produk</strong><span>Tambahkan produk baru untuk mulai menggunakan kasir.</span></div>`;return;}
+    grid.innerHTML=list.map(p=>{
+      const profit=p.price-p.cost;
+      return `<article class="pk3-card">
+        <div class="pk3-photo">${p.photo?`<img src="${escapeHtml(p.photo)}" alt="${escapeHtml(p.name)}">`:`<i class="fa-solid fa-image"></i>`}</div>
+        <div class="pk3-info">
+          <div class="pk3-product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name||"Tanpa Nama")}</div>
+          <div class="pk3-category">${escapeHtml(p.category)}</div>
+          <div class="pk3-data">
+            <div class="pk3-data-box"><small>Stok Manual</small><strong>${p.manualStock}</strong></div>
+            <div class="pk3-data-box"><small>Barcode</small><strong>${p.barcodes.length}</strong></div>
+            <div class="pk3-data-box"><small>Stok Real</small><strong>${p.stock}</strong></div>
+            <div class="pk3-data-box"><small>Profit</small><strong>${money(profit)}</strong></div>
+            <div class="pk3-data-box sell"><small>Harga Jual</small><strong>${money(p.price)}</strong></div>
+          </div>
+          <div class="pk3-actions">
+            <button type="button" class="pk3-edit" data-pk3-edit="${escapeHtml(p.id)}"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button type="button" class="pk3-delete" data-pk3-delete="${escapeHtml(p.id)}"><i class="fa-solid fa-trash"></i> Hapus</button>
+          </div>
+        </div>
+      </article>`;
+    }).join("");
+    grid.querySelectorAll("[data-pk3-edit]").forEach(btn=>btn.addEventListener("click",()=>openEdit(btn.dataset.pk3Edit)));
+    grid.querySelectorAll("[data-pk3-delete]").forEach(btn=>btn.addEventListener("click",()=>deleteProduct(btn.dataset.pk3Delete)));
+  }
+
+  async function persist(next,successMessage){
+    const save=window.__rekapinyuSaveProdukKasir;
+    if(typeof save!=="function")throw new Error("Penyimpanan Produk Kasir belum tersedia.");
+    const saved=await save(next);
+    if(!Array.isArray(saved))throw new Error("Data Produk Kasir tidak berhasil disimpan.");
+    window.__rekapinyuProdukKasirData=saved;
+    renderProducts();
+    try{window.__initKasirViews?.()}catch{}
+    if(successMessage)notifyOk(successMessage);
+    return saved;
+  }
+
+  function fileToDataUrl(file){
+    return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||""));r.onerror=()=>reject(new Error("Foto produk tidak dapat dibaca."));r.readAsDataURL(file);});
+  }
+
+  async function submitProduct(e){
+    e.preventDefault();
+    const name=String($("pk3-name")?.value||"").trim(),category=String($("pk3-category")?.value||"Lainnya").trim()||"Lainnya",cost=readInteger("pk3-cost"),price=readInteger("pk3-price"),manualStock=readInteger("pk3-stock");
+    if(!name)return notifyError("Nama produk wajib diisi.");
+    if(price<=0)return notifyError("Harga jual harus lebih dari 0.");
+    const file=$("pk3-photo")?.files?.[0];
+    let photo="";if(file)photo=await fileToDataUrl(file);
+    const bars=uniqueBars(state.formBarcodes);
+    const next=products().map(normalizeProduct);
+    const product={id:(window.crypto?.randomUUID?crypto.randomUUID():`pk-${Date.now()}-${Math.random().toString(36).slice(2,8)}`),name,category,cost,grosir:cost,price,manualStock,stock:manualStock+bars.length,barcodes:bars,barcode:bars[0]||"",photo};
+    next.push(product);
+    const btn=$("pk3-submit");if(btn){btn.disabled=true;btn.dataset.busy="1";}
+    try{
+      await persist(next,`Produk "${name}" tersimpan di Firestore. Stok real: ${product.stock}.`);
+      $("pk3-form")?.reset();state.formBarcodes=[];renderFormBarcodes();setPhotoName("pk3-photo-name","","Pilih foto");
+    }catch(err){notifyError(err?.message||"Produk gagal disimpan ke Firestore.");}
+    finally{if(btn){btn.disabled=false;btn.dataset.busy="";}}
+  }
+
+  function openEdit(id){
+    const p=products().map(normalizeProduct).find(x=>String(x.id)===String(id));if(!p)return;
+    state.editingId=String(p.id);state.editBarcodes=[...p.barcodes];
+    $("pk3-edit-name").value=p.name;$("pk3-edit-category").value=p.category;$("pk3-edit-cost").value=String(p.cost);$("pk3-edit-price").value=String(p.price);$("pk3-edit-stock").value=String(p.manualStock);
+    setPhotoName("pk3-edit-photo-name","",p.photo?"Pertahankan foto":"Pilih foto");renderEditBarcodes();
+    const modal=$("pk3-edit-modal");if(modal){modal.hidden=false;modal.setAttribute("aria-hidden","false");}
+  }
+  function closeEdit(){
+    const modal=$("pk3-edit-modal");if(modal){modal.hidden=true;modal.setAttribute("aria-hidden","true");}
+    state.editingId=null;state.editBarcodes=[];
+  }
+
+  async function saveEdit(e){
+    e.preventDefault();const id=String(state.editingId||"");if(!id)return;
+    const current=products().map(normalizeProduct).find(x=>String(x.id)===id);if(!current)return closeEdit();
+    const name=String($("pk3-edit-name")?.value||"").trim(),category=String($("pk3-edit-category")?.value||"Lainnya").trim()||"Lainnya",cost=readInteger("pk3-edit-cost"),price=readInteger("pk3-edit-price"),manualStock=readInteger("pk3-edit-stock");
+    if(!name)return notifyError("Nama produk wajib diisi.");if(price<=0)return notifyError("Harga jual harus lebih dari 0.");
+    const file=$("pk3-edit-photo")?.files?.[0];let photo=current.photo;if(file)photo=await fileToDataUrl(file);
+    const updated={...current,name,category,cost,grosir:cost,price,manualStock,barcodes:uniqueBars(state.editBarcodes),photo};
+    updated.barcode=updated.barcodes[0]||"";updated.stock=manualStock+updated.barcodes.length;
+    const next=products().map(normalizeProduct).map(p=>String(p.id)===id?updated:p);
+    const btn=$("pk3-edit-form")?.querySelector(".pk3-save");if(btn)btn.disabled=true;
+    try{await persist(next,`Produk "${name}" berhasil diperbarui di Firestore.`);closeEdit();$("pk3-edit-form")?.reset();setPhotoName("pk3-edit-photo-name","","Pertahankan foto");}
+    catch(err){notifyError(err?.message||"Perubahan produk gagal disimpan.");}
+    finally{if(btn)btn.disabled=false;}
+  }
+
+  async function deleteProduct(id){
+    const p=products().map(normalizeProduct).find(x=>String(x.id)===String(id));if(!p)return;
+    if(!window.confirm(`Hapus produk "${p.name}"?\n\nSemua barcode produk ini juga akan dihapus dari ProdukKasir.`))return;
+    try{await persist(products().map(normalizeProduct).filter(x=>String(x.id)!==String(id)),`Produk "${p.name}" dihapus dari Firestore.`);}
+    catch(err){notifyError(err?.message||"Produk gagal dihapus.");}
+  }
+
+  function bindBarcodeInput(inputId,listGetter,renderFn,excludeIdGetter){
+    const input=$(inputId);if(!input||input.dataset.pk3Bound==="1")return;
+    input.dataset.pk3Bound="1";
+    input.addEventListener("keydown",e=>{
+      if(!["Enter",",",";"].includes(e.key))return;e.preventDefault();
+      const raw=input.value.replace(/[;,]+$/,"").trim();if(!raw)return;
+      const result=addBarcodeTo(listGetter(),raw,excludeIdGetter());input.value="";
+      if(result.ok)renderFn();else if(result.owner)notifyError(`Barcode ${raw} sudah dipakai oleh produk "${result.owner}".`);else if(result.duplicate)notifyError("Barcode tersebut sudah ditambahkan pada produk ini.");
+    });
+    input.addEventListener("blur",()=>{
+      const raw=input.value.trim();if(!raw)return;
+      const result=addBarcodeTo(listGetter(),raw,excludeIdGetter());input.value="";
+      if(result.ok)renderFn();else if(result.owner)notifyError(`Barcode ${raw} sudah dipakai oleh produk "${result.owner}".`);
+    });
+  }
+
+  function bind(){
+    if($("pk3-form")&&!$("pk3-form").dataset.pk3Bound){$("pk3-form").dataset.pk3Bound="1";$("pk3-form").addEventListener("submit",e=>submitProduct(e).catch(err=>notifyError(err?.message||"Produk gagal disimpan.")));}
+    if($("pk3-edit-form")&&!$("pk3-edit-form").dataset.pk3Bound){$("pk3-edit-form").dataset.pk3Bound="1";$("pk3-edit-form").addEventListener("submit",e=>saveEdit(e).catch(err=>notifyError(err?.message||"Perubahan produk gagal disimpan.")));}
+    if($("pk3-search")&&!$("pk3-search").dataset.pk3Bound){$("pk3-search").dataset.pk3Bound="1";$("pk3-search").addEventListener("input",renderProducts);}
+    $("pk3-photo")?.addEventListener("change",e=>setPhotoName("pk3-photo-name",e.target.files?.[0]?.name,"Pilih foto"));
+    $("pk3-edit-photo")?.addEventListener("change",e=>setPhotoName("pk3-edit-photo-name",e.target.files?.[0]?.name,"Pertahankan foto"));
+    document.querySelectorAll("[data-pk3-close]").forEach(el=>el.addEventListener("click",closeEdit));
+    bindBarcodeInput("pk3-barcode",()=>state.formBarcodes,renderFormBarcodes,()=>"");
+    bindBarcodeInput("pk3-edit-barcode",()=>state.editBarcodes,renderEditBarcodes,()=>state.editingId||"");
+    renderFormBarcodes();renderEditBarcodes();renderProducts();
+  }
+
+  window.__rekapinyuRenderProdukKasir=renderProducts;
+  window.__rekapinyuProdukKasirUIReady=()=>{bind();renderProducts();};
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bind,{once:true});else bind();
+
+  const view=$("view-produk-kasir");
+  if(view){const observer=new MutationObserver(()=>{if(!view.classList.contains("hidden"))renderProducts();});observer.observe(view,{attributes:true,attributeFilter:["class"]});}
+})();
+</script>
+
 </body>
 </html>
