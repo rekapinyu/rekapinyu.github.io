@@ -5030,6 +5030,7 @@ onAuthStateChanged(auth,async u=>{
       try{redraw();}catch(_){}
       return;
     }
+    try{window.__rekapinyuStopProdukKasirRealtime?.()}catch{}
     currentSessionUser=null;
     renderDashboardSession();
     return;
@@ -5056,21 +5057,207 @@ onAuthStateChanged(auth,async u=>{
 });
 </script>
 <script>
-/* REKAPINYU: CLOUD PRODUK KASIR — satu implementasi Firestore/Storage */
+/* REKAPINYU: CLOUD PRODUK + STOK KASIR — PRODUK dan STOK dipisah, per UID, realtime */
 (function(){
-  function api(){const f=window.RekapinyuFirebase;return f?{auth:f.auth,fs:f.firestoreApi,st:f.storageApi}:null;}
-  function phone(){return String(currentSessionUser?.phone||'').replace(/\D/g,'');}
-  async function dataUriToBlob(src){const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);if(!m)return null;const bin=atob(m[2]);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:m[1]||'image/jpeg'});}
+  function api(){
+    const f=window.RekapinyuFirebase;
+    return f?{auth:f.auth,fs:f.firestoreApi,st:f.storageApi}:null;
+  }
+  function currentUid(){
+    return api()?.auth?.currentUser?.uid||null;
+  }
+  function cacheKey(prefix){
+    const uid=currentUid()||String(currentSessionUser?.phone||'default');
+    return `${prefix}_${String(uid).replace(/\D/g,'')||'default'}`;
+  }
+  async function dataUriToBlob(src){
+    const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);
+    if(!m)return null;
+    const bin=atob(m[2]),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new Blob([bytes],{type:m[1]||'image/jpeg'});
+  }
+  function normalizeStockRow(p){
+    return {
+      id:String(p?.id??''),
+      stock:Math.max(0,Number(p?.stock)||0),
+      manualStock:Math.max(0,Number(p?.manualStock??p?.stock)||0)
+    };
+  }
+  function stockRowsFromProducts(products){
+    return (Array.isArray(products)?products:[])
+      .map(normalizeStockRow)
+      .filter(x=>x.id);
+  }
+  function mergeStocks(products,stocks){
+    const map=new Map((Array.isArray(stocks)?stocks:[]).map(normalizeStockRow).filter(x=>x.id).map(x=>[x.id,x]));
+    return (Array.isArray(products)?products:[]).map(p=>{
+      const st=map.get(String(p?.id??''));
+      if(!st)return {...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.manualStock??p?.stock)||0)};
+      return {...p,stock:st.stock,manualStock:st.manualStock};
+    });
+  }
+
   async function saveProdukKasir(products){
-    const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return null;const source=Array.isArray(products)?products:[],payload=[];
-    for(const raw of source){const p={...raw};if(/^data:image\//i.test(String(p.photo||''))){const blob=await dataUriToBlob(p.photo);if(blob&&a.st?.ref&&a.st?.uploadBytes&&a.st?.getDownloadURL){try{const r=a.st.ref(`users/${uid}/produk-kasir/${encodeURIComponent(String(p.id))}.jpg`);await a.st.uploadBytes(r,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});p.photo=await a.st.getDownloadURL(r);}catch(err){console.warn('Upload foto produk gagal:',err);}}}payload.push(p);}
-    await a.fs.setDoc(a.fs.doc('ProdukKasir',uid),{ProdukKasir:payload,updatedAt:a.fs.serverTimestamp()},{merge:true});return payload;
+    const a=api(),uid=currentUid();
+    if(!a||!uid)return null;
+    const source=Array.isArray(products)?products:[],payload=[];
+    for(const raw of source){
+      const p={...raw};
+      if(/^data:image\//i.test(String(p.photo||''))){
+        const blob=await dataUriToBlob(p.photo);
+        if(blob&&a.st?.ref&&a.st?.uploadBytes&&a.st?.getDownloadURL){
+          try{
+            const r=a.st.ref(`users/${uid}/produk-kasir/${encodeURIComponent(String(p.id))}.jpg`);
+            await a.st.uploadBytes(r,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});
+            p.photo=await a.st.getDownloadURL(r);
+          }catch(err){console.warn('Upload foto produk gagal:',err);}
+        }
+      }
+      payload.push(p);
+    }
+    await a.fs.setDoc(a.fs.doc('ProdukKasir',uid),{
+      ProdukKasir:payload,
+      updatedAt:a.fs.serverTimestamp()
+    },{merge:true});
+    return payload;
   }
   window.__rekapinyuSaveProdukKasir=saveProdukKasir;
-  window.__rekapinyuLoadProdukKasir=async function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return null;try{const snap=await a.fs.getDoc(a.fs.doc('ProdukKasir',uid));const value=snap.exists()?snap.data()?.ProdukKasir:null;return Array.isArray(value)?value:null;}catch(e){console.warn('Rekapinyu: ProdukKasir gagal dimuat.',e);return null;}};
-  window.__rekapinyuStartProdukKasirRealtime=function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return;if(window.__rekapinyuProdukKasirUnsub)window.__rekapinyuProdukKasirUnsub();try{const rawPhone=String(currentSessionUser?.phone||uid||'default');const key='rekapinyu_produk_kasir_cache_'+rawPhone.replace(/\D/g,'');const cached=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(cached)&&cached.length){window.__rekapinyuProdukKasirData=cached;window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetProdukKasirData?.(cached);window.__initKasirViews?.();}}catch{}window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(a.fs.doc('ProdukKasir',uid),snap=>{if(!snap.exists())return;const value=Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];window.__rekapinyuProdukKasirLoadedFromCloud=true;window.__rekapinyuProdukKasirData=value;window.__rekapinyuProdukKasirLoaded=true;try{const rawPhone=String(currentSessionUser?.phone||uid||'default');const key='rekapinyu_produk_kasir_cache_'+rawPhone.replace(/\D/g,'');localStorage.setItem(key,JSON.stringify(value));}catch{}try{window.__rekapinyuSetProdukKasirData?.(value);window.__initKasirViews?.()}catch{}},err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err));};
-window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){window.__rekapinyuProdukKasirData=Array.isArray(value)?value:[];window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.()}catch{}};
-  window.__rekapinyuStopProdukKasirRealtime=function(){if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null;}};
+
+  window.__rekapinyuLoadProdukKasir=async function(){
+    const a=api(),uid=currentUid();
+    if(!a||!uid)return null;
+    try{
+      const snap=await a.fs.getDoc(a.fs.doc('ProdukKasir',uid));
+      const value=snap.exists()?snap.data()?.ProdukKasir:null;
+      return Array.isArray(value)?value:null;
+    }catch(e){
+      console.warn('Rekapinyu: ProdukKasir gagal dimuat.',e);
+      return null;
+    }
+  };
+
+  /* =========================
+     STOK PRODUK — FIRESTORE
+     Collection : StokProduk
+     Document   : StokProduk/{uid}
+     Field      : StokProduk = [{id,stock,manualStock}]
+     ========================= */
+  async function saveStokProduk(stocksOrProducts){
+    const a=api(),uid=currentUid();
+    if(!a||!uid)throw new Error('Sesi Firebase pengguna belum siap.');
+    const rows=stockRowsFromProducts(stocksOrProducts);
+    await a.fs.setDoc(a.fs.doc('StokProduk',uid),{
+      StokProduk:rows,
+      updatedAt:a.fs.serverTimestamp()
+    },{merge:true});
+    return rows;
+  }
+  window.__rekapinyuSaveStokProduk=saveStokProduk;
+
+  window.__rekapinyuLoadStokProduk=async function(){
+    const a=api(),uid=currentUid();
+    if(!a||!uid)return null;
+    try{
+      const snap=await a.fs.getDoc(a.fs.doc('StokProduk',uid));
+      if(!snap.exists())return null;
+      const value=snap.data()?.StokProduk;
+      return Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
+    }catch(e){
+      console.warn('Rekapinyu: StokProduk gagal dimuat.',e);
+      return null;
+    }
+  };
+
+  window.__rekapinyuStartProdukKasirRealtime=function(){
+    const a=api(),uid=currentUid();
+    if(!a||!uid)return;
+    window.__rekapinyuStopProdukKasirRealtime?.();
+
+    /* Produk master realtime */
+    window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(
+      a.fs.doc('ProdukKasir',uid),
+      snap=>{
+        if(!snap.exists())return;
+        const value=Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];
+        window.__rekapinyuProdukKasirLoadedFromCloud=true;
+        window.__rekapinyuProdukKasirData=value;
+        try{
+          localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(value));
+        }catch{}
+        try{
+          window.__rekapinyuSetProdukKasirData?.(value);
+          window.__initKasirViews?.();
+        }catch{}
+      },
+      err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err)
+    );
+
+    /* Stok realtime — sumber kebenaran stok */
+    window.__rekapinyuStokProdukUnsub=a.fs.onSnapshot(
+      a.fs.doc('StokProduk',uid),
+      async snap=>{
+        try{
+          let stocks=[];
+          if(snap.exists()&&Array.isArray(snap.data()?.StokProduk)){
+            stocks=snap.data().StokProduk.map(normalizeStockRow).filter(x=>x.id);
+          }else{
+            /* Dokumen stok baru: migrasi stok lama satu kali dari ProdukKasir. */
+            const products=Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
+            if(products.length){
+              stocks=stockRowsFromProducts(products);
+              await saveStokProduk(stocks);
+            }
+          }
+
+          window.__rekapinyuStokProdukData=stocks;
+          window.__rekapinyuStokProdukLoaded=true;
+          try{localStorage.setItem(cacheKey('rekapinyu_stok_produk_cache'),JSON.stringify(stocks));}catch{}
+
+          const merged=mergeStocks(
+            Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[],
+            stocks
+          );
+          window.__rekapinyuProdukKasirData=merged;
+          window.__rekapinyuProdukKasirLoaded=true;
+          try{localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(merged));}catch{}
+          try{
+            window.__rekapinyuSetProdukKasirData?.(merged);
+            window.__rekapinyuSetStokProdukData?.(stocks);
+            window.__initKasirViews?.();
+            window.__rekapinyuRefreshProdukKasir?.(merged);
+          }catch{}
+        }catch(e){
+          console.warn('Rekapinyu: realtime StokProduk gagal diproses.',e);
+        }
+      },
+      err=>console.warn('Rekapinyu: realtime StokProduk gagal.',err)
+    );
+  };
+
+  window.__rekapinyuSetStokProdukData=window.__rekapinyuSetStokProdukData||function(value){
+    window.__rekapinyuStokProdukData=Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
+    window.__rekapinyuStokProdukLoaded=true;
+  };
+
+  window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){
+    const products=Array.isArray(value)?value:[];
+    const stocks=Array.isArray(window.__rekapinyuStokProdukData)?window.__rekapinyuStokProdukData:[];
+    window.__rekapinyuProdukKasirData=stocks.length?mergeStocks(products,stocks):products;
+    window.__rekapinyuProdukKasirLoaded=true;
+    try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData);}catch{}
+  };
+
+  window.__rekapinyuStopProdukKasirRealtime=function(){
+    if(window.__rekapinyuProdukKasirUnsub){
+      try{window.__rekapinyuProdukKasirUnsub()}catch{}
+      window.__rekapinyuProdukKasirUnsub=null;
+    }
+    if(window.__rekapinyuStokProdukUnsub){
+      try{window.__rekapinyuStokProdukUnsub()}catch{}
+      window.__rekapinyuStokProdukUnsub=null;
+    }
+  };
 })();
 </script>
 <script>
@@ -5612,14 +5799,14 @@ window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||funct
   function money(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function produkKasirCacheKey(){const raw=String(currentSessionUser?.phone||window.RekapinyuFirebase?.auth?.currentUser?.uid||'default');return 'rekapinyu_produk_kasir_cache_'+raw.replace(/\D/g,'')||'rekapinyu_produk_kasir_cache_default'}
   function read(){return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];}
-  function write(){products=products.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}try{const r=window.__rekapinyuSaveProdukKasir?.(products);Promise.resolve(r).then(cloud=>{if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}render();try{window.__initKasirViews?.()}catch{}}}).catch(err=>console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',e)}}
+  function write(){products=products.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}try{const r=window.__rekapinyuSaveProdukKasir?.(products);Promise.resolve(r).then(cloud=>{if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{}render();try{window.__initKasirViews?.()}catch{}}}).catch(err=>console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan ke Firestore.',e)}try{const sr=window.__rekapinyuSaveStokProduk?.(products);Promise.resolve(sr).catch(err=>console.warn('Rekapinyu: StokProduk gagal disimpan ke Firestore.',err));}catch(e){console.warn('Rekapinyu: StokProduk gagal disimpan ke Firestore.',e)}}
   function num(id){return Number(String($(id)?.value||'').replace(/\D/g,''))||0}
   function uid(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
   function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,' ')}
   function normalizeBarcodes(p){let arr=[];if(Array.isArray(p?.barcodes))arr=p.barcodes;else if(p?.barcode)arr=String(p.barcode).split(/[\n,;]+/);return [...new Set(arr.map(v=>String(v||'').trim()).filter(Boolean))]}
   function normalizeProduct(p){const barcodes=normalizeBarcodes(p);const stock=Math.max(0,Number(p?.stock)||0);return {...p,id:String(p?.id||uid()),name:String(p?.name||'').trim(),category:CATEGORIES.includes(String(p?.category||''))?String(p.category):'Lainnya',barcodes,barcode:barcodes[0]||'',cost:Number(p?.cost??p?.grosir)||0,grosir:Number(p?.grosir??p?.cost)||0,price:Number(p?.price)||0,manualStock:stock,stock,photo:String(p?.photo||'')}}
   function normalizeAll(){products=products.map(normalizeProduct);}
-  async function load(){if(window.__rekapinyuProdukKasirLoaded){products=read().map(normalizeProduct);render();return}let cached=[];try{const raw=localStorage.getItem(produkKasirCacheKey());cached=raw?JSON.parse(raw):[]}catch{}if(Array.isArray(cached)&&cached.length){products=cached.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;render()}if(typeof window.__rekapinyuLoadProdukKasir==='function'){try{const cloud=await window.__rekapinyuLoadProdukKasir();if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{} }}catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}}else if(!products.length){products=read().map(normalizeProduct)}render()}
+  async function load(){if(window.__rekapinyuProdukKasirLoaded){products=read().map(normalizeProduct);const stocks=Array.isArray(window.__rekapinyuStokProdukData)?window.__rekapinyuStokProdukData:[];if(stocks.length){const sm=new Map(stocks.map(x=>[String(x.id),x]));products=products.map(p=>{const st=sm.get(String(p.id));return st?{...p,stock:st.stock,manualStock:st.manualStock}:p});window.__rekapinyuProdukKasirData=products;}render();return}let cached=[];try{const raw=localStorage.getItem(produkKasirCacheKey());cached=raw?JSON.parse(raw):[]}catch{}if(Array.isArray(cached)&&cached.length){products=cached.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;render()}if(typeof window.__rekapinyuLoadProdukKasir==='function'){try{const cloud=await window.__rekapinyuLoadProdukKasir();if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);const stocks=Array.isArray(window.__rekapinyuStokProdukData)?window.__rekapinyuStokProdukData:[];if(stocks.length){const sm=new Map(stocks.map(x=>[String(x.id),x]));products=products.map(p=>{const st=sm.get(String(p.id));return st?{...p,stock:st.stock,manualStock:st.manualStock}:p});}window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true;try{localStorage.setItem(produkKasirCacheKey(),JSON.stringify(products))}catch{} }}catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}}else if(!products.length){products=read().map(normalizeProduct)}render()}
   function resetForm(){ $('pk3-form')?.reset(); addPhoto='';addBarcodes=[];renderBarcodeChips('add');if($('pk3-stock'))$('pk3-stock').value='';if($('pk3-photo-name'))$('pk3-photo-name').textContent='Pilih foto';if($('pk3-category'))$('pk3-category').value='Lainnya' }
   function addBarcode(target,value){const clean=String(value||'').trim();if(!clean)return;const arr=target==='edit'?editBarcodes:addBarcodes;clean.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(!arr.includes(x)){arr.push(x);if(target==='edit'){const input=$('pk3-edit-stock');if(input)input.value=String(Math.max(0,num('pk3-edit-stock')+1))}}});renderBarcodeChips(target)}
   function renderBarcodeChips(target){const arr=target==='edit'?editBarcodes:addBarcodes;const box=$(target==='edit'?'pk3-edit-barcode-list':'pk3-barcode-list');if(!box)return;box.innerHTML=arr.map((b,i)=>`<span class="pk3-barcode-chip"><span>${String(b).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}</span><button type="button" data-remove-barcode="${i}" data-barcode-target="${target}" aria-label="Hapus barcode">×</button></span>`).join('');box.scrollTop=box.scrollHeight}
@@ -5702,7 +5889,12 @@ window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||funct
         if(Array.isArray(cached)&&cached.length)source=cached;
       }catch{}
     }
-    kasirProducts=source.map(p=>({...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.stock)||0)}));
+    const stocks=Array.isArray(window.__rekapinyuStokProdukData)?window.__rekapinyuStokProdukData:[];
+    if(stocks.length){
+      const sm=new Map(stocks.map(x=>[String(x.id),x]));
+      source=source.map(p=>{const st=sm.get(String(p?.id));return st?{...p,stock:st.stock,manualStock:st.manualStock}:p;});
+    }
+    kasirProducts=source.map(p=>({...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.manualStock??p?.stock)||0)}));
     window.__rekapinyuProdukKasirData=kasirProducts;
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
   }
@@ -5710,6 +5902,7 @@ window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||funct
     window.__rekapinyuProdukKasirData=kasirProducts;
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
     try{window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan.',e)}
+    try{window.__rekapinyuSaveStokProduk?.(kasirProducts)}catch(e){console.warn('Rekapinyu: StokProduk gagal disimpan.',e)}
     try{window.__rekapinyuSaveKasirTransactionsCloud?.(kasirTransactions)}catch(e){console.warn('Rekapinyu: TransaksiKasir gagal disimpan.',e)}
   }
   window.__rekapinyuSetKasirTransactionsRealtime=function(value){kasirTransactions=Array.isArray(value)?value:[];window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;try{renderTransactions()}catch{}}
@@ -5918,16 +6111,18 @@ function initKasirViews(){
 
     /* Simpan stok final ke Firestore sebelum transaksi dianggap selesai. */
     try{
-      const saved=await window.__rekapinyuSaveProdukKasir?.(kasirProducts);
-      if(!Array.isArray(saved))throw new Error('Stok ProdukKasir tidak berhasil disimpan ke Firestore.');
-      kasirProducts=saved.map(p=>({...p,stock:Math.max(0,Number(p?.stock)||0),manualStock:Math.max(0,Number(p?.stock)||0)}));
+      const saved=await window.__rekapinyuSaveStokProduk?.(kasirProducts);
+      if(!Array.isArray(saved))throw new Error('Stok StokProduk tidak berhasil disimpan ke Firestore.');
+      const stockMap=new Map(saved.map(x=>[String(x.id),x]));
+      kasirProducts=kasirProducts.map(p=>{const st=stockMap.get(String(p.id));return st?{...p,stock:Math.max(0,Number(st.stock)||0),manualStock:Math.max(0,Number(st.manualStock)||0)}:p;});
       window.__rekapinyuProdukKasirData=kasirProducts;
+      try{await window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: sinkronisasi stok legacy ProdukKasir gagal.',e)}
     }catch(e){
       /* Rollback lokal jika server menolak penyimpanan stok. */
       updates.forEach(({product,before})=>{product.stock=before;product.manualStock=before});
       window.__rekapinyuProdukKasirData=kasirProducts;
       renderKasirProducts();
-      showModal('Gagal','Transaksi belum diselesaikan karena stok gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
+      showModal('Gagal','Transaksi belum diselesaikan karena StokProduk gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
       return false;
     }
 
