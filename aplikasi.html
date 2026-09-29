@@ -4534,9 +4534,13 @@ async function hydrate(uid){
     window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
     window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);
   }finally{applyingFirestoreRealtime=false}
-  await writeBaseSchema(uid,p,user.name);
+  /* RELOAD: Firestore adalah sumber data utama.
+     Jangan menulis ulang state lokal ke Firestore setelah data dibaca,
+     karena state lokal bisa masih kosong dan menimpa data yang sudah tersimpan. */
   photoStore.hydrate(p);loadUserData();
-  try{window.__rekapinyuReloadSettingsUI?.()}catch{}try{updateUserAvatarUI?.()}catch{}
+  try{window.__rekapinyuReloadSettingsUI?.()}catch{}
+  try{updateUserAvatarUI?.()}catch{}
+  try{redraw()}catch{}
 }
 function redraw(){try{loadUserData()}catch{}try{populateHistoryFilters?.();renderHistory?.();renderReport?.()}catch{}try{populatePengeluaranFilters?.();renderPengeluaranGrid?.()}catch{}try{renderKasbonGrid?.()}catch{}try{populateBackupFilters?.();renderBackupGrid?.()}catch{}try{window.__initKasirViews?.()}catch{}try{window.__renderLaporanKasir?.()}catch{}try{renderMobileAdminSummary?.()}catch{}try{refreshShopCoverPhoto?.();updateUserAvatarUI?.()}catch{}}
 
