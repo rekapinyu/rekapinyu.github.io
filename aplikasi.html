@@ -4541,7 +4541,7 @@ async function saveProdukKasir(products){
       profit,
       stok,
       category,
-      photo:photoUrl
+      "photo url":photoUrl
     });
   }
   const r=await getKasirRef(uid,p);
@@ -5311,7 +5311,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   function uid(){return String(Date.now())+'_'+Math.random().toString(36).slice(2,8)}
   function norm(v){return String(v??'').trim().toLowerCase().replace(/\s+/g,' ')}
   function normalizeBarcodes(p){let arr=[];if(Array.isArray(p?.barcodes))arr=p.barcodes;else if(p?.barcode)arr=String(p.barcode).split(/[\n,;]+/);return [...new Set(arr.map(v=>String(v||'').trim()).filter(Boolean))]}
-  function normalizeProduct(p){const barcodes=normalizeBarcodes(p);const stock=Math.max(0,Number(p?.stok??p?.stock)||0);const id=String(p?.id||uid());const name=String(p?.['nama produk']??p?.namaProduk??p?.name??'').trim();const cost=Number(p?.['harga hpp']??p?.hargaHpp??p?.cost??p?.grosir??0);const price=Number(p?.['harga jual']??p?.hargaJual??p?.price??0);return {...p,id,name,namaProduk:name,category:CATEGORIES.includes(String(p?.category||''))?String(p.category):'Lainnya',barcodes,barcode:barcodes[0]||'',cost,grosir:cost,hargaHpp:cost,price,hargaJual:price,profit:Number(p?.profit??(price-cost)??0),manualStock:stock,stock,stok:stock,photo:String(p?.photo||p?.['photo url']||p?.photoUrl||'')}}
+  function normalizeProduct(p){const barcodes=normalizeBarcodes(p);const stock=Math.max(0,Number(p?.stok??p?.stock)||0);const id=String(p?.id||uid());const name=String(p?.['nama produk']??p?.namaProduk??p?.name??'').trim();const cost=Number(p?.['harga hpp']??p?.hargaHpp??p?.cost??p?.grosir??0);const price=Number(p?.['harga jual']??p?.hargaJual??p?.price??0);return {...p,id,name,namaProduk:name,category:CATEGORIES.includes(String(p?.category||''))?String(p.category):'Lainnya',barcodes,barcode:barcodes[0]||'',cost,grosir:cost,hargaHpp:cost,price,hargaJual:price,profit:Number(p?.profit??(price-cost)??0),manualStock:stock,stock,stok:stock,photo:String((p?.['photo url']??p?.photo??p?.photoUrl??''))}}
   function normalizeAll(){products=products.map(normalizeProduct);}
   async function load(){if(window.__rekapinyuProdukKasirLoaded){products=read().map(normalizeProduct);render();return}if(typeof window.__rekapinyuLoadProdukKasir==='function'){try{const cloud=await window.__rekapinyuLoadProdukKasir();if(Array.isArray(cloud)){products=cloud.map(normalizeProduct);window.__rekapinyuProdukKasirData=products;window.__rekapinyuProdukKasirLoaded=true}}catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}}if(!products.length)products=read().map(normalizeProduct);render()}
   function resetForm(){ $('pk3-form')?.reset(); addPhoto='';addBarcodes=[];renderBarcodeChips('add');if($('pk3-stock'))$('pk3-stock').value='';if($('pk3-photo-name'))$('pk3-photo-name').textContent='Pilih foto';if($('pk3-category'))$('pk3-category').value='Lainnya' }
