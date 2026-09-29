@@ -4315,7 +4315,7 @@ function updateUserAvatarUI() {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
@@ -4330,7 +4330,6 @@ const phoneOf=v=>String(v||"").replace(/\D/g,"");
 const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
 const uref=uid=>doc(db,USERS,uid),
 tref=uid=>doc(db,"TransaksiKasir",uid),
-lref=uid=>doc(db,"LaporanKasir",uid),
 aref=uid=>doc(db,"LaporanAktifitas",uid),
 iref=uid=>doc(db,"InputData",uid),
 href=uid=>doc(db,"LaporanHistory",uid),
@@ -4645,9 +4644,8 @@ async function hydrate(uid){
     }
   }
 
-  const [kasirSnap,laporanKasirSnap,actSnap,inputSnap,historySnap,kasbonSnap,pengeluaranSnap,laporanBulananSnap,backupSnap,settingSnap]=await Promise.all([
+  const [kasirSnap,actSnap,inputSnap,historySnap,kasbonSnap,pengeluaranSnap,laporanBulananSnap,backupSnap,settingSnap]=await Promise.all([
     readMenuDoc(tref(uid),'TransaksiKasir'),
-    readMenuDoc(lref(uid),'LaporanKasir'),
     readMenuDoc(aref(uid),'LaporanAktifitas'),
     readMenuDoc(iref(uid),'InputData'),
     readMenuDoc(href(uid),'LaporanHistory'),
@@ -4661,9 +4659,8 @@ async function hydrate(uid){
   applyingFirestoreRealtime=true;
   try{
     const kasirData=kasirSnap?.exists()?kasirSnap.data()||{}:{};
-    const legacyTx=Array.isArray(kasirData?.TransaksiKasir)?kasirData.TransaksiKasir:[];
-    const tx=Array.isArray(kasirData?.LaporanKasir)?kasirData.LaporanKasir:legacyTx;
-    const laporanKasir=Array.isArray(kasirData?.LaporanKasir)?kasirData.LaporanKasir:(laporanKasirSnap?.exists()&&Array.isArray(laporanKasirSnap.data()?.LaporanKasir)?laporanKasirSnap.data().LaporanKasir:legacyTx);
+    const tx=Array.isArray(kasirData?.LaporanKasir)?kasirData.LaporanKasir:[];
+    const laporanKasir=tx;
     const aktivitas=actSnap?.exists()&&Array.isArray(actSnap.data()?.LaporanAktifitas)?actSnap.data().LaporanAktifitas:[];
     const input=inputSnap?.exists()&&Array.isArray(inputSnap.data()?.InputData)?inputSnap.data().InputData:[];
     const kasbon=kasbonSnap?.exists()&&Array.isArray(kasbonSnap.data()?.DataKasbon)?kasbonSnap.data().DataKasbon:[];
@@ -5039,7 +5036,7 @@ onAuthStateChanged(auth,async u=>{
     const local=window.__rekapinyuDashboardSession?.read();
     if(!currentSessionUser && local){currentSessionUser=local;}
     await syncLocalSessionToFirestore();
-    try{await window.__rekapinyuMigrateKasirStructure?.()}catch(e){console.warn("Rekapinyu: migrasi Menu Kasir belum selesai.",e)}
+    try{await window.__rekapinyuResetKasirFirestoreStructure?.()}catch(e){console.warn("Rekapinyu: penyiapan struktur Menu Kasir gagal.",e)}
     realtime(u);
     try{window.__rekapinyuStartProdukKasirRealtime?.()}catch(e){console.warn("Rekapinyu: TransaksiKasir realtime belum aktif.",e)}
     renderDashboardSession();
@@ -5060,7 +5057,8 @@ onAuthStateChanged(auth,async u=>{
    Collection : TransaksiKasir
    Document   : {UID}
    Fields     : ProdukKasir, StokKasir, LaporanKasir
-   Data lama tidak dihapus; hanya dimigrasikan ke struktur baru dan fungsi aktif diarahkan ke dokumen ini. */
+   Tidak ada migrasi data collection lama. Collection lama dihapus,
+   lalu struktur baru dibuat bersih pada dokumen pengguna yang sedang aktif. */
 (function(){
   function api(){
     const f=window.RekapinyuFirebase;
@@ -5092,7 +5090,6 @@ onAuthStateChanged(auth,async u=>{
       return {...p,stock:st.stock,manualStock:st.manualStock};
     });
   }
-
   async function dataUriToBlob(src){
     const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);
     if(!m)return null;
@@ -5101,58 +5098,40 @@ onAuthStateChanged(auth,async u=>{
     return new Blob([bytes],{type:m[1]||'image/jpeg'});
   }
 
-  /* Migrasi sekali per pengguna:
-     ProdukKasir/{uid} -> TransaksiKasir/{uid}.ProdukKasir
-     StokProduk/{uid}   -> TransaksiKasir/{uid}.StokKasir
-     LaporanKasir/{uid} -> TransaksiKasir/{uid}.LaporanKasir
-     TransaksiKasir/{uid}.TransaksiKasir lama -> LaporanKasir jika field baru belum ada. */
-  async function migrateKasirStructure(){
+  /* Hapus collection lama untuk UID aktif dan bentuk dokumen Kasir baru.
+     Tidak membaca atau memindahkan data dari collection lama. */
+  async function resetKasirFirestoreStructure(){
     const a=api(),uid=currentUid();
     if(!a||!uid)return null;
+    const targetRef=a.fs.doc('TransaksiKasir',uid);
+    const oldRefs=[
+      a.fs.doc('ProdukKasir',uid),
+      a.fs.doc('StokProduk',uid),
+      a.fs.doc('LaporanKasir',uid)
+    ];
+    let target={};
     try{
-      const targetRef=a.fs.doc('TransaksiKasir',uid);
-      const [targetSnap,oldProdukSnap,oldStokSnap,oldLaporanSnap]=await Promise.all([
-        a.fs.getDoc(targetRef),
-        a.fs.getDoc(a.fs.doc('ProdukKasir',uid)),
-        a.fs.getDoc(a.fs.doc('StokProduk',uid)),
-        a.fs.getDoc(a.fs.doc('LaporanKasir',uid))
-      ]);
-      const target=targetSnap.exists()?targetSnap.data()||{}:{};
-      const oldProduk=oldProdukSnap.exists()&&Array.isArray(oldProdukSnap.data()?.ProdukKasir)?oldProdukSnap.data().ProdukKasir:[];
-      const oldStok=oldStokSnap.exists()&&Array.isArray(oldStokSnap.data()?.StokProduk)?oldStokSnap.data().StokProduk:[];
-      const oldLaporan=oldLaporanSnap.exists()&&Array.isArray(oldLaporanSnap.data()?.LaporanKasir)?oldLaporanSnap.data().LaporanKasir:[];
-      const legacyTx=Array.isArray(target.TransaksiKasir)?target.TransaksiKasir:[];
-      const products=Array.isArray(target.ProdukKasir)?target.ProdukKasir:(oldProduk.length?oldProduk:[]);
-      const stocks=Array.isArray(target.StokKasir)?target.StokKasir:(oldStok.length?oldStok:stockRowsFromProducts(products));
-      const laporan=Array.isArray(target.LaporanKasir)?target.LaporanKasir:(oldLaporan.length?oldLaporan:legacyTx);
-      const payload={ProdukKasir:cleanProducts(products),StokKasir:stockRowsFromProducts(stocks),LaporanKasir:Array.isArray(laporan)?laporan:[]};
-      await a.fs.setDoc(targetRef,payload); // sengaja menormalkan dokumen target menjadi tepat 3 field utama
-      window.__rekapinyuProdukKasirData=mergeStocks(payload.ProdukKasir,payload.StokKasir);
-      window.__rekapinyuStokKasirData=payload.StokKasir;
-      window.__rekapinyuKasirTransactionsRealtime=payload.LaporanKasir;
-      window.__rekapinyuLaporanKasirRealtime=payload.LaporanKasir;
-      window.__rekapinyuProdukKasirLoaded=true;
-      window.__rekapinyuStokKasirLoaded=true;
-      try{localStorage.setItem(cacheKey('rekapinyu_produk_kasir_cache'),JSON.stringify(window.__rekapinyuProdukKasirData));}catch{}
-      return payload;
-    }catch(e){
-      console.warn('Rekapinyu: migrasi struktur Menu Kasir gagal.',e);
-      return null;
-    }
+      const snap=await a.fs.getDoc(targetRef);
+      target=snap.exists()?snap.data()||{}:{};
+    }catch(e){console.warn('Rekapinyu: dokumen TransaksiKasir belum dapat dibaca.',e);}
+    const products=Array.isArray(target.ProdukKasir)?target.ProdukKasir:[];
+    const stocks=Array.isArray(target.StokKasir)?target.StokKasir:stockRowsFromProducts(products);
+    const laporan=Array.isArray(target.LaporanKasir)?target.LaporanKasir:[];
+    /* Hapus dokumen target agar field lama apa pun benar-benar hilang.
+       Tiga field baru kemudian dibuat kembali. */
+    await a.fs.deleteDoc(targetRef);
+    await Promise.all(oldRefs.map(ref=>a.fs.deleteDoc(ref).catch(err=>{
+      const code=String(err?.code||'');
+      if(code!=='not-found')console.warn('Rekapinyu: penghapusan collection lama gagal.',err);
+    })));
+    await a.fs.setDoc(targetRef,{
+      ProdukKasir:cleanProducts(products),
+      StokKasir:stockRowsFromProducts(stocks),
+      LaporanKasir:laporan
+    });
+    return {ProdukKasir:cleanProducts(products),StokKasir:stockRowsFromProducts(stocks),LaporanKasir:laporan};
   }
-  window.__rekapinyuMigrateKasirStructure=migrateKasirStructure;
-
-  async function saveKasirState(products,stocks){
-    const a=api(),uid=currentUid();
-    if(!a||!uid)throw new Error('Sesi Firebase pengguna belum siap.');
-    const rows=stockRowsFromProducts(stocks||products);
-    const payloadProducts=cleanProducts(products);
-    await a.fs.setDoc(a.fs.doc('TransaksiKasir',uid),{
-      ProdukKasir:payloadProducts,
-      StokKasir:rows
-    },{merge:true});
-    return {products:payloadProducts,stocks:rows};
-  }
+  window.__rekapinyuResetKasirFirestoreStructure=resetKasirFirestoreStructure;
 
   async function saveProdukKasir(products){
     const a=api(),uid=currentUid();
@@ -5176,8 +5155,9 @@ onAuthStateChanged(auth,async u=>{
       ?window.__rekapinyuStokKasirData:stockRowsFromProducts(source);
     await a.fs.setDoc(a.fs.doc('TransaksiKasir',uid),{
       ProdukKasir:payload,
-      StokKasir:stockRowsFromProducts(stocks)
-    },{merge:true});
+      StokKasir:stockRowsFromProducts(stocks),
+      LaporanKasir:Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[]
+    });
     return mergeStocks(payload,stocks);
   }
   window.__rekapinyuSaveProdukKasir=saveProdukKasir;
@@ -5200,14 +5180,18 @@ onAuthStateChanged(auth,async u=>{
     const a=api(),uid=currentUid();
     if(!a||!uid)throw new Error('Sesi Firebase pengguna belum siap.');
     const rows=stockRowsFromProducts(stocksOrProducts);
+    const snap=await a.fs.getDoc(a.fs.doc('TransaksiKasir',uid));
+    const d=snap.exists()?snap.data()||{}:{};
     await a.fs.setDoc(a.fs.doc('TransaksiKasir',uid),{
-      StokKasir:rows
-    },{merge:true});
+      ProdukKasir:Array.isArray(d.ProdukKasir)?d.ProdukKasir:[],
+      StokKasir:rows,
+      LaporanKasir:Array.isArray(d.LaporanKasir)?d.LaporanKasir:[]
+    });
     window.__rekapinyuStokKasirData=rows;
+    window.__rekapinyuStokProdukData=rows;
     return rows;
   }
   window.__rekapinyuSaveStokKasir=saveStokKasir;
-  /* Alias kompatibilitas agar bagian aplikasi lama tidak memecahkan transaksi. */
   window.__rekapinyuSaveStokProduk=saveStokKasir;
 
   window.__rekapinyuLoadStokKasir=async function(){
@@ -5235,8 +5219,9 @@ onAuthStateChanged(auth,async u=>{
           const d=snap.exists()?snap.data()||{}:{};
           const products=Array.isArray(d.ProdukKasir)?d.ProdukKasir:[];
           const stocks=Array.isArray(d.StokKasir)?d.StokKasir.map(normalizeStockRow).filter(x=>x.id):[];
-          const laporan=Array.isArray(d.LaporanKasir)?d.LaporanKasir:(Array.isArray(d.TransaksiKasir)?d.TransaksiKasir:[]);
+          const laporan=Array.isArray(d.LaporanKasir)?d.LaporanKasir:[];
           window.__rekapinyuStokKasirData=stocks;
+          window.__rekapinyuStokProdukData=stocks;
           window.__rekapinyuProdukKasirData=mergeStocks(products,stocks);
           window.__rekapinyuKasirTransactionsRealtime=laporan;
           window.__rekapinyuLaporanKasirRealtime=laporan;
@@ -5252,10 +5237,10 @@ onAuthStateChanged(auth,async u=>{
 
   window.__rekapinyuSetStokKasirData=window.__rekapinyuSetStokKasirData||function(value){
     window.__rekapinyuStokKasirData=Array.isArray(value)?value.map(normalizeStockRow).filter(x=>x.id):[];
+    window.__rekapinyuStokProdukData=window.__rekapinyuStokKasirData;
     window.__rekapinyuStokKasirLoaded=true;
   };
   window.__rekapinyuSetStokProdukData=window.__rekapinyuSetStokKasirData;
-
   window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){
     const products=Array.isArray(value)?value:[];
     const stocks=Array.isArray(window.__rekapinyuStokKasirData)?window.__rekapinyuStokKasirData:[];
@@ -5263,7 +5248,6 @@ onAuthStateChanged(auth,async u=>{
     window.__rekapinyuProdukKasirLoaded=true;
     try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData);}catch{}
   };
-
   window.__rekapinyuStopProdukKasirRealtime=function(){
     if(window.__rekapinyuProdukKasirUnsub){try{window.__rekapinyuProdukKasirUnsub()}catch{}window.__rekapinyuProdukKasirUnsub=null;}
   };
