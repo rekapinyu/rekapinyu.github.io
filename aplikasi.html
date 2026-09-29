@@ -4355,39 +4355,28 @@ window.__rekapinyuProdukKasirLoaded=false;
 window.__rekapinyuSettingData=JSON.parse(JSON.stringify(SETTING_DEFAULTS));
 
 function cloudUid(){return auth.currentUser?.uid||currentSessionUser?.uid||null;}
-function currentPhone(){return phoneOf(currentSessionUser?.phone||"");}
+function currentPhone(){return phoneOf(currentSessionUser?.phone||auth.currentUser?.email?.split("@")[0]||"");}
 function collectionRef(name){return collection(db,name);}
 
 async function findExistingRef(name,p,uid){
-  const normalized=phoneOf(p);
-  if(uid){
-    const byUid=doc(db,name,uid);
-    try{if((await getDoc(byUid)).exists())return byUid;}catch(e){log(`baca ${name}/${uid} gagal`,e);}
-  }
-  if(normalized){
-    try{
-      const snap=await getDocs(query(collectionRef(name),where("NomorHp","==",normalized),limit(1)));
-      if(!snap.empty)return snap.docs[0].ref;
-    }catch(e){log(`cari ${name}.NomorHp gagal`,e);}
-  }
-  /* Dokumen lama pada screenshot memakai ID acak dan NomorHp bisa masih kosong.
-     Jika collection hanya mempunyai satu dokumen, pakai dokumen itu — JANGAN membuat duplikat. */
+  if(!uid) return null;
+  /* Firestore memakai UID sebagai jalur dokumen utama. Jangan lagi memilih
+     dokumen acak/berdasarkan NomorHp karena dapat mengarahkan write ke dokumen
+     pengguna lain atau ditolak Security Rules. */
+  const target=doc(db,name,uid);
   try{
-    const snap=await getDocs(query(collectionRef(name),limit(2)));
-    if(snap.size===1)return snap.docs[0].ref;
-  }catch(e){log(`baca collection ${name} gagal`,e);}
+    if((await getDoc(target)).exists())return target;
+  }catch(e){log(`baca ${name}/${uid} gagal`,e);}
   return null;
 }
 
 async function resolveRef(name,p,uid,defaults){
   const key=`${name}|${phoneOf(p)}|${uid||""}`;
   if(refCache.has(key))return refCache.get(key);
-  const existing=await findExistingRef(name,p,uid);
-  if(existing){refCache.set(key,existing);return existing;}
   if(!uid)throw new Error(`Sesi Firebase tidak tersedia untuk collection ${name}.`);
-  /* Hanya buat dokumen baru jika memang belum ada dokumen yang dapat dipasangkan. */
-  const target=doc(db,name,uid);
-  await setDoc(target,{...defaults,NomorHp:phoneOf(p),createdAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true});
+  const target=await findExistingRef(name,p,uid)||doc(db,name,uid);
+  /* Satu jalur dokumen untuk setiap pengguna: /Collection/{Auth UID}. */
+  await setDoc(target,{...defaults,NomorHp:phoneOf(p),updatedAt:serverTimestamp()},{merge:true});
   refCache.set(key,target);
   return target;
 }
@@ -4465,7 +4454,12 @@ window.__rekapinyuSaveProfilePhoto=async()=>{const inp=document.getElementById("
 window.refreshShopCoverPhoto=()=>photoStore.refreshCover();
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>photoStore.initCover(),{once:true});else photoStore.initCover();
 
-function enqueue(task){cloudSaveChain=cloudSaveChain.then(task).catch(e=>{log("penyimpanan Firestore gagal",e);throw e});return cloudSaveChain;}
+function enqueue(task){
+  /* Jika satu write sebelumnya gagal, antrean wajib pulih agar write berikutnya
+     tetap dikirim ke Firestore. Error task saat ini tetap diteruskan ke pemanggil. */
+  cloudSaveChain=cloudSaveChain.catch(()=>{}).then(task).catch(e=>{log("penyimpanan Firestore gagal",e);throw e});
+  return cloudSaveChain;
+}
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(`${t}\n${m}`)}
 function localSession(u){
   const p=phoneOf(u.phone),registered=safe(localStorage.getItem("finance_registered_users"),[]),old=Array.isArray(registered)?registered.find(x=>phoneOf(x?.phone)===p)||{}:{};
