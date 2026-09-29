@@ -4359,32 +4359,21 @@ function cloudUid(){return auth.currentUser?.uid||currentSessionUser?.uid||null;
 function currentPhone(){return phoneOf(currentSessionUser?.phone||auth.currentUser?.email?.split("@")[0]||"");}
 function collectionRef(name){return collection(db,name);}
 
-async function findExistingRef(name,p,uid){
-  if(!uid) return null;
-  /* Firestore memakai UID sebagai jalur dokumen utama. Jangan lagi memilih
-     dokumen acak/berdasarkan NomorHp karena dapat mengarahkan write ke dokumen
-     pengguna lain atau ditolak Security Rules. */
-  const target=doc(db,name,uid);
-  try{
-    if((await getDoc(target)).exists())return target;
-  }catch(e){log(`baca ${name}/${uid} gagal`,e);}
-  return null;
-}
-
-async function resolveRef(name,p,uid,defaults){
-  const key=`${name}|${phoneOf(p)}|${uid||""}`;
-  if(refCache.has(key))return refCache.get(key);
+/* ================================================================
+   FIRESTORE DATA CORE — SATU JALUR, SATU DOKUMEN PER UID
+   PENTING: fungsi baca TIDAK PERNAH melakukan setDoc.
+   Data hanya ditulis oleh aksi penyimpanan yang memang dipanggil aplikasi.
+   ================================================================ */
+function directRef(name,uid){
   if(!uid)throw new Error(`Sesi Firebase tidak tersedia untuk collection ${name}.`);
-  const target=await findExistingRef(name,p,uid)||doc(db,name,uid);
-  /* Satu jalur dokumen untuk setiap pengguna: /Collection/{Auth UID}. */
-  await setDoc(target,{...defaults,NomorHp:phoneOf(p),updatedAt:serverTimestamp()},{merge:true});
-  refCache.set(key,target);
-  return target;
+  return doc(db,name,uid);
 }
+function getPenggunaRef(uid,p){if(refs.pengguna?.id===uid)return refs.pengguna;refs.pengguna=directRef(COLLECTION.PENGGUNA,uid);return refs.pengguna;}
+function getKasirRef(uid,p){if(refs.kasir?.id===uid)return refs.kasir;refs.kasir=directRef(COLLECTION.KASIR,uid);return refs.kasir;}
+function getRekapRef(uid,p){if(refs.rekap?.id===uid)return refs.rekap;refs.rekap=directRef(COLLECTION.REKAP,uid);return refs.rekap;}
 
-async function getPenggunaRef(uid,p){if(refs.pengguna)return refs.pengguna;refs.pengguna=await resolveRef(COLLECTION.PENGGUNA,p,uid,PENGGUNA_EMPTY);return refs.pengguna;}
-async function getKasirRef(uid,p){if(refs.kasir)return refs.kasir;refs.kasir=await resolveRef(COLLECTION.KASIR,p,uid,KASIR_EMPTY);return refs.kasir;}
-async function getRekapRef(uid,p){if(refs.rekap)return refs.rekap;refs.rekap=await resolveRef(COLLECTION.REKAP,p,uid,REKAP_EMPTY);return refs.rekap;}
+function hasField(obj,key){return Object.prototype.hasOwnProperty.call(obj||{},key)}
+function arrayFromField(obj,key,fallback=[]){return hasField(obj,key)&&Array.isArray(obj[key])?obj[key]:(Array.isArray(fallback)?fallback:[])}
 
 function normalizeSetting(raw){
   const s=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{};
@@ -4473,13 +4462,16 @@ function localSession(u){
 }
 
 async function writeBaseSchema(uid,p,name){
-  const [pr,kr,rr]=await Promise.all([getPenggunaRef(uid,p),getKasirRef(uid,p),getRekapRef(uid,p)]);
+  /* Hanya dipakai saat pendaftaran akun baru. Jika dokumen sudah ada,
+     JANGAN pernah mengisi array dengan [] dan jangan menimpa data lama. */
+  const [pr,kr,rr]=[getPenggunaRef(uid,p),getKasirRef(uid,p),getRekapRef(uid,p)];
   const shopName=String(currentSessionUser?.shopName||currentSessionUser?.storeName||currentSessionUser?.tokoName||"").trim();
-  await Promise.all([
-    setDoc(pr,{NamaPengguna:String(name||currentSessionUser?.name||auth.currentUser?.displayName||""),NomorHp:phoneOf(p),role:currentSessionUser?.role||"Pengguna",updatedAt:serverTimestamp()},{merge:true}),
-    setDoc(kr,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],LaporanKasir:Array.isArray(window.__rekapinyuLaporanKasirRealtime)?window.__rekapinyuLaporanKasirRealtime:[],NamaToko:shopName,NomorHp:phoneOf(p),ProdukKasir:Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[],Seting:normalizeSetting(window.__rekapinyuSettingData),TransaksiKasir:Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[],updatedAt:serverTimestamp()},{merge:true}),
-    setDoc(rr,{BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],History:Array.isArray(historyData)?historyData:[],InputData:Array.isArray(historyData)?historyData:[],Kasbon:Array.isArray(kasbonData)?kasbonData:[],LaporanBulanan:Array.isArray(window.__rekapinyuDataLaporanBulanan)?window.__rekapinyuDataLaporanBulanan:buildLaporanBulanan(historyData),NamaToko:shopName,NomorHp:phoneOf(p),Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[],updatedAt:serverTimestamp()},{merge:true})
-  ]);
+  const [ps,ks,rs]=await Promise.all([getDoc(pr),getDoc(kr),getDoc(rr)]);
+  const writes=[];
+  if(!ps.exists())writes.push(setDoc(pr,{NamaPengguna:String(name||currentSessionUser?.name||auth.currentUser?.displayName||""),NomorHp:phoneOf(p),Pasword:String(currentSessionUser?.password||""),role:currentSessionUser?.role||"Pengguna",updatedAt:serverTimestamp()},{merge:true}));
+  if(!ks.exists())writes.push(setDoc(kr,{...KASIR_EMPTY,NamaToko:shopName,NomorHp:phoneOf(p),Seting:normalizeSetting(SETTING_DEFAULTS),updatedAt:serverTimestamp()},{merge:true}));
+  if(!rs.exists())writes.push(setDoc(rr,{...REKAP_EMPTY,NamaToko:shopName,NomorHp:phoneOf(p),updatedAt:serverTimestamp()},{merge:true}));
+  if(writes.length)await Promise.all(writes);
   return {pengguna:pr,kasir:kr,rekap:rr};
 }
 
@@ -4522,16 +4514,16 @@ async function hydrate(uid){
   localSession(user);
   applyingFirestoreRealtime=true;
   try{
-    window.__rekapinyuKasirTransactionsRealtime=Array.isArray(kd.TransaksiKasir)?kd.TransaksiKasir:[];
-    window.__rekapinyuLaporanKasirRealtime=Array.isArray(kd.LaporanKasir)?kd.LaporanKasir:[];
-    window.__rekapinyuActivityData=Array.isArray(kd.Aktifitas)?kd.Aktifitas:[];
-    window.__rekapinyuProdukKasirData=Array.isArray(kd.ProdukKasir)?kd.ProdukKasir:[];
+    window.__rekapinyuKasirTransactionsRealtime=arrayFromField(kd,"TransaksiKasir",[]);
+    window.__rekapinyuLaporanKasirRealtime=arrayFromField(kd,"LaporanKasir",[]);
+    window.__rekapinyuActivityData=arrayFromField(kd,"Aktifitas",[]);
+    window.__rekapinyuProdukKasirData=arrayFromField(kd,"ProdukKasir",[]);
     window.__rekapinyuProdukKasirLoaded=true;
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
-    historyData=Array.isArray(rd.History)?rd.History:(Array.isArray(rd.InputData)?rd.InputData:[]);
-    pengeluaranData=Array.isArray(rd.Pengeluaran)?rd.Pengeluaran:[];
-    kasbonData=Array.isArray(rd.Kasbon)?rd.Kasbon:[];
-    backupOtomatisData=Array.isArray(rd.BackupOtomatis)?rd.BackupOtomatis:[];
+    historyData=hasField(rd,"History")?arrayFromField(rd,"History",[]):arrayFromField(rd,"InputData",[]);
+    pengeluaranData=arrayFromField(rd,"Pengeluaran",[]);
+    kasbonData=arrayFromField(rd,"Kasbon",[]);
+    backupOtomatisData=arrayFromField(rd,"BackupOtomatis",[]);
     window.__rekapinyuDataLaporanBulanan=Array.isArray(rd.LaporanBulanan)?rd.LaporanBulanan:buildLaporanBulanan(historyData);
     window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
     window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);
@@ -4601,8 +4593,23 @@ function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch
 function realtime(uid){
   stopCollectionRealtime();const p=currentPhone();Promise.all([getPenggunaRef(uid,p),getKasirRef(uid,p),getRekapRef(uid,p)]).then(([pr,kr,rr])=>{
     const listen=(r,cb,label)=>{const un=onSnapshot(r,s=>{if(!s.exists())return;applyingFirestoreRealtime=true;try{cb(s.data()||{})}finally{applyingFirestoreRealtime=false}try{nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser||{}));upsertRegisteredLocalUser(currentSessionUser||{})}catch{}try{redraw()}catch{}},e=>log(`realtime ${label} gagal`,e));collectionUnsubs.push(un)};
-    listen(kr,d=>{if(currentSessionUser&&d.NamaToko)currentSessionUser.shopName=String(d.NamaToko).trim();window.__rekapinyuKasirTransactionsRealtime=Array.isArray(d.TransaksiKasir)?d.TransaksiKasir:[];window.__rekapinyuLaporanKasirRealtime=Array.isArray(d.LaporanKasir)?d.LaporanKasir:[];window.__rekapinyuActivityData=Array.isArray(d.Aktifitas)?d.Aktifitas:[];window.__rekapinyuProdukKasirData=Array.isArray(d.ProdukKasir)?d.ProdukKasir:[];window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);window.__rekapinyuSettingData=normalizeSetting(d.Seting);try{window.__rekapinyuReloadSettingsUI?.()}catch{}},"Kasir");
-    listen(rr,d=>{if(currentSessionUser&&d.NamaToko&&!currentSessionUser.shopName)currentSessionUser.shopName=String(d.NamaToko).trim();historyData=Array.isArray(d.History)?d.History:(Array.isArray(d.InputData)?d.InputData:[]);pengeluaranData=Array.isArray(d.Pengeluaran)?d.Pengeluaran:[];kasbonData=Array.isArray(d.Kasbon)?d.Kasbon:[];backupOtomatisData=Array.isArray(d.BackupOtomatis)?d.BackupOtomatis:[];window.__rekapinyuDataLaporanBulanan=Array.isArray(d.LaporanBulanan)?d.LaporanBulanan:buildLaporanBulanan(historyData)},"Rekap");
+    listen(kr,d=>{
+      if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
+      if(hasField(d,"TransaksiKasir"))window.__rekapinyuKasirTransactionsRealtime=arrayFromField(d,"TransaksiKasir",window.__rekapinyuKasirTransactionsRealtime);
+      if(hasField(d,"LaporanKasir"))window.__rekapinyuLaporanKasirRealtime=arrayFromField(d,"LaporanKasir",window.__rekapinyuLaporanKasirRealtime);
+      if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
+      if(hasField(d,"ProdukKasir"))window.__rekapinyuProdukKasirData=arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData);
+      if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
+      window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
+    },"Kasir");
+    listen(rr,d=>{
+      if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim()&&!currentSessionUser.shopName)currentSessionUser.shopName=String(d.NamaToko).trim();
+      if(hasField(d,"History"))historyData=arrayFromField(d,"History",historyData);else if(hasField(d,"InputData"))historyData=arrayFromField(d,"InputData",historyData);
+      if(hasField(d,"Pengeluaran"))pengeluaranData=arrayFromField(d,"Pengeluaran",pengeluaranData);
+      if(hasField(d,"Kasbon"))kasbonData=arrayFromField(d,"Kasbon",kasbonData);
+      if(hasField(d,"BackupOtomatis"))backupOtomatisData=arrayFromField(d,"BackupOtomatis",backupOtomatisData);
+      if(hasField(d,"LaporanBulanan"))window.__rekapinyuDataLaporanBulanan=arrayFromField(d,"LaporanBulanan",window.__rekapinyuDataLaporanBulanan);else window.__rekapinyuDataLaporanBulanan=buildLaporanBulanan(historyData);
+    },"Rekap");
     listen(pr,d=>{if(!currentSessionUser)return;currentSessionUser.name=String(d.NamaPengguna||currentSessionUser.name||"");currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);currentSessionUser.role=d.role||currentSessionUser.role||"Pengguna";nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()},"Pengguna");
   }).catch(e=>log("realtime setup gagal",e));
 }
