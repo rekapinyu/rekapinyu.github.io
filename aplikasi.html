@@ -5056,100 +5056,21 @@ onAuthStateChanged(auth,async u=>{
 });
 </script>
 <script>
-/* REKAPINYU: PRODUK KASIR CLOUD — IMPLEMENTASI TUNGGAL */
+/* REKAPINYU: CLOUD PRODUK KASIR — satu implementasi Firestore/Storage */
 (function(){
-  function getApi(){
-    const f=window.RekapinyuFirebase||{};
-    return {auth:f.auth,fs:f.firestoreApi,st:f.storageApi,uid:String(f.uid||'').trim()};
-  }
-  function getUid(){
-    const a=getApi();
-    return String(a.auth?.currentUser?.uid||a.uid||window.RekapinyuDashboardSession?.read?.()?.uid||currentSessionUser?.uid||'').trim();
-  }
-  function cacheKey(uid){
-    const raw=String(currentSessionUser?.phone||uid||'default');
-    return 'rekapinyu_produk_kasir_cache_'+raw.replace(/\D/g,'');
-  }
-  function cleanProducts(list){
-    return (Array.isArray(list)?list:[]).map(raw=>{
-      const id=String(raw?.id||'').trim();
-      const barcodes=Array.isArray(raw?.barcodes)?raw.barcodes.map(v=>String(v||'').trim()).filter(Boolean):[];
-      const stock=Math.max(0,Number(raw?.stock)||0);
-      return {
-        id,
-        name:String(raw?.name||'').trim(),
-        category:String(raw?.category||'Lainnya').trim()||'Lainnya',
-        barcodes:[...new Set(barcodes)],
-        barcode:barcodes[0]||String(raw?.barcode||''),
-        cost:Math.max(0,Number(raw?.cost??raw?.grosir)||0),
-        grosir:Math.max(0,Number(raw?.grosir??raw?.cost)||0),
-        price:Math.max(0,Number(raw?.price)||0),
-        stock,
-        manualStock:stock,
-        photo:/^https?:\/\//i.test(String(raw?.photo||''))?String(raw.photo):''
-      };
-    }).filter(p=>p.id);
-  }
+  function api(){const f=window.RekapinyuFirebase;return f?{auth:f.auth,fs:f.firestoreApi,st:f.storageApi}:null;}
+  function phone(){return String(currentSessionUser?.phone||'').replace(/\D/g,'');}
+  async function dataUriToBlob(src){const m=String(src||'').match(/^data:([^;]+);base64,(.*)$/);if(!m)return null;const bin=atob(m[2]);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:m[1]||'image/jpeg'});}
   async function saveProdukKasir(products){
-    const a=getApi();
-    const uid=getUid();
-    if(!a.fs?.doc||!a.fs?.setDoc||!uid)throw new Error('Sesi pengguna belum siap.');
-    const payload=cleanProducts(products);
-    const ref=a.fs.doc('ProdukKasir',uid);
-    /* Hanya satu operasi Firestore untuk stok. */
-    const data={ProdukKasir:payload};
-    if(typeof a.fs.serverTimestamp==='function')data.updatedAt=a.fs.serverTimestamp();
-    await a.fs.setDoc(ref,data,{merge:true});
-    /* setDoc berhasil = stok berhasil diterima Firestore. Tidak ada read-back yang dapat memicu false failure. */
-    try{localStorage.setItem(cacheKey(uid),JSON.stringify(payload))}catch{}
-    window.__rekapinyuProdukKasirData=payload;
-    window.__rekapinyuProdukKasirLoaded=true;
-    return payload;
+    const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return null;const source=Array.isArray(products)?products:[],payload=[];
+    for(const raw of source){const p={...raw};if(/^data:image\//i.test(String(p.photo||''))){const blob=await dataUriToBlob(p.photo);if(blob&&a.st?.ref&&a.st?.uploadBytes&&a.st?.getDownloadURL){try{const r=a.st.ref(`users/${uid}/produk-kasir/${encodeURIComponent(String(p.id))}.jpg`);await a.st.uploadBytes(r,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});p.photo=await a.st.getDownloadURL(r);}catch(err){console.warn('Upload foto produk gagal:',err);}}}payload.push(p);}
+    await a.fs.setDoc(a.fs.doc('ProdukKasir',uid),{ProdukKasir:payload,updatedAt:a.fs.serverTimestamp()},{merge:true});return payload;
   }
   window.__rekapinyuSaveProdukKasir=saveProdukKasir;
-  window.__rekapinyuLoadProdukKasir=async function(){
-    const a=getApi(),uid=getUid();
-    if(!a.fs?.doc||!a.fs?.getDoc||!uid)return null;
-    try{
-      const snap=await a.fs.getDoc(a.fs.doc('ProdukKasir',uid));
-      if(!snap.exists())return null;
-      const value=Array.isArray(snap.data()?.ProdukKasir)?cleanProducts(snap.data().ProdukKasir):[];
-      try{localStorage.setItem(cacheKey(uid),JSON.stringify(value))}catch{}
-      return value;
-    }catch(e){console.warn('Rekapinyu: ProdukKasir gagal dimuat.',e);return null;}
-  };
-  window.__rekapinyuStartProdukKasirRealtime=function(){
-    const a=getApi(),uid=getUid();
-    if(!a.fs?.doc||!a.fs?.onSnapshot||!uid)return;
-    if(window.__rekapinyuProdukKasirUnsub)window.__rekapinyuProdukKasirUnsub();
-    try{
-      const cached=JSON.parse(localStorage.getItem(cacheKey(uid))||'[]');
-      if(Array.isArray(cached)&&cached.length){
-        const value=cleanProducts(cached);
-        window.__rekapinyuProdukKasirData=value;
-        window.__rekapinyuProdukKasirLoaded=true;
-        window.__rekapinyuSetProdukKasirData?.(value);
-        window.__initKasirViews?.();
-      }
-    }catch{}
-    window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(a.fs.doc('ProdukKasir',uid),snap=>{
-      if(!snap.exists())return;
-      const value=cleanProducts(snap.data()?.ProdukKasir);
-      window.__rekapinyuProdukKasirData=value;
-      window.__rekapinyuProdukKasirLoaded=true;
-      try{localStorage.setItem(cacheKey(uid),JSON.stringify(value))}catch{}
-      window.__rekapinyuSetProdukKasirData?.(value);
-      window.__initKasirViews?.();
-    },err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err));
-  };
-  window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){
-    window.__rekapinyuProdukKasirData=Array.isArray(value)?cleanProducts(value):[];
-    window.__rekapinyuProdukKasirLoaded=true;
-    try{window.__rekapinyuRefreshProdukKasir?.(window.__rekapinyuProdukKasirData)}catch{}
-  };
-  window.__rekapinyuStopProdukKasirRealtime=function(){
-    if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null;}
-  };
+  window.__rekapinyuLoadProdukKasir=async function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return null;try{const snap=await a.fs.getDoc(a.fs.doc('ProdukKasir',uid));const value=snap.exists()?snap.data()?.ProdukKasir:null;return Array.isArray(value)?value:null;}catch(e){console.warn('Rekapinyu: ProdukKasir gagal dimuat.',e);return null;}};
+  window.__rekapinyuStartProdukKasirRealtime=function(){const a=api(),uid=a?.auth?.currentUser?.uid;if(!a||!uid)return;if(window.__rekapinyuProdukKasirUnsub)window.__rekapinyuProdukKasirUnsub();try{const rawPhone=String(currentSessionUser?.phone||uid||'default');const key='rekapinyu_produk_kasir_cache_'+rawPhone.replace(/\D/g,'');const cached=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(cached)&&cached.length){window.__rekapinyuProdukKasirData=cached;window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetProdukKasirData?.(cached);window.__initKasirViews?.();}}catch{}window.__rekapinyuProdukKasirUnsub=a.fs.onSnapshot(a.fs.doc('ProdukKasir',uid),snap=>{if(!snap.exists())return;const value=Array.isArray(snap.data()?.ProdukKasir)?snap.data().ProdukKasir:[];window.__rekapinyuProdukKasirLoadedFromCloud=true;window.__rekapinyuProdukKasirData=value;window.__rekapinyuProdukKasirLoaded=true;try{const rawPhone=String(currentSessionUser?.phone||uid||'default');const key='rekapinyu_produk_kasir_cache_'+rawPhone.replace(/\D/g,'');localStorage.setItem(key,JSON.stringify(value));}catch{}try{window.__rekapinyuSetProdukKasirData?.(value);window.__initKasirViews?.()}catch{}},err=>console.warn('Rekapinyu: realtime ProdukKasir gagal.',err));};
+window.__rekapinyuSetProdukKasirData=window.__rekapinyuSetProdukKasirData||function(value){window.__rekapinyuProdukKasirData=Array.isArray(value)?value:[];window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.()}catch{}};
+  window.__rekapinyuStopProdukKasirRealtime=function(){if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null;}};
 })();
 </script>
 <script>
@@ -5785,6 +5706,12 @@ onAuthStateChanged(auth,async u=>{
     window.__rekapinyuProdukKasirData=kasirProducts;
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
   }
+  function saveKasirStore(){
+    window.__rekapinyuProdukKasirData=kasirProducts;
+    window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
+    try{window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: ProdukKasir gagal disimpan.',e)}
+    try{window.__rekapinyuSaveKasirTransactionsCloud?.(kasirTransactions)}catch(e){console.warn('Rekapinyu: TransaksiKasir gagal disimpan.',e)}
+  }
   window.__rekapinyuSetKasirTransactionsRealtime=function(value){kasirTransactions=Array.isArray(value)?value:[];window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;try{renderTransactions()}catch{}}
   function rupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function esc(v){return String(v??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]))}
@@ -5793,7 +5720,13 @@ onAuthStateChanged(auth,async u=>{
   function findKasirProductByBarcode(value){const q=String(value||'').trim().toLowerCase();if(!q)return null;return kasirProducts.find(p=>productBarcodes(p).some(b=>b.toLowerCase()===q))||null}
 
   /* STOK KASIR — SATU SUMBER KEBENARAN.
-     Stok tidak berubah saat produk masuk keranjang; stok berkurang sekali saat transaksi selesai. */
+     Stok tidak pernah berubah saat produk hanya dimasukkan ke keranjang.
+     Stok berubah tepat satu kali, saat transaksi dinyatakan selesai. */
+  function restoreKasirReservedStock(){
+    // Compatibility lama: tidak ada stok yang perlu di-restore karena keranjang
+    // tidak lagi melakukan reservasi/pengurangan stok sebelum pembayaran.
+    renderKasirProducts();
+  }
   function addKasirProductToCart(p){
     const id=String(p.id);
     const stock=Math.max(0,Number(p.stock)||0);
@@ -5810,6 +5743,7 @@ onAuthStateChanged(auth,async u=>{
     syncKasirActiveTransactionTab();renderKasirProducts();renderCart();return true;
   }
   function productIdSafe(p){return p?.id??''}
+  function consumeKasirProductForScan(p){return addKasirProductToCart(p)}
   function getKasirManualContextProduct(){const last=kasirProducts.find(p=>String(p.id)===String(kasirLastAddedProductId||''));if(last)return last;const selected=kasirCartSelectedIndex>=0?kasirCart[kasirCartSelectedIndex]:null;if(selected){const p=kasirProducts.find(x=>String(x.id)===String(selected.id));if(p)return p}if(kasirCart.length===1){const p=kasirProducts.find(x=>String(x.id)===String(kasirCart[0].id));if(p)return p}return null}
   function consumeKasirProductForScan(p){return addKasirProductToCart(p)}
   function openKasirUnknownBarcodePopup(code){const product=getKasirManualContextProduct();window.__rekapinyuKasirUnknownBarcodePending={code:String(code||''),productId:product?String(product.id):''};if(typeof showModal==='function')showModal('Barcode Belum Diinput','Barcode di produk ini belum kamu input, silahkan transaksi manual.','fa-solid fa-barcode text-emerald-600')}
