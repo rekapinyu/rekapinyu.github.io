@@ -4554,20 +4554,40 @@ function authErrorMessage(err,mode){const c=err?.code||"";if(c==="auth/unauthori
 
 const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("login-card"),r=document.getElementById("register-card");return !r?.classList.contains("hidden")?document.getElementById("register-form"):( !l?.classList.contains("hidden")?document.getElementById("login-form"):null)},async submit(form){
   if(this.busy||!form)return;const mode=form.id==="register-form"?"register":form.id==="login-form"?"login":"";if(!mode||this.activeForm()!==form)return;this.busy=true;const btn=form.querySelector('button[type="submit"]');if(btn)btn.disabled=true;
+  let authenticated=false;
   try{await authReadyPromise;
     if(mode==="register"){
       const name=document.getElementById("reg-name")?.value.trim()||"",p=phoneOf(document.getElementById("reg-phone")?.value||""),password=document.getElementById("reg-password")?.value||"";
       if(!name||!p||password.length<6){notify("Gagal Daftar",!name?"Nama wajib diisi.":!p?"Nomor HP wajib diisi.":"Kata sandi minimal 6 karakter.");return}
-      const c=await createUserWithEmailAndPassword(auth,emailOf(p),password);await updateProfile(c.user,{displayName:name});
+      const c=await createUserWithEmailAndPassword(auth,emailOf(p),password);authenticated=true;await updateProfile(c.user,{displayName:name});
       try{nativeRemove.call(localStorage,`finance_profile_photo_${p}`);nativeRemove.call(localStorage,`finance_shop_cover_${p}`)}catch{}
       currentSessionUser={uid:c.user.uid,name,shopName:name,phone:p,email:c.user.email,password,role:"Pengguna",photo:"",cover:"",coverX:50,coverY:50};refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();
       await writeBaseSchema(c.user.uid,p,name);await saveCloudUser({name,phone:p,password,role:"Pengguna"});localSession({uid:c.user.uid,name,shopName:name,phone:p,email:c.user.email,password,role:"Pengguna",photo:"",cover:"",coverX:50,coverY:50});await signOut(auth);currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");form.reset();toggleAuthView("login");notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");return;
     }
     const p=phoneOf(document.getElementById("login-phone")?.value||""),password=document.getElementById("login-password")?.value||"";if(!p||!password){notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.");return}
-    const c=await signInWithEmailAndPassword(auth,emailOf(p),password);refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();
-    const pr=await getPenggunaRef(c.user.uid,p),ps=await getDoc(pr);if(!ps.exists())throw new Error("Dokumen Pengguna tidak ditemukan.");const d=ps.data()||{};
-    localSession({uid:c.user.uid,name:String(d.NamaPengguna||c.user.displayName||""),phone:phoneOf(d.NomorHp||p),email:c.user.email,password:String(d.Pasword||password),role:d.role||"Pengguna"});await hydrate(c.user.uid);await updateMeta();renderDashboardSession();openDashboardAfterLogin();form.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(p)}!`,"fa-solid fa-circle-check text-emerald-600");
-  }catch(err){console.error(`Rekapinyu Firebase ${mode}:`,err);if(mode==="login"&&auth.currentUser){try{await signOut(auth)}catch{}}notify(mode==="login"?"Gagal Masuk":"Gagal Daftar",authErrorMessage(err,mode),"fa-solid fa-circle-xmark text-rose-600");}finally{this.busy=false;if(btn)btn.disabled=false}
+    /* Auth adalah sumber kebenaran login. Setelah sign-in sukses, jangan membatalkan login hanya karena Firestore gagal dibaca/ditulis. */
+    const c=await signInWithEmailAndPassword(auth,emailOf(p),password);authenticated=true;refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();
+    let d={};
+    try{
+      const pr=await getPenggunaRef(c.user.uid,p),ps=await getDoc(pr);
+      if(ps.exists())d=ps.data()||{};
+    }catch(e){
+      log("profil Pengguna saat login tidak dapat dibaca; lanjut dengan data Auth/local",e);
+    }
+    localSession({uid:c.user.uid,name:String(d.NamaPengguna||c.user.displayName||""),shopName:String(d.NamaToko||d.shopName||d.storeName||d.tokoName||"").trim(),phone:phoneOf(d.NomorHp||p),email:c.user.email,password:String(d.Pasword||password),role:d.role||"Pengguna"});
+    try{await hydrate(c.user.uid)}catch(e){log("sinkronisasi Firestore setelah login gagal; login tetap dilanjutkan",e)}
+    try{await updateMeta()}catch(e){log("update metadata setelah login gagal; login tetap dilanjutkan",e)}
+    renderDashboardSession();openDashboardAfterLogin();form.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(p)}!`,"fa-solid fa-circle-check text-emerald-600");
+  }catch(err){
+    console.error(`Rekapinyu Firebase ${mode}:`,err);
+    const authFailure=!authenticated && (String(err?.code||"").startsWith("auth/") || err?.code==="auth/invalid-credential" || err?.code==="auth/wrong-password" || err?.code==="auth/user-not-found");
+    if(mode==="login"&&authFailure&&auth.currentUser){try{await signOut(auth)}catch{}}
+    if(mode==="login"&&authenticated){
+      renderDashboardSession();openDashboardAfterLogin();notify("Masuk Berhasil","Login berhasil. Sinkronisasi data Firebase akan dilanjutkan tanpa membatalkan sesi.","fa-solid fa-circle-check text-emerald-600");
+    }else{
+      notify(mode==="login"?"Gagal Masuk":"Gagal Daftar",authErrorMessage(err,mode),"fa-solid fa-circle-xmark text-rose-600");
+    }
+  }finally{this.busy=false;if(btn)btn.disabled=false}
 }};
 const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="register-form")return;e.preventDefault();e.stopImmediatePropagation();rekapinyuAuth.submit(e.target)};document.addEventListener("submit",authSubmitGuard,true);window.__rekapinyuAuthController=rekapinyuAuth;
 
@@ -4589,7 +4609,7 @@ const landingHandoffPromise=consumeLandingLogin();
 
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
 
-onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}await hydrate(u.uid);realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);notify("Firebase",authErrorMessage(e,"login"),"fa-solid fa-circle-xmark text-rose-600");renderDashboardSession()}});
+onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}await hydrate(u.uid);realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
 
 (function(){function redrawOnFocus(){try{redraw?.()}catch{}}window.addEventListener("focus",redrawOnFocus);window.addEventListener("pageshow",redrawOnFocus);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")redrawOnFocus()})})();
 </script>
