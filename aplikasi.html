@@ -4698,18 +4698,8 @@ function realtime(uid){
         const processed=String(d.ScannerLastProcessedId||"");
         const scanId=String(scan.id||"");
         const barcode=String(scan.barcode||"").trim();
-        if(scanId&&barcode&&scanId!==processed){
-          const deliver=()=>{
-            try{return typeof window.__rekapinyuReceiveScannerBarcode==='function'
-              ? !!window.__rekapinyuReceiveScannerBarcode(barcode)
-              : false}catch(e){console.warn("Scanner HP keranjang gagal",e);return false}
-          };
-          let tries=0;
-          const waitForReceiver=()=>{
-            if(deliver()||tries++>=80)return;
-            setTimeout(waitForReceiver,250);
-          };
-          waitForReceiver();
+        if(scanId&&barcode&&scanId!==processed&&typeof window.__rekapinyuReceiveScannerBarcode==='function'){
+          window.__rekapinyuReceiveScannerBarcode(barcode);
           window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
             ScannerLastProcessedId:scanId,
             ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
@@ -7217,22 +7207,6 @@ function initKasirViews(){
     kasirHardwareScanTimer=setTimeout(()=>{kasirHardwareScanBuffer='';kasirHardwareScanStart=0},180);
   });
 
-  // JEMBATAN SCANNER HP -> KERANJANG KASIR: satu implementasi resmi.
-  // Scanner tidak membawa data produk; Rekapinyu mencari barcode di kasirProducts yang berasal dari folder komputer.
-  window.__rekapinyuReceiveScannerBarcode=function(code){
-    const value=String(code||'').trim();
-    if(!value||!Array.isArray(kasirProducts)||!kasirProducts.length)return false;
-    const p=findKasirProductByBarcode(value);
-    if(!p)return false;
-    const ok=consumeKasirProductForScan(p,value);
-    if(ok){
-      const input=document.getElementById('kasir-barcode');
-      if(input)input.value='';
-      resetKasirSearchAndSelectCart(p.id);
-    }
-    return !!ok;
-  };
-
   function addScannedKasirBarcode(code){
     const input=document.getElementById('kasir-barcode');if(!input)return;
     const value=String(code||'').trim();if(!value)return;
@@ -7241,6 +7215,12 @@ function initKasirViews(){
     if(p){consumeKasirProductForScan(p,value);resetKasirSearchAndSelectCart(p.id);input.value='';return}
     openKasirUnknownBarcodePopup(value);
   }
+
+  // Satu-satunya jembatan Scanner HP -> keranjang Kasir.
+  // Produk tetap dicari dari kasirProducts yang berasal dari folder komputer.
+  window.__rekapinyuReceiveScannerBarcode=function(code){
+    addScannedKasirBarcode(code);
+  };
   function openKasirBarcodeScannerModal(){
     const old=document.getElementById('kasir-barcode-scanner');if(old)old.remove();
     const modal=document.createElement('div');
