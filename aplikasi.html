@@ -5974,39 +5974,92 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
   }
 
-  function backupProducts(){
-    const latest=read();products=latest.map(normalizeProduct);
-    if(!products.length){if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');return}
+  /*
+   * BACKUP PRODUK KASIR — IMPLEMENTASI BARU
+   * Hanya membuat satu file JSON berisi seluruh daftar produk saat tombol Backup diklik.
+   * File ditulis langsung ke folder target yang sudah dipilih melalui "Pilih Folder".
+   */
+  async function backupProducts(){
     try{
-      const backup={format:'Rekapinyu Produk Kasir',version:3,exportedAt:new Date().toISOString(),products:products.map(p=>{const x={...p};delete x.photo;return x})};
-      const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});
-      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup.`)
-    }catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}
+      const dir=await requirePhotoDirectory();
+      const latest=read();
+      products=latest.map(normalizeProduct);
+      if(!products.length){
+        if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');
+        return;
+      }
+
+      const now=new Date();
+      const pad=n=>String(n).padStart(2,'0');
+      const fileName=`backupproduk_${pad(now.getDate())}_${pad(now.getMonth()+1)}_${now.getFullYear()}.json`;
+      const payload={
+        format:'Rekapinyu Produk Kasir Backup',
+        version:1,
+        exportedAt:now.toISOString(),
+        products:products.map(product=>{
+          const copy=normalizeProduct(product);
+          delete copy.photo;
+          return copy;
+        })
+      };
+
+      const handle=await dir.getFileHandle(fileName,{create:true});
+      const writable=await handle.createWritable();
+      try{
+        await writable.write(JSON.stringify(payload,null,2));
+      }finally{
+        await writable.close();
+      }
+
+      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup ke folder ${dir.name}.`);
+    }catch(err){
+      if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup di folder Produk Kasir.');
+    }
   }
 
+  /*
+   * IMPORT PRODUK KASIR — IMPLEMENTASI BARU
+   * Membaca hanya file JSON backup Produk Kasir, mengganti daftar produk dengan isi backup,
+   * lalu menyimpannya kembali melalui jalur penyimpanan Produk Kasir yang sudah ada.
+   */
   function importProducts(file){
     if(!file)return;
     const reader=new FileReader();
     reader.onload=async()=>{
       try{
-        const parsed=JSON.parse(String(reader.result||''));
-        const source=Array.isArray(parsed)?parsed:parsed?.products;
-        if(!Array.isArray(source)||!source.length)throw new Error('File backup tidak berisi daftar produk yang valid.');
-        const imported=source.map((p,i)=>normalizeProduct({...p,id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8))})).filter(p=>p.name&&p.price>0);
+        const raw=String(reader.result||'').trim();
+        if(!raw)throw new Error('File backup kosong.');
+
+        const parsed=JSON.parse(raw);
+        if(!parsed||typeof parsed!=='object')throw new Error('Format file backup tidak valid.');
+        if(parsed.format!=='Rekapinyu Produk Kasir Backup')throw new Error('File bukan backup Produk Kasir Rekapinyu.');
+        if(!Array.isArray(parsed.products)||!parsed.products.length)throw new Error('File backup tidak berisi daftar produk.');
+
+        const imported=parsed.products
+          .map((product,index)=>normalizeProduct({
+            ...product,
+            id:String(product?.id||uid()+'_'+index)
+          }))
+          .filter(product=>product.name);
+
         if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
+
         products=imported;
         await write();
         render();
         try{window.__initKasirViews?.()}catch(_){}
-        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`)
+
+        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`);
       }catch(err){
-        if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.')
+        if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.');
       }finally{
-        if($('pk3-import-file'))$('pk3-import-file').value=''
+        if($('pk3-import-file'))$('pk3-import-file').value='';
       }
     };
-    reader.onerror=()=>{if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');if($('pk3-import-file'))$('pk3-import-file').value=''};
+    reader.onerror=()=>{
+      if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');
+      if($('pk3-import-file'))$('pk3-import-file').value='';
+    };
     reader.readAsText(file);
   }
 
