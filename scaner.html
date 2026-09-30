@@ -51,9 +51,46 @@ function msg(t){$('message').textContent=t}
 async function connectDoc(){if(!kasirRef)return;await setDoc(kasirRef,{ScannerConnection:{connected:true,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()},ScannerDevice:{name:'Rekapinyu Scanner',connected:true,lastSeenAt:serverTimestamp()}},{merge:true});}
 async function disconnectDoc(){if(!kasirRef)return;try{await setDoc(kasirRef,{ScannerConnection:{connected:false,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()},ScannerDevice:{name:'Rekapinyu Scanner',connected:false,lastSeenAt:serverTimestamp()}},{merge:true})}catch(e){}}
 async function sendBarcode(code){code=String(code||'').trim();if(!code||!kasirRef)return;const now=Date.now();if(code===lastCode&&now-lastAt<900)return;lastCode=code;lastAt=now;const id=String(now)+'-'+Math.random().toString(36).slice(2,8);await setDoc(kasirRef,{ScannerLastScan:{id,barcode:code,device:'Rekapinyu Scanner',createdAt:serverTimestamp()},ScannerConnection:{connected:true,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()}},{merge:true});if(navigator.vibrate)navigator.vibrate(80);msg('Barcode '+code+' dikirim ke Kasir');}
-async function loadZXing(){if(window.ZXingBrowser)return window.ZXingBrowser;return await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js';s.onload=()=>window.ZXingBrowser?resolve(window.ZXingBrowser):reject(new Error('ZXing tidak tersedia'));s.onerror=()=>reject(new Error('Gagal memuat scanner'));document.head.appendChild(s)})}
-async function startCamera(){if(scanning)return;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});$('video').srcObject=stream;await $('video').play();scanning=true;$('app').classList.add('scanning');msg('Arahkan kamera ke barcode');if('BarcodeDetector' in window){try{const detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','codabar','qr_code']});const loop=async()=>{if(!scanning)return;try{const codes=await detector.detect($('video'));if(codes?.[0]?.rawValue)await sendBarcode(codes[0].rawValue)}catch(e){}requestAnimationFrame(loop)};requestAnimationFrame(loop);return}catch(e){}}
-const ZX=await loadZXing();reader=new ZX.BrowserMultiFormatReader();reader.decodeFromVideoElement($('video'),async(result)=>{if(result?.getText)try{await sendBarcode(result.getText())}catch(e){}})}catch(e){scanning=false;$('app').classList.remove('scanning');msg(e?.name==='NotAllowedError'?'Izin kamera ditolak. Izinkan kamera di browser.':'Kamera tidak dapat dibuka: '+(e?.message||e));setStatus(true,'Terhubung, kamera gagal')}}
+async function loadZXing(){
+  if(window.ZXingBrowser)return window.ZXingBrowser;
+  const sources=[
+    'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js',
+    'https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js',
+    'https://cdn.jsdelivr.net/npm/@zxing/browser@latest/umd/index.min.js'
+  ];
+  for(const src of sources){
+    try{
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');s.src=src;s.async=true;s.crossOrigin='anonymous';
+        s.onload=()=>window.ZXingBrowser?resolve():reject(new Error('ZXing tidak tersedia'));
+        s.onerror=()=>reject(new Error('CDN scanner gagal'));document.head.appendChild(s);
+      });
+      if(window.ZXingBrowser)return window.ZXingBrowser;
+    }catch(e){}
+  }
+  throw new Error('Mesin scanner tidak dapat dimuat. Periksa koneksi internet lalu coba lagi.');
+}
+async function startCamera(){
+  if(scanning)return;
+  try{
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Browser tidak menyediakan akses kamera. Buka scanner melalui HTTPS dan izinkan kamera.');
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    $('video').srcObject=stream;await $('video').play();scanning=true;$('app').classList.add('scanning');msg('Arahkan kamera ke barcode');
+    if('BarcodeDetector' in window){
+      try{
+        let detector;
+        try{detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','codabar','qr_code']});}catch(_){detector=new BarcodeDetector();}
+        const loop=async()=>{if(!scanning)return;try{const codes=await detector.detect($('video'));if(codes?.[0]?.rawValue)await sendBarcode(codes[0].rawValue)}catch(e){}requestAnimationFrame(loop)};requestAnimationFrame(loop);return;
+      }catch(e){}
+    }
+    const ZX=await loadZXing();reader=new ZX.BrowserMultiFormatReader();reader.decodeFromVideoElement($('video'),async(result)=>{if(result?.getText)try{await sendBarcode(result.getText)}catch(e){}});
+  }catch(e){
+    scanning=false;$('app').classList.remove('scanning');
+    const n=String(e?.name||'');
+    const text=n==='NotAllowedError'?'Izin kamera ditolak. Izinkan kamera di browser.':n==='NotFoundError'?'Kamera tidak ditemukan pada perangkat.':n==='NotReadableError'?'Kamera sedang dipakai aplikasi lain.':String(e?.message||e);
+    msg(text);setStatus(true,'Terhubung, kamera gagal');
+  }
+}
 function stopCamera(){scanning=false;try{reader?.reset?.()}catch(e){}reader=null;if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null}$('app').classList.remove('scanning');msg('Scanner dijeda — tekan tombol untuk aktifkan')}
 $('scanButton').onclick=()=>scanning?stopCamera():startCamera();$('logout').onclick=async()=>{stopCamera();await disconnectDoc();await signOut(auth)};
 $('loginBtn').onclick=async()=>{const msgEl=$('loginMsg');msgEl.textContent='';const btn=$('loginBtn');try{await authReady;const phone=normalizePhone($('phone').value),password=String($('password').value||'');if(!phone)throw new Error('Nomor HP belum diisi.');if(!password)throw new Error('Kata sandi belum diisi.');btn.disabled=true;btn.textContent='Menghubungkan...';await signInWithEmailAndPassword(auth,emailOf(phone),password);msgEl.style.color='#16a34a';msgEl.textContent='Login berhasil. Menghubungkan ke Rekapinyu...';}catch(e){const c=String(e?.code||'');if(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')msgEl.textContent='Nomor HP atau kata sandi salah.';else if(c==='auth/invalid-email')msgEl.textContent='Format Nomor HP tidak valid.';else if(c==='auth/network-request-failed')msgEl.textContent='Koneksi internet gagal. Periksa koneksi lalu coba lagi.';else if(c==='auth/unauthorized-domain')msgEl.textContent='Domain scanner belum diizinkan di Firebase Authentication.';else if(c==='auth/operation-not-allowed')msgEl.textContent='Login Email/Password belum diaktifkan di Firebase Authentication.';else msgEl.textContent='Login gagal: '+(e?.message||'periksa koneksi dan akun Rekapinyu.');}finally{btn.disabled=false;btn.textContent='Hubungkan ke Rekapinyu';}};
