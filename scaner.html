@@ -37,13 +37,14 @@
 </div>
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
-import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
+import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserLocalPersistence} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
 import {getFirestore,doc,setDoc,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:'AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk',authDomain:'rekapinyu.firebaseapp.com',projectId:'rekapinyu',storageBucket:'rekapinyu.firebasestorage.app',messagingSenderId:'835450919713',appId:'1:835450919713:web:818f9f48c5b05330d67c60',measurementId:'G-4KSJC9ENH8'};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const authReady=setPersistence(auth,browserLocalPersistence).catch(()=>{});
 const $=id=>document.getElementById(id);let uid=null,kasirRef=null,stream=null,reader=null,scanning=false,lastCode='',lastAt=0,heartbeat=null;
-function normalizePhone(v){let s=String(v||'').replace(/[^0-9+]/g,'');if(s.startsWith('0'))s='+62'+s.slice(1);if(!s.startsWith('+'))s='+'+s;return s}
+function normalizePhone(v){return String(v??'').replace(/\D/g,'')}
 function emailOf(phone){return normalizePhone(phone)+'@rekapinyu.app'}
 function setStatus(connected,text){$('status').classList.toggle('connected',!!connected);$('statusText').textContent=text}
 function msg(t){$('message').textContent=t}
@@ -55,7 +56,7 @@ async function startCamera(){if(scanning)return;try{stream=await navigator.media
 const ZX=await loadZXing();reader=new ZX.BrowserMultiFormatReader();reader.decodeFromVideoElement($('video'),async(result)=>{if(result?.getText)try{await sendBarcode(result.getText())}catch(e){}})}catch(e){scanning=false;$('app').classList.remove('scanning');msg(e?.name==='NotAllowedError'?'Izin kamera ditolak. Izinkan kamera di browser.':'Kamera tidak dapat dibuka: '+(e?.message||e));setStatus(true,'Terhubung, kamera gagal')}}
 function stopCamera(){scanning=false;try{reader?.reset?.()}catch(e){}reader=null;if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null}$('app').classList.remove('scanning');msg('Scanner dijeda — tekan tombol untuk aktifkan')}
 $('scanButton').onclick=()=>scanning?stopCamera():startCamera();$('logout').onclick=async()=>{stopCamera();await disconnectDoc();await signOut(auth)};
-$('loginBtn').onclick=async()=>{const msgEl=$('loginMsg');msgEl.textContent='';try{const phone=normalizePhone($('phone').value);if(!phone)throw new Error('Nomor HP belum diisi.');await signInWithEmailAndPassword(auth,emailOf(phone),$('password').value)}catch(e){msgEl.textContent='Login gagal. Periksa nomor HP, kata sandi, dan koneksi internet.'}};
+$('loginBtn').onclick=async()=>{const msgEl=$('loginMsg');msgEl.textContent='';const btn=$('loginBtn');try{await authReady;const phone=normalizePhone($('phone').value),password=String($('password').value||'');if(!phone)throw new Error('Nomor HP belum diisi.');if(!password)throw new Error('Kata sandi belum diisi.');btn.disabled=true;btn.textContent='Menghubungkan...';await signInWithEmailAndPassword(auth,emailOf(phone),password);msgEl.style.color='#16a34a';msgEl.textContent='Login berhasil. Menghubungkan ke Rekapinyu...';}catch(e){const c=String(e?.code||'');if(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')msgEl.textContent='Nomor HP atau kata sandi salah.';else if(c==='auth/invalid-email')msgEl.textContent='Format Nomor HP tidak valid.';else if(c==='auth/network-request-failed')msgEl.textContent='Koneksi internet gagal. Periksa koneksi lalu coba lagi.';else if(c==='auth/unauthorized-domain')msgEl.textContent='Domain scanner belum diizinkan di Firebase Authentication.';else if(c==='auth/operation-not-allowed')msgEl.textContent='Login Email/Password belum diaktifkan di Firebase Authentication.';else msgEl.textContent='Login gagal: '+(e?.message||'periksa koneksi dan akun Rekapinyu.');}finally{btn.disabled=false;btn.textContent='Hubungkan ke Rekapinyu';}};
 onAuthStateChanged(auth,async user=>{if(!user){$('login').classList.remove('hidden');$('app').classList.add('hidden');setStatus(false,'Belum terhubung');return}uid=user.uid;kasirRef=doc(db,'Kasir',uid);$('login').classList.add('hidden');$('app').classList.remove('hidden');$('logout').style.display='block';setStatus(true,'Terhubung');msg('Terhubung ke Rekapinyu — tekan tombol untuk scan');await connectDoc();clearInterval(heartbeat);heartbeat=setInterval(()=>connectDoc().catch(()=>{}),15000)});
 window.addEventListener('pagehide',()=>{disconnectDoc();if(stream)stream.getTracks().forEach(t=>t.stop())});
 </script>
