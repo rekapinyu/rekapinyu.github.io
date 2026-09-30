@@ -6461,36 +6461,46 @@ function initKasirViews(){
     if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return false}
     if(paid<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return false}
 
-    /* Validasi dulu seluruh Qty terhadap stok saat ini. */
+    /* PEMBAYARAN MENGGUNAKAN REAL STOK.
+       Real stok = stok barcode aktif + stok input manual.
+       Validasi transaksi hanya terhadap real stok, bukan memisahkan batas
+       transaksi berdasarkan stok manual atau stok barcode. */
     const updates=[];
     const beforeProducts=JSON.parse(JSON.stringify(kasirProducts));
     for(const item of kasirCart){
       const product=kasirProducts.find(p=>String(p.id)===String(item.id));
-      const stock=Math.max(0,Number(product?.stock)||0);
+      const beforeBarcodes=productBarcodes(product);
+      const beforeManual=Math.max(0,Number(product?.manualStock)||0);
+      const realStock=Math.max(0,beforeBarcodes.length+beforeManual);
       const qty=Math.max(0,Number(item.qty)||0);
-      if(!product||qty>stock){
+      if(!product||qty>realStock){
         showModal('Gagal','Stok produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');
         return false;
       }
-      const beforeBarcodes=productBarcodes(product);
       const requestedUsed=[...new Set((Array.isArray(item.usedBarcodes)?item.usedBarcodes:[]).map(v=>String(v||'').trim()).filter(Boolean))].slice(0,qty);
       const usedBarcodes=requestedUsed.filter(code=>beforeBarcodes.includes(code));
-      const manualQty=Math.max(0,qty-usedBarcodes.length);
-      const beforeManual=Math.max(0,Number(product.manualStock)||0);
-      if(manualQty>beforeManual){
-        showModal('Gagal','Stok manual produk tidak mencukupi untuk transaksi ini.','fa-solid fa-box-open text-rose-600');
-        return false;
-      }
-      updates.push({product,qty,before:stock,beforeManual,beforeBarcodes,usedBarcodes,manualQty});
+      updates.push({product,qty,before:realStock,beforeManual,beforeBarcodes,usedBarcodes});
     }
 
-    /* Barcode yang benar-benar dipakai scanner dihapus saat transaksi berhasil.
-       Stok manual berkurang hanya untuk qty yang tidak memakai barcode. */
-    updates.forEach(({product,qty,beforeManual,beforeBarcodes,usedBarcodes,manualQty})=>{
-      product.barcodes=beforeBarcodes.filter(code=>!usedBarcodes.includes(code));
-      product.barcode=product.barcodes[0]||'';
-      product.manualStock=Math.max(0,beforeManual-manualQty);
-      product.stock=Math.max(0,product.manualStock+product.barcodes.length);
+    /* Kurangi real stok tepat sebesar Qty transaksi. Barcode yang memang
+       dipakai scanner tetap dihapus. Jika Qty masih tersisa, pengurangannya
+       diambil dari stok barcode aktif/manual tanpa menjadikan salah satunya
+       sebagai batas transaksi. */
+    updates.forEach(({product,qty,beforeManual,beforeBarcodes,usedBarcodes})=>{
+      let remaining=Math.max(0,qty);
+      let nextBarcodes=beforeBarcodes.filter(code=>!usedBarcodes.includes(code));
+      const removedScanned=beforeBarcodes.length-nextBarcodes.length;
+      remaining=Math.max(0,remaining-removedScanned);
+      if(remaining>0){
+        nextBarcodes=nextBarcodes.slice(Math.min(remaining,nextBarcodes.length));
+      }
+      const barcodeStockAfter=nextBarcodes.length;
+      const consumedFromBarcodes=beforeBarcodes.length-barcodeStockAfter;
+      const consumedManual=Math.max(0,qty-consumedFromBarcodes);
+      product.barcodes=nextBarcodes;
+      product.barcode=nextBarcodes[0]||'';
+      product.manualStock=Math.max(0,beforeManual-consumedManual);
+      product.stock=Math.max(0,barcodeStockAfter+product.manualStock);
       delete product.usedBarcodes;
     });
 
