@@ -4576,12 +4576,22 @@ async function saveProdukKasir(products){
   if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
   const source=Array.isArray(products)?products:[];
-  /* ProdukKasir hanya menyimpan data produk + nama file foto lokal.
-     URL/base64 foto TIDAK lagi dikirim ke Firestore. */
+  /* KHUSUS JALUR FOTO PRODUKKASIR:
+     Firestore hanya boleh menerima nama file foto pada photoFileName.
+     Isi foto, Blob, File, data URL, base64, object URL, maupun field photo
+     tidak boleh ikut masuk ke payload Firestore. */
   const payload=source.map(raw=>{
     const item={...raw};
+    const fileName=String(item.photoFileName||'').trim();
     delete item.photo;
-    if(!String(item.photoFileName||'').trim())delete item.photoFileName;
+    delete item.photoUrl;
+    delete item.photoURL;
+    delete item.photoBase64;
+    delete item.photoData;
+    delete item.photoBlob;
+    delete item.photoFile;
+    if(fileName)item.photoFileName=fileName;
+    else delete item.photoFileName;
     return item;
   });
   const r=await getKasirRef(uid,p);
@@ -5386,6 +5396,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     try{await idbSet(picked)}catch(_){}
     try{await idbSetFolderName(String(picked.name||''))}catch(_){}
     updateFolderStatus();
+    try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){}
     return picked;
   }
 
@@ -5520,6 +5531,55 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     return name;
   }
 
+  /* Jalur foto otomatis hanya membaca folder komputer.
+     Tidak mengubah object ProdukKasir dan tidak melakukan write ke Firestore. */
+  const folderPhotoMatches=new Map();
+
+  function normalizePhotoMatchName(value){
+    return String(value||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\.[^.]+$/,'')
+      .replace(/[_-]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  function isPhotoFileName(name){
+    return /\.(?:jpe?g|png|webp|gif|bmp|avif)$/i.test(String(name||''));
+  }
+
+  async function findFolderPhotoForProduct(productName,dir){
+    const target=normalizePhotoMatchName(productName);
+    if(!target||!dir)return '';
+    try{
+      for await(const entry of dir.values()){
+        if(entry?.kind!=='file')continue;
+        const fileName=String(entry.name||'').trim();
+        if(!isPhotoFileName(fileName))continue;
+        if(normalizePhotoMatchName(fileName)===target)return fileName;
+      }
+    }catch(_){}
+    return '';
+  }
+
+  async function scanTargetFolderPhotos(){
+    const dir=await getPhotoDirectoryQuiet();
+    folderPhotoMatches.clear();
+    if(!dir)return;
+    for(const product of products){
+      const matched=await findFolderPhotoForProduct(product?.name,dir);
+      if(matched)folderPhotoMatches.set(String(product.id),matched);
+    }
+  }
+
+  async function photoFileForProduct(product){
+    const id=String(product?.id||'');
+    const automatic=folderPhotoMatches.get(id);
+    if(automatic)return automatic;
+    return String(product?.photoFileName||'').trim();
+  }
+
   async function localPhotoUrl(fileName){
     const clean=String(fileName||'').trim();
     if(!clean)return null;
@@ -5538,62 +5598,33 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
   }
 
-  async function persistMissingPhotoCleanup(missingIds){
-    const ids=new Set(missingIds.map(String));
-    if(!ids.size)return;
-    let changed=false;
-    products=products.map(p=>{
-      if(!ids.has(String(p.id)))return p;
-      if(p.photoFileName){changed=true;return {...p,photoFileName:'',photo:''}}
-      return p;
-    });
-    if(!changed)return;
-    window.__rekapinyuProdukKasirData=products;
-    try{
-      await window.__rekapinyuSaveProdukKasir?.(products);
-    }catch(e){
-      console.warn('Rekapinyu: referensi foto lokal gagal dibersihkan.',e);
-    }
-    render();
-    try{window.__initKasirViews?.()}catch(_){}
-  }
-
   async function refreshRenderedPhotos(){
     const nodes=[...document.querySelectorAll('#pk3-grid [data-pk3-photo]')];
     if(!nodes.length)return;
-    const missing=[];
     for(const node of nodes){
       const id=String(node.dataset.pk3Photo||'');
       const product=products.find(x=>String(x.id)===id);
       if(!product)continue;
-      if(!product.photoFileName){
+      const fileName=await photoFileForProduct(product);
+      if(!fileName){
         node.innerHTML='<i class="fa-solid fa-image"></i>';
         continue;
       }
-      const url=await localPhotoUrl(product.photoFileName);
+      const url=await localPhotoUrl(fileName);
       if(url){
         node.innerHTML='';
         const img=document.createElement('img');img.src=url;img.alt=product.name||'';
         node.appendChild(img);
       }else{
         node.innerHTML='<i class="fa-solid fa-image"></i>';
-        missing.push(product.id);
       }
     }
-    if(missing.length)await persistMissingPhotoCleanup(missing);
   }
 
   async function scanMissingPhotos(){
-    const dir=await getPhotoDirectoryQuiet();
-    if(!dir)return;
-    const missing=[];
-    for(const p of products){
-      const fileName=String(p?.photoFileName||'').trim();
-      if(!fileName)continue;
-      try{await dir.getFileHandle(fileName,{create:false})}
-      catch(_){missing.push(p.id)}
-    }
-    if(missing.length)await persistMissingPhotoCleanup(missing);
+    /* Hanya membaca ulang folder target. Tidak menghapus/mengubah data ProdukKasir. */
+    await scanTargetFolderPhotos();
+    try{await refreshRenderedPhotos()}catch(_){}
   }
 
   function startPhotoWatch(){
@@ -6004,6 +6035,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     $('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()});
     updateFolderStatus();
+    scanTargetFolderPhotos().then(()=>refreshRenderedPhotos()).catch(()=>{});
     startPhotoWatch();
   }
 
