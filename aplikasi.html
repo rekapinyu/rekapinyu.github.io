@@ -4417,13 +4417,21 @@ function updateUserAvatarUI() {
 
   async function listRekapFiles(dir){
     const files=[];
-    try{
-      for await(const [entryName,entry] of dir.entries()){
-        if(entry?.kind!=='file')continue;
-        if(!/^Rekap_Hari_.*\.json$/i.test(String(entryName)))continue;
-        files.push({name:String(entryName),handle:entry});
-      }
-    }catch(_){}
+    async function walk(currentDir,pathPrefix=''){
+      try{
+        for await(const [entryName,entry] of currentDir.entries()){
+          const entryPath=pathPrefix?`${pathPrefix}/${entryName}`:String(entryName);
+          if(entry?.kind==='directory'){
+            await walk(entry,entryPath);
+            continue;
+          }
+          if(entry?.kind!=='file')continue;
+          if(!/^Rekap_Hari_.*\.json$/i.test(String(entryName)))continue;
+          files.push({name:String(entryName),path:entryPath,handle:entry});
+        }
+      }catch(_){}
+    }
+    await walk(dir);
     return files;
   }
 
