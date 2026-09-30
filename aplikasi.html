@@ -1390,13 +1390,18 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 .pk3-field select{display:block;width:100%;height:38px;box-sizing:border-box;padding:0 10px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#0f172a;font-size:12px;outline:none}.pk3-field select:focus{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.12)}
 .pk3-barcode-field{position:relative!important}.pk3-barcode-list:empty{display:none!important}.pk3-barcode-list{position:absolute!important;left:0!important;right:0!important;top:calc(100% + 4px)!important;display:flex!important;flex-direction:column!important;gap:2px!important;margin:0!important;padding:4px!important;max-height:132px!important;overflow-y:auto!important;overflow-x:hidden!important;background:#fff!important;border:1px solid #cbd5e1!important;border-radius:10px!important;box-shadow:0 10px 24px rgba(15,23,42,.12)!important;z-index:200!important;box-sizing:border-box!important}.pk3-barcode-chip{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:100%!important;min-height:30px!important;box-sizing:border-box!important;padding:6px 8px!important;border:0!important;border-radius:7px!important;background:#f8fafc!important;color:#1e3a8a!important;font-size:10px!important;font-weight:800!important}.pk3-barcode-chip:hover{background:#eff6ff!important}.pk3-barcode-chip span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}.pk3-barcode-chip button{flex:0 0 auto!important;border:0!important;background:transparent!important;color:#dc2626!important;font-size:14px!important;line-height:1!important;cursor:pointer!important;padding:2px 4px!important;border-radius:5px!important}.pk3-barcode-chip button:hover{background:#fee2e2!important}.pk3-edit-row .pk3-barcode-field{position:relative!important}.pk3-edit-row .pk3-barcode-list{z-index:300!important}.kasir-search-wrap{position:relative}.kasir-search-wrap input{padding-right:28px!important}
 .kasir-barcode-input-wrap{width:190px!important}
-.kasir-barcode-scan-box{width:132px!important;justify-content:center!important;cursor:pointer!important;gap:7px!important;padding:0 10px!important}
+/* Scanner dibuat sama ukuran dengan tombol Bluetooth: 38x38. */
+.kasir-barcode-scan-box{width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;justify-content:center!important;cursor:pointer!important;gap:0!important;padding:0!important}
 .kasir-barcode-scan-box:hover{background:#f8fafc!important;border-color:#b8c7d8!important}
 .kasir-barcode-scan-box:focus-visible{outline:2px solid #10b981!important;outline-offset:2px}
-.kasir-barcode-scan-box.is-scanning{border-color:#10b981!important;background:#ecfdf5!important;color:#059669!important}
+.kasir-barcode-scan-box.is-scanning,.kasir-barcode-scan-box.is-scanner-connected{border-color:#bbf7d0!important;background:#f0fdf4!important;color:#16a34a!important}
+.kasir-barcode-scan-box.is-scanner-connecting{border-color:#bfdbfe!important;background:#eff6ff!important;color:#2563eb!important}
+.kasir-barcode-scan-box.is-scanner-disconnected{border-color:#dbe3eb!important;background:#fff!important;color:#dc2626!important}
 .kasir-barcode-scan-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;background:#ecfdf5;color:#059669;font-size:15px}
-.kasir-barcode-scan-label{font-size:10px;font-weight:800;color:#475569;white-space:nowrap}
-.kasir-barcode-scan-box.is-scanning .kasir-barcode-scan-label{color:#059669}
+.kasir-barcode-scan-box.is-scanner-connected .kasir-barcode-scan-icon{background:#dcfce7;color:#16a34a}
+.kasir-barcode-scan-box.is-scanner-connecting .kasir-barcode-scan-icon{background:#dbeafe;color:#2563eb}
+.kasir-barcode-scan-box.is-scanner-disconnected .kasir-barcode-scan-icon{background:#fee2e2;color:#dc2626}
+.kasir-barcode-scan-label{display:none!important}
 @keyframes kasirBarcodePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.72}}
 .kasir-barcode-scanner{position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}.kasir-barcode-scanner-card{width:min(520px,100%);background:#fff;border-radius:18px;padding:14px;box-shadow:0 20px 60px rgba(15,23,42,.3)}.kasir-barcode-scanner-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.kasir-barcode-scanner-head strong{font-size:14px;color:#0f172a}.kasir-barcode-scanner-head button{width:32px;height:32px;border:0;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:22px;cursor:pointer}.kasir-barcode-camera-wrap{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;border-radius:14px;background:#0f172a}.kasir-barcode-camera-wrap video{width:100%;height:100%;object-fit:cover}.kasir-barcode-target{position:absolute;left:12%;right:12%;top:35%;height:30%;border:2px solid #ef4444;border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.12)}.kasir-barcode-scanner-card p{margin:9px 2px 0;color:#64748b;font-size:10px}
 
@@ -2354,9 +2359,8 @@ bind();
 <div aria-label="Kotak ketik barcode" class="kasir-barcode-wrap kasir-barcode-input-wrap">
 <input autocomplete="off" id="kasir-barcode" placeholder="Ketik barcode" type="text" inputmode="numeric" aria-label="Ketik barcode produk">
 </div>
-<button aria-label="Aktifkan scanner barcode" class="kasir-barcode-wrap kasir-barcode-scan-box" id="kasir-barcode-scan-btn" type="button" title="Scan barcode dengan kamera">
+<button aria-label="Hubungkan scanner barcode" class="kasir-barcode-wrap kasir-barcode-scan-box" id="kasir-barcode-scan-btn" type="button" title="Hubungkan scanner barcode">
 <span class="kasir-barcode-scan-icon" aria-hidden="true"><i class="fa-solid fa-barcode"></i></span>
-<span class="kasir-barcode-scan-label">Scan Barcode</span>
 </button>
 <button aria-label="Hubungkan printer Bluetooth" class="kasir-tool-btn" id="kasir-refresh-btn" title="Hubungkan printer Bluetooth" type="button"><i class="fa-brands fa-bluetooth-b"></i></button>
 <button class="kasir-tool-btn" id="kasir-manual-btn" type="button"><i class="fa-solid fa-keyboard"></i> Manual</button>
@@ -7087,8 +7091,21 @@ function initKasirViews(){
 
   function setKasirBarcodeIndicator(active){
     const btn=document.getElementById('kasir-barcode-scan-btn');
-    if(btn)btn.classList.toggle('is-scanning',!!active);
+    if(!btn)return;
+    btn.classList.toggle('is-scanning',!!active);
+    btn.classList.toggle('is-scanner-connected',!!active);
+    btn.classList.toggle('is-scanner-disconnected',!active);
+    btn.classList.remove('is-scanner-connecting');
+    btn.title=active?'Scanner barcode tersambung/aktif':'Hubungkan scanner barcode';
+    btn.setAttribute('aria-label',btn.title);
   }
+  function setKasirBarcodeConnecting(active){
+    const btn=document.getElementById('kasir-barcode-scan-btn');
+    if(!btn)return;
+    btn.classList.toggle('is-scanner-connecting',!!active);
+    if(active){btn.classList.remove('is-scanner-connected','is-scanner-disconnected','is-scanning');btn.title='Menghubungkan scanner barcode...';btn.setAttribute('aria-label',btn.title);}
+  }
+  setKasirBarcodeIndicator(false);
   function getKasirUserMedia(constraints){
     const nav=navigator;
     if(nav.mediaDevices&&typeof nav.mediaDevices.getUserMedia==='function'){
@@ -7134,6 +7151,38 @@ function initKasirViews(){
     const modal=document.getElementById('kasir-barcode-scanner');
     if(modal)modal.remove();
   }
+  /* Scanner USB/Bluetooth model HID/keyboard-wedge dibaca langsung oleh browser sebagai input keyboard.
+     Browser tidak menyediakan API umum untuk mengetahui status colok/tidak colok perangkat HID,
+     sehingga status hijau dipastikan saat scanner mengirim hasil scan yang valid. */
+  let kasirHardwareScanBuffer='';
+  let kasirHardwareScanTimer=0;
+  let kasirHardwareScanStart=0;
+  document.addEventListener('keydown',e=>{
+    const kasirView=document.getElementById('view-kasir');
+    if(kasirView?.classList.contains('hidden'))return;
+    if(e.ctrlKey||e.altKey||e.metaKey)return;
+    const target=e.target;
+    if(target?.id==='kasir-barcode'||target?.id==='kasir-search')return;
+    if(target?.matches?.('input,textarea,select,[contenteditable=\"true\"]'))return;
+    if(e.key==='Enter'){
+      if(kasirHardwareScanBuffer.length>=3){
+        const code=kasirHardwareScanBuffer;
+        kasirHardwareScanBuffer='';
+        clearTimeout(kasirHardwareScanTimer);
+        setKasirBarcodeIndicator(true);
+        addScannedKasirBarcode(code);
+        e.preventDefault();
+      }
+      return;
+    }
+    if(e.key.length!==1)return;
+    const now=Date.now();
+    if(!kasirHardwareScanStart||now-kasirHardwareScanStart>120){kasirHardwareScanBuffer='';kasirHardwareScanStart=now;}
+    kasirHardwareScanBuffer+=e.key;
+    clearTimeout(kasirHardwareScanTimer);
+    kasirHardwareScanTimer=setTimeout(()=>{kasirHardwareScanBuffer='';kasirHardwareScanStart=0},180);
+  });
+
   function addScannedKasirBarcode(code){
     const input=document.getElementById('kasir-barcode');if(!input)return;
     const value=String(code||'').trim();if(!value)return;
