@@ -5587,15 +5587,22 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function findFolderPhotoForProduct(productName,dir){
     const target=normalizePhotoMatchName(productName);
     if(!target||!dir)return '';
-    try{
-      for await(const entry of dir.values()){
-        if(entry?.kind!=='file')continue;
-        const fileName=String(entry.name||'').trim();
-        if(!isPhotoFileName(fileName))continue;
-        if(normalizePhotoMatchName(fileName)===target)return fileName;
-      }
-    }catch(_){}
-    return '';
+    async function walk(currentDir){
+      try{
+        for await(const entry of currentDir.values()){
+          if(entry?.kind==='file'){
+            const fileName=String(entry.name||'').trim();
+            if(!isPhotoFileName(fileName))continue;
+            if(normalizePhotoMatchName(fileName)===target)return fileName;
+          }else if(entry?.kind==='directory'){
+            const found=await walk(entry);
+            if(found)return found;
+          }
+        }
+      }catch(_){}
+      return '';
+    }
+    return await walk(dir);
   }
 
   async function scanTargetFolderPhotos(){
@@ -5622,8 +5629,21 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(cached)return cached;
     const dir=await getPhotoDirectoryQuiet();
     if(!dir)return null;
+    async function findFile(currentDir){
+      try{
+        for await(const entry of currentDir.values()){
+          if(entry?.kind==='file' && String(entry.name||'').trim()===clean)return entry;
+          if(entry?.kind==='directory'){
+            const found=await findFile(entry);
+            if(found)return found;
+          }
+        }
+      }catch(_){}
+      return null;
+    }
     try{
-      const fh=await dir.getFileHandle(clean,{create:false});
+      const fh=await findFile(dir);
+      if(!fh)return null;
       const file=await fh.getFile();
       const url=URL.createObjectURL(file);
       objectUrls.set(clean,url);
@@ -5726,35 +5746,42 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const dir=await getPhotoDirectoryQuiet();
     if(!dir)return [];
     const loaded=[];
-    try{
-      for await(const [entryName,entry] of dir.entries()){
-        if(entry?.kind!=="file"||!entryName.toLowerCase().endsWith(".json"))continue;
-        try{
-          const file=await entry.getFile();
-          const raw=JSON.parse(await file.text());
-          if(!raw||typeof raw!=="object"||!raw.nama_produk)continue;
-          const name=String(raw.nama_produk).trim();
-          const barcodeList=Array.isArray(raw.barcode_aktif)
-            ? [...new Set(raw.barcode_aktif.map(v=>String(v||'').trim()).filter(Boolean))]
-            : [];
-          const barcodeStock=barcodeList.length>0
-            ? barcodeList.length
-            : Math.max(0,Number(raw.stok_barcode_aktif)||0);
-          const manualStock=Math.max(0,Number(raw.stok_input_manual)||0);
-          const product=normalizeProduct({
-            id:`folder_${produkKasirJsonBaseName(name)}`,
-            name,
-            category:String(raw.kategori||"Lainnya"),
-            barcodes:barcodeList, barcode:barcodeList[0]||"", barcodeStock,
-            cost:Number(raw.harga_hpp)||0, grosir:Number(raw.harga_hpp)||0,
-            price:Number(raw.harga_jual)||0,
-            manualStock, stock:barcodeStock+manualStock,
-            photoFileName:String(raw.nama_file_foto||fileNameForProduct(name)), photo:""
-          });
-          loaded.push(product);
-        }catch(_){}
-      }
-    }catch(_){}
+    async function walk(currentDir){
+      try{
+        for await(const [entryName,entry] of currentDir.entries()){
+          if(entry?.kind==='directory'){
+            await walk(entry);
+            continue;
+          }
+          if(entry?.kind!=="file"||!String(entryName||'').toLowerCase().endsWith(".json"))continue;
+          try{
+            const file=await entry.getFile();
+            const raw=JSON.parse(await file.text());
+            if(!raw||typeof raw!=="object"||!raw.nama_produk)continue;
+            const name=String(raw.nama_produk).trim();
+            const barcodeList=Array.isArray(raw.barcode_aktif)
+              ? [...new Set(raw.barcode_aktif.map(v=>String(v||'').trim()).filter(Boolean))]
+              : [];
+            const barcodeStock=barcodeList.length>0
+              ? barcodeList.length
+              : Math.max(0,Number(raw.stok_barcode_aktif)||0);
+            const manualStock=Math.max(0,Number(raw.stok_input_manual)||0);
+            const product=normalizeProduct({
+              id:`folder_${produkKasirJsonBaseName(name)}`,
+              name,
+              category:String(raw.kategori||"Lainnya"),
+              barcodes:barcodeList, barcode:barcodeList[0]||"", barcodeStock,
+              cost:Number(raw.harga_hpp)||0, grosir:Number(raw.harga_hpp)||0,
+              price:Number(raw.harga_jual)||0,
+              manualStock, stock:barcodeStock+manualStock,
+              photoFileName:String(raw.nama_file_foto||fileNameForProduct(name)), photo:""
+            });
+            loaded.push(product);
+          }catch(_){}
+        }
+      }catch(_){}
+    }
+    await walk(dir);
     return loaded;
   }
 
