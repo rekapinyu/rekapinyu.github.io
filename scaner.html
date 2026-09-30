@@ -1,100 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Rekapinyu Scanner</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input{font:inherit}
-#app{position:fixed;inset:0;background:#000;color:#fff}
-#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-#shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.62),transparent 24%,transparent 72%,rgba(0,0,0,.55));pointer-events:none}
-#header{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 16px) 16px 14px;z-index:4;display:flex;align-items:center;justify-content:space-between}
-.title{font-weight:800;font-size:16px}.subtitle{font-size:11px;color:rgba(255,255,255,.78);margin-top:3px}
-.status{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.42);backdrop-filter:blur(8px);font-size:10px;font-weight:800}.dot{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}.connected .dot{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
-#scanButton{position:absolute;z-index:5;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);width:76px;height:76px;border-radius:50%;border:5px solid rgba(255,255,255,.92);background:#ef4444;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:27px;-webkit-tap-highlight-color:transparent}.connected #scanButton{background:#16a34a}.paused #scanButton{background:#ef4444}.scanning #scanButton{background:#16a34a}
-#message{position:absolute;z-index:4;left:50%;bottom:calc(116px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100% - 30px);padding:8px 13px;border-radius:999px;background:rgba(0,0,0,.48);backdrop-filter:blur(8px);font-size:11px;font-weight:700;text-align:center;white-space:nowrap}
-#login{position:absolute;z-index:20;inset:0;background:#f4f7f9;color:#172033;display:flex;align-items:center;justify-content:center;padding:24px}.card{width:min(390px,100%);background:#fff;border:1px solid #e4e9ef;border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(15,23,42,.16)}.brand{text-align:center;margin-bottom:20px}.brand h1{margin:0;font-size:22px}.brand p{margin:7px 0 0;color:#8a96a8;font-size:12px}.field{margin-top:12px}.field label{display:block;font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px}.field input{width:100%;height:44px;border:1px solid #dbe3eb;border-radius:10px;padding:0 12px;outline:0}.field input:focus{border-color:#16a085;box-shadow:0 0 0 3px rgba(22,160,133,.1)}#loginBtn{width:100%;height:46px;margin-top:18px;border:0;border-radius:10px;background:#16a085;color:#fff;font-weight:800}#loginMsg{min-height:18px;margin-top:10px;text-align:center;color:#dc2626;font-size:11px}
-#logout{position:absolute;right:16px;bottom:calc(26px + env(safe-area-inset-bottom));z-index:6;border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.38);color:#fff;border-radius:999px;padding:8px 12px;font-size:10px;font-weight:800;display:none}
-.hidden{display:none!important}
-@media(max-width:380px){.title{font-size:14px}.subtitle{font-size:10px}.status{font-size:9px}.card{padding:20px}.scanButton{width:70px;height:70px}}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input{font:inherit}
+#scannerApp{position:fixed;inset:0;background:#000;color:#fff;display:none}#camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}#shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.64),rgba(0,0,0,0) 28%,rgba(0,0,0,0) 68%,rgba(0,0,0,.58))}
+#top{position:absolute;z-index:3;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 14px) 15px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.title{font-size:16px;font-weight:800}.sub{margin-top:3px;font-size:10px;color:rgba(255,255,255,.8)}#connection{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.45);backdrop-filter:blur(10px);font-size:10px;font-weight:800;white-space:nowrap}.dot{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.16)}#connection.ok .dot{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+#info{position:absolute;z-index:3;left:50%;bottom:calc(116px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 13px;border-radius:999px;background:rgba(0,0,0,.48);backdrop-filter:blur(9px);font-size:11px;font-weight:700;text-align:center;white-space:nowrap}#scan{position:absolute;z-index:4;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);width:78px;height:78px;border:5px solid rgba(255,255,255,.95);border-radius:50%;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 32px rgba(0,0,0,.55);font-size:28px}#scan.on{background:#16a34a}
+#login{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:22px;background:#f4f7f9;color:#172033}.card{width:min(390px,100%);padding:24px;background:#fff;border:1px solid #e3e8ef;border-radius:22px;box-shadow:0 20px 60px rgba(15,23,42,.16)}.brand{text-align:center;margin-bottom:20px}.brand h1{margin:0;font-size:22px}.brand p{margin:7px 0 0;color:#8a96a8;font-size:12px}.field{margin-top:12px}.field label{display:block;margin-bottom:6px;font-size:11px;font-weight:800;color:#64748b}.field input{width:100%;height:44px;padding:0 12px;border:1px solid #dbe3eb;border-radius:10px;outline:0}.field input:focus{border-color:#16a085;box-shadow:0 0 0 3px rgba(22,160,133,.1)}#loginButton{width:100%;height:46px;margin-top:18px;border:0;border-radius:10px;background:#16a085;color:#fff;font-weight:800}#loginMessage{min-height:18px;margin-top:10px;text-align:center;color:#dc2626;font-size:11px}.hide{display:none!important}
 </style>
 </head>
 <body>
-<div id="app" class="hidden">
-  <video id="video" autoplay muted playsinline></video><div id="shade"></div>
-  <div id="header"><div><div class="title">Scanner Rekapinyu</div><div class="subtitle">Kamera HP → Menu Kasir Rekapinyu</div></div><div id="status" class="status"><span class="dot"></span><span id="statusText">Belum terhubung</span></div></div>
-  <div id="message">Tekan tombol untuk mengaktifkan scanner</div>
-  <button id="scanButton" type="button" aria-label="Aktifkan scanner"><i>▣</i></button>
-  <button id="logout" type="button">Keluar</button>
+<div id="scannerApp">
+  <video id="camera" autoplay muted playsinline></video><div id="shade"></div>
+  <div id="top"><div><div class="title">Scanner Rekapinyu</div><div class="sub">Kamera HP → Menu Kasir Rekapinyu</div></div><div id="connection"><span class="dot"></span><span id="connectionText">Belum terhubung</span></div></div>
+  <div id="info">Tekan tombol untuk mengaktifkan scanner</div>
+  <button id="scan" type="button" aria-label="Aktifkan scanner">▣</button>
 </div>
 <div id="login">
-  <div class="card"><div class="brand"><h1>Rekapinyu Scanner</h1><p>Masuk dengan akun Rekapinyu yang sama dengan komputer kasir.</p></div>
-    <div class="field"><label>Nomor HP</label><input id="phone" inputmode="tel" autocomplete="username" placeholder="08xxxxxxxxxx"></div>
+  <div class="card">
+    <div class="brand"><h1>Rekapinyu Scanner</h1><p>Gunakan Nomor HP dan Kata Sandi akun Rekapinyu.</p></div>
+    <div class="field"><label>Nomor HP</label><input id="phone" type="tel" inputmode="numeric" autocomplete="username" placeholder="081555444469"></div>
     <div class="field"><label>Kata Sandi</label><input id="password" type="password" autocomplete="current-password" placeholder="Kata sandi"></div>
-    <button id="loginBtn" type="button">Hubungkan ke Rekapinyu</button><div id="loginMsg"></div>
+    <button id="loginButton" type="button">Hubungkan ke Rekapinyu</button><div id="loginMessage"></div>
   </div>
 </div>
 <script type="module">
-import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
-import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserLocalPersistence} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
-import {getFirestore,doc,setDoc,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
+import{initializeApp}from'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
+import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserLocalPersistence}from'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
+import{getFirestore,doc,setDoc,serverTimestamp}from'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:'AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk',authDomain:'rekapinyu.firebaseapp.com',projectId:'rekapinyu',storageBucket:'rekapinyu.firebasestorage.app',messagingSenderId:'835450919713',appId:'1:835450919713:web:818f9f48c5b05330d67c60',measurementId:'G-4KSJC9ENH8'};
-const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
-const authReady=setPersistence(auth,browserLocalPersistence).catch(()=>{});
-const $=id=>document.getElementById(id);let uid=null,kasirRef=null,stream=null,reader=null,scanning=false,lastCode='',lastAt=0,heartbeat=null;
-function normalizePhone(v){return String(v??'').replace(/\D/g,'')}
-function emailOf(phone){return normalizePhone(phone)+'@rekapinyu.app'}
-function setStatus(connected,text){$('status').classList.toggle('connected',!!connected);$('statusText').textContent=text}
-function msg(t){$('message').textContent=t}
-async function connectDoc(){if(!kasirRef)return;await setDoc(kasirRef,{ScannerConnection:{connected:true,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()},ScannerDevice:{name:'Rekapinyu Scanner',connected:true,lastSeenAt:serverTimestamp()}},{merge:true});}
-async function disconnectDoc(){if(!kasirRef)return;try{await setDoc(kasirRef,{ScannerConnection:{connected:false,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()},ScannerDevice:{name:'Rekapinyu Scanner',connected:false,lastSeenAt:serverTimestamp()}},{merge:true})}catch(e){}}
-async function sendBarcode(code){code=String(code||'').trim();if(!code||!kasirRef)return;const now=Date.now();if(code===lastCode&&now-lastAt<900)return;lastCode=code;lastAt=now;const id=String(now)+'-'+Math.random().toString(36).slice(2,8);await setDoc(kasirRef,{ScannerLastScan:{id,barcode:code,device:'Rekapinyu Scanner',createdAt:serverTimestamp()},ScannerConnection:{connected:true,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()}},{merge:true});if(navigator.vibrate)navigator.vibrate(80);msg('Barcode '+code+' dikirim ke Kasir');}
-async function loadZXing(){
-  if(window.ZXingBrowser)return window.ZXingBrowser;
-  const sources=[
-    'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js',
-    'https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js',
-    'https://cdn.jsdelivr.net/npm/@zxing/browser@latest/umd/index.min.js'
-  ];
-  for(const src of sources){
-    try{
-      await new Promise((resolve,reject)=>{
-        const s=document.createElement('script');s.src=src;s.async=true;s.crossOrigin='anonymous';
-        s.onload=()=>window.ZXingBrowser?resolve():reject(new Error('ZXing tidak tersedia'));
-        s.onerror=()=>reject(new Error('CDN scanner gagal'));document.head.appendChild(s);
-      });
-      if(window.ZXingBrowser)return window.ZXingBrowser;
-    }catch(e){}
-  }
-  throw new Error('Mesin scanner tidak dapat dimuat. Periksa koneksi internet lalu coba lagi.');
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);setPersistence(auth,browserLocalPersistence).catch(()=>{});
+const $=id=>document.getElementById(id);let uid='',kasirRef=null,stream=null,scanner=null,scanLoop=false,lastCode='',lastScanTime=0,zxingModule=null;
+const phoneOnly=v=>String(v??'').replace(/\D/g,'');const authEmail=p=>phoneOnly(p)+'@rekapinyu.app';
+function connection(ok,text){$('connection').classList.toggle('ok',!!ok);$('connectionText').textContent=text}
+function info(text){$('info').textContent=text}
+async function writeConnection(connected){if(!kasirRef)return;await setDoc(kasirRef,{ScannerConnection:{connected,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()}},{merge:true})}
+async function sendBarcode(value){const code=String(value||'').trim();if(!code||!kasirRef)return;const now=Date.now();if(code===lastCode&&now-lastScanTime<900)return;lastCode=code;lastScanTime=now;await setDoc(kasirRef,{ScannerLastScan:{id:String(now)+'-'+Math.random().toString(36).slice(2,8),barcode:code,device:'Rekapinyu Scanner',createdAt:serverTimestamp()},ScannerConnection:{connected:true,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()}},{merge:true});navigator.vibrate?.(70);info('Barcode '+code+' dikirim ke Kasir')}
+async function getZXing(){if(zxingModule)return zxingModule;try{zxingModule=await import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');if(!zxingModule.BrowserMultiFormatReader)throw new Error('BrowserMultiFormatReader tidak tersedia');return zxingModule}catch(e){throw new Error('Mesin barcode tidak tersedia di browser ini')}
 }
-async function startCamera(){
-  if(scanning)return;
-  try{
-    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Browser tidak menyediakan akses kamera. Buka scanner melalui HTTPS dan izinkan kamera.');
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
-    $('video').srcObject=stream;await $('video').play();scanning=true;$('app').classList.add('scanning');msg('Arahkan kamera ke barcode');
-    if('BarcodeDetector' in window){
-      try{
-        let detector;
-        try{detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','codabar','qr_code']});}catch(_){detector=new BarcodeDetector();}
-        const loop=async()=>{if(!scanning)return;try{const codes=await detector.detect($('video'));if(codes?.[0]?.rawValue)await sendBarcode(codes[0].rawValue)}catch(e){}requestAnimationFrame(loop)};requestAnimationFrame(loop);return;
-      }catch(e){}
-    }
-    const ZX=await loadZXing();reader=new ZX.BrowserMultiFormatReader();reader.decodeFromVideoElement($('video'),async(result)=>{if(result?.getText)try{await sendBarcode(result.getText)}catch(e){}});
-  }catch(e){
-    scanning=false;$('app').classList.remove('scanning');
-    const n=String(e?.name||'');
-    const text=n==='NotAllowedError'?'Izin kamera ditolak. Izinkan kamera di browser.':n==='NotFoundError'?'Kamera tidak ditemukan pada perangkat.':n==='NotReadableError'?'Kamera sedang dipakai aplikasi lain.':String(e?.message||e);
-    msg(text);setStatus(true,'Terhubung, kamera gagal');
-  }
-}
-function stopCamera(){scanning=false;try{reader?.reset?.()}catch(e){}reader=null;if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null}$('app').classList.remove('scanning');msg('Scanner dijeda — tekan tombol untuk aktifkan')}
-$('scanButton').onclick=()=>scanning?stopCamera():startCamera();$('logout').onclick=async()=>{stopCamera();await disconnectDoc();await signOut(auth)};
-$('loginBtn').onclick=async()=>{const msgEl=$('loginMsg');msgEl.textContent='';const btn=$('loginBtn');try{await authReady;const phone=normalizePhone($('phone').value),password=String($('password').value||'');if(!phone)throw new Error('Nomor HP belum diisi.');if(!password)throw new Error('Kata sandi belum diisi.');btn.disabled=true;btn.textContent='Menghubungkan...';await signInWithEmailAndPassword(auth,emailOf(phone),password);msgEl.style.color='#16a34a';msgEl.textContent='Login berhasil. Menghubungkan ke Rekapinyu...';}catch(e){const c=String(e?.code||'');if(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')msgEl.textContent='Nomor HP atau kata sandi salah.';else if(c==='auth/invalid-email')msgEl.textContent='Format Nomor HP tidak valid.';else if(c==='auth/network-request-failed')msgEl.textContent='Koneksi internet gagal. Periksa koneksi lalu coba lagi.';else if(c==='auth/unauthorized-domain')msgEl.textContent='Domain scanner belum diizinkan di Firebase Authentication.';else if(c==='auth/operation-not-allowed')msgEl.textContent='Login Email/Password belum diaktifkan di Firebase Authentication.';else msgEl.textContent='Login gagal: '+(e?.message||'periksa koneksi dan akun Rekapinyu.');}finally{btn.disabled=false;btn.textContent='Hubungkan ke Rekapinyu';}};
-onAuthStateChanged(auth,async user=>{if(!user){$('login').classList.remove('hidden');$('app').classList.add('hidden');setStatus(false,'Belum terhubung');return}uid=user.uid;kasirRef=doc(db,'Kasir',uid);$('login').classList.add('hidden');$('app').classList.remove('hidden');$('logout').style.display='block';setStatus(true,'Terhubung');msg('Terhubung ke Rekapinyu — tekan tombol untuk scan');await connectDoc();clearInterval(heartbeat);heartbeat=setInterval(()=>connectDoc().catch(()=>{}),15000)});
-window.addEventListener('pagehide',()=>{disconnectDoc();if(stream)stream.getTracks().forEach(t=>t.stop())});
+async function startScanner(){if(scanLoop)return;try{if(!window.isSecureContext)throw new Error('Scanner harus dibuka melalui HTTPS');if(!navigator.mediaDevices?.getUserMedia)throw new Error('Browser tidak menyediakan akses kamera');stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});$('camera').srcObject=stream;await $('camera').play();scanLoop=true;$('scan').classList.add('on');info('Arahkan kamera ke barcode');
+if('BarcodeDetector'in window){try{const formats=await BarcodeDetector.getSupportedFormats();const wanted=['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','codabar'];const usable=wanted.filter(x=>formats.includes(x));const detector=usable.length?new BarcodeDetector({formats:usable}):new BarcodeDetector();const detect=async()=>{if(!scanLoop)return;try{const found=await detector.detect($('camera'));if(found?.[0]?.rawValue)await sendBarcode(found[0].rawValue)}catch{}requestAnimationFrame(detect)};requestAnimationFrame(detect);return}catch{}}
+const ZX=await getZXing();scanner=new ZX.BrowserMultiFormatReader();scanner.decodeFromVideoElement($('camera'),async result=>{if(!scanLoop)return;if(result?.getText)try{await sendBarcode(result.getText())}catch{}})
+}catch(e){stopScanner();info(e?.message||'Scanner tidak dapat dijalankan');connection(true,'Terhubung, kamera gagal')}}
+function stopScanner(){scanLoop=false;try{scanner?.reset?.()}catch{}scanner=null;if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch{}stream=null}$('scan').classList.remove('on');if($('scannerApp').style.display!=='none')info('Tekan tombol untuk mengaktifkan scanner')}
+$('scan').addEventListener('click',()=>scanLoop?stopScanner():startScanner());
+$('loginButton').addEventListener('click',async()=>{const msg=$('loginMessage'),btn=$('loginButton');msg.textContent='';const phone=phoneOnly($('phone').value),password=String($('password').value||'');if(!phone){msg.textContent='Nomor HP wajib diisi.';return}if(!password){msg.textContent='Kata sandi wajib diisi.';return}btn.disabled=true;btn.textContent='Menghubungkan...';try{await signInWithEmailAndPassword(auth,authEmail(phone),password);msg.style.color='#16a34a';msg.textContent='Berhasil terhubung.'}catch(e){const c=String(e?.code||'');msg.style.color='#dc2626';msg.textContent=c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found'?'Nomor HP atau kata sandi salah.':c==='auth/unauthorized-domain'?'Domain Scanner belum diizinkan di Firebase Authentication.':c==='auth/network-request-failed'?'Koneksi internet gagal.':'Login gagal: '+(e?.message||'Periksa akun Rekapinyu.')}finally{btn.disabled=false;btn.textContent='Hubungkan ke Rekapinyu'}});
+onAuthStateChanged(auth,async user=>{if(!user){stopScanner();$('login').classList.remove('hide');$('scannerApp').style.display='none';connection(false,'Belum terhubung');return}uid=user.uid;kasirRef=doc(db,'Kasir',uid);$('login').classList.add('hide');$('scannerApp').style.display='block';connection(true,'Terhubung');info('Terhubung ke Rekapinyu — tekan tombol untuk scan');try{await writeConnection(true)}catch{connection(false,'Koneksi gagal')}});
+window.addEventListener('pagehide',()=>{stopScanner();writeConnection(false).catch(()=>{})});
 </script>
-</body></html>
+</body>
+</html>
