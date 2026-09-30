@@ -4629,6 +4629,7 @@ function normalizeFirestoreProdukKasir(rows){
 }
 
 async function saveProdukKasir(products){
+  if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
   const source=Array.isArray(products)?products:[];
   /* JALUR FIRESTORE PRODUK KASIR BARU — HANYA TUJUH FIELD INI.
@@ -5545,12 +5546,13 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function savePhotoFile(productName,file,replaceFileName=''){
     if(!file)return '';
     const dir=await requirePhotoDirectory();
-    const desired=fileNameForProduct(productName);
-    const name=await ensureUniquePhotoName(dir,desired,String(replaceFileName||''));
+    const name=fileNameForProduct(productName);
     const handle=await dir.getFileHandle(name,{create:true});
     const blob=await compressToBlob(file);
     const writer=await handle.createWritable();
     try{await writer.write(blob)}finally{await writer.close()}
+    const oldName=String(replaceFileName||'').trim();
+    if(oldName&&oldName!==name){try{const oldHandle=await dir.getFileHandle(oldName,{create:false});await oldHandle.remove()}catch(_){} }
     return name;
   }
 
@@ -5564,7 +5566,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     let source;
     try{source=await dir.getFileHandle(oldName,{create:false});}
     catch(_){return ''; }
-    const name=await ensureUniquePhotoName(dir,desired,oldName);
+    const name=desired;
     if(name===oldName)return oldName;
     const file=await source.getFile();
     const target=await dir.getFileHandle(name,{create:true});
@@ -5665,6 +5667,59 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
   }
 
+  /* JSON PRODUK KASIR — satu file JSON untuk setiap produk, disimpan di folder target yang sama dengan foto. */
+  function produkKasirJsonBaseName(productName){
+    let base=String(productName||'').trim()
+      .replace(/[<>:"/\\|?*]/g,' ')
+      .replace(/[\u0000-\u001F]/g,' ')
+      .replace(/\s+/g,' ')
+      .replace(/[. ]+$/g,'')
+      .trim();
+    if(!base)base='Produk';
+    if(/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base))base='Produk '+base;
+    return base;
+  }
+  function produkKasirJsonFileName(productName){return `${produkKasirJsonBaseName(productName)}.json`}
+  function produkKasirJsonData(product){
+    const p=product&&typeof product==='object'?product:{};
+    const barcodes=Array.isArray(p.barcodes)?p.barcodes.map(v=>String(v||'').trim()).filter(Boolean):[];
+    const barcodeStock=Math.max(0,barcodes.length||Number(p.barcodeStock)||0);
+    const manualStock=Math.max(0,Number(p.manualStock)||0);
+    return {
+      nama_produk:String(p.name||'').trim(),
+      kategori:String(p.category||'Lainnya').trim(),
+      harga_hpp:Number(p.cost??p.grosir)||0,
+      harga_jual:Number(p.price)||0,
+      stok_barcode_aktif:barcodeStock,
+      stok_input_manual:manualStock,
+      stok:barcodeStock+manualStock,
+      nama_file_foto:String(p.photoFileName||fileNameForProduct(p.name)).trim()
+    };
+  }
+  async function writeProdukKasirJson(product){
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir||!product?.name)return false;
+    const fileName=produkKasirJsonFileName(product.name);
+    const handle=await dir.getFileHandle(fileName,{create:true});
+    const writer=await handle.createWritable();
+    try{await writer.write(JSON.stringify(produkKasirJsonData(product),null,2))}finally{await writer.close()}
+    return true;
+  }
+  async function deleteProdukKasirJson(productName){
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir||!productName)return;
+    try{const fh=await dir.getFileHandle(produkKasirJsonFileName(productName),{create:false});await fh.remove()}catch(_){}
+  }
+  async function syncProdukKasirJson(productsList){
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir)return false;
+    const list=Array.isArray(productsList)?productsList:[];
+    for(const product of list){if(product?.name)await writeProdukKasirJson(product)}
+    return true;
+  }
+  window.__rekapinyuSyncProdukKasirJson=syncProdukKasirJson;
+  window.__rekapinyuDeleteProdukKasirJson=deleteProdukKasirJson;
+
   async function scanMissingPhotos(){
     /* Hanya membaca ulang folder target. Tidak menghapus/mengubah data ProdukKasir. */
     await scanTargetFolderPhotos();
@@ -5685,6 +5740,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       products=result.map(normalizeProduct);
       window.__rekapinyuProdukKasirData=products;
     }
+    try{await syncProdukKasirJson(products)}catch(e){console.warn('Rekapinyu: ProdukKasir JSON gagal diperbarui.',e)}
     render();
     try{window.__initKasirViews?.()}catch(_){}
     return products;
@@ -5695,8 +5751,13 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function load(){
-    /* ProdukKasir selalu dibaca dari Firestore sebagai sumber data utama.
-       State memori hanya diperbarui setelah hasil Firestore berhasil diterima. */
+    if(window.__rekapinyuProdukKasirLoaded){
+      products=read().map(normalizeProduct);
+      render();
+      await updateFolderStatus();
+      await refreshRenderedPhotos();
+      return;
+    }
     if(typeof window.__rekapinyuLoadProdukKasir==='function'){
       try{
         const cloud=await window.__rekapinyuLoadProdukKasir();
@@ -5704,17 +5765,10 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
           products=cloud.map(normalizeProduct);
           window.__rekapinyuProdukKasirData=products;
           window.__rekapinyuProdukKasirLoaded=true;
-          render();
-          await updateFolderStatus();
-          await refreshRenderedPhotos();
-          return;
         }
       }catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}
     }
-    /* Jangan mengganti data Firestore dengan state lokal ketika pembacaan cloud gagal. */
-    products=Array.isArray(window.__rekapinyuProdukKasirData)
-      ? window.__rekapinyuProdukKasirData.map(normalizeProduct)
-      : [];
+    if(!products.length)products=read().map(normalizeProduct);
     render();
     await updateFolderStatus();
     await refreshRenderedPhotos();
@@ -5921,6 +5975,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(products.length===before)return;
     try{
       await write();
+      try{await deleteProdukKasirJson(removed?.name)}catch(_){}
       if(removed?.photoFileName){
         const dir=await getPhotoDirectoryQuiet();
         if(dir){try{const fh=await dir.getFileHandle(removed.photoFileName,{create:false});await fh.remove()}catch(_){/* file sudah tidak ada */}}
@@ -5966,6 +6021,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       }
       products[i]=newProduct;
       await write();
+      if(norm(old.name)!==norm(newProduct.name)){
+        try{await deleteProdukKasirJson(old.name)}catch(_){}
+      }
       if(editPhotoFile && oldFileName && oldFileName!==newProduct.photoFileName){
         const dir=await getPhotoDirectoryQuiet();
         if(dir){try{const fh=await dir.getFileHandle(oldFileName,{create:false});await fh.remove()}catch(_){}}
@@ -6085,6 +6143,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     startPhotoWatch();
   }
 
+  window.__rekapinyuGetProdukKasirDirectory=async function(){return await getPhotoDirectoryQuiet()};
   window.__rekapinyuResolveProdukKasirPhoto=async function(fileName){
     return await localPhotoUrl(fileName);
   };
@@ -6398,6 +6457,40 @@ function initKasirViews(){
     renderKasirTransactionTabs(); renderKasirProducts(); renderCart(); renderTransactions();
   }
 
+  /* JSON HARIAN KASIR + LAPORAN KASIR — satu file per tanggal, dibuat ulang/di-update otomatis setelah transaksi berhasil. */
+  function kasirJsonDateInfo(timestamp){
+    const d=new Date(Number(timestamp)||Date.now());
+    const dd=String(d.getDate()).padStart(2,'0');
+    const mm=String(d.getMonth()+1).padStart(2,'0');
+    const yyyy=d.getFullYear();
+    return {dateKey:`${yyyy}-${mm}-${dd}`,fileName:`${dd}-${mm}-${yyyy}.json`};
+  }
+  function kasirTransactionTimestamp(tx){
+    const id=Number(tx?.id);
+    if(Number.isFinite(id)&&id>0)return id;
+    const parsed=Date.parse(String(tx?.date||''));
+    return Number.isFinite(parsed)?parsed:Date.now();
+  }
+  async function saveKasirHarianJson(){
+    const dir=await window.__rekapinyuGetProdukKasirDirectory?.();
+    if(!dir)return false;
+    const now=Date.now();
+    const info=kasirJsonDateInfo(now);
+    const tx=Array.isArray(kasirTransactions)?kasirTransactions:[];
+    const daily=tx.filter(item=>kasirJsonDateInfo(kasirTransactionTimestamp(item)).dateKey===info.dateKey);
+    const payload={
+      tanggal:`${String(new Date(now).getDate()).padStart(2,'0')}-${String(new Date(now).getMonth()+1).padStart(2,'0')}-${new Date(now).getFullYear()}`,
+      periode:{mulai:'06:00',selesai:'00:00'},
+      TransaksiKasir:daily,
+      LaporanKasir:daily
+    };
+    const handle=await dir.getFileHandle(info.fileName,{create:true});
+    const writer=await handle.createWritable();
+    try{await writer.write(JSON.stringify(payload,null,2))}finally{await writer.close()}
+    return true;
+  }
+  window.__rekapinyuSaveKasirHarianJson=saveKasirHarianJson;
+
   async function saveKasirTransaction(paymentData){
     const total=kasirCart.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
     const discount=Math.max(0,Number(String(paymentData?.discount||'').replace(/[^0-9]/g,''))||0);
@@ -6472,6 +6565,7 @@ function initKasirViews(){
     kasirTransactions.push(transaction);
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
     try{await window.__rekapinyuSaveKasirTransactionsCloud?.(kasirTransactions)}catch(e){console.warn('Rekapinyu: transaksi Kasir gagal disimpan.',e)}
+    try{await window.__rekapinyuSaveKasirHarianJson?.()}catch(e){console.warn('Rekapinyu: JSON transaksi/laporan harian gagal diperbarui.',e)}
     renderKasirProducts();
     kasirCart=[];
     syncKasirActiveTransactionTab();
