@@ -4699,23 +4699,17 @@ function realtime(uid){
         const scanId=String(scan.id||"");
         const barcode=String(scan.barcode||"").trim();
         if(scanId&&barcode&&scanId!==processed){
-          const code=barcode;
           const deliver=()=>{
-            try{
-              if(!Array.isArray(kasirProducts)||!kasirProducts.length)return false;
-              const p=kasirProducts.find(item=>productBarcodes(item).some(b=>String(b).trim()===code));
-              if(!p)return false;
-              const ok=addKasirProductToCart(p,code);
-              if(ok)resetKasirSearchAndSelectCart(p.id);
-              return ok;
-            }catch(e){console.warn("Scanner HP keranjang gagal",e);return false}
+            try{return typeof window.__rekapinyuReceiveScannerBarcode==='function'
+              ? !!window.__rekapinyuReceiveScannerBarcode(barcode)
+              : false}catch(e){console.warn("Scanner HP keranjang gagal",e);return false}
           };
           let tries=0;
-          const waitForProduct=()=>{
-            if(deliver()||tries++>=40)return;
-            setTimeout(waitForProduct,250);
+          const waitForReceiver=()=>{
+            if(deliver()||tries++>=80)return;
+            setTimeout(waitForReceiver,250);
           };
-          waitForProduct();
+          waitForReceiver();
           window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
             ScannerLastProcessedId:scanId,
             ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
@@ -7222,6 +7216,22 @@ function initKasirViews(){
     clearTimeout(kasirHardwareScanTimer);
     kasirHardwareScanTimer=setTimeout(()=>{kasirHardwareScanBuffer='';kasirHardwareScanStart=0},180);
   });
+
+  // JEMBATAN SCANNER HP -> KERANJANG KASIR: satu implementasi resmi.
+  // Scanner tidak membawa data produk; Rekapinyu mencari barcode di kasirProducts yang berasal dari folder komputer.
+  window.__rekapinyuReceiveScannerBarcode=function(code){
+    const value=String(code||'').trim();
+    if(!value||!Array.isArray(kasirProducts)||!kasirProducts.length)return false;
+    const p=findKasirProductByBarcode(value);
+    if(!p)return false;
+    const ok=consumeKasirProductForScan(p,value);
+    if(ok){
+      const input=document.getElementById('kasir-barcode');
+      if(input)input.value='';
+      resetKasirSearchAndSelectCart(p.id);
+    }
+    return !!ok;
+  };
 
   function addScannedKasirBarcode(code){
     const input=document.getElementById('kasir-barcode');if(!input)return;
