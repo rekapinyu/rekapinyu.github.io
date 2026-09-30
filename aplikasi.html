@@ -4423,17 +4423,15 @@ const log=(...a)=>console.warn("Rekapinyu Firebase:",...a);
 /* ================================================================
    SCHEMA FINAL — HANYA 3 COLLECTION FIRESTORE
    Pengguna  -> NamaPengguna, NomorHp, Pasword, role
-   Kasir     -> Aktifitas, LaporanKasir, NamaToko, NomorHp,
-                ProdukKasir, Seting, TransaksiKasir
+   Kasir     -> Aktifitas, NamaToko, NomorHp, Seting
    Rekap     -> BackupOtomatis, History, InputData, Kasbon,
                 LaporanBulanan, NamaToko, NomorHp, Pengeluaran
    ================================================================ */
-const KASIR_EMPTY={Aktifitas:[],LaporanKasir:[],NamaToko:"",NomorHp:"",ProdukKasir:[],Seting:{},TransaksiKasir:[]};
+const KASIR_EMPTY={Aktifitas:[],NamaToko:"",NomorHp:"",Seting:{}};
 const REKAP_EMPTY={BackupOtomatis:[],History:[],InputData:[],Kasbon:[],LaporanBulanan:[],NamaToko:"",NomorHp:"",Pengeluaran:[]};
 const PENGGUNA_EMPTY={NamaPengguna:"",NomorHp:"",Pasword:"",role:"Pengguna"};
 const SETTING_DEFAULTS={SettingStruk:{},SettingPrinter:{paperWidth:"32",copyCount:1},SettingKasir:{confirmCancel:true,focusSearch:true},invoiceCounter:0};
 
-window.__rekapinyuLaporanKasirRealtime=[];
 window.__rekapinyuDataLaporanBulanan=[];
 window.__rekapinyuKasirTransactionsRealtime=[];
 window.__rekapinyuActivityData=[];
@@ -4565,91 +4563,12 @@ async function saveHistoryCloud(){if(!firestoreDataHydrated)return;const p=curre
 async function savePengeluaranCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 async function saveKasbonCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Kasbon:Array.isArray(kasbonData)?kasbonData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 async function saveBackupCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveKasirTransactionsCloud(data){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const tx=Array.isArray(data)?data:[];window.__rekapinyuKasirTransactionsRealtime=tx;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{TransaksiKasir:tx,LaporanKasir:tx,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+
 async function saveActivityCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 async function saveSettingCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const s=normalizeSetting(window.__rekapinyuSettingData);window.__rekapinyuSettingData=s;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Seting:s,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengeluaranCloud=savePengeluaranCloud;window.__rekapinyuSaveKasbonCloud=saveKasbonCloud;window.__rekapinyuSaveBackupCloud=saveBackupCloud;window.__rekapinyuSaveKasirTransactionsCloud=saveKasirTransactionsCloud;window.__rekapinyuSaveActivityCloud=saveActivityCloud;window.__rekapinyuSaveSettingCloud=saveSettingCloud;
-window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveHistoryCloud(),savePengeluaranCloud(),saveKasbonCloud(),saveBackupCloud(),saveKasirTransactionsCloud(window.__rekapinyuKasirTransactionsRealtime),saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
+window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengeluaranCloud=savePengeluaranCloud;window.__rekapinyuSaveKasbonCloud=saveKasbonCloud;window.__rekapinyuSaveBackupCloud=saveBackupCloud;window.__rekapinyuSaveActivityCloud=saveActivityCloud;window.__rekapinyuSaveSettingCloud=saveSettingCloud;
+window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveHistoryCloud(),savePengeluaranCloud(),saveKasbonCloud(),saveBackupCloud(),saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
 window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolve();
-
-function firestoreProdukKasirId(name){
-  const source=String(name||'').trim().toLowerCase();
-  let hash=2166136261;
-  for(let i=0;i<source.length;i++){hash^=source.charCodeAt(i);hash=Math.imul(hash,16777619)}
-  return `pk_${(hash>>>0).toString(36)}`;
-}
-
-function firestoreProdukKasirPayload(products){
-  const source=Array.isArray(products)?products:[];
-  return source.map(raw=>{
-    const item=raw&&typeof raw==='object'?raw:{};
-    const name=String(item.name??item['Nama Produk']??'').trim();
-    const barcodes=Array.isArray(item.barcodes)?item.barcodes:(item.barcode?String(item.barcode).split(/[\n,;]+/).map(v=>v.trim()).filter(Boolean):[]);
-    const existingBarcodeStock=Math.max(0,Number(item.barcodeStock??item['Stok Barcode Aktif'])||0);
-    const barcodeStock=Math.max(0,barcodes.length||existingBarcodeStock);
-    const manualStock=Math.max(0,Number(item.manualStock??item['Stok Input Manual'])||0);
-    return {
-      'Nama Produk':name,
-      'kategori':String(item.category??item.kategori??'').trim(),
-      'Harga Hpp':Number(item.cost??item.grosir??item['Harga Hpp'])||0,
-      'Harga Jual':Number(item.price??item['Harga Jual'])||0,
-      'Stok Barcode Aktif':barcodeStock,
-      'Stok Input Manual':manualStock,
-      'Nama File Foto':String(item.photoFileName??item['Nama File Foto']??'').trim()
-    };
-  }).filter(item=>item['Nama Produk']);
-}
-
-function normalizeFirestoreProdukKasir(rows){
-  const source=Array.isArray(rows)?rows:[];
-  return source.map((raw,index)=>{
-    const item=raw&&typeof raw==='object'?raw:{};
-    const name=String(item['Nama Produk']??item.name??'').trim();
-    const barcodeStock=Math.max(0,Number(item['Stok Barcode Aktif']??item.barcodeStock??0)||0);
-    const manualStock=Math.max(0,Number(item['Stok Input Manual']??item.manualStock??0)||0);
-    const category=String(item.kategori??item.category??'').trim();
-    const photoFileName=String(item['Nama File Foto']??item.photoFileName??'').trim();
-    const id=firestoreProdukKasirId(name)||`pk_${index}`;
-    return {
-      id,
-      name,
-      category:CATEGORIES.includes(category)?category:'Lainnya',
-      barcodes:[],
-      barcode:'',
-      barcodeStock,
-      cost:Number(item['Harga Hpp']??item.cost??item.grosir)||0,
-      grosir:Number(item['Harga Hpp']??item.grosir??item.cost)||0,
-      price:Number(item['Harga Jual']??item.price)||0,
-      manualStock,
-      stock:barcodeStock+manualStock,
-      photoFileName,
-      photo:''
-    };
-  }).filter(item=>item.name);
-}
-
-async function saveProdukKasir(products){
-  if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
-  const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
-  const source=Array.isArray(products)?products:[];
-  /* JALUR FIRESTORE PRODUK KASIR BARU — HANYA TUJUH FIELD INI.
-     Format lama tidak pernah ditulis kembali ke Firestore. */
-  const payload=firestoreProdukKasirPayload(source);
-  const r=await getKasirRef(uid,p);
-  await enqueue(()=>setDoc(r,{ProdukKasir:payload,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));
-  window.__rekapinyuProdukKasirData=source;
-  window.__rekapinyuProdukKasirLoaded=true;
-  return source;
-}
-window.__rekapinyuSaveProdukKasir=saveProdukKasir;
-window.__rekapinyuLoadProdukKasir=async()=>{
-  const uid=cloudUid(),p=currentPhone();if(!uid||!p)return null;
-  const r=await getKasirRef(uid,p),s=await getDoc(r),v=s.exists()?s.data()?.ProdukKasir:[];
-  return Array.isArray(v)?normalizeFirestoreProdukKasir(v):[];
-};
-window.__rekapinyuSetProdukKasirData=v=>{if(!Array.isArray(v))return;const normalized=normalizeFirestoreProdukKasir(v);window.__rekapinyuProdukKasirData=normalized;window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.(normalized)}catch{} try{window.__initKasirViews?.()}catch{} };
-window.__rekapinyuStartProdukKasirRealtime=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return;if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}const r=await getKasirRef(uid,p);window.__rekapinyuProdukKasirUnsub=onSnapshot(r,s=>{if(!s.exists())return;const data=s.data()||{};if(!Object.prototype.hasOwnProperty.call(data,"ProdukKasir"))return;if(!Array.isArray(data.ProdukKasir))return;window.__rekapinyuSetProdukKasirData(data.ProdukKasir);try{window.__initKasirViews?.()}catch{}},e=>log("realtime ProdukKasir gagal",e));};
-window.__rekapinyuStopProdukKasirRealtime=()=>{if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}};
 
 async function hydrate(uid){
   const p=currentPhone();
@@ -4661,11 +4580,7 @@ async function hydrate(uid){
   localSession(user);
   applyingFirestoreRealtime=true;
   try{
-    window.__rekapinyuKasirTransactionsRealtime=arrayFromField(kd,"TransaksiKasir",[]);
-    window.__rekapinyuLaporanKasirRealtime=arrayFromField(kd,"LaporanKasir",[]);
     window.__rekapinyuActivityData=arrayFromField(kd,"Aktifitas",[]);
-    window.__rekapinyuProdukKasirData=normalizeFirestoreProdukKasir(arrayFromField(kd,"ProdukKasir",[]));
-    window.__rekapinyuProdukKasirLoaded=true;
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
     historyData=hasField(rd,"History")?arrayFromField(rd,"History",[]):arrayFromField(rd,"InputData",[]);
     pengeluaranData=arrayFromField(rd,"Pengeluaran",[]);
@@ -4673,7 +4588,6 @@ async function hydrate(uid){
     backupOtomatisData=arrayFromField(rd,"BackupOtomatis",[]);
     window.__rekapinyuDataLaporanBulanan=Array.isArray(rd.LaporanBulanan)?rd.LaporanBulanan:buildLaporanBulanan(historyData);
     window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
-    window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);
   }finally{applyingFirestoreRealtime=false}
   /* Semua data utama sudah dibaca dari Firestore. Mulai sekarang barulah
      operasi simpan dari aksi pengguna diizinkan menulis ke server. */
@@ -4742,12 +4656,9 @@ function realtime(uid){
     const listen=(r,cb,label)=>{const un=onSnapshot(r,s=>{if(!s.exists())return;applyingFirestoreRealtime=true;try{cb(s.data()||{})}finally{applyingFirestoreRealtime=false}try{nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser||{}));upsertRegisteredLocalUser(currentSessionUser||{})}catch{}try{redraw()}catch{}},e=>log(`realtime ${label} gagal`,e));collectionUnsubs.push(un)};
     listen(kr,d=>{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
-      if(hasField(d,"TransaksiKasir"))window.__rekapinyuKasirTransactionsRealtime=arrayFromField(d,"TransaksiKasir",window.__rekapinyuKasirTransactionsRealtime);
-      if(hasField(d,"LaporanKasir"))window.__rekapinyuLaporanKasirRealtime=arrayFromField(d,"LaporanKasir",window.__rekapinyuLaporanKasirRealtime);
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
-      if(hasField(d,"ProdukKasir"))window.__rekapinyuProdukKasirData=normalizeFirestoreProdukKasir(arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData));
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
-      window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
+      window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
     listen(rr,d=>{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim()&&!currentSessionUser.shopName)currentSessionUser.shopName=String(d.NamaToko).trim();
@@ -5731,44 +5642,61 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     photoScanTimer=setInterval(()=>{scanMissingPhotos().catch(()=>{})},4000);
   }
 
+  async function loadProdukKasirJsonFromFolder(){
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir)return [];
+    const loaded=[];
+    try{
+      for await(const [entryName,entry] of dir.entries()){
+        if(entry?.kind!=="file"||!entryName.toLowerCase().endsWith(".json"))continue;
+        try{
+          const file=await entry.getFile();
+          const raw=JSON.parse(await file.text());
+          if(!raw||typeof raw!=="object"||!raw.nama_produk)continue;
+          const name=String(raw.nama_produk).trim();
+          const barcodeStock=Math.max(0,Number(raw.stok_barcode_aktif)||0);
+          const manualStock=Math.max(0,Number(raw.stok_input_manual)||0);
+          const product=normalizeProduct({
+            id:`folder_${produkKasirJsonBaseName(name)}`,
+            name,
+            category:String(raw.kategori||"Lainnya"),
+            barcodes:[], barcode:"", barcodeStock,
+            cost:Number(raw.harga_hpp)||0, grosir:Number(raw.harga_hpp)||0,
+            price:Number(raw.harga_jual)||0,
+            manualStock, stock:Math.max(0,Number(raw.stok) || barcodeStock+manualStock),
+            photoFileName:String(raw.nama_file_foto||fileNameForProduct(name)), photo:""
+          });
+          loaded.push(product);
+        }catch(_){}
+      }
+    }catch(_){}
+    return loaded;
+  }
+
   async function saveProductsCloud(){
     normalizeAll();
     window.__rekapinyuProdukKasirData=products;
     window.__rekapinyuProdukKasirLoaded=true;
-    const result=await window.__rekapinyuSaveProdukKasir?.(products);
-    if(Array.isArray(result)){
-      products=result.map(normalizeProduct);
-      window.__rekapinyuProdukKasirData=products;
-    }
     try{await syncProdukKasirJson(products)}catch(e){console.warn('Rekapinyu: ProdukKasir JSON gagal diperbarui.',e)}
     render();
     try{window.__initKasirViews?.()}catch(_){}
     return products;
   }
 
-  async function write(){
-    return await saveProductsCloud();
-  }
+  async function write(){return await saveProductsCloud()}
 
   async function load(){
-    if(window.__rekapinyuProdukKasirLoaded){
-      products=read().map(normalizeProduct);
-      render();
-      await updateFolderStatus();
-      await refreshRenderedPhotos();
-      return;
+    const fromFolder=await loadProdukKasirJsonFromFolder();
+    if(fromFolder.length){
+      products=fromFolder.map(normalizeProduct);
+      window.__rekapinyuProdukKasirData=products;
+      window.__rekapinyuProdukKasirLoaded=true;
+    }else if(Array.isArray(window.__rekapinyuProdukKasirData)&&window.__rekapinyuProdukKasirData.length){
+      products=window.__rekapinyuProdukKasirData.map(normalizeProduct);
+    }else{
+      products=[];
+      window.__rekapinyuProdukKasirData=[];
     }
-    if(typeof window.__rekapinyuLoadProdukKasir==='function'){
-      try{
-        const cloud=await window.__rekapinyuLoadProdukKasir();
-        if(Array.isArray(cloud)){
-          products=cloud.map(normalizeProduct);
-          window.__rekapinyuProdukKasirData=products;
-          window.__rekapinyuProdukKasirLoaded=true;
-        }
-      }catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}
-    }
-    if(!products.length)products=read().map(normalizeProduct);
     render();
     await updateFolderStatus();
     await refreshRenderedPhotos();
@@ -6432,7 +6360,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(modal){modal.classList.remove('is-open');modal.setAttribute('aria-hidden','true')}
     kasirStockZeroProductId=null;
   }
-  function saveKasirStockZero(){
+  async function saveKasirStockZero(){
     const id=String(kasirStockZeroProductId||'');
     if(!id)return;
     const input=document.getElementById('kasir-stock-zero-input');
@@ -6444,7 +6372,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     product.manualStock=Math.max(0,stock-product.barcodes.length);
     product.barcode=product.barcodes[0]||'';
     window.__rekapinyuProdukKasirData=kasirProducts;
-    try{window.__rekapinyuSaveProdukKasir?.(kasirProducts)}catch(e){console.warn('Rekapinyu: stok ProdukKasir gagal disimpan.',e)}
+    try{await window.__rekapinyuSyncProdukKasirJson?.(kasirProducts)}catch(e){console.warn('Rekapinyu: stok ProdukKasir JSON gagal disimpan.',e)}
     closeKasirStockZeroModal();
     renderKasirProducts();
     try{window.__rekapinyuRefreshProdukKasir?.(kasirProducts)}catch(e){}
@@ -6471,6 +6399,25 @@ function initKasirViews(){
     const parsed=Date.parse(String(tx?.date||''));
     return Number.isFinite(parsed)?parsed:Date.now();
   }
+  async function loadKasirTransactionsFromFolder(){
+    const dir=await window.__rekapinyuGetProdukKasirDirectory?.();
+    if(!dir)return [];
+    const all=[];
+    try{
+      for await(const [entryName,entry] of dir.entries()){
+        if(entry?.kind!=="file"||!entryName.toLowerCase().endsWith(".json"))continue;
+        try{
+          const file=await entry.getFile();
+          const raw=JSON.parse(await file.text());
+          if(!Array.isArray(raw?.TransaksiKasir))continue;
+          all.push(...raw.TransaksiKasir);
+        }catch(_){}
+      }
+    }catch(_){}
+    const seen=new Set();
+    return all.filter(t=>{const key=String(t?.id||"")||JSON.stringify(t);if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
+  }
+
   async function saveKasirHarianJson(){
     const dir=await window.__rekapinyuGetProdukKasirDirectory?.();
     if(!dir)return false;
@@ -6564,7 +6511,6 @@ function initKasirViews(){
 
     kasirTransactions.push(transaction);
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
-    try{await window.__rekapinyuSaveKasirTransactionsCloud?.(kasirTransactions)}catch(e){console.warn('Rekapinyu: transaksi Kasir gagal disimpan.',e)}
     try{await window.__rekapinyuSaveKasirHarianJson?.()}catch(e){console.warn('Rekapinyu: JSON transaksi/laporan harian gagal diperbarui.',e)}
     renderKasirProducts();
     kasirCart=[];
@@ -7284,7 +7230,7 @@ function initKasirViews(){
 </style>
 <script id="laporan-kasir-v4-js">
 (function(){
-  function laporanKasirData(){return Array.isArray(window.__rekapinyuLaporanKasirRealtime)?window.__rekapinyuLaporanKasirRealtime:[]}
+  function laporanKasirData(){return Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[]}
   function laporanKasirRupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
   function laporanKasirEscape(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
   function laporanKasirDate(t){const n=Number(t?.id);if(Number.isFinite(n)&&n>0){const d=new Date(n);if(!Number.isNaN(d.getTime()))return d}const text=String(t?.date||'').trim();const m=text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);if(m){let y=Number(m[3]);if(y<100)y+=2000;const d=new Date(y,Number(m[2])-1,Number(m[1]));if(!Number.isNaN(d.getTime()))return d}return new Date(0)}
