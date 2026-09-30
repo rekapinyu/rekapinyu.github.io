@@ -6489,14 +6489,15 @@ function initKasirViews(){
       itemsDetail:kasirCart.map(x=>({id:String(x.id),name:String(x.name||''),qty:Number(x.qty)||1,price:Number(x.price)||0,cost:Number(x.cost??x.grosir)||0,photo:String(x.photo||''),photoFileName:String(x.photoFileName||''),usedBarcodes:Array.isArray(x.usedBarcodes)?[...new Set(x.usedBarcodes.map(v=>String(v||'').trim()).filter(Boolean))].slice(0,Math.max(0,Number(x.qty)||0)):[]}))
     };
 
-    /* Simpan stok final ke Firestore sebelum transaksi dianggap selesai. */
+    /* Simpan transaksi hanya ke satu JSON harian TransaksiKasir + LaporanKasir di folder target. */
+    kasirTransactions.push(transaction);
+    window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
     try{
-      const saved=await window.__rekapinyuSaveProdukKasir?.(kasirProducts);
-      if(!Array.isArray(saved))throw new Error('Stok ProdukKasir tidak berhasil disimpan ke Firestore.');
-      kasirProducts=saved.map(p=>{const barcodes=productBarcodes(p);const manualStock=Math.max(0,Number(p?.manualStock)||0);return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:Math.max(0,manualStock+barcodes.length)}});
-      window.__rekapinyuProdukKasirData=kasirProducts;
+      const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.();
+      if(jsonSaved!==true)throw new Error('Folder target belum dipilih atau file JSON tidak dapat diperbarui.');
     }catch(e){
-      /* Rollback lokal jika server menolak penyimpanan stok. */
+      kasirTransactions.pop();
+      window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
       updates.forEach(({product,before,beforeManual,beforeBarcodes})=>{
         product.stock=before;
         product.manualStock=beforeManual;
@@ -6505,13 +6506,9 @@ function initKasirViews(){
       });
       window.__rekapinyuProdukKasirData=kasirProducts;
       renderKasirProducts();
-      showModal('Gagal','Transaksi belum diselesaikan karena stok gagal disimpan ke server. Silakan coba lagi.','fa-solid fa-cloud-arrow-up text-rose-600');
+      showModal('Gagal','Transaksi belum disimpan karena file JSON Transaksi Kasir dan Laporan Kasir gagal diperbarui. Pastikan folder target sudah dipilih.','fa-solid fa-folder-open text-rose-600');
       return false;
     }
-
-    kasirTransactions.push(transaction);
-    window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
-    try{await window.__rekapinyuSaveKasirHarianJson?.()}catch(e){console.warn('Rekapinyu: JSON transaksi/laporan harian gagal diperbarui.',e)}
     renderKasirProducts();
     kasirCart=[];
     syncKasirActiveTransactionTab();
