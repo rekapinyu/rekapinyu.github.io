@@ -4685,7 +4685,7 @@ function realtime(uid){
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
 
-      /* SCANNER HP — satu jalur penerimaan barcode. Listener Firestore hanya meneruskan barcode ke modul Kasir melalui event. */
+      /* REKAPINYU SCANNER HP — SATU JALUR KE KERANJANG KASIR */
       try{
         const conn=d.ScannerConnection||{};
         const scanBtn=document.getElementById("kasir-barcode-scan-btn");
@@ -4697,12 +4697,14 @@ function realtime(uid){
         const processed=String(d.ScannerLastProcessedId||"");
         const scanId=String(scan.id||"");
         const barcode=String(scan.barcode||"").trim();
-        if(scanId&&barcode&&scanId!==processed){
-          document.dispatchEvent(new CustomEvent("rekapinyu-scanner-barcode",{detail:{id:scanId,barcode}}));
-          window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
-            ScannerLastProcessedId:scanId,
-            ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
-          },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
+        if(scanId&&barcode&&scanId!==processed&&typeof window.__rekapinyuReceiveScannerBarcode==='function'){
+          window.__rekapinyuReceiveScannerBarcode(barcode).then(ok=>{
+            if(!ok)return;
+            window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
+              ScannerLastProcessedId:scanId,
+              ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
+            },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
+          }).catch(e=>console.warn("Scanner HP ke keranjang gagal",e));
         }
       }catch(e){console.warn("Scanner HP realtime gagal",e)}
 
@@ -7206,26 +7208,6 @@ function initKasirViews(){
     kasirHardwareScanTimer=setTimeout(()=>{kasirHardwareScanBuffer='';kasirHardwareScanStart=0},180);
   });
 
-  /* SCANNER HP → KERANJANG KASIR — satu implementasi baru. */
-  let kasirScannerPendingBarcode=null;
-  let kasirScannerPendingTimer=0;
-  document.addEventListener("rekapinyu-scanner-barcode",e=>{
-    const barcode=String(e.detail?.barcode||"").trim();
-    if(!barcode)return;
-    kasirScannerPendingBarcode=barcode;
-    clearInterval(kasirScannerPendingTimer);
-    const proses=()=>{
-      if(!kasirScannerPendingBarcode)return;
-      if(window.__rekapinyuProdukKasirLoaded!==true||!Array.isArray(kasirProducts)||!kasirProducts.length)return;
-      const code=kasirScannerPendingBarcode;
-      kasirScannerPendingBarcode=null;
-      clearInterval(kasirScannerPendingTimer);
-      kasirScannerPendingTimer=0;
-      addScannedKasirBarcode(code);
-    };
-    proses();
-    if(kasirScannerPendingBarcode)kasirScannerPendingTimer=setInterval(proses,250);
-  });
   function addScannedKasirBarcode(code){
     const input=document.getElementById('kasir-barcode');if(!input)return;
     const value=String(code||'').trim();if(!value)return;
@@ -7234,6 +7216,23 @@ function initKasirViews(){
     if(p){consumeKasirProductForScan(p,value);resetKasirSearchAndSelectCart(p.id);input.value='';return}
     openKasirUnknownBarcodePopup(value);
   }
+  /* SCANNER HP -> KERANJANG KASIR: SATU IMPLEMENTASI */
+  window.__rekapinyuReceiveScannerBarcode=async function(code){
+    const value=String(code||'').trim();
+    if(!value)return false;
+    const started=Date.now();
+    while(!window.__rekapinyuProdukKasirLoaded){
+      if(Date.now()-started>15000)return false;
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    loadKasirStore();
+    const product=findKasirProductByBarcode(value);
+    if(!product)return false;
+    const input=document.getElementById('kasir-barcode');
+    if(input)input.value=value;
+    const added=addScannedKasirBarcode(value);
+    return added!==false;
+  };
   function openKasirBarcodeScannerModal(){
     const old=document.getElementById('kasir-barcode-scanner');if(old)old.remove();
     const modal=document.createElement('div');
