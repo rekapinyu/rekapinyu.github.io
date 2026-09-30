@@ -5386,6 +5386,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     try{await idbSet(picked)}catch(_){}
     try{await idbSetFolderName(String(picked.name||''))}catch(_){}
     updateFolderStatus();
+    await autoMatchProductPhotos();
     return picked;
   }
 
@@ -5538,6 +5539,67 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
   }
 
+  function photoStem(fileName){
+    const name=String(fileName||'').trim();
+    const dot=name.lastIndexOf('.');
+    return (dot>0?name.slice(0,dot):name).trim();
+  }
+
+  function isPhotoFileName(fileName){
+    return /\.(?:jpe?g|png|webp|gif|bmp|avif)$/i.test(String(fileName||'').trim());
+  }
+
+  async function autoMatchProductPhotos(){
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir||!products.length)return false;
+
+    const files=new Map();
+    try{
+      for await(const entry of dir.values()){
+        if(entry?.kind!=='file'||!isPhotoFileName(entry.name))continue;
+        const stem=norm(photoStem(entry.name));
+        if(!stem||files.has(stem))continue;
+        files.set(stem,entry.name);
+      }
+    }catch(e){
+      console.warn('Rekapinyu: folder foto tidak dapat dipindai.',e);
+      return false;
+    }
+
+    let changed=false;
+    products=products.map(p=>{
+      const current=String(p?.photoFileName||'').trim();
+      const currentStem=norm(photoStem(current));
+      const productName=norm(p?.name);
+      if(!productName)return p;
+
+      /* Jika referensi foto lama masih ada, pertahankan. Jika tidak,
+         cari file foto yang nama file-nya sama dengan nama produk. */
+      if(current){
+        let exists=false;
+        try{exists=files.has(currentStem)&&norm(files.get(currentStem))===norm(current)}catch(_){}
+        if(exists)return p;
+      }
+
+      const matched=files.get(productName);
+      if(!matched)return p;
+      if(current===matched)return p;
+      changed=true;
+      return {...p,photoFileName:matched,photo:''};
+    });
+
+    if(!changed)return false;
+
+    window.__rekapinyuProdukKasirData=products;
+    try{
+      await window.__rekapinyuSaveProdukKasir?.(products);
+    }catch(e){
+      console.warn('Rekapinyu: hasil pencocokan foto belum tersimpan ke server.',e);
+    }
+    render();
+    return true;
+  }
+
   async function persistMissingPhotoCleanup(missingIds){
     const ids=new Set(missingIds.map(String));
     if(!ids.size)return;
@@ -5598,7 +5660,10 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
   function startPhotoWatch(){
     if(photoScanTimer)clearInterval(photoScanTimer);
-    photoScanTimer=setInterval(()=>{scanMissingPhotos().catch(()=>{})},4000);
+    photoScanTimer=setInterval(async()=>{
+      try{await autoMatchProductPhotos()}catch(_){}
+      try{await scanMissingPhotos()}catch(_){}
+    },4000);
   }
 
   async function saveProductsCloud(){
@@ -5624,6 +5689,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       products=read().map(normalizeProduct);
       render();
       await updateFolderStatus();
+      await autoMatchProductPhotos();
       await refreshRenderedPhotos();
       return;
     }
@@ -5640,6 +5706,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!products.length)products=read().map(normalizeProduct);
     render();
     await updateFolderStatus();
+    await autoMatchProductPhotos();
     await refreshRenderedPhotos();
   }
 
