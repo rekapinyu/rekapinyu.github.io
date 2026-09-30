@@ -4576,22 +4576,12 @@ async function saveProdukKasir(products){
   if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
   const source=Array.isArray(products)?products:[];
-  /* KHUSUS JALUR FOTO PRODUKKASIR:
-     Firestore hanya boleh menerima nama file foto pada photoFileName.
-     Isi foto, Blob, File, data URL, base64, object URL, maupun field photo
-     tidak boleh ikut masuk ke payload Firestore. */
+  /* ProdukKasir hanya menyimpan data produk + nama file foto lokal.
+     URL/base64 foto TIDAK lagi dikirim ke Firestore. */
   const payload=source.map(raw=>{
     const item={...raw};
-    const fileName=String(item.photoFileName||'').trim();
     delete item.photo;
-    delete item.photoUrl;
-    delete item.photoURL;
-    delete item.photoBase64;
-    delete item.photoData;
-    delete item.photoBlob;
-    delete item.photoFile;
-    if(fileName)item.photoFileName=fileName;
-    else delete item.photoFileName;
+    if(!String(item.photoFileName||'').trim())delete item.photoFileName;
     return item;
   });
   const r=await getKasirRef(uid,p);
@@ -5530,57 +5520,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     return name;
   }
 
-  function normalizePhotoMatchName(value){
-    return String(value||'')
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/\.[^.]+$/,'')
-      .replace(/[_-]+/g,' ')
-      .replace(/\s+/g,' ')
-      .trim()
-      .toLowerCase();
-  }
-
-  function isPhotoFileName(name){
-    return /\.(?:jpe?g|png|webp|gif|bmp|avif)$/i.test(String(name||''));
-  }
-
-  async function findFolderPhotoForProduct(productName,dir){
-    const target=normalizePhotoMatchName(productName);
-    if(!target||!dir)return '';
-    try{
-      for await(const entry of dir.values()){
-        if(entry?.kind!=='file')continue;
-        const fileName=String(entry.name||'').trim();
-        if(!isPhotoFileName(fileName))continue;
-        if(normalizePhotoMatchName(fileName)===target)return fileName;
-      }
-    }catch(_){}
-    return '';
-  }
-
-  async function autoBindFolderPhotos(){
-    const dir=await getPhotoDirectoryQuiet();
-    if(!dir||!products.length)return false;
-    let changed=false;
-    const next=products.map(p=>({...p}));
-    for(const product of next){
-      const current=String(product.photoFileName||'').trim();
-      if(current){
-        try{await dir.getFileHandle(current,{create:false});continue;}catch(_){}
-      }
-      const matched=await findFolderPhotoForProduct(product.name,dir);
-      if(matched&&matched!==current){
-        product.photoFileName=matched;
-        product.photo='';
-        changed=true;
-      }
-    }
-    if(!changed)return false;
-    products=next.map(normalizeProduct);
-    window.__rekapinyuProdukKasirData=products;
-    return true;
-  }
-
   async function localPhotoUrl(fileName){
     const clean=String(fileName||'').trim();
     if(!clean)return null;
@@ -5622,12 +5561,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function refreshRenderedPhotos(){
     const nodes=[...document.querySelectorAll('#pk3-grid [data-pk3-photo]')];
     if(!nodes.length)return;
-    /*
-       Area ini khusus membaca folder target: jika nama file foto sama dengan
-       nama produk, referensi foto otomatis dipasang ke produk.
-       Contoh: produk "Indomie Goreng" membaca "Indomie Goreng.jpg/png/webp".
-    */
-    await autoBindFolderPhotos();
     const missing=[];
     for(const node of nodes){
       const id=String(node.dataset.pk3Photo||'');
@@ -5653,7 +5586,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function scanMissingPhotos(){
     const dir=await getPhotoDirectoryQuiet();
     if(!dir)return;
-    await autoBindFolderPhotos();
     const missing=[];
     for(const p of products){
       const fileName=String(p?.photoFileName||'').trim();
@@ -5684,10 +5616,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function write(){
-    /* Area folder target saja: cocokkan foto lebih dahulu, lalu satu kali
-       simpan payload ProdukKasir lengkap ke Firestore agar data teks tidak
-       tertimpa oleh proses pembacaan/render foto. */
-    try{await autoBindFolderPhotos()}catch(_){}
     return await saveProductsCloud();
   }
 
@@ -5710,11 +5638,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       }catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}
     }
     if(!products.length)products=read().map(normalizeProduct);
-    let folderPhotoChanged=false;
-    try{folderPhotoChanged=await autoBindFolderPhotos()}catch(_){}
-    if(folderPhotoChanged){
-      try{await saveProductsCloud()}catch(e){console.warn('Rekapinyu: referensi foto folder belum tersimpan ke cloud.',e)}
-    }
     render();
     await updateFolderStatus();
     await refreshRenderedPhotos();
