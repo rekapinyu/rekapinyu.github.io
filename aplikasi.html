@@ -5604,7 +5604,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       stok_barcode_aktif:barcodeStock,
       stok_input_manual:manualStock,
       stok:barcodeStock+manualStock,
-      nama_file_foto:String(p.photoFileName||fileNameForProduct(p.name)).trim()
+      nama_file_foto:String(p.photoFileName||fileNameForProduct(p.name)).trim(),
+      barcode_aktif:barcodes
     };
   }
   async function writeProdukKasirJson(product){
@@ -5654,16 +5655,21 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
           const raw=JSON.parse(await file.text());
           if(!raw||typeof raw!=="object"||!raw.nama_produk)continue;
           const name=String(raw.nama_produk).trim();
-          const barcodeStock=Math.max(0,Number(raw.stok_barcode_aktif)||0);
+          const barcodeList=Array.isArray(raw.barcode_aktif)
+            ? [...new Set(raw.barcode_aktif.map(v=>String(v||'').trim()).filter(Boolean))]
+            : [];
+          const barcodeStock=barcodeList.length>0
+            ? barcodeList.length
+            : Math.max(0,Number(raw.stok_barcode_aktif)||0);
           const manualStock=Math.max(0,Number(raw.stok_input_manual)||0);
           const product=normalizeProduct({
             id:`folder_${produkKasirJsonBaseName(name)}`,
             name,
             category:String(raw.kategori||"Lainnya"),
-            barcodes:[], barcode:"", barcodeStock,
+            barcodes:barcodeList, barcode:barcodeList[0]||"", barcodeStock,
             cost:Number(raw.harga_hpp)||0, grosir:Number(raw.harga_hpp)||0,
             price:Number(raw.harga_jual)||0,
-            manualStock, stock:Math.max(0,Number(raw.stok) || barcodeStock+manualStock),
+            manualStock, stock:barcodeStock+manualStock,
             photoFileName:String(raw.nama_file_foto||fileNameForProduct(name)), photo:""
           });
           loaded.push(product);
@@ -6367,9 +6373,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const stock=Math.max(0,Number(String(input?.value||'').replace(/\D/g,''))||0);
     const product=kasirProducts.find(x=>String(x.id)===id);
     if(!product)return;
-    product.stock=stock;
     product.barcodes=productBarcodes(product);
     product.manualStock=Math.max(0,stock-product.barcodes.length);
+    product.stock=product.barcodes.length+product.manualStock;
     product.barcode=product.barcodes[0]||'';
     window.__rekapinyuProdukKasirData=kasirProducts;
     try{await window.__rekapinyuSyncProdukKasirJson?.(kasirProducts)}catch(e){console.warn('Rekapinyu: stok ProdukKasir JSON gagal disimpan.',e)}
@@ -6448,6 +6454,7 @@ function initKasirViews(){
 
     /* Validasi dulu seluruh Qty terhadap stok saat ini. */
     const updates=[];
+    const beforeProducts=JSON.parse(JSON.stringify(kasirProducts));
     for(const item of kasirCart){
       const product=kasirProducts.find(p=>String(p.id)===String(item.id));
       const stock=Math.max(0,Number(product?.stock)||0);
@@ -6493,20 +6500,20 @@ function initKasirViews(){
     kasirTransactions.push(transaction);
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
     try{
+      /* Perbarui JSON produk terlebih dahulu: barcode aktif yang terpakai sudah
+         dihapus dari daftar, stok barcode + manual menjadi stok nyata. */
+      const produkSaved=await window.__rekapinyuSyncProdukKasirJson?.(kasirProducts);
+      if(produkSaved!==true)throw new Error('Folder target belum dipilih atau file JSON Produk Kasir tidak dapat diperbarui.');
       const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.();
-      if(jsonSaved!==true)throw new Error('Folder target belum dipilih atau file JSON tidak dapat diperbarui.');
+      if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
     }catch(e){
       kasirTransactions.pop();
       window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
-      updates.forEach(({product,before,beforeManual,beforeBarcodes})=>{
-        product.stock=before;
-        product.manualStock=beforeManual;
-        product.barcodes=[...beforeBarcodes];
-        product.barcode=product.barcodes[0]||'';
-      });
+      kasirProducts=beforeProducts.map(normalizeProduct);
       window.__rekapinyuProdukKasirData=kasirProducts;
+      try{await window.__rekapinyuSyncProdukKasirJson?.(kasirProducts)}catch(_){}
       renderKasirProducts();
-      showModal('Gagal','Transaksi belum disimpan karena file JSON Transaksi Kasir dan Laporan Kasir gagal diperbarui. Pastikan folder target sudah dipilih.','fa-solid fa-folder-open text-rose-600');
+      showModal('Gagal','Transaksi belum disimpan karena stok Produk Kasir atau file JSON Transaksi Kasir/Laporan Kasir gagal diperbarui. Pastikan folder target sudah dipilih.','fa-solid fa-folder-open text-rose-600');
       return false;
     }
     renderKasirProducts();
