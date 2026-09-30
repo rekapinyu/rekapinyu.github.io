@@ -2814,6 +2814,11 @@ function updateUserAvatarUI() {
 
             window.__rekapinyuUpdateHistoryIo?.();
             window.__rekapinyuUpdateKasbonFilterIo?.();
+            /* HISTORY: setiap kali menu dibuka, baca ulang seluruh Rekap_Hari_*.json
+               langsung dari folder target Produk Kasir. Tidak memakai cache/localStorage. */
+            if (tab === 'history' && typeof window.__rekapinyuLoadLocalRekap === 'function') {
+                window.__rekapinyuLoadLocalRekap().catch(err => console.warn('Rekapinyu: History gagal membaca folder target.', err));
+            }
             if (tab === 'laporan-kasir' && typeof window.__renderLaporanKasir === 'function') window.__renderLaporanKasir();
 
 
@@ -4409,41 +4414,68 @@ function updateUserAvatarUI() {
 
   async function load(){
     const dir=await getDir();
-    if(!dir)return false;
+    if(!dir){
+      loaded=false;
+      return false;
+    }
 
+    /*
+       HISTORY WAJIB membaca file hasil Menu Input Data langsung dari folder target.
+       Setiap pemanggilan load() melakukan scan folder dari awal, sehingga file yang
+       baru dibuat/diubah di luar aplikasi juga langsung terbaca saat menu History dibuka.
+    */
     const files=await listRekapFiles(dir);
-    const allHistory=[],allPengeluaran=[],allKasbon=[];
+    const historyMap=new Map();
+    const expenseMap=new Map();
+    const kasbonMap=new Map();
+
+    const addUnique=(map,item)=>{
+      if(!item || typeof item!=='object')return;
+      const id=String(item.id??'').trim();
+      const key=id || JSON.stringify(item);
+      if(!map.has(key))map.set(key,item);
+    };
 
     for(const entry of files){
       try{
         const data=await readJsonHandle(entry.handle);
-        mergeUnique(allHistory,data.InputData||data.History).forEach(x=>{
-          if(!allHistory.some(y=>String(y?.id??'')===String(x?.id??'') && String(x?.id??'')))allHistory.push(x);
-        });
-        mergeUnique(allPengeluaran,data.Pengeluaran).forEach(x=>{
-          if(!allPengeluaran.some(y=>String(y?.id??'')===String(x?.id??'') && String(x?.id??'')))allPengeluaran.push(x);
-        });
-        mergeUnique(allKasbon,data.Kasbon).forEach(x=>{
-          if(!allKasbon.some(y=>String(y?.id??'')===String(x?.id??'') && String(x?.id??'')))allKasbon.push(x);
-        });
+        /* Format utama yang dibuat Menu Input Data. */
+        const inputItems=normalizeLoadedArray(data.InputData);
+        inputItems.forEach(item=>addUnique(historyMap,item));
+
+        /* Tetap menerima format History lama hanya untuk pembacaan file yang sudah ada;
+           tidak pernah membuat field History baru ketika menyimpan. */
+        if(!inputItems.length)normalizeLoadedArray(data.History).forEach(item=>addUnique(historyMap,item));
+
+        normalizeLoadedArray(data.Pengeluaran).forEach(item=>addUnique(expenseMap,item));
+        normalizeLoadedArray(data.Kasbon).forEach(item=>addUnique(kasbonMap,item));
       }catch(err){
-        console.warn('Rekapinyu: file JSON harian dilewati karena tidak valid.',entry.name,err);
+        console.warn('Rekapinyu: file Rekap_Hari dilewati karena JSON tidak valid.',entry.name,err);
       }
     }
 
-    historyData=allHistory.sort(sortNewest);
-    pengeluaranData=allPengeluaran.sort(sortNewest);
-    kasbonData=allKasbon.sort(sortNewest);
+    historyData=Array.from(historyMap.values()).sort(sortNewest);
+    pengeluaranData=Array.from(expenseMap.values()).sort(sortNewest);
+    kasbonData=Array.from(kasbonMap.values()).sort(sortNewest);
 
-    /* Backup Otomatis dan Laporan Bulanan tidak lagi disimpan sebagai JSON.
-       Laporan tetap dihitung langsung dari History agar menu lain tidak berubah. */
+    /* Backup Otomatis dan Laporan Bulanan tidak memiliki file JSON sendiri. */
     backupOtomatisData=[];
     window.__rekapinyuDataLaporanBulanan=
       typeof window.__rekapinyuBuildLaporanBulanan==='function'
         ?window.__rekapinyuBuildLaporanBulanan(historyData):[];
 
     loaded=true;
-    try{populateHistoryFilters?.();renderHistory?.();renderReport?.();populatePengeluaranFilters?.();renderPengeluaranGrid?.();renderKasbonGrid?.();populateBackupFilters?.();renderBackupGrid?.();renderMobileAdminSummary?.()}catch(_){}
+    try{
+      populateHistoryFilters?.();
+      renderHistory?.();
+      renderReport?.();
+      populatePengeluaranFilters?.();
+      renderPengeluaranGrid?.();
+      renderKasbonGrid?.();
+      populateBackupFilters?.();
+      renderBackupGrid?.();
+      renderMobileAdminSummary?.();
+    }catch(_){ }
     return true;
   }
 
@@ -4539,6 +4571,22 @@ function updateUserAvatarUI() {
   setTimeout(()=>{
     try{if(window.__rekapinyuDashboardSession?.read?.())load().catch(()=>{});}catch(_){}
   },0);
+
+  /* Jika aplikasi kembali aktif setelah file JSON diubah dari luar aplikasi,
+     History membaca ulang folder target ketika tab History sedang terbuka. */
+  let historyFolderRefreshBusy=false;
+  async function refreshHistoryFromTarget(){
+    if(historyFolderRefreshBusy)return;
+    const view=document.getElementById('view-history');
+    if(!view || view.classList.contains('hidden'))return;
+    historyFolderRefreshBusy=true;
+    try{await load();}finally{historyFolderRefreshBusy=false;}
+  }
+  window.addEventListener('focus',()=>refreshHistoryFromTarget().catch(()=>{}));
+  window.addEventListener('pageshow',()=>refreshHistoryFromTarget().catch(()=>{}));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')refreshHistoryFromTarget().catch(()=>{});
+  });
 })();
 </script>
 <!-- REKAPINYU: FIREBASE — SATU IMPLEMENTASI FINAL SCHEMA KASIR / PENGGUNA / REKAP -->
