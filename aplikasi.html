@@ -4699,11 +4699,27 @@ function realtime(uid){
         const scanId=String(scan.id||"");
         const barcode=String(scan.barcode||"").trim();
         if(scanId&&barcode&&scanId!==processed&&typeof addScannedKasirBarcode==='function'){
-          addScannedKasirBarcode(barcode);
-          window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
-            ScannerLastProcessedId:scanId,
-            ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
-          },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
+          const processScan=()=>{
+            if(String(window.__rekapinyuScannerPendingId||"")!==scanId)return;
+            if(!Array.isArray(kasirProducts)||kasirProducts.length===0){
+              if(!window.__rekapinyuProdukKasirLoaded){
+                window.__rekapinyuScannerRetryCount=(Number(window.__rekapinyuScannerRetryCount)||0)+1;
+                if(window.__rekapinyuScannerRetryCount<=100)setTimeout(processScan,100);
+                return;
+              }
+              loadKasirStore();
+            }
+            if(!Array.isArray(kasirProducts)||kasirProducts.length===0)return;
+            window.__rekapinyuScannerRetryCount=0;
+            window.__rekapinyuScannerPendingId="";
+            addScannedKasirBarcode(barcode);
+            window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
+              ScannerLastProcessedId:scanId,
+              ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
+            },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
+          };
+          window.__rekapinyuScannerPendingId=scanId;
+          processScan();
         }
       }catch(e){console.warn("Scanner HP realtime gagal",e)}
 
