@@ -6210,6 +6210,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const sourceStock=getKasirCartSourceStock(p,source);
     const index=kasirCart.findIndex(x=>String(x.id)===id&&String(x.stockSource||'manual')===source);
     const current=index!==-1?Math.max(0,Number(kasirCart[index].qty)||0):0;
+    if(source==='barcode'&&index!==-1&&Array.isArray(kasirCart[index].usedBarcodes)&&cleanBarcode&&kasirCart[index].usedBarcodes.includes(cleanBarcode))return false;
+    if(source==='manual'&&kasirCart.some(x=>String(x.id)===id&&String(x.stockSource||'manual')==='barcode'))return false;
     if(sourceStock<=current){
       if(sourceStock<=0){
         const message=source==='barcode'
@@ -7128,6 +7130,7 @@ function initKasirViews(){
       const i=kasirCart.findIndex(v=>getKasirCartItemKey(v)===key);
       const x=i>-1?kasirCart[i]:null;
       const product=x?kasirProducts.find(v=>String(v.id)===String(x.id)):null;
+      if(x&&x.stockSource==='barcode')return;
       if(x&&product){
         const source=x.stockSource==='barcode'?'barcode':'manual';
         const stock=getKasirCartSourceStock(product,source);
@@ -7210,7 +7213,7 @@ function initKasirViews(){
       const selected=kasirCart[kasirCartSelectedIndex];
       if(selected){
         e.preventDefault();
-        if(e.key==='ArrowRight'){const product=kasirProducts.find(p=>String(p.id)===String(selected.id));const stock=Math.max(0,Number(product?.stock)||0);if(product&&selected.qty<stock)selected.qty++;}
+        if(e.key==='ArrowRight'){if(selected.stockSource==='barcode')return;const product=kasirProducts.find(p=>String(p.id)===String(selected.id));const stock=Math.max(0,Number(product?.stock)||0);if(product&&selected.qty<stock)selected.qty++;}
         else{selected.qty--;trimKasirUsedBarcodes(selected);if(selected.qty<=0){kasirCart.splice(kasirCartSelectedIndex,1);kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);}syncKasirActiveTransactionTab();renderKasirProducts()}
         renderCart();
         requestAnimationFrame(updateKasirCartSelection);
