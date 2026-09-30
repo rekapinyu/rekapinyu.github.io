@@ -39,7 +39,32 @@ const phoneOnly=v=>String(v??'').replace(/\D/g,'');const authEmail=p=>phoneOnly(
 function connection(ok,text){$('connection').classList.toggle('ok',!!ok);$('connectionText').textContent=text}
 function info(text){$('info').textContent=text}
 async function writeConnection(connected){if(!kasirRef)return;await setDoc(kasirRef,{ScannerConnection:{connected,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()}},{merge:true})}
-async function sendBarcode(value){const code=String(value||'').trim();if(!code||!kasirRef)return;const now=Date.now();if(code===lastCode&&now-lastScanTime<900)return;lastCode=code;lastScanTime=now;await setDoc(kasirRef,{ScannerLastScan:{id:String(now)+'-'+Math.random().toString(36).slice(2,8),barcode:code,device:'Rekapinyu Scanner',createdAt:serverTimestamp()},ScannerConnection:{connected:true,device:'Rekapinyu Scanner',updatedAt:serverTimestamp()}},{merge:true});navigator.vibrate?.(70);info('Barcode '+code+' dikirim ke Kasir')}
+async function sendBarcode(value){
+  const code=String(value||'').trim();
+  if(!code||!kasirRef)return;
+  const now=Date.now();
+  if(code===lastCode&&now-lastScanTime<900)return;
+  lastCode=code;
+  lastScanTime=now;
+  const scanId=String(now)+'-'+Math.random().toString(36).slice(2,8);
+  await setDoc(kasirRef,{
+    ScannerLastScan:{
+      id:scanId,
+      barcode:code,
+      target:'kasir-cart',
+      action:'add-barcode-to-cart',
+      device:'Rekapinyu Scanner',
+      createdAt:serverTimestamp()
+    },
+    ScannerConnection:{
+      connected:true,
+      device:'Rekapinyu Scanner',
+      updatedAt:serverTimestamp()
+    }
+  },{merge:true});
+  navigator.vibrate?.(70);
+  info('Barcode '+code+' dikirim ke keranjang Kasir');
+}
 async function getZXing(){if(zxingModule)return zxingModule;try{zxingModule=await import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');if(!zxingModule.BrowserMultiFormatReader)throw new Error('BrowserMultiFormatReader tidak tersedia');return zxingModule}catch(e){throw new Error('Mesin barcode tidak tersedia di browser ini')}
 }
 async function startScanner(){if(scanLoop)return;try{if(!window.isSecureContext)throw new Error('Scanner harus dibuka melalui HTTPS');if(!navigator.mediaDevices?.getUserMedia)throw new Error('Browser tidak menyediakan akses kamera');stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});$('camera').srcObject=stream;await $('camera').play();scanLoop=true;$('scan').classList.add('on');info('Arahkan kamera ke barcode');
