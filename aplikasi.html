@@ -4685,7 +4685,8 @@ function realtime(uid){
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
 
-      /* REKAPINYU SCANNER HP — SATU JALUR KE KERANJANG KASIR */
+      /* REKAPINYU SCANNER HP — listener realtime. Hanya membaca field scanner,
+         tidak mengubah alur data Kasir lainnya. */
       try{
         const conn=d.ScannerConnection||{};
         const scanBtn=document.getElementById("kasir-barcode-scan-btn");
@@ -4697,14 +4698,28 @@ function realtime(uid){
         const processed=String(d.ScannerLastProcessedId||"");
         const scanId=String(scan.id||"");
         const barcode=String(scan.barcode||"").trim();
-        if(scanId&&barcode&&scanId!==processed&&typeof window.__rekapinyuReceiveScannerBarcode==='function'){
-          window.__rekapinyuReceiveScannerBarcode(barcode).then(ok=>{
-            if(!ok)return;
-            window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
-              ScannerLastProcessedId:scanId,
-              ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
-            },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
-          }).catch(e=>console.warn("Scanner HP ke keranjang gagal",e));
+        if(scanId&&barcode&&scanId!==processed){
+          const code=barcode;
+          const deliver=()=>{
+            try{
+              if(!Array.isArray(kasirProducts)||!kasirProducts.length)return false;
+              const p=kasirProducts.find(item=>productBarcodes(item).some(b=>String(b).trim()===code));
+              if(!p)return false;
+              const ok=addKasirProductToCart(p,code);
+              if(ok)resetKasirSearchAndSelectCart(p.id);
+              return ok;
+            }catch(e){console.warn("Scanner HP keranjang gagal",e);return false}
+          };
+          let tries=0;
+          const waitForProduct=()=>{
+            if(deliver()||tries++>=40)return;
+            setTimeout(waitForProduct,250);
+          };
+          waitForProduct();
+          window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
+            ScannerLastProcessedId:scanId,
+            ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
+          },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
         }
       }catch(e){console.warn("Scanner HP realtime gagal",e)}
 
@@ -7216,23 +7231,6 @@ function initKasirViews(){
     if(p){consumeKasirProductForScan(p,value);resetKasirSearchAndSelectCart(p.id);input.value='';return}
     openKasirUnknownBarcodePopup(value);
   }
-  /* SCANNER HP -> KERANJANG KASIR: SATU IMPLEMENTASI */
-  window.__rekapinyuReceiveScannerBarcode=async function(code){
-    const value=String(code||'').trim();
-    if(!value)return false;
-    const started=Date.now();
-    while(!window.__rekapinyuProdukKasirLoaded){
-      if(Date.now()-started>15000)return false;
-      await new Promise(resolve=>setTimeout(resolve,100));
-    }
-    loadKasirStore();
-    const product=findKasirProductByBarcode(value);
-    if(!product)return false;
-    const input=document.getElementById('kasir-barcode');
-    if(input)input.value=value;
-    const added=addScannedKasirBarcode(value);
-    return added!==false;
-  };
   function openKasirBarcodeScannerModal(){
     const old=document.getElementById('kasir-barcode-scanner');if(old)old.remove();
     const modal=document.createElement('div');
