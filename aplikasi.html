@@ -5520,6 +5520,60 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     return name;
   }
 
+  function normalizePhotoMatchName(value){
+    return String(value||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\.[^.]+$/,'')
+      .replace(/[_-]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  function isPhotoFileName(name){
+    return /\.(?:jpe?g|png|webp|gif|bmp|avif)$/i.test(String(name||''));
+  }
+
+  async function findFolderPhotoForProduct(productName,dir){
+    const target=normalizePhotoMatchName(productName);
+    if(!target||!dir)return '';
+    try{
+      for await(const entry of dir.values()){
+        if(entry?.kind!=='file')continue;
+        const fileName=String(entry.name||'').trim();
+        if(!isPhotoFileName(fileName))continue;
+        if(normalizePhotoMatchName(fileName)===target)return fileName;
+      }
+    }catch(_){}
+    return '';
+  }
+
+  async function autoBindFolderPhotos(){
+    const dir=await getPhotoDirectoryQuiet();
+    if(!dir||!products.length)return false;
+    let changed=false;
+    const next=products.map(p=>({...p}));
+    for(const product of next){
+      const current=String(product.photoFileName||'').trim();
+      if(current){
+        try{await dir.getFileHandle(current,{create:false});continue;}catch(_){}
+      }
+      const matched=await findFolderPhotoForProduct(product.name,dir);
+      if(matched&&matched!==current){
+        product.photoFileName=matched;
+        product.photo='';
+        changed=true;
+      }
+    }
+    if(!changed)return false;
+    products=next.map(normalizeProduct);
+    window.__rekapinyuProdukKasirData=products;
+    try{await window.__rekapinyuSaveProdukKasir?.(products)}catch(e){
+      console.warn('Rekapinyu: pencocokan foto folder belum tersimpan ke cloud.',e);
+    }
+    return true;
+  }
+
   async function localPhotoUrl(fileName){
     const clean=String(fileName||'').trim();
     if(!clean)return null;
@@ -5561,6 +5615,12 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function refreshRenderedPhotos(){
     const nodes=[...document.querySelectorAll('#pk3-grid [data-pk3-photo]')];
     if(!nodes.length)return;
+    /*
+       Area ini khusus membaca folder target: jika nama file foto sama dengan
+       nama produk, referensi foto otomatis dipasang ke produk.
+       Contoh: produk "Indomie Goreng" membaca "Indomie Goreng.jpg/png/webp".
+    */
+    await autoBindFolderPhotos();
     const missing=[];
     for(const node of nodes){
       const id=String(node.dataset.pk3Photo||'');
@@ -5586,6 +5646,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function scanMissingPhotos(){
     const dir=await getPhotoDirectoryQuiet();
     if(!dir)return;
+    await autoBindFolderPhotos();
     const missing=[];
     for(const p of products){
       const fileName=String(p?.photoFileName||'').trim();
