@@ -5978,7 +5978,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}
   }
 
-  async function importProducts(file){
+  function importProducts(file){
     if(!file)return;
     const reader=new FileReader();
     reader.onload=async()=>{
@@ -5986,119 +5986,13 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         const parsed=JSON.parse(String(reader.result||''));
         const source=Array.isArray(parsed)?parsed:parsed?.products;
         if(!Array.isArray(source)||!source.length)throw new Error('File backup tidak berisi daftar produk yang valid.');
-
-        /* IMPORT BACKUP — fokus hanya area ini:
-           1. Ambil data cloud terbaru terlebih dahulu agar produk yang sudah ada
-              tidak tertimpa/hilang saat file backup diimport.
-           2. Gabungkan produk berdasarkan ID, lalu nama produk sebagai fallback.
-           3. Referensi photoFileName dari backup tetap dipertahankan.
-           4. Jika folder foto yang sudah dipilih berisi foto dengan nama yang
-              sama dengan produk, referensi foto otomatis dipasang kembali.
-           5. Hasil akhir ditulis kembali ke Firestore melalui write().
-        */
-        let cloudProducts=[];
-        try{
-          if(typeof window.__rekapinyuLoadProdukKasir==='function'){
-            const cloud=await window.__rekapinyuLoadProdukKasir();
-            if(Array.isArray(cloud))cloudProducts=cloud.map(normalizeProduct);
-          }
-        }catch(e){
-          console.warn('Rekapinyu: data ProdukKasir cloud terbaru belum dapat dimuat saat import.',e);
-        }
-
-        const currentMap=new Map();
-        const currentSource=cloudProducts.length?cloudProducts:products;
-        currentSource.map(normalizeProduct).forEach(p=>{
-          const id=String(p.id||'').trim();
-          const name=norm(p.name);
-          if(id)currentMap.set(`id:${id}`,p);
-          if(name)currentMap.set(`name:${name}`,p);
-        });
-
-        const imported=source
-          .map((p,i)=>normalizeProduct({
-            ...p,
-            id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8))
-          }))
-          .filter(p=>p.name&&p.price>0);
-
+        const imported=source.map((p,i)=>normalizeProduct({...p,id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8))})).filter(p=>p.name&&p.price>0);
         if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
-
-        /* Pertahankan semua produk yang sudah ada; data backup memperbarui/
-           menambahkan produk yang memang diimport. */
-        const merged=[];
-        const seen=new Set();
-
-        currentSource.map(normalizeProduct).forEach(existing=>{
-          const id=String(existing.id||'');
-          const name=norm(existing.name);
-          const match=imported.find(p=>
-            (id&&String(p.id)===id) ||
-            (name&&norm(p.name)===name)
-          );
-          const finalProduct=match?normalizeProduct({
-            ...existing,
-            ...match,
-            /* Foto dari backup dipertahankan; bila backup tidak membawa
-               referensi foto, jangan menghapus foto produk yang sudah ada. */
-            photoFileName:String(match.photoFileName||existing.photoFileName||'').trim(),
-            photo:''
-          }):existing;
-          const key=`id:${String(finalProduct.id)}`;
-          if(!seen.has(key)){
-            seen.add(key);
-            merged.push(finalProduct);
-          }
-        });
-
-        imported.forEach(p=>{
-          const existingIndex=merged.findIndex(x=>
-            String(x.id)===String(p.id) ||
-            norm(x.name)===norm(p.name)
-          );
-          if(existingIndex>=0){
-            merged[existingIndex]=normalizeProduct({
-              ...merged[existingIndex],
-              ...p,
-              photoFileName:String(p.photoFileName||merged[existingIndex].photoFileName||'').trim(),
-              photo:''
-            });
-          }else{
-            merged.push(normalizeProduct({...p,photo:''}));
-          }
-        });
-
-        products=merged.map(normalizeProduct);
-        window.__rekapinyuProdukKasirData=products;
-        window.__rekapinyuProdukKasirLoaded=true;
-
-        /* Foto tetap menggunakan folder yang sudah dipilih.
-           Tidak membuat folder baru dan tidak menyimpan foto ke localStorage/
-           Firestore sebagai base64. */
-        try{await autoMatchProductPhotos()}catch(e){
-          console.warn('Rekapinyu: pencocokan foto hasil import belum selesai.',e);
-        }
-
+        products=imported;
         await write();
-
-        /* Pastikan hasil akhir yang sudah tersimpan menjadi state tampilan,
-           sehingga tetap muncul setelah reload/logout/close melalui Firestore. */
-        try{
-          const saved=await window.__rekapinyuLoadProdukKasir?.();
-          if(Array.isArray(saved)){
-            products=saved.map(normalizeProduct);
-            window.__rekapinyuProdukKasirData=products;
-            window.__rekapinyuProdukKasirLoaded=true;
-          }
-        }catch(e){
-          console.warn('Rekapinyu: verifikasi hasil import dari Firestore gagal.',e);
-        }
-
         render();
-        await updateFolderStatus();
-        await refreshRenderedPhotos();
         try{window.__initKasirViews?.()}catch(_){}
-        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport dan disimpan.`)
+        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`)
       }catch(err){
         if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.')
       }finally{
