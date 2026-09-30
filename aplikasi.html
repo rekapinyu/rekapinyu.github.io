@@ -4576,12 +4576,22 @@ async function saveProdukKasir(products){
   if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
   const source=Array.isArray(products)?products:[];
-  /* ProdukKasir hanya menyimpan data produk + nama file foto lokal.
-     URL/base64 foto TIDAK lagi dikirim ke Firestore. */
+  /* KHUSUS JALUR FOTO PRODUKKASIR:
+     Firestore hanya boleh menerima nama file foto pada photoFileName.
+     Isi foto, Blob, File, data URL, base64, object URL, maupun field photo
+     tidak boleh ikut masuk ke payload Firestore. */
   const payload=source.map(raw=>{
     const item={...raw};
+    const fileName=String(item.photoFileName||'').trim();
     delete item.photo;
-    if(!String(item.photoFileName||'').trim())delete item.photoFileName;
+    delete item.photoUrl;
+    delete item.photoURL;
+    delete item.photoBase64;
+    delete item.photoData;
+    delete item.photoBlob;
+    delete item.photoFile;
+    if(fileName)item.photoFileName=fileName;
+    else delete item.photoFileName;
     return item;
   });
   const r=await getKasirRef(uid,p);
@@ -5568,9 +5578,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!changed)return false;
     products=next.map(normalizeProduct);
     window.__rekapinyuProdukKasirData=products;
-    try{await window.__rekapinyuSaveProdukKasir?.(products)}catch(e){
-      console.warn('Rekapinyu: pencocokan foto folder belum tersimpan ke cloud.',e);
-    }
     return true;
   }
 
@@ -5677,6 +5684,10 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function write(){
+    /* Area folder target saja: cocokkan foto lebih dahulu, lalu satu kali
+       simpan payload ProdukKasir lengkap ke Firestore agar data teks tidak
+       tertimpa oleh proses pembacaan/render foto. */
+    try{await autoBindFolderPhotos()}catch(_){}
     return await saveProductsCloud();
   }
 
@@ -5699,6 +5710,11 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       }catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}
     }
     if(!products.length)products=read().map(normalizeProduct);
+    let folderPhotoChanged=false;
+    try{folderPhotoChanged=await autoBindFolderPhotos()}catch(_){}
+    if(folderPhotoChanged){
+      try{await saveProductsCloud()}catch(e){console.warn('Rekapinyu: referensi foto folder belum tersimpan ke cloud.',e)}
+    }
     render();
     await updateFolderStatus();
     await refreshRenderedPhotos();
