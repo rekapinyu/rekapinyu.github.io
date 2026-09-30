@@ -1403,7 +1403,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 .kasir-barcode-scan-box.is-scanner-disconnected .kasir-barcode-scan-icon{background:#fee2e2;color:#dc2626}
 .kasir-barcode-scan-label{display:none!important}
 @keyframes kasirBarcodePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.72}}
-.kasir-barcode-scanner{position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}.kasir-barcode-scanner-card{width:min(520px,100%);background:#fff;border-radius:18px;padding:14px;box-shadow:0 20px 60px rgba(15,23,42,.3)}.kasir-barcode-scanner-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.kasir-barcode-scanner-head strong{font-size:14px;color:#0f172a}.kasir-barcode-scanner-head button{width:32px;height:32px;border:0;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:22px;cursor:pointer}.kasir-barcode-camera-wrap{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;border-radius:14px;background:#0f172a}.kasir-barcode-camera-wrap video{width:100%;height:100%;object-fit:cover}.kasir-barcode-target{position:absolute;left:12%;right:12%;top:35%;height:30%;border:2px solid #ef4444;border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.12)}.kasir-barcode-scanner-card p{margin:9px 2px 0;color:#64748b;font-size:10px}
+.kasir-barcode-scanner{position:fixed;inset:0;z-index:12000;background:#000;display:block;padding:0;box-sizing:border-box;overflow:hidden}.kasir-barcode-scanner-card{position:relative;width:100%;height:100dvh;min-height:100vh;background:#000;border-radius:0;padding:0;box-shadow:none;overflow:hidden}.kasir-barcode-scanner-head{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 14px) 16px 14px;background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,0));box-sizing:border-box;color:#fff}.kasir-barcode-scanner-head>div{min-width:0}.kasir-barcode-scanner-head strong{display:block;font-size:15px;line-height:1.2;color:#fff;font-weight:800}.kasir-barcode-scanner-head small{display:block;margin-top:4px;font-size:11px;line-height:1.25;color:rgba(255,255,255,.78)}.kasir-barcode-scanner-head button{width:38px;height:38px;flex:0 0 38px;border:1px solid rgba(255,255,255,.28);border-radius:50%;background:rgba(0,0,0,.42);color:#fff;font-size:22px;line-height:1;cursor:pointer;backdrop-filter:blur(6px)}.kasir-barcode-camera-wrap{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;border-radius:0;background:#000}.kasir-barcode-camera-wrap video{display:block;width:100%;height:100%;object-fit:cover;object-position:center}.kasir-barcode-target{display:none!important}.kasir-barcode-scan-status{position:absolute;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2;max-width:calc(100% - 32px);padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.48);color:#fff;font-size:11px;font-weight:700;text-align:center;white-space:nowrap;backdrop-filter:blur(6px)}.kasir-barcode-scan-control{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4;width:68px;height:68px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(0,0,0,.42);font-size:23px;cursor:pointer;-webkit-tap-highlight-color:transparent}.kasir-barcode-scan-control.is-off{background:#dc2626}.kasir-barcode-scan-control:active{transform:translateX(-50%) scale(.94)}.kasir-barcode-scanner-card p{display:none}@media (orientation:landscape) and (max-height:520px){.kasir-barcode-scan-control{width:58px;height:58px;bottom:14px}.kasir-barcode-scan-status{bottom:84px}}
 
 /* KASIR PRODUK: satu layout final — label, input, foto dan tombol berada pada garis yang sama. */
 .pk3-form{
@@ -2140,6 +2140,7 @@ bind();
 <button class="mobile-home-card" onclick="switchTab('history')" type="button"><i class="fa-solid fa-clock-rotate-left mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-clock-rotate-left"></i></div><span>History</span></div></button>
 <button class="mobile-home-card" onclick="switchTab('report')" type="button"><i class="fa-solid fa-chart-pie mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-chart-pie"></i></div><span>Laporan Bulanan</span></div></button>
 <button class="mobile-home-card" onclick="switchTab('backup')" type="button"><i class="fa-solid fa-cloud-arrow-up mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div><span>Backup Otomatis</span></div></button>
+<button class="mobile-home-card" id="mobile-home-scanner-card" onclick="openMobileKasirScanner()" type="button"><i class="fa-solid fa-barcode mobile-home-watermark"></i><div class="mobile-home-card-content"><div class="mobile-home-icon"><i class="fa-solid fa-barcode"></i></div><span>Scanner Barcode</span></div></button>
 </div>
 </section>
 <!-- VIEW 1: INPUT DATA -->
@@ -4683,6 +4684,29 @@ function realtime(uid){
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
+
+      /* REKAPINYU SCANNER HP — listener realtime. Hanya membaca field scanner,
+         tidak mengubah alur data Kasir lainnya. */
+      try{
+        const conn=d.ScannerConnection||{};
+        const scanBtn=document.getElementById("kasir-barcode-scan-btn");
+        if(scanBtn&&typeof setKasirBarcodeIndicator==='function'){
+          setKasirBarcodeIndicator(!!conn.connected);
+          scanBtn.title=conn.connected?"Scanner HP terhubung":"Hubungkan scanner barcode";
+        }
+        const scan=d.ScannerLastScan||{};
+        const processed=String(d.ScannerLastProcessedId||"");
+        const scanId=String(scan.id||"");
+        const barcode=String(scan.barcode||"").trim();
+        if(scanId&&barcode&&scanId!==processed&&typeof addScannedKasirBarcode==='function'){
+          addScannedKasirBarcode(barcode);
+          window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
+            ScannerLastProcessedId:scanId,
+            ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
+          },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
+        }
+      }catch(e){console.warn("Scanner HP realtime gagal",e)}
+
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
     listen(rr,d=>{
@@ -7196,9 +7220,23 @@ function initKasirViews(){
     const modal=document.createElement('div');
     modal.id='kasir-barcode-scanner';
     modal.className='kasir-barcode-scanner';
-    modal.innerHTML='<div class="kasir-barcode-scanner-card"><div class="kasir-barcode-scanner-head"><div><strong>Scan Barcode</strong><small>Gunakan kamera untuk membaca barcode produk</small></div><button type="button" id="kasir-barcode-scanner-close" aria-label="Tutup scanner">×</button></div><div class="kasir-barcode-camera-wrap"><video id="kasir-barcode-video" autoplay playsinline muted></video><span class="kasir-barcode-target"></span><span class="kasir-barcode-scan-status" id="kasir-barcode-scan-status">Menyiapkan kamera...</span></div><p>Arahkan barcode ke kotak scan. Scanner mendukung barcode 1D umum seperti EAN, UPC, Code 128, Code 39, ITF, dan lainnya.</p></div>';
+    modal.innerHTML='<div class="kasir-barcode-scanner-card"><div class="kasir-barcode-scanner-head"><div><strong>Scanner Rekapinyu</strong><small id="kasir-barcode-scanner-head-status">Menghubungkan kamera...</small></div><button type="button" id="kasir-barcode-scanner-close" aria-label="Tutup scanner">×</button></div><div class="kasir-barcode-camera-wrap"><video id="kasir-barcode-video" autoplay playsinline muted></video><span class="kasir-barcode-scan-status" id="kasir-barcode-scan-status">Menyiapkan kamera...</span><button type="button" class="kasir-barcode-scan-control" id="kasir-barcode-scan-control" aria-label="Scanner aktif"><i class="fa-solid fa-barcode"></i></button></div></div>';
     document.body.appendChild(modal);
     document.getElementById('kasir-barcode-scanner-close')?.addEventListener('click',closeKasirBarcodeScanner);
+    const control=document.getElementById('kasir-barcode-scan-control');
+    control?.addEventListener('click',()=>{
+      if(kasirBarcodeScanning){
+        kasirBarcodeScanning=false;
+        control.classList.add('is-off');
+        control.setAttribute('aria-label','Scanner dihentikan');
+        const st=document.getElementById('kasir-barcode-scan-status');
+        const hd=document.getElementById('kasir-barcode-scanner-head-status');
+        if(st)st.textContent='Scanner dijeda — tekan tombol untuk aktifkan';
+        if(hd)hd.textContent='Scanner dijeda';
+        return;
+      }
+      startKasirBarcodeScanner();
+    });
     modal.addEventListener('click',e=>{if(e.target===modal)closeKasirBarcodeScanner()});
     return document.getElementById('kasir-barcode-video');
   }
@@ -7215,7 +7253,11 @@ function initKasirViews(){
       if(!video)throw new Error('Kamera scanner tidak tersedia.');
       video.srcObject=stream;
       try{await video.play()}catch(_){}
-      if(status)status.textContent='Scanner aktif — arahkan barcode ke kotak merah.';
+      if(status)status.textContent='Scanner aktif — arahkan kamera ke barcode.';
+      const headStatus=document.getElementById('kasir-barcode-scanner-head-status');
+      const control=document.getElementById('kasir-barcode-scan-control');
+      if(headStatus)headStatus.textContent='Scanner aktif';
+      if(control){control.classList.remove('is-off');control.setAttribute('aria-label','Scanner aktif');}
 
       if('BarcodeDetector' in window){
         try{
@@ -7249,7 +7291,7 @@ function initKasirViews(){
           if(code){addScannedKasirBarcode(code);closeKasirBarcodeScanner()}
         }
       });
-      if(status&&kasirBarcodeScanning)status.textContent='Scanner aktif — arahkan barcode ke kotak merah.';
+      if(status&&kasirBarcodeScanning)status.textContent='Scanner aktif — arahkan kamera ke barcode.';
     }catch(err){
       closeKasirBarcodeScanner();
       if(typeof showModal==='function'){
@@ -7626,6 +7668,21 @@ function initKasirViews(){
   if(!btn||!popup||btn.dataset.guideBound==='1')return;
   btn.dataset.guideBound='1';
   btn.addEventListener('click',function(e){e.preventDefault();popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')});
+})();
+</script>
+<script id="mobile-kasir-scanner-menu-only">
+(function(){
+  'use strict';
+  window.openMobileKasirScanner=function(){
+    if(!window.matchMedia || !window.matchMedia('(max-width:767px)').matches)return;
+    try{
+      if(typeof window.switchTab==='function') window.switchTab('kasir');
+      window.setTimeout(function(){
+        var btn=document.getElementById('kasir-barcode-scan-btn');
+        if(btn) btn.click();
+      },250);
+    }catch(e){}
+  };
 })();
 </script>
 </body>
