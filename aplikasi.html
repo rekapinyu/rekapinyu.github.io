@@ -2483,122 +2483,7 @@ bind();
         }
         loadUserData();
 
-        function triggerDailyAutoBackup(sourceHistoryId = null) {
-            if (!currentSessionUser || !currentSessionUser.phone) return;
-            const manualBackupState = new Map((backupOtomatisData || []).map(b => [String(b.id), {
-                customName:b.customName, manualDate:b.manualDate, manualDay:b.manualDay,
-                manualDateNumber:b.manualDateNumber, manualMonthIndex:b.manualMonthIndex,
-                manualMonth:b.manualMonth, manualYear:b.manualYear
-            }]));
-            const now = new Date();
-            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-            const dayName = days[now.getDay()];
-            const dateNum = now.getDate();
-            const monthIndex = now.getMonth();
-            const monthName = months[monthIndex];
-            const yearNum = now.getFullYear();
-            const dateKey = `${dateNum}-${monthIndex}-${yearNum}`;
-
-            /*
-             * PATCH MINIMAL: Backup Otomatis tetap menggunakan mekanisme lama,
-             * tetapi setiap backup sekarang mempunyai sourceHistoryId. Dengan ID
-             * ini backup selalu mengikuti item History yang sama walaupun Hari,
-             * Tanggal, Bulan, Tahun, atau nominalnya diedit dari History.
-             */
-            // Jika dipanggil setelah Input Data baru, cari backup berdasarkan ID input tersebut.
-            // Dengan begitu setiap input baru mempunyai kartu backup sendiri.
-            let existingBackup = sourceHistoryId != null
-                ? backupOtomatisData.find(b => String(b.sourceHistoryId) === String(sourceHistoryId))
-                : backupOtomatisData.find(b => b.dateKey === dateKey);
-
-            if (!existingBackup && sourceHistoryId == null) {
-                existingBackup = backupOtomatisData.find(b => {
-                    const sourceId = b.sourceHistoryId;
-                    return sourceId != null && historyData.some(h => String(h.id) === String(sourceId));
-                });
-            }
-
-            if (!existingBackup) {
-                const sourceHistory = sourceHistoryId != null
-                    ? (historyData.find(h => String(h.id) === String(sourceHistoryId)) || null)
-                    : (historyData.length ? historyData[0] : null);
-                const newBackup = {
-                    id: Date.now(),
-                    dateKey: dateKey,
-                    day: dayName,
-                    date: dateNum,
-                    monthIndex: monthIndex,
-                    month: monthName,
-                    year: yearNum,
-                    sourceHistoryId: sourceHistory ? sourceHistory.id : null,
-                    historySnapshot: JSON.parse(JSON.stringify(historyData))
-                };
-                backupOtomatisData.unshift(newBackup);
-            } else {
-                existingBackup.historySnapshot = JSON.parse(JSON.stringify(historyData));
-                if (existingBackup.sourceHistoryId == null && historyData.length) {
-                    existingBackup.sourceHistoryId = historyData[0].id;
-                }
-            }
-
-            /*
-             * Sinkronisasi dua arah dari History -> Backup.
-             * Metadata kartu backup mengambil data langsung dari item History
-             * yang menjadi sumbernya, bukan dari tanggal saat backup dibuat.
-             */
-            backupOtomatisData.forEach(backup => {
-                backup.historySnapshot = JSON.parse(JSON.stringify(historyData));
-
-                let source = null;
-                if (backup.sourceHistoryId != null) {
-                    source = historyData.find(h => String(h.id) === String(backup.sourceHistoryId)) || null;
-                }
-
-                /* Dukungan untuk backup lama yang belum mempunyai sourceHistoryId. */
-                if (!source) {
-                    const oldMonthIndex = Number.isFinite(Number(backup.monthIndex))
-                        ? Number(backup.monthIndex)
-                        : months.indexOf(backup.month);
-                    source = historyData.find(h =>
-                        Number(h.date) === Number(backup.date) &&
-                        Number(h.year) === Number(backup.year) &&
-                        Number(h.monthIndex) === oldMonthIndex
-                    ) || null;
-                    if (source) backup.sourceHistoryId = source.id;
-                }
-
-                if (source) {
-                    const sourceMonthIndex = Number.isFinite(Number(source.monthIndex))
-                        ? Number(source.monthIndex)
-                        : months.indexOf(source.month);
-                    backup.day = source.day || days[new Date(Number(source.year), sourceMonthIndex, Number(source.date)).getDay()];
-                    backup.date = Number(source.date) || backup.date;
-                    backup.monthIndex = sourceMonthIndex >= 0 ? sourceMonthIndex : backup.monthIndex;
-                    backup.month = source.month || months[backup.monthIndex] || backup.month;
-                    backup.year = Number(source.year) || backup.year;
-                    backup.dateKey = `${backup.date}-${backup.monthIndex}-${backup.year}`;
-                    backup.historyName = `${backup.day}, ${backup.date} ${backup.month} ${backup.year}`;
-                    backup.sourceHistory = JSON.parse(JSON.stringify(source));
-                }
-            });
-
-            backupOtomatisData.forEach(b => {
-                const old = manualBackupState.get(String(b.id));
-                if (!old) return;
-                if (old.customName !== undefined) b.customName = old.customName;
-                if (old.manualDate) {
-                    b.manualDate = true; b.manualDay = old.manualDay; b.manualDateNumber = old.manualDateNumber;
-                    b.manualMonthIndex = old.manualMonthIndex; b.manualMonth = old.manualMonth; b.manualYear = old.manualYear;
-                    b.day = old.manualDay; b.date = old.manualDateNumber; b.monthIndex = old.manualMonthIndex;
-                    b.month = old.manualMonth; b.year = old.manualYear; b.dateKey = `${b.date}-${b.monthIndex}-${b.year}`;
-                }
-                if (b.customName) b.historyName = b.customName;
-            });
-            window.__rekapinyuSaveLocalRekap?.();
-        }
-/* REKAPINYU DASHBOARD SESSION — satu implementasi baru */
+        /* REKAPINYU DASHBOARD SESSION — satu implementasi baru */
 function renderDashboardSession(){
     const gate=window.__rekapinyuDashboardSession;
     const session=currentSessionUser||gate?.read()||null;
@@ -3264,8 +3149,6 @@ function updateUserAvatarUI() {
 
             historyData = historyData.filter(d => d.id !== id);
             if (currentSessionUser && currentSessionUser.phone) {
-                triggerDailyAutoBackup();
-                window.__rekapinyuSaveLocalRekap?.();
                 window.__rekapinyuSaveLocalRekap?.();
             }
             populateHistoryFilters();
@@ -3275,8 +3158,6 @@ function updateUserAvatarUI() {
 
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
-                triggerDailyAutoBackup();
-                window.__rekapinyuSaveLocalRekap?.();
                 window.__rekapinyuSaveLocalRekap?.();
             }
             renderHistory();
@@ -3631,8 +3512,6 @@ function updateUserAvatarUI() {
 
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
-                triggerDailyAutoBackup(newEntry.id);
-                window.__rekapinyuSaveLocalRekap?.();
                 window.__rekapinyuSaveLocalRekap?.();
             }
 
@@ -3879,7 +3758,7 @@ function updateUserAvatarUI() {
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
                                 <div>
                                     <h3 class="font-bold text-slate-800 text-base">Rekap ${group.month || ''} ${group.year || ''}</h3>
-                                    <p class="text-xs text-slate-400 mt-0.5">Rekap realtime dari Firestore Rekap → LaporanBulanan</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">Rekap realtime dari data History JSON di folder target</p>
                                 </div>
                                 <button onclick="openPdfModal('', '${String(group.month || '').replace(/'/g, "\'")}', '${String(group.year || '').replace(/'/g, "\'")}')" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-file-pdf"></i> View di PDF
@@ -4363,7 +4242,6 @@ function updateUserAvatarUI() {
 </style>
 <div aria-label="Filter, Import dan Backup History" id="history-io-floating">
 <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
-<button aria-label="Import Backup Excel" id="history-io-import" title="Import Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
 <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
 </div>
 <div aria-hidden="true" id="history-filter-popup">
@@ -4379,7 +4257,6 @@ function updateUserAvatarUI() {
 </div>
 <button class="history-filter-reset" id="history-filter-reset" type="button"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Filter</button>
 </div>
-<input accept=".json,application/json" hidden="" id="history-io-file" type="file">
 <script>
 (function(){
   'use strict';
@@ -4414,96 +4291,254 @@ function updateUserAvatarUI() {
   window.__rekapinyuEnsureXLSX=ensureXLSX;
 })();
 </script>
-<!-- REKAPINYU: PENYIMPANAN LOKAL REKAP HARIAN — SATU FILE JSON, SATU JALUR -->
+<!-- REKAPINYU: DATA OPERASIONAL JSON — INPUT DATA + PENGELUARAN + KASBON -->
 <script id="rekapinyu-local-rekap-json">
 (function(){
   'use strict';
+
   const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   let writeChain=Promise.resolve();
   let loaded=false;
-  function pad(n){return String(n).padStart(2,'0')}
-  function periodInfo(date=new Date()){
-    const d=new Date(date);
-    /* Hari operasional dimulai 06:00. Jam 00:00-05:59 tetap membaca file hari sebelumnya. */
-    if(d.getHours()<6)d.setDate(d.getDate()-1);
-    return {day:DAYS[d.getDay()],date:d.getDate(),monthIndex:d.getMonth(),month:MONTHS[d.getMonth()],year:d.getFullYear(),dateKey:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
-  }
-  function fileName(info){return `Rekap_Hari_${info.day}_${info.date}_${info.month}_${info.year}.json`}
-  function payload(info){
-    const history=Array.isArray(historyData)?historyData:[];
-    const monthly=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(history):[];
-    window.__rekapinyuDataLaporanBulanan=monthly;
+
+  const pad=n=>String(n).padStart(2,'0');
+
+  function dateInfoFromParts(day,date,month,year){
+    const y=Number(year);
+    const d=Number(date);
+    const mIndex=Number.isFinite(Number(month)) ? Number(month) : MONTHS.indexOf(String(month||''));
+    const safeMonth=Math.max(0,Math.min(11,Number.isFinite(mIndex)?mIndex:0));
+    const dateObj=new Date(y,d>0?d:1,safeMonth);
     return {
-      Rekap_Hari:info.day,
-      tanggal:info.date,
-      bulan:info.month,
-      Tahun:info.year,
-      periode_mulai:'06:00',
-      periode_selesai:'00:00',
-      InputData:history,
-      History:history,
-      Kasbon:Array.isArray(kasbonData)?kasbonData:[],
-      Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[]
+      day:String(day||DAYS[dateObj.getDay()]),
+      date:d>0?d:dateObj.getDate(),
+      monthIndex:safeMonth,
+      month:String(month&&typeof month==='string'?month:MONTHS[safeMonth]),
+      year:Number.isFinite(y)?y:dateObj.getFullYear(),
+      dateKey:`${Number.isFinite(y)?y:dateObj.getFullYear()}-${pad(safeMonth+1)}-${pad(d>0?d:dateObj.getDate())}`
     };
   }
+
+  function periodInfo(date=new Date()){
+    const d=new Date(date);
+    return {
+      day:DAYS[d.getDay()],
+      date:d.getDate(),
+      monthIndex:d.getMonth(),
+      month:MONTHS[d.getMonth()],
+      year:d.getFullYear(),
+      dateKey:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    };
+  }
+
+  function fileName(info){
+    return `Rekap_Hari_${info.day}_${info.date}_${info.month}_${info.year}.json`;
+  }
+
+  function itemDateInfo(item){
+    if(!item || typeof item!=='object')return periodInfo();
+    if(item.dateKey){
+      const parts=String(item.dateKey).split('-');
+      if(parts.length===3)return dateInfoFromParts(item.day,parts[2],parts[1]-1,parts[0]);
+    }
+    if(item.timestamp || item.id){
+      const ts=Number(item.timestamp||item.id);
+      if(Number.isFinite(ts)&&ts>100000000000)return periodInfo(new Date(ts));
+    }
+    return dateInfoFromParts(item.day,item.date,Number.isFinite(Number(item.monthIndex))?Number(item.monthIndex):(item.month||item.bulan),item.year);
+  }
+
+  function normalizeLoadedArray(value){
+    return Array.isArray(value)?value:[];
+  }
+
   async function getDir(){
     if(typeof window.__rekapinyuGetTargetDirectory!=='function')return null;
     return await window.__rekapinyuGetTargetDirectory();
   }
-  async function readFile(handle){
+
+  async function readJsonHandle(handle){
     const file=await handle.getFile();
     const raw=await file.text();
     const data=JSON.parse(raw);
-    if(!data||typeof data!=='object')throw new Error('Format JSON Rekapinyu tidak valid.');
+    if(!data || typeof data!=='object')throw new Error('Format JSON Rekapinyu tidak valid.');
     return data;
   }
+
+  function mergeUnique(target,items){
+    const map=new Map();
+    normalizeLoadedArray(target).forEach(x=>{
+      const id=String(x?.id??'');
+      if(id)map.set(id,x);
+    });
+    normalizeLoadedArray(items).forEach(x=>{
+      const id=String(x?.id??'');
+      const key=id||JSON.stringify(x);
+      if(!map.has(key))map.set(key,x);
+    });
+    return Array.from(map.values());
+  }
+
+  function sortNewest(a,b){
+    return Number(b?.timestamp||b?.id||0)-Number(a?.timestamp||a?.id||0);
+  }
+
+  async function listRekapFiles(dir){
+    const files=[];
+    try{
+      for await(const [entryName,entry] of dir.entries()){
+        if(entry?.kind!=='file')continue;
+        if(!/^Rekap_Hari_.*\.json$/i.test(String(entryName)))continue;
+        files.push({name:String(entryName),handle:entry});
+      }
+    }catch(_){}
+    return files;
+  }
+
+  function fileInfoFromData(data,name){
+    const y=Number(data?.Tahun);
+    const d=Number(data?.Tanggal);
+    const m=String(data?.Bulan||'');
+    if(Number.isFinite(y)&&d>0&&MONTHS.includes(m)){
+      return dateInfoFromParts(data?.Rekap_hari,d,m,y);
+    }
+    const match=String(name||'').match(/^Rekap_Hari_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
+    if(match)return dateInfoFromParts(match[1],Number(match[2]),match[3],Number(match[4]));
+    return null;
+  }
+
   async function load(){
     const dir=await getDir();
     if(!dir)return false;
-    const info=periodInfo(new Date());
-    let data=null;
-    try{
-      const fh=await dir.getFileHandle(fileName(info),{create:false});
-      data=await readFile(fh);
-    }catch(_){
-      /* Belum ada file hari ini: mulai dengan state kosong, lalu file dibuat saat ada perubahan. */
-      data=null;
+
+    const files=await listRekapFiles(dir);
+    const allHistory=[],allPengeluaran=[],allKasbon=[];
+
+    for(const entry of files){
+      try{
+        const data=await readJsonHandle(entry.handle);
+        mergeUnique(allHistory,data.InputData||data.History).forEach(x=>{
+          if(!allHistory.some(y=>String(y?.id??'')===String(x?.id??'') && String(x?.id??'')))allHistory.push(x);
+        });
+        mergeUnique(allPengeluaran,data.Pengeluaran).forEach(x=>{
+          if(!allPengeluaran.some(y=>String(y?.id??'')===String(x?.id??'') && String(x?.id??'')))allPengeluaran.push(x);
+        });
+        mergeUnique(allKasbon,data.Kasbon).forEach(x=>{
+          if(!allKasbon.some(y=>String(y?.id??'')===String(x?.id??'') && String(x?.id??'')))allKasbon.push(x);
+        });
+      }catch(err){
+        console.warn('Rekapinyu: file JSON harian dilewati karena tidak valid.',entry.name,err);
+      }
     }
-    if(data){
-      historyData=Array.isArray(data.History)?data.History:(Array.isArray(data.InputData)?data.InputData:[]);
-      pengeluaranData=Array.isArray(data.Pengeluaran)?data.Pengeluaran:[];
-      kasbonData=Array.isArray(data.Kasbon)?data.Kasbon:[];
-      backupOtomatisData=Array.isArray(data.BackupOtomatis)?data.BackupOtomatis:[];
-      window.__rekapinyuDataLaporanBulanan=Array.isArray(data.LaporanBulanan)?data.LaporanBulanan:(typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(historyData):[]);
-    }else{
-      historyData=[];pengeluaranData=[];kasbonData=[];backupOtomatisData=[];
-      window.__rekapinyuDataLaporanBulanan=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan([]):[];
-    }
+
+    historyData=allHistory.sort(sortNewest);
+    pengeluaranData=allPengeluaran.sort(sortNewest);
+    kasbonData=allKasbon.sort(sortNewest);
+
+    /* Backup Otomatis dan Laporan Bulanan tidak lagi disimpan sebagai JSON.
+       Laporan tetap dihitung langsung dari History agar menu lain tidak berubah. */
+    backupOtomatisData=[];
+    window.__rekapinyuDataLaporanBulanan=
+      typeof window.__rekapinyuBuildLaporanBulanan==='function'
+        ?window.__rekapinyuBuildLaporanBulanan(historyData):[];
+
     loaded=true;
-    try{populateHistoryFilters?.();renderHistory?.();renderReport?.();populatePengeluaranFilters?.();renderPengeluaranGrid?.();renderKasbonGrid?.();populateBackupFilters?.();renderBackupGrid?.();renderMobileAdminSummary?.()}catch(_){ }
+    try{populateHistoryFilters?.();renderHistory?.();renderReport?.();populatePengeluaranFilters?.();renderPengeluaranGrid?.();renderKasbonGrid?.();populateBackupFilters?.();renderBackupGrid?.();renderMobileAdminSummary?.()}catch(_){}
     return true;
   }
+
+  function groupByDate(list){
+    const groups=new Map();
+    normalizeLoadedArray(list).forEach(item=>{
+      const info=itemDateInfo(item);
+      if(!groups.has(info.dateKey))groups.set(info.dateKey,{info,items:[]});
+      groups.get(info.dateKey).items.push(item);
+    });
+    return groups;
+  }
+
+  function makePayload(info,history,pengeluaran,kasbon){
+    return {
+      Rekap_hari:info.day,
+      Tanggal:info.date,
+      Bulan:info.month,
+      Tahun:info.year,
+      InputData:history,
+      Pengeluaran:pengeluaran,
+      Kasbon:kasbon
+    };
+  }
+
+  async function writeJson(handle,payload){
+    const writer=await handle.createWritable();
+    try{await writer.write(JSON.stringify(payload,null,2));}
+    finally{await writer.close();}
+  }
+
   async function save(){
     writeChain=writeChain.then(async()=>{
       const dir=await getDir();
       if(!dir)throw new Error('Folder target Produk Kasir belum dipilih atau izinnya belum tersedia.');
-      const now=new Date();
-      /* Di luar 06:00-00:00 jangan membuat file baru. Perubahan setelah 00:00-05:59
-         tetap memperbarui file hari operasional sebelumnya. */
-      const info=periodInfo(now);
-      const fh=await dir.getFileHandle(fileName(info),{create:true});
-      const writer=await fh.createWritable();
-      try{await writer.write(JSON.stringify(payload(info),null,2))}finally{await writer.close()}
+
+      const existing=await listRekapFiles(dir);
+      const existingByKey=new Map();
+
+      for(const entry of existing){
+        try{
+          const data=await readJsonHandle(entry.handle);
+          const info=fileInfoFromData(data,entry.name);
+          if(info)existingByKey.set(info.dateKey,{...entry,info});
+        }catch(_){}
+      }
+
+      const historyGroups=groupByDate(historyData);
+      const expenseGroups=groupByDate(pengeluaranData);
+      const kasbonGroups=groupByDate(kasbonData);
+      const keys=new Set([...existingByKey.keys(),...historyGroups.keys(),...expenseGroups.keys(),...kasbonGroups.keys()]);
+
+      for(const key of keys){
+        const info=existingByKey.get(key)?.info
+          ||historyGroups.get(key)?.info
+          ||expenseGroups.get(key)?.info
+          ||kasbonGroups.get(key)?.info;
+        if(!info)continue;
+
+        const payload=makePayload(
+          info,
+          historyGroups.get(key)?.items||[],
+          expenseGroups.get(key)?.items||[],
+          kasbonGroups.get(key)?.items||[]
+        );
+
+        const handle=existingByKey.get(key)?.handle
+          ||await dir.getFileHandle(fileName(info),{create:true});
+
+        await writeJson(handle,payload);
+      }
+
+      window.__rekapinyuDataLaporanBulanan=
+        typeof window.__rekapinyuBuildLaporanBulanan==='function'
+          ?window.__rekapinyuBuildLaporanBulanan(Array.isArray(historyData)?historyData:[]):[];
+
       return true;
-    }).catch(err=>{console.warn('Rekapinyu: penyimpanan JSON harian gagal.',err);return false});
+    }).catch(err=>{
+      console.warn('Rekapinyu: penyimpanan JSON operasional gagal.',err);
+      return false;
+    });
     return writeChain;
   }
+
   window.__rekapinyuLoadLocalRekap=load;
   window.__rekapinyuSaveLocalRekap=save;
   window.__rekapinyuLocalRekapLoaded=()=>loaded;
-  /* Coba muat otomatis setelah semua script dan sesi siap. */
-  setTimeout(()=>{try{if(window.__rekapinyuDashboardSession?.read?.())load().catch(()=>{})}catch(_){ }},0);
+  window.__rekapinyuSaveHistoryCloud=save;
+  window.__rekapinyuSavePengeluaranCloud=save;
+  window.__rekapinyuSaveKasbonCloud=save;
+  window.__rekapinyuSaveBackupCloud=async()=>true;
+
+  setTimeout(()=>{
+    try{if(window.__rekapinyuDashboardSession?.read?.())load().catch(()=>{});}catch(_){}
+  },0);
 })();
 </script>
 <!-- REKAPINYU: FIREBASE — SATU IMPLEMENTASI FINAL SCHEMA KASIR / PENGGUNA / REKAP -->
@@ -4680,7 +4715,7 @@ async function writeBaseSchema(uid,p,name){
 async function saveHistoryCloud(){return window.__rekapinyuSaveLocalRekap?.();}
 async function savePengeluaranCloud(){return window.__rekapinyuSaveLocalRekap?.();}
 async function saveKasbonCloud(){return window.__rekapinyuSaveLocalRekap?.();}
-async function saveBackupCloud(){return window.__rekapinyuSaveLocalRekap?.();}
+async function saveBackupCloud(){return true;}
 
 async function saveActivityCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 async function saveSettingCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const s=normalizeSetting(window.__rekapinyuSettingData);window.__rekapinyuSettingData=s;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Seting:s,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
@@ -5189,82 +5224,12 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         }).catch(error => showModal('Export Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
     }
 
-    async function importBackupJson(file) {
-        if (!file) return;
-        try {
-            const raw = JSON.parse(await file.text());
-            let imported;
-            if (Array.isArray(raw)) imported = raw;
-            else if (Array.isArray(raw.History)) imported = raw.History;
-            else if (Array.isArray(raw.history)) imported = raw.history;
-            else if (Array.isArray(raw.data)) imported = raw.data;
-            else throw new Error('File backup History tidak berisi data History yang valid.');
-
-            imported = imported.filter(item => item && typeof item === 'object');
-            if (!imported.length) throw new Error('Tidak ada data History yang valid pada file backup JSON.');
-
-            const current = Array.isArray(historyData) ? historyData : [];
-            const map = new Map();
-            current.forEach((item, index) => {
-                const id = String(item?.id ?? `existing_${index}`);
-                map.set(id, item);
-            });
-
-            let added = 0, updated = 0;
-            imported.forEach((item, index) => {
-                const id = String(item?.id ?? `imported_${Date.now()}_${index}`);
-                if (map.has(id)) updated++; else added++;
-                map.set(id, item);
-            });
-
-            historyData = [...map.values()];
-            historyData.sort((a, b) => {
-                const monthA = Number.isFinite(Number(a?.monthIndex)) ? Number(a.monthIndex) : monthNames.indexOf(a?.month);
-                const monthB = Number.isFinite(Number(b?.monthIndex)) ? Number(b.monthIndex) : monthNames.indexOf(b?.month);
-                const dateA = new Date(Number(a?.year) || 0, monthA >= 0 ? monthA : 0, Number(a?.date) || 0, ...String(a?.time || '00:00').split(':').map(Number));
-                const dateB = new Date(Number(b?.year) || 0, monthB >= 0 ? monthB : 0, Number(b?.date) || 0, ...String(b?.time || '00:00').split(':').map(Number));
-                const diff = dateB.getTime() - dateA.getTime();
-                return diff !== 0 ? diff : (Number(b?.id) || 0) - (Number(a?.id) || 0);
-            });
-
-            if (currentSessionUser && currentSessionUser.phone) {
-                if (typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
-                window.__rekapinyuSaveLocalRekap?.();
-            }
-            populateHistoryFilters();
-            renderHistory();
-            renderReport();
-            switchTab('history');
-            showModal('Import Berhasil', `${added} data baru dan ${updated} data diperbarui dari backup History JSON.`);
-        } catch (error) {
-            showModal('Import Gagal', error?.message || 'File backup JSON tidak dapat dibaca.', 'fa-solid fa-circle-xmark text-rose-600');
-        } finally {
-            const fileInput = document.getElementById('history-io-file');
-            if (fileInput) fileInput.value = '';
-        }
-    }
-
     function bindHistoryIo() {
         bindHistoryFilter();
-        const importButton = document.getElementById('history-io-import');
-        const fileInput = document.getElementById('history-io-file');
         const exportButton = document.getElementById('history-io-export');
-        if (importButton && fileInput && !importButton.dataset.finalHistoryIo) {
-            const replacement = importButton.cloneNode(true);
-            replacement.dataset.finalHistoryIo = '1';
-            importButton.replaceWith(replacement);
-            replacement.title = 'Import Backup History JSON';
-            replacement.setAttribute('aria-label', 'Import Backup History JSON');
-            replacement.addEventListener('click', () => fileInput.click());
-            fileInput.accept = '.json,application/json';
-            fileInput.onchange = () => {
-                importBackupJson(fileInput.files && fileInput.files[0]);
-            };
-        }
         if (exportButton && !exportButton.dataset.finalHistoryIo) {
             const replacement = exportButton.cloneNode(true);
             replacement.dataset.finalHistoryIo = '1';
-            replacement.__bound = true;
             exportButton.replaceWith(replacement);
             replacement.addEventListener('click', backupAllHistoryToExcel);
         }
