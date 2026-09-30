@@ -4572,28 +4572,69 @@ window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengel
 window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveHistoryCloud(),savePengeluaranCloud(),saveKasbonCloud(),saveBackupCloud(),saveKasirTransactionsCloud(window.__rekapinyuKasirTransactionsRealtime),saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
 window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolve();
 
+function firestoreProdukKasirId(name){
+  const source=String(name||'').trim().toLowerCase();
+  let hash=2166136261;
+  for(let i=0;i<source.length;i++){hash^=source.charCodeAt(i);hash=Math.imul(hash,16777619)}
+  return `pk_${(hash>>>0).toString(36)}`;
+}
+
+function firestoreProdukKasirPayload(products){
+  const source=Array.isArray(products)?products:[];
+  return source.map(raw=>{
+    const item=raw&&typeof raw==='object'?raw:{};
+    const name=String(item.name??item['Nama Produk']??'').trim();
+    const barcodes=Array.isArray(item.barcodes)?item.barcodes:(item.barcode?String(item.barcode).split(/[\n,;]+/).map(v=>v.trim()).filter(Boolean):[]);
+    const existingBarcodeStock=Math.max(0,Number(item.barcodeStock??item['Stok Barcode Aktif'])||0);
+    const barcodeStock=Math.max(0,barcodes.length||existingBarcodeStock);
+    const manualStock=Math.max(0,Number(item.manualStock??item['Stok Input Manual'])||0);
+    return {
+      'Nama Produk':name,
+      'kategori':String(item.category??item.kategori??'').trim(),
+      'Harga Hpp':Number(item.cost??item.grosir??item['Harga Hpp'])||0,
+      'Harga Jual':Number(item.price??item['Harga Jual'])||0,
+      'Stok Barcode Aktif':barcodeStock,
+      'Stok Input Manual':manualStock,
+      'Nama File Foto':String(item.photoFileName??item['Nama File Foto']??'').trim()
+    };
+  }).filter(item=>item['Nama Produk']);
+}
+
+function normalizeFirestoreProdukKasir(rows){
+  const source=Array.isArray(rows)?rows:[];
+  return source.map((raw,index)=>{
+    const item=raw&&typeof raw==='object'?raw:{};
+    const name=String(item['Nama Produk']??item.name??'').trim();
+    const barcodeStock=Math.max(0,Number(item['Stok Barcode Aktif']??item.barcodeStock??0)||0);
+    const manualStock=Math.max(0,Number(item['Stok Input Manual']??item.manualStock??0)||0);
+    const category=String(item.kategori??item.category??'').trim();
+    const photoFileName=String(item['Nama File Foto']??item.photoFileName??'').trim();
+    const id=firestoreProdukKasirId(name)||`pk_${index}`;
+    return {
+      id,
+      name,
+      category:CATEGORIES.includes(category)?category:'Lainnya',
+      barcodes:[],
+      barcode:'',
+      barcodeStock,
+      cost:Number(item['Harga Hpp']??item.cost??item.grosir)||0,
+      grosir:Number(item['Harga Hpp']??item.grosir??item.cost)||0,
+      price:Number(item['Harga Jual']??item.price)||0,
+      manualStock,
+      stock:barcodeStock+manualStock,
+      photoFileName,
+      photo:''
+    };
+  }).filter(item=>item.name);
+}
+
 async function saveProdukKasir(products){
   if(!firestoreDataHydrated)return Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)throw new Error("Sesi pengguna belum siap.");
   const source=Array.isArray(products)?products:[];
-  /* KHUSUS JALUR FOTO PRODUKKASIR:
-     Firestore hanya boleh menerima nama file foto pada photoFileName.
-     Isi foto, Blob, File, data URL, base64, object URL, maupun field photo
-     tidak boleh ikut masuk ke payload Firestore. */
-  const payload=source.map(raw=>{
-    const item={...raw};
-    const fileName=String(item.photoFileName||'').trim();
-    delete item.photo;
-    delete item.photoUrl;
-    delete item.photoURL;
-    delete item.photoBase64;
-    delete item.photoData;
-    delete item.photoBlob;
-    delete item.photoFile;
-    if(fileName)item.photoFileName=fileName;
-    else delete item.photoFileName;
-    return item;
-  });
+  /* JALUR FIRESTORE PRODUK KASIR BARU — HANYA TUJUH FIELD INI.
+     Format lama tidak pernah ditulis kembali ke Firestore. */
+  const payload=firestoreProdukKasirPayload(source);
   const r=await getKasirRef(uid,p);
   await enqueue(()=>setDoc(r,{ProdukKasir:payload,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));
   window.__rekapinyuProdukKasirData=source;
@@ -4601,8 +4642,12 @@ async function saveProdukKasir(products){
   return source;
 }
 window.__rekapinyuSaveProdukKasir=saveProdukKasir;
-window.__rekapinyuLoadProdukKasir=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return null;const r=await getKasirRef(uid,p),s=await getDoc(r),v=s.exists()?s.data()?.ProdukKasir:[];return Array.isArray(v)?v:[]};
-window.__rekapinyuSetProdukKasirData=v=>{if(!Array.isArray(v))return;const normalized=v.map(normalizeProduct);window.__rekapinyuProdukKasirData=normalized;window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.(normalized)}catch{} try{window.__initKasirViews?.()}catch{} };
+window.__rekapinyuLoadProdukKasir=async()=>{
+  const uid=cloudUid(),p=currentPhone();if(!uid||!p)return null;
+  const r=await getKasirRef(uid,p),s=await getDoc(r),v=s.exists()?s.data()?.ProdukKasir:[];
+  return Array.isArray(v)?normalizeFirestoreProdukKasir(v):[];
+};
+window.__rekapinyuSetProdukKasirData=v=>{if(!Array.isArray(v))return;const normalized=normalizeFirestoreProdukKasir(v);window.__rekapinyuProdukKasirData=normalized;window.__rekapinyuProdukKasirLoaded=true;try{window.__rekapinyuRefreshProdukKasir?.(normalized)}catch{} try{window.__initKasirViews?.()}catch{} };
 window.__rekapinyuStartProdukKasirRealtime=async()=>{const uid=cloudUid(),p=currentPhone();if(!uid||!p)return;if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}const r=await getKasirRef(uid,p);window.__rekapinyuProdukKasirUnsub=onSnapshot(r,s=>{if(!s.exists())return;const data=s.data()||{};if(!Object.prototype.hasOwnProperty.call(data,"ProdukKasir"))return;if(!Array.isArray(data.ProdukKasir))return;window.__rekapinyuSetProdukKasirData(data.ProdukKasir);try{window.__initKasirViews?.()}catch{}},e=>log("realtime ProdukKasir gagal",e));};
 window.__rekapinyuStopProdukKasirRealtime=()=>{if(window.__rekapinyuProdukKasirUnsub){window.__rekapinyuProdukKasirUnsub();window.__rekapinyuProdukKasirUnsub=null}};
 
@@ -4619,7 +4664,7 @@ async function hydrate(uid){
     window.__rekapinyuKasirTransactionsRealtime=arrayFromField(kd,"TransaksiKasir",[]);
     window.__rekapinyuLaporanKasirRealtime=arrayFromField(kd,"LaporanKasir",[]);
     window.__rekapinyuActivityData=arrayFromField(kd,"Aktifitas",[]);
-    window.__rekapinyuProdukKasirData=arrayFromField(kd,"ProdukKasir",[]);
+    window.__rekapinyuProdukKasirData=normalizeFirestoreProdukKasir(arrayFromField(kd,"ProdukKasir",[]));
     window.__rekapinyuProdukKasirLoaded=true;
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
     historyData=hasField(rd,"History")?arrayFromField(rd,"History",[]):arrayFromField(rd,"InputData",[]);
@@ -4700,7 +4745,7 @@ function realtime(uid){
       if(hasField(d,"TransaksiKasir"))window.__rekapinyuKasirTransactionsRealtime=arrayFromField(d,"TransaksiKasir",window.__rekapinyuKasirTransactionsRealtime);
       if(hasField(d,"LaporanKasir"))window.__rekapinyuLaporanKasirRealtime=arrayFromField(d,"LaporanKasir",window.__rekapinyuLaporanKasirRealtime);
       if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
-      if(hasField(d,"ProdukKasir"))window.__rekapinyuProdukKasirData=arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData);
+      if(hasField(d,"ProdukKasir"))window.__rekapinyuProdukKasirData=normalizeFirestoreProdukKasir(arrayFromField(d,"ProdukKasir",window.__rekapinyuProdukKasirData));
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
       window.__rekapinyuProdukKasirLoaded=true;window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);window.__rekapinyuSetProdukKasirData?.(window.__rekapinyuProdukKasirData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
