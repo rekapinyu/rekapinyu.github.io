@@ -4486,7 +4486,12 @@ const PHOTO_MAX_BYTES=102400;
 function upsertRegisteredLocalUser(user){
   const p=phoneOf(user?.phone);if(!p)return null;
   const rows=safe(localStorage.getItem("finance_registered_users"),[]),list=Array.isArray(rows)?rows:[],incoming={...(user||{}),phone:p};
-  const i=list.findIndex(x=>phoneOf(x?.phone)===p);if(i>=0)list[i]={...list[i],...incoming};else list.unshift(incoming);
+  delete incoming.photo;delete incoming.cover;delete incoming.coverX;delete incoming.coverY;
+  const i=list.findIndex(x=>phoneOf(x?.phone)===p);
+  if(i>=0){
+    list[i]={...list[i],...incoming};
+    delete list[i].photo;delete list[i].cover;delete list[i].coverX;delete list[i].coverY;
+  }else list.unshift(incoming);
   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));return list[i>=0?i:0];
 }
 const photoStore={
@@ -4503,7 +4508,7 @@ const photoStore={
     for(let pass=0;pass<18;pass++){const w=Math.max(320,Math.round(sw*scale)),h=Math.max(320,Math.round(sh*scale)),c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d",{alpha:false});if(!ctx)throw new Error("Browser tidak mendukung pemrosesan gambar.");ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(img,0,0,w,h);for(let q=.96;q>=.30;q-=.025){const d=c.toDataURL("image/jpeg",q);last=d;if(this.dataUrlBytes(d)<=maxBytes)return d}scale*=.90}
     if(last&&this.dataUrlBytes(last)<=maxBytes)return last;throw new Error("Gambar tidak dapat dikompres hingga 100 KB.");
   },
-  hydrate(p){if(!currentSessionUser)return;const profile=this.readProfile(p),cover=this.readCover(p);currentSessionUser.photo=profile;currentSessionUser.cover=cover?.src||"";currentSessionUser.coverX=Number(cover?.x)||50;currentSessionUser.coverY=Number(cover?.y)||50;nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);try{updateUserAvatarUI?.()}catch{}try{this.refreshCover()}catch{}},
+  hydrate(p){if(!currentSessionUser)return;const profile=this.readProfile(p),cover=this.readCover(p);Object.defineProperty(currentSessionUser,"photo",{value:profile,writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"cover",{value:cover?.src||"",writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"coverX",{value:Number(cover?.x)||50,writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"coverY",{value:Number(cover?.y)||50,writable:true,configurable:true,enumerable:false});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);try{updateUserAvatarUI?.()}catch{}try{this.refreshCover()}catch{}},
   async saveProfile(file){const p=phoneOf(currentSessionUser?.phone);if(!p)throw new Error("Sesi pengguna tidak ditemukan.");const data=await this.compress(file,PHOTO_MAX_BYTES,1800,1800);nativeSet.call(localStorage,this.profileKey(p),data);currentSessionUser.photo=data;nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);updateUserAvatarUI();return data;},
   async saveCover(file,x=50,y=50){const p=phoneOf(currentSessionUser?.phone);if(!p)throw new Error("Sesi pengguna tidak ditemukan.");const data=await this.compress(file,PHOTO_MAX_BYTES,2200,1400),clean={src:data,x:Math.max(0,Math.min(100,Number(x)||50)),y:Math.max(0,Math.min(100,Number(y)||50))};nativeSet.call(localStorage,this.coverKey(p),JSON.stringify(clean));currentSessionUser.cover=clean.src;currentSessionUser.coverX=clean.x;currentSessionUser.coverY=clean.y;nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);this.refreshCover();return clean;},
   coverUi:null,
@@ -4539,9 +4544,13 @@ function localSession(u){
   const p=phoneOf(u.phone),registered=safe(localStorage.getItem("finance_registered_users"),[]),old=Array.isArray(registered)?registered.find(x=>phoneOf(x?.phone)===p)||{}:{};
   const hasExplicitPhoto=Object.prototype.hasOwnProperty.call(u,"photo");
   const hasExplicitCover=Object.prototype.hasOwnProperty.call(u,"cover");
-  const localProfile=hasExplicitPhoto?String(u.photo||""):photoStore.readProfile(p)||old.photo||"";
-  const localCover=hasExplicitCover?(u.cover?{src:String(u.cover||""),x:Number(u.coverX)||50,y:Number(u.coverY)||50}:null):photoStore.readCover(p)||((old.cover)?{src:old.cover,x:old.coverX??50,y:old.coverY??50}:null);
-  currentSessionUser={uid:u.uid,name:u.name||old.name||"",phone:p,email:u.email||auth.currentUser?.email||old.email||"",password:u.password??old.password??"",role:u.role||old.role||"Pengguna",shopName:String(u.shopName??old.shopName??old.storeName??old.tokoName??"").trim(),photo:localProfile,cover:localCover?.src||"",coverX:Number(localCover?.x)||50,coverY:Number(localCover?.y)||50};
+  const localProfile=hasExplicitPhoto?String(u.photo||""):photoStore.readProfile(p)||"";
+  const localCover=hasExplicitCover?(u.cover?{src:String(u.cover||""),x:Number(u.coverX)||50,y:Number(u.coverY)||50}:null):photoStore.readCover(p)||null;
+  currentSessionUser={uid:u.uid,name:u.name||old.name||"",phone:p,email:u.email||auth.currentUser?.email||old.email||"",password:u.password??old.password??"",role:u.role||old.role||"Pengguna",shopName:String(u.shopName??old.shopName??old.storeName??old.tokoName??"").trim()};
+  Object.defineProperty(currentSessionUser,"photo",{value:localProfile,writable:true,configurable:true,enumerable:false});
+  Object.defineProperty(currentSessionUser,"cover",{value:localCover?.src||"",writable:true,configurable:true,enumerable:false});
+  Object.defineProperty(currentSessionUser,"coverX",{value:Number(localCover?.x)||50,writable:true,configurable:true,enumerable:false});
+  Object.defineProperty(currentSessionUser,"coverY",{value:Number(localCover?.y)||50,writable:true,configurable:true,enumerable:false});
   nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);
 }
 
