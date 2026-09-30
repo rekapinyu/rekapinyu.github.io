@@ -5848,10 +5848,15 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         target.cost=cost;
         target.grosir=cost;
         target.price=price;
+        /* Tambahan stok tidak pernah mengganti stok lama.
+           Stok nyata selalu dihitung ulang dari:
+           barcode aktif lama + barcode baru + stok manual lama + stok manual baru. */
+        const oldBarcodeStock=existingBars.length;
+        const oldManualStock=Math.max(0,Number(target.manualStock)||0);
         target.barcodes=[...existingBars,...newBars];
         target.barcode=target.barcodes[0]||'';
-        target.manualStock=Math.max(0,Number(target.manualStock)||0)+manualToAdd;
-        target.stock=Math.max(0,Number(target.manualStock)||0)+target.barcodes.length;
+        target.manualStock=oldManualStock+manualToAdd;
+        target.stock=oldBarcodeStock+newBars.length+oldManualStock+manualToAdd;
         oldPhotoName=String(same.photoFileName||'').trim();
       }else{
         const id=uid();
@@ -6093,6 +6098,10 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     updateFolderStatus();
     try{window.__initKasirViews?.()}catch(_){}
   };
+  document.addEventListener('rekapinyu-produk-stok-realtime-updated',e=>{
+    const value=e?.detail?.products;
+    if(Array.isArray(value))window.__rekapinyuRefreshProdukKasir(value);
+  });
   window.__initProdukKasir=function(){bind();load();};
 })();
 </script>
@@ -6506,6 +6515,9 @@ function initKasirViews(){
       if(produkSaved!==true)throw new Error('Folder target belum dipilih atau file JSON Produk Kasir tidak dapat diperbarui.');
       const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.();
       if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
+      /* JSON Produk Kasir sudah menjadi sumber stok. Beritahu kedua tampilan
+         secara langsung agar stok berubah realtime tanpa reload/pindah menu. */
+      try{document.dispatchEvent(new CustomEvent('rekapinyu-produk-stok-realtime-updated',{detail:{products:kasirProducts.map(p=>normalizeProduct(p))}}))}catch(_){}
     }catch(e){
       kasirTransactions.pop();
       window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
