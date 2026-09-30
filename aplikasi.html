@@ -4443,8 +4443,6 @@ function updateUserAvatarUI() {
       periode_selesai:'00:00',
       InputData:history,
       History:history,
-      LaporanBulanan:monthly,
-      BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
       Kasbon:Array.isArray(kasbonData)?kasbonData:[],
       Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[]
     };
@@ -7774,6 +7772,98 @@ function initKasirViews(){
       },250);
     }catch(e){}
   };
+})();
+</script>
+<script id="rekapinyu-history-json-final-fix">
+(function(){
+  'use strict';
+  const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const pad=n=>String(n).padStart(2,'0');
+  function operationalDate(d=new Date()){
+    const x=new Date(d);
+    if(x.getHours()<6)x.setDate(x.getDate()-1);
+    return x;
+  }
+  function info(d=new Date()){
+    const x=operationalDate(d);
+    return {day:DAYS[x.getDay()],date:x.getDate(),month:MONTHS[x.getMonth()],year:x.getFullYear()};
+  }
+  function backupName(i){return `BackupHistory_${i.day}_${i.date}_${i.month}_${i.year}.json`}
+  async function target(){
+    if(typeof window.__rekapinyuGetTargetDirectory!=='function')throw new Error('Folder target Produk Kasir belum tersedia.');
+    const dir=await window.__rekapinyuGetTargetDirectory();
+    if(!dir)throw new Error('Folder target Produk Kasir belum dipilih atau izin folder belum diberikan.');
+    return dir;
+  }
+  async function writeFile(name,data){
+    const dir=await target();
+    const fh=await dir.getFileHandle(name,{create:true});
+    const w=await fh.createWritable();
+    try{await w.write(JSON.stringify(data,null,2))}finally{await w.close()}
+  }
+  function backupPayload(){
+    const i=info();
+    return {BackupHistory_Hari:i.day,tanggal:i.date,bulan:i.month,Tahun:i.year,History:Array.isArray(historyData)?historyData:[]};
+  }
+  async function backupHistory(){
+    try{
+      const i=info();
+      await writeFile(backupName(i),backupPayload());
+      if(typeof showModal==='function')showModal('Backup Berhasil',`Seluruh data History berhasil dibackup ke ${backupName(i)}.`);
+    }catch(e){
+      if(typeof showModal==='function')showModal('Backup Gagal',e.message,'fa-solid fa-circle-xmark text-rose-600');
+    }
+  }
+  function normalizeImported(raw){
+    if(Array.isArray(raw))return raw;
+    if(Array.isArray(raw?.History))return raw.History;
+    if(Array.isArray(raw?.history))return raw.history;
+    if(Array.isArray(raw?.data))return raw.data;
+    throw new Error('File backup History tidak berisi data History yang valid.');
+  }
+  async function importHistory(file){
+    if(!file)return;
+    try{
+      const raw=JSON.parse(await file.text());
+      const imported=normalizeImported(raw);
+      const current=Array.isArray(historyData)?historyData:[];
+      const map=new Map(current.map(x=>[String(x?.id),x]));
+      let added=0,updated=0;
+      imported.forEach(item=>{
+        if(!item||typeof item!=='object')return;
+        const id=String(item.id??'');
+        if(!id)return;
+        if(map.has(id))updated++;else added++;
+        map.set(id,item);
+      });
+      historyData=[...map.values()].sort((a,b)=>(Number(b?.id)||0)-(Number(a?.id)||0));
+      window.__rekapinyuDataLaporanBulanan=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(historyData):[];
+      await window.__rekapinyuSaveLocalRekap?.();
+      populateHistoryFilters?.();renderHistory?.();renderReport?.();populateBackupFilters?.();renderBackupGrid?.();renderMobileAdminSummary?.();
+      if(typeof showModal==='function')showModal('Import Berhasil',`${added} data baru dan ${updated} data diperbarui dari backup History.`);
+    }catch(e){
+      if(typeof showModal==='function')showModal('Import Gagal',e.message,'fa-solid fa-circle-xmark text-rose-600');
+    }
+  }
+  function bind(){
+    const ex=document.getElementById('history-io-export');
+    const im=document.getElementById('history-io-import');
+    const fi=document.getElementById('history-io-file');
+    if(ex&&!ex.dataset.historyJsonFinal){
+      const b=ex.cloneNode(true);b.dataset.historyJsonFinal='1';b.title='Backup Semua History ke JSON';b.setAttribute('aria-label','Backup Semua History ke JSON');b.innerHTML='<i class="fa-solid fa-database"></i>';ex.replaceWith(b);b.addEventListener('click',backupHistory);
+    }
+    if(im&&!im.dataset.historyJsonFinal){
+      const b=im.cloneNode(true);b.dataset.historyJsonFinal='1';b.title='Import Backup History JSON';b.setAttribute('aria-label','Import Backup History JSON');im.replaceWith(b);b.addEventListener('click',()=>fi?.click());
+    }
+    if(fi&&!fi.dataset.historyJsonFinal){
+      fi.dataset.historyJsonFinal='1';fi.accept='.json,application/json';fi.addEventListener('change',()=>{const f=fi.files?.[0];importHistory(f).finally(()=>{fi.value=''})});
+    }
+  }
+  window.__rekapinyuBackupHistoryJson=backupHistory;
+  window.__rekapinyuImportHistoryJson=importHistory;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+  setTimeout(bind,500);
 })();
 </script>
 </body>
