@@ -2596,7 +2596,7 @@ bind();
                 }
                 if (b.customName) b.historyName = b.customName;
             });
-            window.__rekapinyuSaveBackupCloud?.();
+            window.__rekapinyuSaveLocalRekap?.();
         }
 /* REKAPINYU DASHBOARD SESSION — satu implementasi baru */
 function renderDashboardSession(){
@@ -3104,7 +3104,7 @@ function updateUserAvatarUI() {
 
             historyData = JSON.parse(JSON.stringify(backup.historySnapshot));
             if (currentSessionUser && currentSessionUser.phone) {
-                window.__rekapinyuSaveHistoryCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
 
             showModal("Pemulihan Berhasil", `Data history pada tanggal ${backup.date} ${backup.month} ${backup.year} berhasil dipulihkan secara utuh!`);
@@ -3265,8 +3265,8 @@ function updateUserAvatarUI() {
             historyData = historyData.filter(d => d.id !== id);
             if (currentSessionUser && currentSessionUser.phone) {
                 triggerDailyAutoBackup();
-                window.__rekapinyuSaveHistoryCloud?.();
-                window.__rekapinyuSaveBackupCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
             populateHistoryFilters();
             renderHistory();
@@ -3276,8 +3276,8 @@ function updateUserAvatarUI() {
         function saveAndRefreshHistory() {
             if (currentSessionUser && currentSessionUser.phone) {
                 triggerDailyAutoBackup();
-                window.__rekapinyuSaveHistoryCloud?.();
-                window.__rekapinyuSaveBackupCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
             renderHistory();
         }
@@ -3305,7 +3305,7 @@ function updateUserAvatarUI() {
 
             pengeluaranData.unshift(newItem);
             if (currentSessionUser && currentSessionUser.phone) {
-                window.__rekapinyuSavePengeluaranCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
 
             document.getElementById('pengeluaran-form').reset();
@@ -3358,7 +3358,7 @@ function updateUserAvatarUI() {
             }
 
             if (currentSessionUser && currentSessionUser.phone) {
-                window.__rekapinyuSaveKasbonCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
 
             document.getElementById('kasbon-form').reset();
@@ -3373,7 +3373,7 @@ function updateUserAvatarUI() {
             if(item) {
                 item.isLunas = !item.isLunas;
                 if (currentSessionUser && currentSessionUser.phone) {
-                    window.__rekapinyuSaveKasbonCloud?.();
+                    window.__rekapinyuSaveLocalRekap?.();
                 }
                 renderKasbonGrid();
             }
@@ -3402,7 +3402,7 @@ function updateUserAvatarUI() {
 
                 item.namaPelanggan = newName;
                 if (currentSessionUser && currentSessionUser.phone) {
-                    window.__rekapinyuSaveKasbonCloud?.();
+                    window.__rekapinyuSaveLocalRekap?.();
                 }
                 closeEditModal();
                 renderKasbonGrid();
@@ -3632,8 +3632,8 @@ function updateUserAvatarUI() {
             historyData.unshift(newEntry);
             if (currentSessionUser && currentSessionUser.phone) {
                 triggerDailyAutoBackup(newEntry.id);
-                window.__rekapinyuSaveHistoryCloud?.();
-                window.__rekapinyuSaveBackupCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
 
             document.getElementById('finance-form').reset();
@@ -4414,6 +4414,100 @@ function updateUserAvatarUI() {
   window.__rekapinyuEnsureXLSX=ensureXLSX;
 })();
 </script>
+<!-- REKAPINYU: PENYIMPANAN LOKAL REKAP HARIAN — SATU FILE JSON, SATU JALUR -->
+<script id="rekapinyu-local-rekap-json">
+(function(){
+  'use strict';
+  const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  let writeChain=Promise.resolve();
+  let loaded=false;
+  function pad(n){return String(n).padStart(2,'0')}
+  function periodInfo(date=new Date()){
+    const d=new Date(date);
+    /* Hari operasional dimulai 06:00. Jam 00:00-05:59 tetap membaca file hari sebelumnya. */
+    if(d.getHours()<6)d.setDate(d.getDate()-1);
+    return {day:DAYS[d.getDay()],date:d.getDate(),monthIndex:d.getMonth(),month:MONTHS[d.getMonth()],year:d.getFullYear(),dateKey:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+  }
+  function fileName(info){return `Rekap_Hari_${info.day}_${info.date}_${info.month}_${info.year}.json`}
+  function payload(info){
+    const history=Array.isArray(historyData)?historyData:[];
+    const monthly=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(history):[];
+    window.__rekapinyuDataLaporanBulanan=monthly;
+    return {
+      Rekap_Hari:info.day,
+      tanggal:info.date,
+      bulan:info.month,
+      Tahun:info.year,
+      periode_mulai:'06:00',
+      periode_selesai:'00:00',
+      InputData:history,
+      History:history,
+      LaporanBulanan:monthly,
+      BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],
+      Kasbon:Array.isArray(kasbonData)?kasbonData:[],
+      Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[]
+    };
+  }
+  async function getDir(){
+    if(typeof window.__rekapinyuGetTargetDirectory!=='function')return null;
+    return await window.__rekapinyuGetTargetDirectory();
+  }
+  async function readFile(handle){
+    const file=await handle.getFile();
+    const raw=await file.text();
+    const data=JSON.parse(raw);
+    if(!data||typeof data!=='object')throw new Error('Format JSON Rekapinyu tidak valid.');
+    return data;
+  }
+  async function load(){
+    const dir=await getDir();
+    if(!dir)return false;
+    const info=periodInfo(new Date());
+    let data=null;
+    try{
+      const fh=await dir.getFileHandle(fileName(info),{create:false});
+      data=await readFile(fh);
+    }catch(_){
+      /* Belum ada file hari ini: mulai dengan state kosong, lalu file dibuat saat ada perubahan. */
+      data=null;
+    }
+    if(data){
+      historyData=Array.isArray(data.History)?data.History:(Array.isArray(data.InputData)?data.InputData:[]);
+      pengeluaranData=Array.isArray(data.Pengeluaran)?data.Pengeluaran:[];
+      kasbonData=Array.isArray(data.Kasbon)?data.Kasbon:[];
+      backupOtomatisData=Array.isArray(data.BackupOtomatis)?data.BackupOtomatis:[];
+      window.__rekapinyuDataLaporanBulanan=Array.isArray(data.LaporanBulanan)?data.LaporanBulanan:(typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(historyData):[]);
+    }else{
+      historyData=[];pengeluaranData=[];kasbonData=[];backupOtomatisData=[];
+      window.__rekapinyuDataLaporanBulanan=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan([]):[];
+    }
+    loaded=true;
+    try{populateHistoryFilters?.();renderHistory?.();renderReport?.();populatePengeluaranFilters?.();renderPengeluaranGrid?.();renderKasbonGrid?.();populateBackupFilters?.();renderBackupGrid?.();renderMobileAdminSummary?.()}catch(_){ }
+    return true;
+  }
+  async function save(){
+    writeChain=writeChain.then(async()=>{
+      const dir=await getDir();
+      if(!dir)throw new Error('Folder target Produk Kasir belum dipilih atau izinnya belum tersedia.');
+      const now=new Date();
+      /* Di luar 06:00-00:00 jangan membuat file baru. Perubahan setelah 00:00-05:59
+         tetap memperbarui file hari operasional sebelumnya. */
+      const info=periodInfo(now);
+      const fh=await dir.getFileHandle(fileName(info),{create:true});
+      const writer=await fh.createWritable();
+      try{await writer.write(JSON.stringify(payload(info),null,2))}finally{await writer.close()}
+      return true;
+    }).catch(err=>{console.warn('Rekapinyu: penyimpanan JSON harian gagal.',err);return false});
+    return writeChain;
+  }
+  window.__rekapinyuLoadLocalRekap=load;
+  window.__rekapinyuSaveLocalRekap=save;
+  window.__rekapinyuLocalRekapLoaded=()=>loaded;
+  /* Coba muat otomatis setelah semua script dan sesi siap. */
+  setTimeout(()=>{try{if(window.__rekapinyuDashboardSession?.read?.())load().catch(()=>{})}catch(_){ }},0);
+})();
+</script>
 <!-- REKAPINYU: FIREBASE — SATU IMPLEMENTASI FINAL SCHEMA KASIR / PENGGUNA / REKAP -->
 <script type="module" id="rekapinyu-firebase-final-schema">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
@@ -4585,15 +4679,15 @@ async function writeBaseSchema(uid,p,name){
   return {pengguna:pr,kasir:kr,rekap:rr};
 }
 
-async function saveHistoryCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const data=Array.isArray(historyData)?historyData:[],monthly=buildLaporanBulanan(data);window.__rekapinyuDataLaporanBulanan=monthly;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{History:data,InputData:data,LaporanBulanan:monthly,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function savePengeluaranCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Pengeluaran:Array.isArray(pengeluaranData)?pengeluaranData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveKasbonCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{Kasbon:Array.isArray(kasbonData)?kasbonData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-async function saveBackupCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getRekapRef(uid,p);return enqueue(()=>setDoc(r,{BackupOtomatis:Array.isArray(backupOtomatisData)?backupOtomatisData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveHistoryCloud(){return window.__rekapinyuSaveLocalRekap?.();}
+async function savePengeluaranCloud(){return window.__rekapinyuSaveLocalRekap?.();}
+async function saveKasbonCloud(){return window.__rekapinyuSaveLocalRekap?.();}
+async function saveBackupCloud(){return window.__rekapinyuSaveLocalRekap?.();}
 
 async function saveActivityCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 async function saveSettingCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const s=normalizeSetting(window.__rekapinyuSettingData);window.__rekapinyuSettingData=s;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Seting:s,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengeluaranCloud=savePengeluaranCloud;window.__rekapinyuSaveKasbonCloud=saveKasbonCloud;window.__rekapinyuSaveBackupCloud=saveBackupCloud;window.__rekapinyuSaveActivityCloud=saveActivityCloud;window.__rekapinyuSaveSettingCloud=saveSettingCloud;
-window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveHistoryCloud(),savePengeluaranCloud(),saveKasbonCloud(),saveBackupCloud(),saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
+window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
 window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolve();
 
 async function hydrate(uid){
@@ -4608,11 +4702,8 @@ async function hydrate(uid){
   try{
     window.__rekapinyuActivityData=arrayFromField(kd,"Aktifitas",[]);
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
-    historyData=hasField(rd,"History")?arrayFromField(rd,"History",[]):arrayFromField(rd,"InputData",[]);
-    pengeluaranData=arrayFromField(rd,"Pengeluaran",[]);
-    kasbonData=arrayFromField(rd,"Kasbon",[]);
-    backupOtomatisData=arrayFromField(rd,"BackupOtomatis",[]);
-    window.__rekapinyuDataLaporanBulanan=Array.isArray(rd.LaporanBulanan)?rd.LaporanBulanan:buildLaporanBulanan(historyData);
+    /* DATA OPERASIONAL 6 MENU TIDAK LAGI DIHYDRATE DARI FIRESTORE.
+       Sumber tunggalnya adalah satu JSON harian di folder target Produk Kasir. */
     window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
   }finally{applyingFirestoreRealtime=false}
   /* Semua data utama sudah dibaca dari Firestore. Mulai sekarang barulah
@@ -4622,6 +4713,7 @@ async function hydrate(uid){
      Jangan menulis ulang state lokal ke Firestore setelah data dibaca,
      karena state lokal bisa masih kosong dan menimpa data yang sudah tersimpan. */
   photoStore.hydrate(p);loadUserData();
+  try{await window.__rekapinyuLoadLocalRekap?.()}catch(e){console.warn("Rekapinyu: JSON harian tidak dapat dimuat otomatis.",e)}
   try{window.__rekapinyuReloadSettingsUI?.()}catch{}
   try{updateUserAvatarUI?.()}catch{}
   try{redraw()}catch{}
@@ -4673,7 +4765,7 @@ const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("lo
 }};
 const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="register-form")return;e.preventDefault();e.stopImmediatePropagation();rekapinyuAuth.submit(e.target)};document.addEventListener("submit",authSubmitGuard,true);window.__rekapinyuAuthController=rekapinyuAuth;
 
-window.handleLogout=async()=>{try{await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();renderDashboardSession();toggleAuthView("login")}};
+window.handleLogout=async()=>{try{await window.__rekapinyuSaveLocalRekap?.();await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();renderDashboardSession();toggleAuthView("login")}};
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
 function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
@@ -4698,8 +4790,8 @@ function realtime(uid){
         const processed=String(d.ScannerLastProcessedId||"");
         const scanId=String(scan.id||"");
         const barcode=String(scan.barcode||"").trim();
-        if(scanId&&barcode&&scanId!==processed&&typeof window.__rekapinyuReceiveScannerBarcode==='function'){
-          window.__rekapinyuReceiveScannerBarcode(barcode);
+        if(scanId&&barcode&&scanId!==processed&&typeof addScannedKasirBarcode==='function'){
+          addScannedKasirBarcode(barcode);
           window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
             ScannerLastProcessedId:scanId,
             ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
@@ -4710,13 +4802,10 @@ function realtime(uid){
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
     listen(rr,d=>{
+      /* Rekap Firestore tidak lagi menjadi sumber untuk Input Data, History,
+         Laporan Bulanan, Backup Otomatis, Kasbon, atau Pengeluaran. */
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim()&&!currentSessionUser.shopName)currentSessionUser.shopName=String(d.NamaToko).trim();
-      if(hasField(d,"History"))historyData=arrayFromField(d,"History",historyData);else if(hasField(d,"InputData"))historyData=arrayFromField(d,"InputData",historyData);
-      if(hasField(d,"Pengeluaran"))pengeluaranData=arrayFromField(d,"Pengeluaran",pengeluaranData);
-      if(hasField(d,"Kasbon"))kasbonData=arrayFromField(d,"Kasbon",kasbonData);
-      if(hasField(d,"BackupOtomatis"))backupOtomatisData=arrayFromField(d,"BackupOtomatis",backupOtomatisData);
-      if(hasField(d,"LaporanBulanan"))window.__rekapinyuDataLaporanBulanan=arrayFromField(d,"LaporanBulanan",window.__rekapinyuDataLaporanBulanan);else window.__rekapinyuDataLaporanBulanan=buildLaporanBulanan(historyData);
-    },"Rekap");
+    },"Rekap-Metadata-Only");
     listen(pr,d=>{if(!currentSessionUser)return;currentSessionUser.name=String(d.NamaPengguna||currentSessionUser.name||"");currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);currentSessionUser.role=d.role||currentSessionUser.role||"Pengguna";nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()},"Pengguna");
   }).catch(e=>log("realtime setup gagal",e));
 }
@@ -4726,7 +4815,7 @@ const landingHandoffPromise=consumeLandingLogin();
 
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
 
-onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
+onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
 
 (function(){function redrawOnFocus(){try{redraw?.()}catch{}}window.addEventListener("focus",redrawOnFocus);window.addEventListener("pageshow",redrawOnFocus);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")redrawOnFocus()})})();
 </script>
@@ -4736,7 +4825,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 (function () {
 
   function persistBackupData() {
-    window.__rekapinyuSaveBackupCloud?.();
+    window.__rekapinyuSaveLocalRekap?.();
   }
   function closeBackupSettings() {
     document.querySelectorAll('.backup-settings-popup').forEach(m => m.classList.add('hidden'));
@@ -5123,8 +5212,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
             });
             if (currentSessionUser && currentSessionUser.phone) {
                 if (typeof triggerDailyAutoBackup === 'function') triggerDailyAutoBackup();
-                window.__rekapinyuSaveHistoryCloud?.();
-                window.__rekapinyuSaveBackupCloud?.();
+                window.__rekapinyuSaveLocalRekap?.();
+                window.__rekapinyuSaveLocalRekap?.();
             }
             populateHistoryFilters();
             renderHistory();
@@ -5402,6 +5491,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     try{await idbSetFolderName(String(picked.name||''))}catch(_){}
     updateFolderStatus();
     try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){}
+    try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){}
     return picked;
   }
 
@@ -5680,6 +5770,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
   window.__rekapinyuSyncProdukKasirJson=syncProdukKasirJson;
   window.__rekapinyuDeleteProdukKasirJson=deleteProdukKasirJson;
+  window.__rekapinyuGetTargetDirectory=getPhotoDirectoryQuiet;
 
   async function scanMissingPhotos(){
     /* Hanya membaca ulang folder target. Tidak menghapus/mengubah data ProdukKasir. */
@@ -7215,12 +7306,6 @@ function initKasirViews(){
     if(p){consumeKasirProductForScan(p,value);resetKasirSearchAndSelectCart(p.id);input.value='';return}
     openKasirUnknownBarcodePopup(value);
   }
-
-  // Satu-satunya jembatan Scanner HP -> keranjang Kasir.
-  // Produk tetap dicari dari kasirProducts yang berasal dari folder komputer.
-  window.__rekapinyuReceiveScannerBarcode=function(code){
-    addScannedKasirBarcode(code);
-  };
   function openKasirBarcodeScannerModal(){
     const old=document.getElementById('kasir-barcode-scanner');if(old)old.remove();
     const modal=document.createElement('div');
