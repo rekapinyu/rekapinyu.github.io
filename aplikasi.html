@@ -5695,13 +5695,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function load(){
-    if(window.__rekapinyuProdukKasirLoaded){
-      products=read().map(normalizeProduct);
-      render();
-      await updateFolderStatus();
-      await refreshRenderedPhotos();
-      return;
-    }
+    /* ProdukKasir selalu dibaca dari Firestore sebagai sumber data utama.
+       State memori hanya diperbarui setelah hasil Firestore berhasil diterima. */
     if(typeof window.__rekapinyuLoadProdukKasir==='function'){
       try{
         const cloud=await window.__rekapinyuLoadProdukKasir();
@@ -5709,10 +5704,17 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
           products=cloud.map(normalizeProduct);
           window.__rekapinyuProdukKasirData=products;
           window.__rekapinyuProdukKasirLoaded=true;
+          render();
+          await updateFolderStatus();
+          await refreshRenderedPhotos();
+          return;
         }
       }catch(e){console.warn('Rekapinyu: ProdukKasir cloud belum dapat dimuat.',e)}
     }
-    if(!products.length)products=read().map(normalizeProduct);
+    /* Jangan mengganti data Firestore dengan state lokal ketika pembacaan cloud gagal. */
+    products=Array.isArray(window.__rekapinyuProdukKasirData)
+      ? window.__rekapinyuProdukKasirData.map(normalizeProduct)
+      : [];
     render();
     await updateFolderStatus();
     await refreshRenderedPhotos();
