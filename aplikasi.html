@@ -5386,7 +5386,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     try{await idbSet(picked)}catch(_){}
     try{await idbSetFolderName(String(picked.name||''))}catch(_){}
     updateFolderStatus();
-    await autoMatchProductPhotos();
     return picked;
   }
 
@@ -5539,67 +5538,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
   }
 
-  function photoStem(fileName){
-    const name=String(fileName||'').trim();
-    const dot=name.lastIndexOf('.');
-    return (dot>0?name.slice(0,dot):name).trim();
-  }
-
-  function isPhotoFileName(fileName){
-    return /\.(?:jpe?g|png|webp|gif|bmp|avif)$/i.test(String(fileName||'').trim());
-  }
-
-  async function autoMatchProductPhotos(){
-    const dir=await getPhotoDirectoryQuiet();
-    if(!dir||!products.length)return false;
-
-    const files=new Map();
-    try{
-      for await(const entry of dir.values()){
-        if(entry?.kind!=='file'||!isPhotoFileName(entry.name))continue;
-        const stem=norm(photoStem(entry.name));
-        if(!stem||files.has(stem))continue;
-        files.set(stem,entry.name);
-      }
-    }catch(e){
-      console.warn('Rekapinyu: folder foto tidak dapat dipindai.',e);
-      return false;
-    }
-
-    let changed=false;
-    products=products.map(p=>{
-      const current=String(p?.photoFileName||'').trim();
-      const currentStem=norm(photoStem(current));
-      const productName=norm(p?.name);
-      if(!productName)return p;
-
-      /* Jika referensi foto lama masih ada, pertahankan. Jika tidak,
-         cari file foto yang nama file-nya sama dengan nama produk. */
-      if(current){
-        let exists=false;
-        try{exists=files.has(currentStem)&&norm(files.get(currentStem))===norm(current)}catch(_){}
-        if(exists)return p;
-      }
-
-      const matched=files.get(productName);
-      if(!matched)return p;
-      if(current===matched)return p;
-      changed=true;
-      return {...p,photoFileName:matched,photo:''};
-    });
-
-    if(!changed)return false;
-
-    window.__rekapinyuProdukKasirData=products;
-    try{
-      await window.__rekapinyuSaveProdukKasir?.(products);
-    }catch(e){
-      console.warn('Rekapinyu: hasil pencocokan foto belum tersimpan ke server.',e);
-    }
-    render();
-    return true;
-  }
-
   async function persistMissingPhotoCleanup(missingIds){
     const ids=new Set(missingIds.map(String));
     if(!ids.size)return;
@@ -5660,10 +5598,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
   function startPhotoWatch(){
     if(photoScanTimer)clearInterval(photoScanTimer);
-    photoScanTimer=setInterval(async()=>{
-      try{await autoMatchProductPhotos()}catch(_){}
-      try{await scanMissingPhotos()}catch(_){}
-    },4000);
+    photoScanTimer=setInterval(()=>{scanMissingPhotos().catch(()=>{})},4000);
   }
 
   async function saveProductsCloud(){
@@ -5689,7 +5624,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       products=read().map(normalizeProduct);
       render();
       await updateFolderStatus();
-      await autoMatchProductPhotos();
       await refreshRenderedPhotos();
       return;
     }
@@ -5706,7 +5640,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!products.length)products=read().map(normalizeProduct);
     render();
     await updateFolderStatus();
-    await autoMatchProductPhotos();
     await refreshRenderedPhotos();
   }
 
@@ -5967,203 +5900,40 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
   }
 
-  async function backupProducts(){
-    const latest=read();
-    products=latest.map(normalizeProduct);
-    if(!products.length){
-      if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');
-      return;
-    }
+  function backupProducts(){
+    const latest=read();products=latest.map(normalizeProduct);
+    if(!products.length){if(typeof showModal==='function')showModal('Backup Gagal','Belum ada produk untuk dibackup.');return}
     try{
-      const dir=await requirePhotoDirectory();
-
-      /* FORMAT BACKUP = isi field Firestore ProdukKasir.
-         Foto binary/base64/URL tidak pernah dimasukkan ke JSON. */
-      const payload=products.map(raw=>{
-        const item={...normalizeProduct(raw)};
-        /* Barcode aktif WAJIB ikut backup. Simpan daftar barcode lengkap
-           beserta barcode utama, manualStock, dan stock aktif. */
-        item.barcodes=Array.isArray(item.barcodes)
-          ? [...item.barcodes]
-          : (item.barcode?[String(item.barcode)]:[]);
-        item.barcode=item.barcodes[0]||'';
-        item.manualStock=Math.max(0,Number(item.manualStock)||0);
-        item.stock=Math.max(0,item.manualStock+item.barcodes.length);
-        delete item.photo;
-        return item;
-      });
-      const backup={
-        ProdukKasir:payload
-      };
-
-      const date=new Date();
-      const stamp=[
-        date.getFullYear(),
-        String(date.getMonth()+1).padStart(2,'0'),
-        String(date.getDate()).padStart(2,'0'),
-        String(date.getHours()).padStart(2,'0'),
-        String(date.getMinutes()).padStart(2,'0'),
-        String(date.getSeconds()).padStart(2,'0')
-      ].join('');
-      const fileName=`Backup_ProdukKasir_${stamp}.json`;
-
-      const fh=await dir.getFileHandle(fileName,{create:true});
-      const writable=await fh.createWritable();
-      try{
-        await writable.write(JSON.stringify(backup,null,2));
-      }finally{
-        await writable.close();
-      }
-
-      if(typeof showModal==='function'){
-        showModal('Backup Berhasil',`${products.length} produk berhasil dibackup ke folder "${dir.name}".`);
-      }
-    }catch(err){
-      if(typeof showModal==='function'){
-        showModal('Backup Gagal',err?.message||'Gagal menyimpan file backup JSON ke folder Produk Kasir.');
-      }
-    }
+      const backup={format:'Rekapinyu Produk Kasir',version:3,exportedAt:new Date().toISOString(),products:products.map(p=>{const x={...p};delete x.photo;return x})};
+      const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Backup_Produk_Kasir_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup.`)
+    }catch(err){if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup.')}
   }
 
-  async function importProducts(){
-    try{
-      const dir=await requirePhotoDirectory();
-
-      /* Import diarahkan langsung ke folder yang sudah terkoneksi
-         di Menu Produk Kasir. */
-      let file=null;
-      if('showOpenFilePicker' in window){
-        const handles=await window.showOpenFilePicker({
-          multiple:false,
-          types:[{
-            description:'Backup Produk Kasir (JSON)',
-            accept:{'application/json':['.json']}
-          }],
-          excludeAcceptAllOption:true,
-          startIn:dir
-        });
-        if(!handles?.length)return;
-        file=await handles[0].getFile();
-      }else{
-        /* Fallback browser lama: input JSON tetap dipakai. */
-        const input=$('pk3-import-file');
-        if(!input)throw new Error('Pemilih file JSON tidak tersedia di browser ini.');
-        input.value='';
-        input.accept='.json,application/json';
-        input.click();
-        return;
-      }
-
-      const rawText=await file.text();
-      const parsed=JSON.parse(rawText);
-
-      /* Backup baru wajib memakai bentuk yang sama dengan field
-         Firestore: { ProdukKasir: [ ... ] }. Array langsung tetap
-         diterima agar backup lama tidak rusak. */
-      const source=Array.isArray(parsed)
-        ? parsed
-        : (Array.isArray(parsed?.ProdukKasir)?parsed.ProdukKasir:null);
-
-      if(!Array.isArray(source)||!source.length){
-        throw new Error('File JSON tidak berisi field ProdukKasir yang valid.');
-      }
-
-      const imported=source
-        .map((p,i)=>normalizeProduct({
-          ...p,
-          id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8)),
-          /* Pertahankan seluruh barcode aktif dari backup. Jika backup
-             hanya memiliki field barcode tunggal, normalizeProduct akan
-             mengubahnya menjadi daftar barcode. */
-          barcodes:Array.isArray(p?.barcodes)
-            ? p.barcodes
-            : (p?.barcode?[String(p.barcode)]:[]),
-          barcode:Array.isArray(p?.barcodes)
-            ? (p.barcodes[0]||'')
-            : String(p?.barcode||''),
-          photo:''
-        }))
-        .filter(p=>p.name&&p.price>0);
-
-      if(!imported.length){
-        throw new Error('Tidak ada data produk yang valid pada field ProdukKasir.');
-      }
-
-      /* Gabungkan berdasarkan ID/nama. Produk lama tidak dihapus. */
-      const base=products.map(normalizeProduct);
-      const merged=[...base];
-
-      imported.forEach(item=>{
-        const index=merged.findIndex(existing=>
-          String(existing.id)===String(item.id) ||
-          (norm(existing.name)&&norm(existing.name)===norm(item.name))
-        );
-
-        if(index>=0){
-          const old=merged[index];
-          merged[index]=normalizeProduct({
-            ...old,
-            ...item,
-            /* Foto hanya berasal dari folder lokal. Jangan membawa
-               data binary/base64/URL foto dari file JSON ke Firestore. */
-            photo:'',
-            photoFileName:String(
-              item.photoFileName||old.photoFileName||''
-            ).trim()
-          });
-        }else{
-          merged.push(normalizeProduct({
-            ...item,
-            photo:'',
-            photoFileName:String(item.photoFileName||'').trim()
-          }));
-        }
-      });
-
-      products=merged.map(normalizeProduct);
-      window.__rekapinyuProdukKasirData=products;
-      window.__rekapinyuProdukKasirLoaded=true;
-
-      /* Cocokkan nama produk dengan foto yang sudah berada di folder
-         terkoneksi. Yang disimpan ke Firestore hanya nama file (teks),
-         bukan file fotonya. */
-      try{await autoMatchProductPhotos()}catch(e){
-        console.warn('Rekapinyu: pencocokan foto folder gagal.',e);
-      }
-
-      /* Simpan hanya field teks/data produk ke Firestore ProdukKasir.
-         saveProdukKasir() memang menghapus field photo sebelum setDoc. */
-      await write();
-
-      /* Ambil ulang dari Firestore supaya state aplikasi benar-benar
-         mengikuti data yang sudah tersimpan di server. */
+  function importProducts(file){
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async()=>{
       try{
-        const saved=await window.__rekapinyuLoadProdukKasir?.();
-        if(Array.isArray(saved)){
-          products=saved.map(normalizeProduct);
-          window.__rekapinyuProdukKasirData=products;
-          window.__rekapinyuProdukKasirLoaded=true;
-        }
-      }catch(e){
-        console.warn('Rekapinyu: verifikasi ProdukKasir setelah import gagal.',e);
+        const parsed=JSON.parse(String(reader.result||''));
+        const source=Array.isArray(parsed)?parsed:parsed?.products;
+        if(!Array.isArray(source)||!source.length)throw new Error('File backup tidak berisi daftar produk yang valid.');
+        const imported=source.map((p,i)=>normalizeProduct({...p,id:String(p?.id||Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,8))})).filter(p=>p.name&&p.price>0);
+        if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
+        products=imported;
+        await write();
+        render();
+        try{window.__initKasirViews?.()}catch(_){}
+        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`)
+      }catch(err){
+        if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.')
+      }finally{
+        if($('pk3-import-file'))$('pk3-import-file').value=''
       }
-
-      render();
-      await updateFolderStatus();
-      await refreshRenderedPhotos();
-      try{window.__initKasirViews?.()}catch(_){}
-
-      if(typeof showModal==='function'){
-        showModal('Import Berhasil',`${imported.length} produk berhasil diimport dan disimpan ke Firestore.`);
-      }
-    }catch(err){
-      if(err?.name==='AbortError')return;
-      if(typeof showModal==='function'){
-        showModal('Import Gagal',err?.message||'File JSON tidak dapat diimport.');
-      }
-    }finally{
-      if($('pk3-import-file'))$('pk3-import-file').value='';
-    }
+    };
+    reader.onerror=()=>{if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');if($('pk3-import-file'))$('pk3-import-file').value=''};
+    reader.readAsText(file);
   }
 
   function bind(){
@@ -6230,7 +6000,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
     $('pk3-edit-form')?.addEventListener('submit',saveEdit);
     $('pk3-backup')?.addEventListener('click',backupProducts);
-    $('pk3-import')?.addEventListener('click',()=>importProducts());
+    $('pk3-import')?.addEventListener('click',()=>$('pk3-import-file')?.click());
+    $('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()});
     updateFolderStatus();
     startPhotoWatch();
