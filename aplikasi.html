@@ -7706,7 +7706,7 @@ function initKasirViews(){
       const selected=kasirCart[kasirCartSelectedIndex];
       if(selected){
         e.preventDefault();
-        if(e.key==='ArrowRight'){if(selected.stockSource==='barcode')return;const product=kasirProducts.find(p=>String(p.id)===String(selected.id));const stock=Math.max(0,Number(product?.stock)||0);if(product&&selected.qty<stock)selected.qty++;}
+        if(e.key==='ArrowRight'){if(selected.stockSource==='barcode')return;const product=kasirProducts.find(p=>String(p.id)===String(selected.id));const manualStock=Math.max(0,Number(product?.manualStock)||0);const currentManual=Math.max(0,Number(selected.qty)||0);if(product&&currentManual<manualStock)selected.qty=currentManual+1;}
         else{selected.qty--;trimKasirUsedBarcodes(selected);if(selected.qty<=0){kasirCart.splice(kasirCartSelectedIndex,1);kasirCartSelectedIndex=Math.min(kasirCartSelectedIndex,kasirCart.length-1);}syncKasirActiveTransactionTab();renderKasirProducts()}
         renderCart();
         requestAnimationFrame(updateKasirCartSelection);
