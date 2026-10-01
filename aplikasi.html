@@ -4183,6 +4183,13 @@ function updateUserAvatarUI() {
 #history-io-export{
   background:#fff;
   color:#0d235a;
+  order:1;
+}
+#history-io-import{
+  background:#eff6ff;
+  color:#2563eb;
+  border-color:#bfdbfe;
+  order:2;
 }
 #history-filter-popup{
   position:fixed;
@@ -4275,6 +4282,8 @@ function updateUserAvatarUI() {
 <div aria-label="Filter, Import dan Backup History" id="history-io-floating">
 <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
 <button aria-label="Backup Semua History ke Excel" id="history-io-export" title="Backup Semua History ke Excel" type="button"><i class="fa-solid fa-database"></i></button>
+<button aria-label="Import History dari Backup Excel" id="history-io-import" title="Import History dari Backup Excel" type="button"><i class="fa-solid fa-file-import"></i></button>
+<input accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden id="history-io-import-file" type="file">
 </div>
 <div aria-hidden="true" id="history-filter-popup">
 <div class="history-filter-title">
@@ -4998,6 +5007,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 <!-- PATCH FINAL: filter Kasbon dan Import/Export History berbentuk tombol bulat. -->
 <style>
     #history-io-export { order: 1 !important; }
+    #history-io-import { order: 2 !important; }
     #history-io-floating.history-io-visible { display: flex !important; }
     #history-io-floating.history-io-hidden { display: none !important; }
     #rekapinyu-kasbon-filter-wrap {
@@ -5183,6 +5193,81 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         }).catch(error => showModal('Export Gagal', error.message, 'fa-solid fa-circle-xmark text-rose-600'));
     }
 
+    async function importHistoryBackupFromExcel(file) {
+        if (!file) return;
+        try {
+            const XLSX = await loadXlsx();
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames && workbook.SheetNames[0];
+            if (!sheetName) throw new Error('File backup Excel tidak memiliki sheet data.');
+
+            const worksheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+            if (!rows.length) throw new Error('File backup Excel tidak berisi data History.');
+
+            const imported = rows.map((row, index) => {
+                const date = parseImportedDate(rowValue(row, ['Tanggal', 'Date']));
+                if (Number.isNaN(date.getTime())) return null;
+
+                const income = parseExcelNumber(rowValue(row, ['Pendapatan']));
+                const expense = parseExcelNumber(rowValue(row, ['Total Belanja', 'Belanja']));
+                const cashout = parseExcelNumber(rowValue(row, ['Pengeluaran']));
+                const rawPct = rowValue(row, ['Profit (%)', 'Profit Persen', 'Profit 10%']);
+                const profitPercentage = rawPct === '' || rawPct == null ? 10 : parseExcelNumber(rawPct);
+                const rawId = rowValue(row, ['ID']);
+                const parsedId = Number(rawId);
+                const id = rawId !== '' && Number.isFinite(parsedId) ? parsedId : Date.now() + index;
+                const time = String(rowValue(row, ['Waktu', 'Time']) || '00:00').trim();
+                const item = {
+                    id,
+                    day: dayNames[date.getDay()],
+                    date: date.getDate(),
+                    monthIndex: date.getMonth(),
+                    month: monthNames[date.getMonth()],
+                    year: date.getFullYear(),
+                    time,
+                    income,
+                    expense,
+                    cashout,
+                    profitPercentage,
+                    profit: Math.max((income - cashout) * (profitPercentage / 100), 0)
+                };
+
+                const exportedDay = String(rowValue(row, ['Hari']) || '').trim();
+                if (exportedDay) item.day = exportedDay;
+                return item;
+            }).filter(item => item && (item.income || item.expense || item.cashout || item.profitPercentage));
+
+            if (!imported.length) throw new Error('Tidak ada data History yang valid pada file backup.');
+
+            const merged = new Map();
+            (Array.isArray(historyData) ? historyData : []).forEach(item => {
+                const key = String(item?.id ?? '').trim() || JSON.stringify(item);
+                merged.set(key, item);
+            });
+            imported.forEach(item => {
+                const key = String(item.id ?? '').trim() || JSON.stringify(item);
+                merged.set(key, item);
+            });
+
+            historyData = Array.from(merged.values()).sort(sortNewest);
+            syncBackupFromHistory();
+
+            if (typeof window.__rekapinyuSaveLocalRekap === 'function') {
+                const saved = await window.__rekapinyuSaveLocalRekap();
+                if (saved === false) throw new Error('Data berhasil dibaca tetapi gagal disimpan ke folder target Produk Kasir.');
+            }
+
+            populateHistoryFilters();
+            renderHistory();
+            renderBackupGrid();
+            showModal('Import Berhasil', `${imported.length} data History dari backup Excel berhasil diimport.`);
+        } catch (error) {
+            showModal('Import Gagal', error?.message || 'File backup Excel tidak dapat diimport.', 'fa-solid fa-circle-xmark text-rose-600');
+        }
+    }
+
     function bindHistoryIo() {
         bindHistoryFilter();
         const exportButton = document.getElementById('history-io-export');
@@ -5191,6 +5276,20 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
             replacement.dataset.finalHistoryIo = '1';
             exportButton.replaceWith(replacement);
             replacement.addEventListener('click', backupAllHistoryToExcel);
+        }
+
+        const importButton = document.getElementById('history-io-import');
+        const importFile = document.getElementById('history-io-import-file');
+        if (importButton && importFile && !importButton.dataset.finalHistoryImport) {
+            importButton.dataset.finalHistoryImport = '1';
+            importButton.addEventListener('click', () => {
+                importFile.value = '';
+                importFile.click();
+            });
+            importFile.addEventListener('change', event => {
+                const file = event.target.files && event.target.files[0];
+                if (file) importHistoryBackupFromExcel(file);
+            });
         }
     }
 
