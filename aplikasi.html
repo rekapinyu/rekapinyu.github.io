@@ -4444,6 +4444,31 @@ function updateUserAvatarUI() {
     return files;
   }
 
+  /*
+     HISTORY juga membaca file hasil BackupHistory JSON yang berada di
+     folder target Produk Kasir. Pembacaan bersifat rekursif agar backup
+     yang berada di subfolder target ikut terbaca.
+  */
+  async function listBackupHistoryFiles(dir){
+    const files=[];
+    async function walk(currentDir,pathPrefix=''){
+      try{
+        for await(const [entryName,entry] of currentDir.entries()){
+          const entryPath=pathPrefix?`${pathPrefix}/${entryName}`:String(entryName);
+          if(entry?.kind==='directory'){
+            await walk(entry,entryPath);
+            continue;
+          }
+          if(entry?.kind!=='file')continue;
+          if(!/^BackupHistory_.*\.json$/i.test(String(entryName)))continue;
+          files.push({name:String(entryName),path:entryPath,handle:entry});
+        }
+      }catch(_){}
+    }
+    await walk(dir);
+    return files;
+  }
+
   function fileInfoFromData(data,name){
     const y=Number(data?.Tahun);
     const d=Number(data?.Tanggal);
@@ -4469,6 +4494,7 @@ function updateUserAvatarUI() {
        baru dibuat/diubah di luar aplikasi juga langsung terbaca saat menu History dibuka.
     */
     const files=await listRekapFiles(dir);
+    const backupHistoryFiles=await listBackupHistoryFiles(dir);
     const historyMap=new Map();
     const expenseMap=new Map();
     const kasbonMap=new Map();
@@ -4495,6 +4521,21 @@ function updateUserAvatarUI() {
         normalizeLoadedArray(data.Kasbon).forEach(item=>addUnique(kasbonMap,item));
       }catch(err){
         console.warn('Rekapinyu: file Rekap_Hari dilewati karena JSON tidak valid.',entry.name,err);
+      }
+    }
+
+    /*
+       Tambahkan History dari file BackupHistory JSON.
+       File backup hanya menjadi sumber pembacaan History; tidak mengubah
+       struktur file Rekap_Hari yang digunakan untuk penyimpanan utama.
+    */
+    for(const entry of backupHistoryFiles){
+      try{
+        const data=await readJsonHandle(entry.handle);
+        const backupItems=normalizeLoadedArray(data?.history ?? data?.History ?? data?.data ?? data);
+        backupItems.forEach(item=>addUnique(historyMap,item));
+      }catch(err){
+        console.warn('Rekapinyu: file BackupHistory dilewati karena JSON tidak valid.',entry.name,err);
       }
     }
 
