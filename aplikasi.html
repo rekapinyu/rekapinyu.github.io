@@ -6550,10 +6550,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const value=e?.detail?.products;
     if(Array.isArray(value))window.__rekapinyuRefreshProdukKasir(value);
   });
-  window.__rekapinyuLoadProdukKasirFolder=async function(){
-    await load();
-    return Array.isArray(products)?products:[];
-  };
   window.__initProdukKasir=function(){bind();load();};
 })();
 </script>
@@ -6611,27 +6607,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function loadKasirStore(){
-    /* Hanya sumber produk Kasir yang diperbaiki:
-       Kasir membaca produk dari loader Menu Produk Kasir yang sama. */
-    try{
-      if(typeof window.__rekapinyuLoadProdukKasirFolder==='function'){
-        const source=await window.__rekapinyuLoadProdukKasirFolder();
-        if(Array.isArray(source)){
-          kasirProducts=source.map(p=>{
-            const barcodes=productBarcodes(p);
-            const manualStock=Math.max(0,Number(p.manualStock)||0);
-            return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
-          });
-          window.__rekapinyuProdukKasirData=kasirProducts;
-          kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
-          return kasirProducts;
-        }
-      }
-    }catch(e){
-      console.warn('Rekapinyu: data Produk Kasir belum dapat dibaca.',e);
-    }
-
-    /* Fallback lama dipertahankan jika loader Produk Kasir belum siap. */
+    /* KASIR PRODUCT SOURCE — satu implementasi baru.
+       Menu Kasir hanya MEMBACA JSON produk yang sudah ada di Data/Produk.
+       Tidak membuat folder/file dan tidak memakai fallback data lama untuk daftar produk. */
     const dir=await window.__rekapinyuGetDataSubdirectory?.('Produk');
     if(!dir){
       kasirProducts=[];
@@ -6671,7 +6649,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
             normalized.barcode=normalized.barcodes[0]||'';
             loaded.push(normalized);
           }
-        }catch(_){}
+        }catch(_){/* file JSON lain di folder diabaikan */}
       }
     }
     await walk(dir);
@@ -6689,7 +6667,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
     return kasirProducts;
   }
-
   function saveKasirStore(){
     window.__rekapinyuProdukKasirData=kasirProducts;
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
@@ -7254,15 +7231,13 @@ async function initKasirViews(){
     return `${date}, ${time}`;
   }
   function buildKasirEscPosReceipt(){
-    const printState=window.__kasirBluetoothPrintState||{};
-    const cart=Array.isArray(printState.cart)?printState.cart:kasirCart;
-    const total=cart.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
-    const discount=Math.min(total,Math.max(0,Number(printState.discount)||Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0));
-    const paid=Math.max(0,Number(printState.paid)||Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0);
+    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
+    const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
+    const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0;
     const finalTotal=Math.max(0,total-discount);
     const change=Math.max(0,paid-finalTotal);
     const info=getKasirReceiptStoreInfo();
-    const invoiceId=printState.invoiceId||window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+    const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
     const printerSettings=getKasirPrinterSettings();
     const receiptWidth=Number(printerSettings.paperWidth)||32;
     const clean=v=>String(v??'').replace(/[^\x20-\x7E\n]/g,'');
@@ -7278,46 +7253,38 @@ async function initKasirViews(){
     out+=`ID Struk : ${invoiceId}\n`;
     out+=`${getKasirReceiptDate()}\n`;
     out+=separator;
-    cart.forEach(x=>{
-      const itemName=String(x.name||x.nama||x.productName||'Produk');
-      const itemQty=Number(x.qty)||0;
-      const itemPrice=Number(x.price)||0;
-      out+=clean(itemName).slice(0,receiptWidth)+'\n';
-      out+=line(String(itemQty)+' x '+rupiah(itemPrice),rupiah(itemQty*itemPrice),receiptWidth)+'\n';
+    kasirCart.forEach(x=>{
+      out+=clean(x.name).slice(0,receiptWidth)+'\n';
+      out+=line(`${x.qty} x ${rupiah(x.price)}`,rupiah(x.qty*x.price),32)+'\n';
     });
     out+=separator;
-    out+=line('Total',rupiah(finalTotal),receiptWidth)+'\n';
-    out+=line('Uang Diterima',rupiah(paid),receiptWidth)+'\n';
-    out+=line('Diskon',rupiah(discount),receiptWidth)+'\n';
-    out+=line('Kembalian',rupiah(change),receiptWidth)+'\n';
+    out+=line('Total',rupiah(finalTotal),32)+'\n';
+    out+=line('Uang Diterima',rupiah(paid),32)+'\n';
+    out+=line('Diskon',rupiah(discount),32)+'\n';
+    out+=line('Kembalian',rupiah(change),32)+'\n';
     out+=separator;
     out+=clean(info.footer||'Keterangan')+'\n';
     out+='\n\n';
     return new TextEncoder().encode(out+'\x1D\x56\x00');
   }
 
-  async function printKasirReceiptBluetooth(printState){
+  async function printKasirReceiptBluetooth(){
     const characteristic=kasirBluetooth.characteristic;
     if(!kasirBluetooth.device?.gatt?.connected||!characteristic){
       throw new Error('Printer Bluetooth belum siap untuk mencetak.');
     }
-    if(printState)window.__kasirBluetoothPrintState=printState;
     const printerSettings=getKasirPrinterSettings();
     const copies=Math.min(5,Math.max(1,Number(printerSettings.copyCount)||1));
     const chunkSize=180;
-    try{
-      for(let copy=0;copy<copies;copy++){
-        const data=buildKasirEscPosReceipt();
-        for(let i=0;i<data.length;i+=chunkSize){
-          const chunk=data.slice(i,i+chunkSize);
-          if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(chunk);
-          else if(characteristic.writeValue)await characteristic.writeValue(chunk);
-          else throw new Error('Karakteristik printer tidak mendukung penulisan data.');
-          await new Promise(resolve=>setTimeout(resolve,25));
-        }
+    for(let copy=0;copy<copies;copy++){
+      const data=buildKasirEscPosReceipt();
+      for(let i=0;i<data.length;i+=chunkSize){
+        const chunk=data.slice(i,i+chunkSize);
+        if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(chunk);
+        else if(characteristic.writeValue)await characteristic.writeValue(chunk);
+        else throw new Error('Karakteristik printer tidak mendukung penulisan data.');
+        await new Promise(resolve=>setTimeout(resolve,25));
       }
-    }finally{
-      window.__kasirBluetoothPrintState=null;
     }
   }
 
@@ -7431,43 +7398,27 @@ async function initKasirViews(){
       showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
       return;
     }
-
-    /* Cetak kembali memakai printer Bluetooth ESC/POS 58mm yang sudah tersambung.
-       Tidak membuka window.print()/popup browser. Transaksi tetap disimpan dahulu. */
+    // Transaksi disimpan terlebih dahulu agar keberhasilan transaksi tidak bergantung pada printer Bluetooth.
     commitKasirReceiptInvoiceId();
-
-    /* Snapshot sebelum penyimpanan karena saveKasirTransaction mengosongkan cart setelah berhasil. */
-    const printState={
-      cart:JSON.parse(JSON.stringify(kasirCart.map(x=>({
-        id:x.id,
-        name:String(x.name||x.nama||x.productName||'Produk'),
-        qty:Number(x.qty)||0,
-        price:Number(x.price)||0
-      }))),
-      paid:Number(String(paid).replace(/[^0-9]/g,''))||0,
-      discount:Number(String(discount).replace(/[^0-9]/g,''))||0,
-      invoiceId:window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId()
-    };
-
     const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
-
-    try{
-      if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
-        updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-        showModal('Gagal','Printer Bluetooth belum tersambung. Hubungkan printer Bluetooth 58mm lalu coba Cetak dan Simpan lagi.','fa-solid fa-bluetooth-b text-rose-600');
-        return;
-      }
-      await printKasirReceiptBluetooth(printState);
-    }catch(err){
-      showModal('Gagal','Transaksi sudah tersimpan, tetapi struk gagal dicetak melalui printer Bluetooth. Periksa koneksi printer 58mm lalu coba cetak lagi.','fa-solid fa-print text-rose-600');
-      return;
-    }
-
     window.__kasirCurrentInvoiceId=null;
     closeKasirPaymentPopup();
-    try{window.__renderLaporanKasir?.()}catch(e){}
-    showModal('Berhasil Dicetak','Struk berhasil dicetak oleh printer Bluetooth 58mm secara realtime.','fa-brands fa-bluetooth-b text-emerald-600');
+
+    // Setelah transaksi tersimpan ke Laporan Kasir/localStorage/Firestore, cetak dilakukan sebagai proses terpisah.
+    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
+      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
+      showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir. Printer Bluetooth belum tersambung sehingga struk belum dicetak.','fa-solid fa-circle-check text-emerald-600');
+      return;
+    }
+    renderKasirReceiptPreview();
+    try{
+      await printKasirReceiptBluetooth();
+      showModal('Berhasil','Transaksi berhasil disimpan, masuk ke Laporan Kasir, dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
+    }catch(err){
+      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
+      showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak.','fa-solid fa-circle-check text-emerald-600');
+    }
   }
 
   function focusKasirSearch(){
@@ -8032,17 +7983,7 @@ async function initKasirViews(){
       else window.__rekapinyuResolveProdukKasirPhoto(x.photoFileName).then(apply).catch(()=>{});
     });
   }
-  async function renderLaporanKasir(){
-    const g=document.getElementById('laporan-kasir-grid');if(!g)return;
-    try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){}
-    try{
-      const folderTx=await loadKasirTransactionsFromFolder();
-      if(Array.isArray(folderTx)){
-        kasirTransactions=folderTx;
-        window.__rekapinyuKasirTransactionsRealtime=folderTx;
-      }
-    }catch(_){}
-    const tx=laporanKasirData().sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);const profit=tx.reduce((a,t)=>a+laporanKasirProfit(t),0);g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${tx.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${tx.length} transaksi</span></div><div class="laporan-kasir-history-list">${tx.length?tx.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).length} produk · ${laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>'}</div></div>`;ensurePreviewModal()}
+  function renderLaporanKasir(){const g=document.getElementById('laporan-kasir-grid');if(!g)return;const tx=laporanKasirData().sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);const profit=tx.reduce((a,t)=>a+laporanKasirProfit(t),0);g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${tx.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${tx.length} transaksi</span></div><div class="laporan-kasir-history-list">${tx.length?tx.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).length} produk · ${laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>'}</div></div>`;ensurePreviewModal()}
   document.addEventListener('click',e=>{const b=e.target.closest('[data-laporan-view]');if(b){e.preventDefault();openPreview(b.dataset.laporanView)}});window.__renderLaporanKasir=renderLaporanKasir;document.addEventListener('DOMContentLoaded',renderLaporanKasir);
 })();
 </script>
