@@ -7294,6 +7294,28 @@ async function initKasirViews(){
     if(e.target.closest('#kasir-refresh-btn')){e.preventDefault();connectKasirBluetoothPrinter();return}
   });
 
+  async function renderKasirPaymentItemPhotos(){
+    const itemList=document.getElementById('kasir-payment-items-list');
+    if(!itemList||typeof window.__rekapinyuResolveProdukKasirPhoto!=='function')return;
+    kasirCart.forEach((x,i)=>{
+      const target=itemList.querySelector(`[data-kasir-payment-photo="${i}"]`);
+      if(!target)return;
+      const cached=window.__rekapinyuGetProdukKasirPhotoUrl?.(x.photoFileName);
+      const apply=url=>{
+        if(!url)return;
+        const current=itemList.querySelector(`[data-kasir-payment-photo="${i}"]`);
+        if(!current)return;
+        current.innerHTML='';
+        const img=document.createElement('img');
+        img.src=url;
+        img.alt=x.name||'';
+        current.appendChild(img);
+      };
+      if(cached)apply(cached);
+      else window.__rekapinyuResolveProdukKasirPhoto(x.photoFileName).then(apply).catch(()=>{});
+    });
+  }
+
   function renderKasirReceiptPreview(){
     const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
     const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
@@ -7305,7 +7327,8 @@ async function initKasirViews(){
     const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
     const itemList=document.getElementById('kasir-payment-items-list');
     if(itemList){
-      itemList.innerHTML=kasirCart.map(x=>`<div class="kasir-payment-item"><div class="kasir-payment-item-photo">${x.photo?`<img src="${esc(x.photo)}" alt="${esc(x.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="kasir-payment-item-name">${esc(x.name)}</div><div class="kasir-payment-item-qty">${x.qty} Item</div></div>`).join('');
+      itemList.innerHTML=kasirCart.map((x,i)=>`<div class="kasir-payment-item"><div class="kasir-payment-item-photo" data-kasir-payment-photo="${i}">${x.photo?`<img src="${esc(x.photo)}" alt="${esc(x.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="kasir-payment-item-name">${esc(x.name)}</div><div class="kasir-payment-item-qty">${x.qty} Item</div></div>`).join('');
+      renderKasirPaymentItemPhotos();
     }
     preview.innerHTML=`<div class="kasir-receipt-header"><strong>${esc(info.name).toUpperCase()}</strong><br><span>${esc(info.address).toLowerCase()}</span><br><span>${esc(info.phone).toLowerCase()}</span></div>
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
