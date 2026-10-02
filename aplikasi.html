@@ -1592,8 +1592,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 (function(){
   try{
     const raw=localStorage.getItem("finance_active_session");
-    if(!raw) window.location.replace("RekapinyuLogin.html");
-  }catch(_){ window.location.replace("RekapinyuLogin.html"); }
+    if(!raw) window.location.replace("https://rekapinyu.github.io/login");
+  }catch(_){ window.location.replace("https://rekapinyu.github.io/login"); }
 })();
 </script>
 </head>
@@ -4861,7 +4861,7 @@ const landingHandoffPromise=consumeLandingLogin();
 
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
 
-onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;currentSessionUser=null;try{nativeRemove.call(localStorage,"finance_active_session")}catch{}window.location.replace("RekapinyuLogin.html");return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
+onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;currentSessionUser=null;try{nativeRemove.call(localStorage,"finance_active_session")}catch{}window.location.replace("https://rekapinyu.github.io/login");return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
 
 (function(){function redrawOnFocus(){try{redraw?.()}catch{}}window.addEventListener("focus",redrawOnFocus);window.addEventListener("pageshow",redrawOnFocus);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")redrawOnFocus()})})();
 </script>
