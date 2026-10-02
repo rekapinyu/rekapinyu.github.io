@@ -7016,6 +7016,7 @@ async function initKasirViews(){
       if(produkSaved!==true)throw new Error('Folder target belum dipilih atau file JSON Produk Kasir tidak dapat diperbarui.');
       const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.();
       if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
+      try{document.dispatchEvent(new CustomEvent('rekapinyu-kasir-transaction-saved',{detail:{transaction}}))}catch(_){}
       /* JSON Produk Kasir sudah menjadi sumber stok. Beritahu kedua tampilan
          secara langsung agar stok berubah realtime tanpa reload/pindah menu. */
       try{document.dispatchEvent(new CustomEvent('rekapinyu-produk-stok-realtime-updated',{detail:{products:kasirProducts.map(p=>normalizeProduct(p))}}))}catch(_){}
@@ -7460,7 +7461,42 @@ async function initKasirViews(){
     showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir.','fa-solid fa-circle-check text-emerald-600');
   }
 
+  function ensureKasirPrintLoading(){
+    let modal=document.getElementById('kasir-print-loading');
+    if(modal)return modal;
+    if(!document.getElementById('kasir-print-loading-css')){
+      const style=document.createElement('style');
+      style.id='kasir-print-loading-css';
+      style.textContent=`#kasir-print-loading{position:fixed;inset:0;z-index:100001;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.38)}
+#kasir-print-loading.is-open{display:flex}
+#kasir-print-loading .kasir-print-loading-card{width:min(270px,88vw);background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 18px 50px rgba(15,23,42,.25);padding:18px 16px;text-align:center}
+#kasir-print-loading .kasir-print-spinner{width:34px;height:34px;margin:0 auto 10px;border:3px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:kasirPrintSpin .8s linear infinite}
+#kasir-print-loading strong{display:block;color:#0f172a;font-size:12px;font-weight:900}
+#kasir-print-loading span{display:block;margin-top:4px;color:#64748b;font-size:9px;line-height:1.45}
+@keyframes kasirPrintSpin{to{transform:rotate(360deg)}}`;
+      document.head.appendChild(style);
+    }
+    modal=document.createElement('div');
+    modal.id='kasir-print-loading';
+    modal.setAttribute('aria-hidden','true');
+    modal.innerHTML='<div class="kasir-print-loading-card" role="status" aria-live="polite"><div class="kasir-print-spinner"></div><strong>Mohon tunggu sebentar</strong><span>Sedang mencetak...</span></div>';
+    document.body.appendChild(modal);
+    return modal;
+  }
+  function showKasirPrintLoading(){
+    const modal=ensureKasirPrintLoading();
+    modal?.classList.add('is-open');
+    modal?.setAttribute('aria-hidden','false');
+  }
+  function hideKasirPrintLoading(){
+    const modal=document.getElementById('kasir-print-loading');
+    modal?.classList.remove('is-open');
+    modal?.setAttribute('aria-hidden','true');
+  }
+
+  let kasirSavePrintBusy=false;
   async function saveAndPrintKasirPayment(){
+    if(kasirSavePrintBusy)return;
     if(!kasirCart.length)return;
 
     const paid=document.getElementById('kasir-popup-paid')?.value||'';
@@ -7472,33 +7508,38 @@ async function initKasirViews(){
       return;
     }
 
-    commitKasirReceiptInvoiceId();
-
-    /* WAJIB diambil sebelum saveKasirTransaction(), karena fungsi penyimpanan
-       mengosongkan kasirCart setelah transaksi berhasil. */
-    const printState={
-      cart:JSON.parse(JSON.stringify(kasirCart.map(item=>({
-        name:String(item?.name||item?.nama||item?.productName||'Produk'),
-        qty:Number(item?.qty)||0,
-        price:Number(item?.price)||0
-      })))),
-      paid:calc.paid,
-      discount:calc.discount,
-      invoiceId:String(window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId())
-    };
-
-    /* Simpan data transaksi terlebih dahulu. */
-    const saved=await saveKasirTransaction({paid,discount});
-    if(!saved)return;
-
-    window.__kasirPrintState=printState;
-    renderKasirReceiptPreview(printState);
+    showKasirPrintLoading();
+    kasirSavePrintBusy=true;
+    const printButton=document.getElementById('kasir-save-print-btn');
+    const oldDisabled=!!printButton?.disabled;
+    if(printButton)printButton.disabled=true;
 
     try{
+      commitKasirReceiptInvoiceId();
+
+      /* Snapshot wajib dibuat sebelum saveKasirTransaction()
+         karena fungsi tersebut mengosongkan kasirCart setelah sukses. */
+      const printState={
+        cart:JSON.parse(JSON.stringify(kasirCart.map(item=>({
+          name:String(item?.name||item?.nama||item?.productName||'Produk'),
+          qty:Number(item?.qty)||0,
+          price:Number(item?.price)||0
+        })))),
+        paid:calc.paid,
+        discount:calc.discount,
+        invoiceId:String(window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId())
+      };
+
+      const saved=await saveKasirTransaction({paid,discount});
+      if(!saved)return;
+
+      window.__kasirPrintState=printState;
+      renderKasirReceiptPreview(printState);
+
       if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
         updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-        closeKasirPaymentPopup();
         window.__kasirCurrentInvoiceId=null;
+        closeKasirPaymentPopup();
         showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir. Printer Bluetooth belum tersambung sehingga struk belum dicetak.','fa-solid fa-circle-check text-emerald-600');
         window.__kasirPrintState=null;
         return;
@@ -7516,8 +7557,33 @@ async function initKasirViews(){
       closeKasirPaymentPopup();
       showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak melalui printer Bluetooth.','fa-solid fa-circle-check text-emerald-600');
       window.__kasirPrintState=null;
+    }finally{
+      hideKasirPrintLoading();
+      kasirSavePrintBusy=false;
+      if(printButton)printButton.disabled=oldDisabled;
     }
   }
+
+  /*
+   * Keyboard khusus tombol pembayaran:
+   * - Enter pada "Simpan dan Cetak" menjalankan cetak.
+   * - Enter pada "Simpan" sengaja diblokir; Simpan tetap klik mouse/cursor.
+   * Tidak mengubah Enter pada field nominal maupun field lain.
+   */
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    const target=e.target;
+    if(target?.id==='kasir-save-print-btn'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      saveAndPrintKasirPayment();
+      return;
+    }
+    if(target?.id==='kasir-save-btn-popup'){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  });
 
   function focusKasirSearch(){
     const input=document.getElementById('kasir-search');
@@ -7986,156 +8052,297 @@ async function initKasirViews(){
 
 
 
-<style id="laporan-kasir-single-css">
+<style id="laporan-kasir-final-css">
 #view-laporan-kasir{width:100%;min-height:100%;padding:14px;box-sizing:border-box;overflow:auto;background:#f7f9fc}
-#view-laporan-kasir .rk6-report-card{width:100%;max-width:1100px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-sizing:border-box}
-#view-laporan-kasir .rk6-report-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-#view-laporan-kasir .rk6-report-head h3{margin:0;color:#0f172a;font-size:16px;font-weight:900}
-#view-laporan-kasir .rk6-report-head p{margin:3px 0 0;color:#64748b;font-size:10px;line-height:1.45}
-#view-laporan-kasir .rk6-report-refresh{border:1px solid #dbe2ea;background:#fff;color:#334155;height:34px;padding:0 11px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:10px;font-weight:800;cursor:pointer}
-#view-laporan-kasir .rk6-report-refresh.is-loading i{animation:rk6spin .8s linear infinite}@keyframes rk6spin{to{transform:rotate(360deg)}}
-#view-laporan-kasir .rk6-report-status{margin:0 0 10px;padding:8px 10px;border-radius:9px;background:#f8fafc;color:#64748b;font-size:9px;font-weight:700}
-#view-laporan-kasir .rk6-report-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
-#view-laporan-kasir .rk6-report-summary>div{border:1px solid #e2e8f0;border-radius:11px;background:#fff;padding:10px;min-width:0}
-#view-laporan-kasir .rk6-report-summary span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
-#view-laporan-kasir .rk6-report-summary strong{display:block;margin-top:4px;color:#0f172a;font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#view-laporan-kasir .rk6-report-list{display:grid;gap:7px;max-height:68vh;overflow:auto}
-#view-laporan-kasir .rk6-report-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:10px 11px;border:1px solid #edf2f7;border-radius:10px;background:#f8fafc}
-#view-laporan-kasir .rk6-report-main{min-width:0}
-#view-laporan-kasir .rk6-report-date{display:block;color:#334155;font-size:10px;font-weight:850;line-height:1.4}
-#view-laporan-kasir .rk6-report-sub{display:block;margin-top:2px;color:#64748b;font-size:8.5px;line-height:1.4;overflow-wrap:anywhere}
-#view-laporan-kasir .rk6-report-total{color:#0f172a;font-size:11px;font-weight:900;white-space:nowrap}
-#view-laporan-kasir .rk6-report-view{width:30px;height:30px;border:0;border-radius:8px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
-#view-laporan-kasir .rk6-report-empty{padding:30px 15px;text-align:center;color:#94a3b8;font-size:10px;line-height:1.5}
-#rk6-report-detail{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62)}
-#rk6-report-detail.is-open{display:flex}
-#rk6-report-detail .rk6-detail-dialog{width:min(620px,96vw);max-height:88vh;overflow:hidden;background:#fff;border-radius:16px;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(15,23,42,.28)}
-#rk6-report-detail .rk6-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #e2e8f0}
-#rk6-report-detail .rk6-detail-head strong{color:#0f172a;font-size:13px;font-weight:900}
-#rk6-report-detail .rk6-detail-close{width:32px;height:32px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer}
-#rk6-report-detail .rk6-detail-body{padding:14px;overflow:auto}
-#rk6-report-detail .rk6-detail-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
-#rk6-report-detail .rk6-detail-meta>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:9px;padding:8px}
-#rk6-report-detail .rk6-detail-meta span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
-#rk6-report-detail .rk6-detail-meta strong{display:block;margin-top:3px;color:#0f172a;font-size:10px;font-weight:900;overflow-wrap:anywhere}
-#rk6-report-detail .rk6-detail-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:8px 0;border-bottom:1px dashed #e2e8f0}
-#rk6-report-detail .rk6-detail-item-name{color:#334155;font-size:10px;font-weight:800;min-width:0}
-#rk6-report-detail .rk6-detail-item-sub{display:block;margin-top:2px;color:#64748b;font-size:8.5px}
-#rk6-report-detail .rk6-detail-item-total{color:#0f172a;font-size:10px;font-weight:900;white-space:nowrap}
-#rk6-report-detail .rk6-detail-total{margin-top:9px;border-top:1px solid #e2e8f0;padding-top:8px;display:grid;gap:4px}
-#rk6-report-detail .rk6-detail-total-row{display:flex;justify-content:space-between;gap:10px;color:#475569;font-size:9px}
-#rk6-report-detail .rk6-detail-total-row.grand{color:#0f172a;font-size:11px;font-weight:900}
-@media(max-width:600px){#view-laporan-kasir{padding:8px}#view-laporan-kasir .rk6-report-head{align-items:flex-start}#view-laporan-kasir .rk6-report-refresh span{display:none}#view-laporan-kasir .rk6-report-summary{grid-template-columns:1fr}#view-laporan-kasir .rk6-report-row{grid-template-columns:minmax(0,1fr) auto}#view-laporan-kasir .rk6-report-total{grid-column:2;grid-row:1 / span 2}#view-laporan-kasir .rk6-report-view{grid-column:1;justify-self:start}}
+#view-laporan-kasir .rk7-report-card{width:100%;max-width:1100px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-sizing:border-box}
+#view-laporan-kasir .rk7-report-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+#view-laporan-kasir .rk7-report-head h3{margin:0;color:#0f172a;font-size:16px;font-weight:900}
+#view-laporan-kasir .rk7-report-head p{margin:3px 0 0;color:#64748b;font-size:10px;line-height:1.45}
+#view-laporan-kasir .rk7-report-refresh{border:1px solid #dbe2ea;background:#fff;color:#334155;height:34px;padding:0 11px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:10px;font-weight:800;cursor:pointer}
+#view-laporan-kasir .rk7-report-refresh.is-loading i{animation:rk7spin .8s linear infinite}
+@keyframes rk7spin{to{transform:rotate(360deg)}}
+#view-laporan-kasir .rk7-report-status{margin:0 0 10px;padding:8px 10px;border-radius:9px;background:#f8fafc;color:#64748b;font-size:9px;font-weight:700}
+#view-laporan-kasir .rk7-report-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+#view-laporan-kasir .rk7-report-summary>div{border:1px solid #e2e8f0;border-radius:11px;background:#fff;padding:10px;min-width:0}
+#view-laporan-kasir .rk7-report-summary span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
+#view-laporan-kasir .rk7-report-summary strong{display:block;margin-top:4px;color:#0f172a;font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-laporan-kasir .rk7-report-list{display:grid;gap:7px;max-height:68vh;overflow:auto}
+#view-laporan-kasir .rk7-report-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:10px 11px;border:1px solid #edf2f7;border-radius:10px;background:#f8fafc}
+#view-laporan-kasir .rk7-report-main{min-width:0}
+#view-laporan-kasir .rk7-report-date{display:block;color:#334155;font-size:10px;font-weight:850;line-height:1.4}
+#view-laporan-kasir .rk7-report-sub{display:block;margin-top:2px;color:#64748b;font-size:8.5px;line-height:1.4;overflow-wrap:anywhere}
+#view-laporan-kasir .rk7-report-total{color:#0f172a;font-size:11px;font-weight:900;white-space:nowrap}
+#view-laporan-kasir .rk7-report-view{width:30px;height:30px;border:0;border-radius:8px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#view-laporan-kasir .rk7-report-view:hover{background:#dbeafe;color:#2563eb}
+#view-laporan-kasir .rk7-report-empty{padding:30px 15px;text-align:center;color:#94a3b8;font-size:10px;line-height:1.5}
+#rk7-report-detail{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62)}
+#rk7-report-detail.is-open{display:flex}
+#rk7-report-detail .rk7-detail-dialog{width:min(620px,96vw);max-height:88vh;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(15,23,42,.28)}
+#rk7-report-detail .rk7-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid #e2e8f0}
+#rk7-report-detail .rk7-detail-head strong{color:#0f172a;font-size:13px;font-weight:900}
+#rk7-report-detail .rk7-detail-close{width:32px;height:32px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer}
+#rk7-report-detail .rk7-detail-body{padding:14px;overflow:auto}
+#rk7-report-detail .rk7-detail-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+#rk7-report-detail .rk7-detail-meta>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:9px}
+#rk7-report-detail .rk7-detail-meta span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
+#rk7-report-detail .rk7-detail-meta strong{display:block;margin-top:4px;color:#0f172a;font-size:11px;font-weight:900}
+#rk7-report-detail .rk7-detail-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:9px 0;border-bottom:1px dashed #e2e8f0}
+#rk7-report-detail .rk7-detail-item:last-child{border-bottom:0}
+#rk7-report-detail .rk7-detail-item-name{color:#334155;font-size:11px;font-weight:800;min-width:0;overflow-wrap:anywhere}
+#rk7-report-detail .rk7-detail-item-sub{display:block;margin-top:3px;color:#64748b;font-size:9px}
+#rk7-report-detail .rk7-detail-item-total{color:#0f172a;font-size:10px;font-weight:900;white-space:nowrap}
+#rk7-report-detail .rk7-detail-total{margin-top:9px;border-top:1px solid #e2e8f0;padding-top:9px;display:grid;gap:4px}
+#rk7-report-detail .rk7-detail-total-row{display:flex;justify-content:space-between;gap:10px;color:#475569;font-size:10px}
+#rk7-report-detail .rk7-detail-total-row.grand{color:#0f172a;font-weight:900;font-size:12px}
+@media(max-width:600px){
+  #view-laporan-kasir{padding:8px}
+  #view-laporan-kasir .rk7-report-head{align-items:flex-start}
+  #view-laporan-kasir .rk7-report-refresh span{display:none}
+  #view-laporan-kasir .rk7-report-summary{grid-template-columns:1fr}
+  #view-laporan-kasir .rk7-report-row{grid-template-columns:minmax(0,1fr) auto}
+  #view-laporan-kasir .rk7-report-total{grid-column:2;grid-row:1 / span 2}
+  #view-laporan-kasir .rk7-report-view{grid-column:1;justify-self:start}
+  #rk7-report-detail .rk7-detail-meta{grid-template-columns:1fr}
+}
 </style>
-<script id="laporan-kasir-single-js">
+<script id="laporan-kasir-final-js">
 (function(){
   let reportTransactions=[];
-  let loading=false;
+  let loadSequence=0;
   let liveSignature='';
 
   const money=v=>Math.max(0,Number(v)||0);
   const rupiah=v=>'Rp '+money(v).toLocaleString('id-ID');
-  const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
+  const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
   function txDate(tx){
     const n=Number(tx?.id);
-    if(Number.isFinite(n)&&n>0){const d=new Date(n);if(!Number.isNaN(d.getTime()))return d;}
-    const raw=String(tx?.date||'');
+    if(Number.isFinite(n)&&n>0){
+      const d=new Date(n);
+      if(!Number.isNaN(d.getTime()))return d;
+    }
+    const raw=String(tx?.date||'').trim();
     const m=raw.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
-    if(m){let y=Number(m[3]);if(y<100)y+=2000;const d=new Date(y,Number(m[2])-1,Number(m[1]));if(!Number.isNaN(d.getTime()))return d;}
+    if(m){
+      let y=Number(m[3]);if(y<100)y+=2000;
+      const d=new Date(y,Number(m[2])-1,Number(m[1]));
+      if(!Number.isNaN(d.getTime()))return d;
+    }
     return new Date(0);
   }
-  function txDateText(tx){const d=txDate(tx);return d.getTime()===0?(String(tx?.date||'Tanggal tidak diketahui')):d.toLocaleString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});}
-  function txItems(tx){return Array.isArray(tx?.itemsDetail)?tx.itemsDetail:(Array.isArray(tx?.items)&&tx.items.some(v=>v&&typeof v==='object')?tx.items:[]);}
+  function txDateText(tx){
+    const d=txDate(tx);
+    return d.getTime()===0
+      ? String(tx?.date||'Tanggal tidak diketahui')
+      : d.toLocaleString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  function txItems(tx){
+    if(Array.isArray(tx?.itemsDetail))return tx.itemsDetail;
+    if(Array.isArray(tx?.items)&&tx.items.some(v=>v&&typeof v==='object'))return tx.items;
+    return [];
+  }
   function normalizeTx(raw){
     if(!raw||typeof raw!=='object'||raw.id==null)return null;
-    const items=txItems(raw).map(x=>({id:String(x?.id??''),name:String(x?.name??x?.nama??x?.productName??'Produk').trim()||'Produk',qty:Math.max(0,Number(x?.qty??x?.jumlah)||0),price:money(x?.price??x?.harga_jual),cost:money(x?.cost??x?.hpp??x?.harga_hpp??x?.grosir)}));
-    return {...raw,id:raw.id,date:String(raw.date||''),items:Number(raw.items)||items.reduce((n,x)=>n+x.qty,0),total:money(raw.total),paid:money(raw.paid),change:money(raw.change),discount:money(raw.discount),itemsDetail:items};
+    const detail=txItems(raw).map(x=>({
+      id:String(x?.id??''),
+      name:String(x?.name??x?.nama??x?.productName??'Produk').trim()||'Produk',
+      qty:Math.max(0,Number(x?.qty??x?.jumlah)||0),
+      price:money(x?.price??x?.harga_jual),
+      cost:money(x?.cost??x?.hpp??x?.harga_hpp??x?.grosir)
+    }));
+    return {
+      ...raw,
+      id:raw.id,
+      date:String(raw.date||''),
+      items:Math.max(0,Number(raw.items)||detail.reduce((sum,x)=>sum+x.qty,0)),
+      total:money(raw.total),
+      paid:money(raw.paid),
+      change:money(raw.change),
+      discount:money(raw.discount),
+      itemsDetail:detail
+    };
   }
   function unique(list){
     const map=new Map();
-    (Array.isArray(list)?list:[]).forEach(raw=>{const tx=normalizeTx(raw);if(!tx)return;const key=String(tx.id);if(!map.has(key))map.set(key,tx);});
+    (Array.isArray(list)?list:[]).forEach(raw=>{
+      const tx=normalizeTx(raw);
+      if(!tx)return;
+      const key=String(tx.id);
+      if(!map.has(key))map.set(key,tx);
+    });
     return [...map.values()].sort((a,b)=>txDate(b)-txDate(a));
   }
-  function readLive(){
-    return unique(Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[]);
+
+  function liveTransactions(){
+    return unique(Array.isArray(window.__rekapinyuKasirTransactionsRealtime)
+      ?window.__rekapinyuKasirTransactionsRealtime:[]);
   }
-  async function readFolder(){
-    const folder=await window.__rekapinyuGetDataSubdirectory?.('Kasir');
+
+  async function folderTransactionsDirect(){
+    const getRoot=window.__rekapinyuGetDataRootDirectory;
+    const getSub=window.__rekapinyuGetDataSubdirectory;
+    const root=typeof getRoot==='function'?await getRoot():null;
+    let folder=null;
+    if(root){
+      try{folder=await root.getDirectoryHandle('Kasir',{create:false})}catch(_){folder=null;}
+    }
+    if(!folder&&typeof getSub==='function'){
+      try{folder=await getSub('Kasir')}catch(_){folder=null;}
+    }
     if(!folder)return [];
+
     const found=[];
     async function walk(dir){
       for await(const [name,entry] of dir.entries()){
-        if(entry?.kind==='directory'){await walk(entry);continue;}
+        if(entry?.kind==='directory'){
+          await walk(entry);
+          continue;
+        }
         if(entry?.kind!=='file'||!/\.json$/i.test(String(name)))continue;
         try{
           const raw=JSON.parse(await (await entry.getFile()).text());
           if(Array.isArray(raw?.TransaksiKasir))found.push(...raw.TransaksiKasir);
           else if(Array.isArray(raw))found.push(...raw);
-        }catch(_){ }
+        }catch(_){}
       }
     }
     await walk(folder);
     return unique(found);
   }
-  function merge(a,b){return unique([...(Array.isArray(a)?a:[]),...(Array.isArray(b)?b:[])]);}
+
+  async function folderTransactionsViaKasir(){
+    if(typeof window.__rekapinyuLoadKasirFolder!=='function')return [];
+    try{
+      const result=await window.__rekapinyuLoadKasirFolder();
+      return unique(Array.isArray(result)?result:liveTransactions());
+    }catch(_){
+      return [];
+    }
+  }
+
+  function mergeTransactions(...sources){
+    const flat=[];
+    sources.forEach(source=>{if(Array.isArray(source))flat.push(...source)});
+    return unique(flat);
+  }
+
   function render(){
     const summary=document.getElementById('rk6-report-summary');
     const list=document.getElementById('rk6-report-list');
     const status=document.getElementById('rk6-report-status');
     if(!summary||!list||!status)return;
-    const omzet=reportTransactions.reduce((s,t)=>s+money(t.total),0);
-    const items=reportTransactions.reduce((s,t)=>s+money(t.items),0);
+
+    const omzet=reportTransactions.reduce((sum,tx)=>sum+money(tx.total),0);
+    const items=reportTransactions.reduce((sum,tx)=>sum+money(tx.items),0);
+
     summary.innerHTML=`<div><span>Total Omzet</span><strong>${rupiah(omzet)}</strong></div><div><span>Total Item</span><strong>${items.toLocaleString('id-ID')}</strong></div><div><span>Total Transaksi</span><strong>${reportTransactions.length.toLocaleString('id-ID')}</strong></div>`;
-    if(!reportTransactions.length){list.innerHTML='<div class="rk6-report-empty">Belum ada transaksi yang terbaca dari Menu Kasir.</div>';status.textContent='Belum ada data transaksi.';return;}
-    status.textContent=`${reportTransactions.length.toLocaleString('id-ID')} transaksi berhasil dimuat dari data Menu Kasir${Array.isArray(window.__rekapinyuKasirTransactionsRealtime)&&window.__rekapinyuKasirTransactionsRealtime.length?' dan/atau file JSON Kasir':''}.`;
-    list.innerHTML=reportTransactions.map(t=>`<article class="rk6-report-row"><div class="rk6-report-main"><span class="rk6-report-date">${esc(txDateText(t))}</span><span class="rk6-report-sub">ID Transaksi: ${esc(t.id)} • ${money(t.items).toLocaleString('id-ID')} item</span></div><strong class="rk6-report-total">${rupiah(t.total)}</strong><button type="button" class="rk6-report-view" data-rk6-view="${esc(t.id)}" title="Lihat detail" aria-label="Lihat detail"><i class="fa-solid fa-eye"></i></button></article>`).join('');
+
+    if(!reportTransactions.length){
+      list.innerHTML='<div class="rk6-report-empty">Belum ada transaksi dari Menu Kasir.</div>';
+      status.textContent='Belum ada transaksi yang terbaca.';
+      return;
+    }
+
+    status.textContent=`${reportTransactions.length.toLocaleString('id-ID')} transaksi berhasil dimuat.`;
+    list.innerHTML=reportTransactions.map(tx=>`<article class="rk6-report-row"><div class="rk6-report-main"><span class="rk6-report-date">${esc(txDateText(tx))}</span><span class="rk6-report-sub">ID Transaksi: ${esc(tx.id)} • ${money(tx.items).toLocaleString('id-ID')} item</span></div><strong class="rk6-report-total">${rupiah(tx.total)}</strong><button type="button" class="rk6-report-view" data-rk6-view="${esc(tx.id)}" title="Lihat detail" aria-label="Lihat detail"><i class="fa-solid fa-eye"></i></button></article>`).join('');
   }
+
   function ensureDetail(){
     if(document.getElementById('rk6-report-detail'))return;
-    const modal=document.createElement('div');modal.id='rk6-report-detail';
+    const modal=document.createElement('div');
+    modal.id='rk6-report-detail';
     modal.innerHTML='<div class="rk6-detail-dialog" role="dialog" aria-modal="true"><div class="rk6-detail-head"><strong>Detail Transaksi</strong><button type="button" class="rk6-detail-close" data-rk6-close aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div><div class="rk6-detail-body" id="rk6-detail-body"></div></div>';
     document.body.appendChild(modal);
-    modal.addEventListener('click',e=>{if(e.target===modal||e.target.closest('[data-rk6-close]'))modal.classList.remove('is-open');});
+    modal.addEventListener('click',e=>{
+      if(e.target===modal||e.target.closest('[data-rk6-close]'))modal.classList.remove('is-open');
+    });
   }
-  function detail(id){
-    const tx=reportTransactions.find(x=>String(x.id)===String(id));if(!tx)return;ensureDetail();
-    const body=document.getElementById('rk6-detail-body'), modal=document.getElementById('rk6-report-detail');if(!body||!modal)return;
-    const items=txItems(tx).map(x=>({name:String(x?.name??x?.nama??x?.productName??'Produk'),qty:money(x?.qty??x?.jumlah),price:money(x?.price??x?.harga_jual)}));
-    const subtotal=items.reduce((s,x)=>s+x.qty*x.price,0);const discount=Math.min(subtotal,money(tx.discount));const total=money(tx.total);
-    body.innerHTML=`<div class="rk6-detail-meta"><div><span>Tanggal</span><strong>${esc(txDateText(tx))}</strong></div><div><span>ID Transaksi</span><strong>${esc(tx.id)}</strong></div><div><span>Uang Diterima</span><strong>${rupiah(tx.paid)}</strong></div><div><span>Kembalian</span><strong>${rupiah(tx.change)}</strong></div></div><div>${items.length?items.map(x=>`<div class="rk6-detail-item"><div class="rk6-detail-item-name">${esc(x.name)}<span class="rk6-detail-item-sub">${x.qty} × ${rupiah(x.price)}</span></div><strong class="rk6-detail-item-total">${rupiah(x.qty*x.price)}</strong></div>`).join(''):'<div class="rk6-report-empty">Detail produk tidak tersimpan pada transaksi ini.</div>'}</div><div class="rk6-detail-total"><div class="rk6-detail-total-row"><span>Subtotal</span><strong>${rupiah(subtotal)}</strong></div><div class="rk6-detail-total-row"><span>Diskon</span><strong>${rupiah(discount)}</strong></div><div class="rk6-detail-total-row grand"><span>Total</span><strong>${rupiah(total)}</strong></div></div>`;
+
+  function showDetail(id){
+    const tx=reportTransactions.find(x=>String(x.id)===String(id));
+    if(!tx)return;
+    ensureDetail();
+    const body=document.getElementById('rk6-detail-body');
+    const modal=document.getElementById('rk6-report-detail');
+    if(!body||!modal)return;
+    const items=txItems(tx).map(x=>({
+      name:String(x?.name??x?.nama??x?.productName??'Produk'),
+      qty:money(x?.qty??x?.jumlah),
+      price:money(x?.price??x?.harga_jual)
+    }));
+    const subtotal=items.reduce((sum,x)=>sum+x.qty*x.price,0);
+    const discount=Math.min(subtotal,money(tx.discount));
+    body.innerHTML=`<div class="rk6-detail-meta"><div><span>Tanggal</span><strong>${esc(txDateText(tx))}</strong></div><div><span>ID Transaksi</span><strong>${esc(tx.id)}</strong></div><div><span>Uang Diterima</span><strong>${rupiah(tx.paid)}</strong></div><div><span>Kembalian</span><strong>${rupiah(tx.change)}</strong></div></div><div>${items.length?items.map(x=>`<div class="rk6-detail-item"><div class="rk6-detail-item-name">${esc(x.name)}<span class="rk6-detail-item-sub">${x.qty} × ${rupiah(x.price)}</span></div><strong class="rk6-detail-item-total">${rupiah(x.qty*x.price)}</strong></div>`).join(''):'<div class="rk6-report-empty">Detail produk tidak tersimpan pada transaksi ini.</div>'}</div><div class="rk6-detail-total"><div class="rk6-detail-total-row"><span>Subtotal</span><strong>${rupiah(subtotal)}</strong></div><div class="rk6-detail-total-row"><span>Diskon</span><strong>${rupiah(discount)}</strong></div><div class="rk6-detail-total-row grand"><span>Total</span><strong>${rupiah(money(tx.total))}</strong></div></div>`;
     modal.classList.add('is-open');
   }
+
   async function load(){
-    if(loading)return;
-    loading=true;const btn=document.getElementById('rk6-report-refresh');btn?.classList.add('is-loading');
-    // Penting: tampilkan data dari Menu Kasir SEGERA tanpa menunggu folder.
-    const live=readLive();if(live.length){reportTransactions=live;render();}
-    try{
-      const folder=await readFolder();
-      reportTransactions=merge(readLive(),folder);
+    const sequence=++loadSequence;
+    const refresh=document.getElementById('rk6-report-refresh');
+    const status=document.getElementById('rk6-report-status');
+    refresh?.classList.add('is-loading');
+
+    const live=liveTransactions();
+    if(live.length){
+      reportTransactions=mergeTransactions(live,reportTransactions);
       render();
-    }catch(_){
-      reportTransactions=readLive();
-      render();
-      const status=document.getElementById('rk6-report-status');if(status&&reportTransactions.length)status.textContent=`${reportTransactions.length} transaksi dimuat dari Menu Kasir.`;
-    }finally{loading=false;btn?.classList.remove('is-loading');}
-    liveSignature=JSON.stringify((Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[]).map(x=>x?.id));
+    }else if(!reportTransactions.length&&status){
+      status.textContent='Membaca transaksi Menu Kasir...';
+    }
+
+    let fromKasir=[];
+    let fromFolder=[];
+    try{fromKasir=await folderTransactionsViaKasir()}catch(_){}
+    try{fromFolder=await folderTransactionsDirect()}catch(_){}
+
+    if(sequence!==loadSequence)return;
+
+    const currentLive=liveTransactions();
+    reportTransactions=mergeTransactions(currentLive,fromKasir,fromFolder);
+    render();
+    liveSignature=JSON.stringify(currentLive.map(x=>x.id));
+
+    refresh?.classList.remove('is-loading');
   }
-  function watchLive(){
-    const live=readLive();const sig=JSON.stringify(live.map(x=>x?.id));
-    if(sig!==liveSignature){liveSignature=sig;if(live.length){reportTransactions=merge(live,reportTransactions);render();}}
-  }
+
   document.addEventListener('click',e=>{
-    if(e.target.closest('#rk6-report-refresh')){e.preventDefault();load();return;}
-    const view=e.target.closest('[data-rk6-view]');if(view){e.preventDefault();detail(view.dataset.rk6View);}
+    const refresh=e.target.closest('#rk6-report-refresh');
+    if(refresh){
+      e.preventDefault();
+      load();
+      return;
+    }
+    const view=e.target.closest('[data-rk6-view]');
+    if(view){
+      e.preventDefault();
+      showDetail(view.dataset.rk6View);
+    }
   });
+
+  document.addEventListener('rekapinyu-kasir-transaction-saved',e=>{
+    const tx=normalizeTx(e.detail?.transaction);
+    if(tx){
+      reportTransactions=mergeTransactions([tx],reportTransactions,liveTransactions());
+      render();
+    }
+  });
+
   window.__renderLaporanKasir=load;
   window.__rekapinyuLoadLaporanKasirFolder=load;
+
   ensureDetail();
   render();
-  load();
-  setInterval(watchLive,800);
+
+  // Saat file/folder baru selesai disimpan, refresh otomatis.
+  setInterval(()=>{
+    const live=liveTransactions();
+    const sig=JSON.stringify(live.map(x=>x.id));
+    if(sig!==liveSignature){
+      liveSignature=sig;
+      reportTransactions=mergeTransactions(reportTransactions,live);
+      render();
+    }
+  },500);
 })();
 </script>
 <style id="rekapinyu-welcome-popup-css">
