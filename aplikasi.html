@@ -6611,13 +6611,12 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function loadKasirStore(){
-    /* KASIR PRODUCT SOURCE:
-       Menu Kasir membaca sumber yang sama dengan Menu Produk Kasir.
-       Tidak membuat folder/file dan tidak mengubah data Produk Kasir. */
+    /* Hanya sumber produk Kasir yang diperbaiki:
+       Kasir membaca produk dari loader Menu Produk Kasir yang sama. */
     try{
       if(typeof window.__rekapinyuLoadProdukKasirFolder==='function'){
         const source=await window.__rekapinyuLoadProdukKasirFolder();
-        if(Array.isArray(source)&&source.length){
+        if(Array.isArray(source)){
           kasirProducts=source.map(p=>{
             const barcodes=productBarcodes(p);
             const manualStock=Math.max(0,Number(p.manualStock)||0);
@@ -6632,8 +6631,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       console.warn('Rekapinyu: data Produk Kasir belum dapat dibaca.',e);
     }
 
-    /* Fallback kompatibilitas: tetap membaca JSON Produk bila sumber Produk Kasir
-       belum tersedia pada saat Menu Kasir pertama kali dibuka. */
+    /* Fallback lama dipertahankan jika loader Produk Kasir belum siap. */
     const dir=await window.__rekapinyuGetDataSubdirectory?.('Produk');
     if(!dir){
       kasirProducts=[];
