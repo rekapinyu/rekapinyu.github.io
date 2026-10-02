@@ -1588,6 +1588,14 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   }
 }
 </style>
+<script id="rekapinyu-separated-page-guard">
+(function(){
+  try{
+    const raw=localStorage.getItem("finance_active_session");
+    if(!raw) window.location.replace("RekapinyuLogin.html");
+  }catch(_){ window.location.replace("RekapinyuLogin.html"); }
+})();
+</script>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 <div aria-hidden="true" id="kasir-payment-popup">
@@ -1608,83 +1616,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 </div>
 <div id="kasir-print-area" style="display:none"></div>
 <!-- AUTHENTICATION OVERLAY / PAGES -->
-<div class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4" id="auth-container">
-<!-- CARD LOGIN -->
-<div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 transition-all" id="login-card">
-<div class="text-center mb-6 login-brand-header">
-<img alt="REKAPINYU" class="login-brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoRekpinyuBiru.jpg?raw=true"/>
-<p class="login-brand-tagline">Kelola Keuangan Anda Dengan Mudah</p>
-</div>
-<form class="space-y-4" id="login-form">
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nomor HP</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-phone"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-phone" inputmode="numeric" pattern="[0-9]*" placeholder="" required="" type="text">
-</input></div>
-</div>
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-lock"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="login-password" placeholder="" required="" type="password">
-</input></div>
-</div>
-<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm" type="submit">
-                    Masuk ke Aplikasi
-                </button>
-</form>
-<div class="mt-6 text-center text-xs text-slate-500">
-                Belum punya akun? <button class="text-emerald-600 font-bold hover:underline" onclick="toggleAuthView('register')">Daftar di sini</button>
-</div>
-</div>
-<!-- CARD REGISTER -->
-<div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-slate-100 hidden transition-all" id="register-card">
-<div class="text-center mb-6 login-brand-header">
-<img alt="REKAPINYU" class="login-brand-logo" src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoRekpinyuBiru.jpg?raw=true"/>
-<p class="login-brand-tagline">Kelola Keuangan Anda Dengan Mudah</p>
-</div>
-<form class="space-y-4" id="register-form">
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nama Toko</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-user"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-name" placeholder="Nama Toko Anda" required="" type="text"/>
-</div>
-</div>
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Nomor HP</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-phone"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-phone" inputmode="numeric" pattern="[0-9]*" placeholder="" required="" type="text"/>
-</div>
-</div>
-<div>
-<label class="block text-xs font-bold uppercase text-slate-500 mb-1.5">Kata Sandi</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-<i class="fa-solid fa-lock"></i>
-</span>
-<input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="reg-password" placeholder="" required="" type="password"/>
-</div>
-</div>
-<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 text-sm" type="submit">
-                    Daftar Sekarang
-                </button>
-</form>
-<div class="mt-6 text-center text-xs text-slate-500">
-                Sudah punya akun? <button class="text-emerald-600 font-bold hover:underline" onclick="toggleAuthView('login')">Masuk</button>
-</div>
-</div>
-</div>
+
 <aside class="w-64 flex flex-col z-20 shrink-0 md:flex relative" id="sidebar">
 <!-- Foto Sampul Toko: menggantikan area Logo + REKAPINYU sebelumnya -->
 <div class="relative">
@@ -4879,7 +4811,7 @@ const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("lo
 }};
 const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="register-form")return;e.preventDefault();e.stopImmediatePropagation();rekapinyuAuth.submit(e.target)};document.addEventListener("submit",authSubmitGuard,true);window.__rekapinyuAuthController=rekapinyuAuth;
 
-window.handleLogout=async()=>{try{await window.__rekapinyuSaveLocalRekap?.();await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();renderDashboardSession();toggleAuthView("login")}};
+window.handleLogout=async()=>{try{await window.__rekapinyuSaveLocalRekap?.();await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=null;refCache.clear();window.location.replace("RekapinyuLogin.html")}};
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
 function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
@@ -4929,7 +4861,7 @@ const landingHandoffPromise=consumeLandingLogin();
 
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
 
-onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;const local=window.__rekapinyuDashboardSession?.read()||currentSessionUser;if(local){currentSessionUser=local;try{photoStore.hydrate(phoneOf(local.phone))}catch{}renderDashboardSession();try{redraw()}catch{}return}currentSessionUser=null;renderDashboardSession();return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
+onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;currentSessionUser=null;try{nativeRemove.call(localStorage,"finance_active_session")}catch{}window.location.replace("RekapinyuLogin.html");return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
 
 (function(){function redrawOnFocus(){try{redraw?.()}catch{}}window.addEventListener("focus",redrawOnFocus);window.addEventListener("pageshow",redrawOnFocus);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")redrawOnFocus()})})();
 </script>
