@@ -1596,6 +1596,12 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   }catch(_){ window.location.replace("https://rekapinyu.github.io/login"); }
 })();
 </script>
+
+<style id="rekapinyu-fix-header-logo-profile">
+#mobile-profile-menu-container{display:flex!important;align-items:center!important;}
+#mobile-profile-button{display:flex!important;align-items:center!important;justify-content:center!important;width:36px!important;height:36px!important;border-radius:10px!important;background:#ecfdf5!important;color:#059669!important;border:1px solid #d1fae5!important;cursor:pointer!important;}
+#mobile-date-header{flex-shrink:0!important;}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
 <div aria-hidden="true" id="kasir-payment-popup">
@@ -1738,8 +1744,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <!-- Top Navigation Bar -->
 <header class="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
 <div class="flex items-center gap-3">
-<div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
-<i class="fa-solid fa-wallet text-sm"></i>
+<div class="w-10 h-10 flex items-center justify-center overflow-hidden rounded-lg bg-white">
+<img src="https://github.com/rekapinyu/rekapinyu.github.io/blob/main/Galery/LogoBannerLogin.jpg?raw=true" alt="Rekapinyu" class="w-full h-full object-contain">
 </div>
 <div>
 <h1 class="font-bold text-slate-800 text-sm md:hidden">REKAPIN</h1>
@@ -1755,7 +1761,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <button class="md:hidden bg-rose-50 text-rose-600 p-2 rounded-lg text-xs" onclick="handleLogout()">
 <i class="fa-solid fa-right-from-bracket"></i>
 </button>
-<div class="hidden md:hidden relative" id="mobile-profile-menu-container">
+<div class="relative" id="mobile-profile-menu-container">
 <button aria-label="Menu profil" class="mobile-profile-button" id="mobile-profile-button" onclick="toggleMobileProfileMenu(event)" type="button">
 <i class="fa-solid fa-user"></i>
 </button>
@@ -6145,7 +6151,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
       const now=new Date();
       const pad=n=>String(n).padStart(2,'0');
-      const fileName=`BackupProduk_${DAYS[now.getDay()]}_${pad(now.getDate())}_${MONTHS[now.getMonth()]}_${now.getFullYear()}.json`;
+      const DAYS_LOCAL=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+      const MONTHS_LOCAL=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const fileName=`BackupProduk_${DAYS_LOCAL[now.getDay()]}_${pad(now.getDate())}_${MONTHS_LOCAL[now.getMonth()]}_${now.getFullYear()}.json`;
       const payload={
         format:'Rekapinyu Produk Kasir Backup',
         version:1,
@@ -6190,12 +6198,15 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       }
 
       if(!file){
-        const input=$('pk3-import-file');
-        if(!input)throw new Error('Pemilih file JSON tidak tersedia.');
-        input.value='';
-        input.accept='.json,application/json';
-        input.click();
-        return;
+        if('showOpenFilePicker' in window){
+          const handles=await window.showOpenFilePicker({multiple:false,types:[{description:'Backup Produk Kasir (JSON)',accept:{'application/json':['.json']}}],excludeAcceptAllOption:true,startIn:dir});
+          if(!handles?.length)return;
+          file=await handles[0].getFile();
+        }else{
+          const input=$('pk3-import-file');
+          if(!input)throw new Error('Browser ini tidak mendukung pemilihan folder Data/Produk secara langsung.');
+          input.value=''; input.accept='.json,application/json'; input.click(); return;
+        }
       }
 
       if(!/^BackupProduk_.*\.json$/i.test(String(file.name||'')))
