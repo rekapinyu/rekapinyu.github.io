@@ -2346,7 +2346,23 @@ bind();
 </section>
 <!-- VIEW LAPORAN KASIR -->
 <section class="hidden laporan-kasir-view" id="view-laporan-kasir">
-<div class="laporan-kasir-grid" id="laporan-kasir-grid"></div>
+  <div class="rk4-report-head">
+    <div>
+      <h3>Laporan Kasir</h3>
+      <p>Daftar transaksi dibaca langsung dari folder Kasir pada folder yang dipilih.</p>
+    </div>
+    <button type="button" class="rk4-report-refresh" id="rk4-report-refresh" title="Muat ulang transaksi">
+      <i class="fa-solid fa-rotate"></i><span>Muat Ulang</span>
+    </button>
+  </div>
+  <div class="rk4-report-summary" id="rk4-report-summary"></div>
+  <div class="rk4-report-list-wrap">
+    <div class="rk4-report-list-head">
+      <strong>Daftar Transaksi</strong>
+      <span id="rk4-report-count">0 transaksi</span>
+    </div>
+    <div class="rk4-report-list" id="rk4-report-list"></div>
+  </div>
 </section>
 <section class="hidden space-y-4 w-full" id="view-history">
 <div class="flex flex-col items-center gap-4 w-full" id="history-grid"></div>
@@ -7975,68 +7991,70 @@ async function initKasirViews(){
 })();
 </script>
 <style id="laporan-kasir-v4-css">
-/* Laporan Kasir: kartu ringkasan normal + history transaksi 4 kolom. */
 #view-laporan-kasir{width:100%;min-height:100%;padding:14px;box-sizing:border-box;overflow:auto;background:#f6f8fb}
-.laporan-kasir-sticky-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
-.laporan-kasir-sticky-card{min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-shadow:0 7px 20px rgba(15,23,42,.06);overflow:hidden}
-.laporan-kasir-sticky-card .laporan-kasir-kicker{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
-.laporan-kasir-sticky-card .laporan-kasir-value{margin-top:7px;font-size:20px;line-height:1.15;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.laporan-kasir-sticky-card i{float:right;font-size:18px;color:#64748b;opacity:.8}
-.laporan-kasir-history-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-shadow:0 7px 20px rgba(15,23,42,.05)}
-.laporan-kasir-history-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.laporan-kasir-history-title strong{font-size:13px;font-weight:900;color:#0f172a}
-.laporan-kasir-history-title span{font-size:10px;color:#94a3b8;font-weight:700}
-.laporan-kasir-history-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;height:clamp(170px,30vh,240px);min-height:0;max-height:none;overflow-y:auto;padding:2px}
-.laporan-kasir-history-row{position:relative;display:flex;flex-direction:column;justify-content:flex-start;gap:4px;height:72px;aspect-ratio:auto;padding:8px 10px;background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;min-width:0;box-sizing:border-box;overflow:hidden}
-.laporan-kasir-history-main{min-width:0;display:flex;flex-direction:column;gap:6px;padding-right:26px}
-.laporan-kasir-history-date{font-size:11px;font-weight:800;color:#334155;line-height:1.4;overflow-wrap:anywhere}
-.laporan-kasir-history-count{font-size:10px;color:#64748b;line-height:1.4}
-.laporan-kasir-history-total{margin-top:auto;font-size:12px;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.laporan-kasir-view-btn{position:absolute;right:9px;top:9px;width:30px;height:30px;border:0;border-radius:9px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.laporan-kasir-view-btn:hover{background:#dbeafe;color:#2563eb}
-.laporan-kasir-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:160px;padding:24px;text-align:center;color:#94a3b8;font-size:11px}
-.laporan-kasir-preview-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.62)}
-.laporan-kasir-preview-modal.is-open{display:flex}
-.laporan-kasir-preview-dialog{width:min(520px,96vw);max-height:88vh;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;display:flex;flex-direction:column}
-.laporan-kasir-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0}
-.laporan-kasir-preview-head strong{font-size:14px;font-weight:900;color:#0f172a}
-.laporan-kasir-preview-close{width:34px;height:34px;border:0;border-radius:9px;background:#f1f5f9;color:#475569;cursor:pointer}
-.laporan-kasir-preview-body{padding:14px;overflow:auto}
-.laporan-kasir-preview-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.laporan-kasir-preview-summary>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:11px;padding:10px}
-.laporan-kasir-preview-summary span{display:block;font-size:9px;color:#94a3b8;font-weight:700}
-.laporan-kasir-preview-summary strong{display:block;margin-top:4px;font-size:12px;color:#0f172a;font-weight:900}
-.laporan-kasir-product-list{display:flex;flex-direction:column;gap:8px}
-.laporan-kasir-product-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
-.laporan-kasir-product-photo{width:52px;height:52px;border-radius:10px;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8}
-.laporan-kasir-product-photo img{width:100%;height:100%;object-fit:cover;display:block}
-.laporan-kasir-product-info{min-width:0}
-.laporan-kasir-product-info strong{display:block;font-size:11px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.laporan-kasir-product-info span{display:block;margin-top:3px;font-size:10px;color:#64748b;line-height:1.4}
-.laporan-kasir-product-total{font-size:11px;font-weight:900;color:#0f172a;white-space:nowrap}
-@media(max-width:900px){.laporan-kasir-history-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:700px){#view-laporan-kasir{padding:10px}.laporan-kasir-sticky-grid{gap:8px}.laporan-kasir-sticky-card{padding:11px;border-radius:13px}.laporan-kasir-sticky-card .laporan-kasir-value{font-size:15px}.laporan-kasir-sticky-card i{font-size:15px}.laporan-kasir-history-card{padding:11px;border-radius:13px}.laporan-kasir-history-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:430px){.laporan-kasir-sticky-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.laporan-kasir-sticky-card .laporan-kasir-kicker{font-size:8px}.laporan-kasir-sticky-card .laporan-kasir-value{font-size:13px}.laporan-kasir-sticky-card i{display:none}.laporan-kasir-history-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.laporan-kasir-history-row{height:68px;padding:7px 9px;border-radius:11px}.laporan-kasir-history-date{font-size:10px}.laporan-kasir-history-count{font-size:9px}.laporan-kasir-view-btn{width:28px;height:28px;right:7px;top:7px}}
+#view-laporan-kasir .rk4-report-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+#view-laporan-kasir .rk4-report-head h3{margin:0;color:#0f172a;font-size:16px;font-weight:900}
+#view-laporan-kasir .rk4-report-head p{margin:4px 0 0;color:#64748b;font-size:10px;line-height:1.45}
+#view-laporan-kasir .rk4-report-refresh{height:36px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;color:#334155;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:10px;font-weight:800;cursor:pointer;flex:0 0 auto}
+#view-laporan-kasir .rk4-report-refresh:hover{background:#f8fafc}
+#view-laporan-kasir .rk4-report-refresh.is-loading i{animation:rk4-report-spin .8s linear infinite}
+@keyframes rk4-report-spin{to{transform:rotate(360deg)}}
+#view-laporan-kasir .rk4-report-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+#view-laporan-kasir .rk4-report-summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;min-width:0}
+#view-laporan-kasir .rk4-report-summary-card span{display:block;color:#64748b;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+#view-laporan-kasir .rk4-report-summary-card strong{display:block;margin-top:5px;color:#0f172a;font-size:17px;line-height:1.2;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-laporan-kasir .rk4-report-list-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px}
+#view-laporan-kasir .rk4-report-list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+#view-laporan-kasir .rk4-report-list-head strong{color:#0f172a;font-size:13px;font-weight:900}
+#view-laporan-kasir .rk4-report-list-head span{color:#94a3b8;font-size:10px;font-weight:700}
+#view-laporan-kasir .rk4-report-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;max-height:58vh;overflow:auto;padding:1px}
+#view-laporan-kasir .rk4-report-card{position:relative;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:104px;padding:10px;border:1px solid #eef2f7;border-radius:11px;background:#f8fafc;box-sizing:border-box}
+#view-laporan-kasir .rk4-report-card-date{color:#334155;font-size:10px;font-weight:800;line-height:1.4;padding-right:30px}
+#view-laporan-kasir .rk4-report-card-items{color:#64748b;font-size:9px;line-height:1.4}
+#view-laporan-kasir .rk4-report-card-total{margin-top:auto;color:#0f172a;font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-laporan-kasir .rk4-report-view{position:absolute;right:8px;top:8px;width:28px;height:28px;border:0;border-radius:8px;background:#e2e8f0;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#view-laporan-kasir .rk4-report-view:hover{background:#dbeafe;color:#2563eb}
+#view-laporan-kasir .rk4-report-empty{grid-column:1/-1;min-height:160px;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#94a3b8;font-size:11px}
+#rk4-report-detail{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62)}
+#rk4-report-detail.is-open{display:flex}
+#rk4-report-detail .rk4-detail-dialog{width:min(620px,96vw);max-height:88vh;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(15,23,42,.28)}
+#rk4-report-detail .rk4-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid #e2e8f0}
+#rk4-report-detail .rk4-detail-head strong{color:#0f172a;font-size:13px;font-weight:900}
+#rk4-report-detail .rk4-detail-close{width:32px;height:32px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer}
+#rk4-report-detail .rk4-detail-body{padding:14px;overflow:auto}
+#rk4-report-detail .rk4-detail-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+#rk4-report-detail .rk4-detail-meta>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:9px}
+#rk4-report-detail .rk4-detail-meta span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
+#rk4-report-detail .rk4-detail-meta strong{display:block;margin-top:4px;color:#0f172a;font-size:11px;font-weight:900}
+#rk4-report-detail .rk4-detail-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:9px 0;border-bottom:1px dashed #e2e8f0}
+#rk4-report-detail .rk4-detail-item:last-child{border-bottom:0}
+#rk4-report-detail .rk4-detail-item-name{color:#334155;font-size:11px;font-weight:800;min-width:0;overflow-wrap:anywhere}
+#rk4-report-detail .rk4-detail-item-sub{display:block;margin-top:3px;color:#64748b;font-size:9px}
+#rk4-report-detail .rk4-detail-item-total{color:#0f172a;font-size:10px;font-weight:900;white-space:nowrap}
+#rk4-report-detail .rk4-detail-totals{margin-top:9px;border-top:1px solid #e2e8f0;padding-top:9px;display:grid;gap:4px}
+#rk4-report-detail .rk4-detail-total-row{display:flex;justify-content:space-between;gap:10px;color:#475569;font-size:10px}
+#rk4-report-detail .rk4-detail-total-row.total{color:#0f172a;font-weight:900;font-size:12px}
+@media(max-width:900px){#view-laporan-kasir .rk4-report-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){#view-laporan-kasir{padding:10px}#view-laporan-kasir .rk4-report-summary{gap:8px}#view-laporan-kasir .rk4-report-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){#view-laporan-kasir .rk4-report-head{align-items:flex-start}#view-laporan-kasir .rk4-report-head p{max-width:220px}#view-laporan-kasir .rk4-report-refresh span{display:none}#view-laporan-kasir .rk4-report-summary-card{padding:10px}#view-laporan-kasir .rk4-report-summary-card strong{font-size:13px}#view-laporan-kasir .rk4-report-list{grid-template-columns:1fr}#rk4-report-detail .rk4-detail-meta{grid-template-columns:1fr}}
 </style>
 <script id="laporan-kasir-v4-js">
 (function(){
-  let laporanKasirLoadedData=[];
-  let laporanKasirLoadPromise=null;
+  let reportTransactions=[];
+  let reportLoadSequence=0;
 
-  function laporanKasirData(){
-    return Array.isArray(laporanKasirLoadedData)?laporanKasirLoadedData:[];
-  }
-  function laporanKasirRupiah(n){return 'Rp '+(Number(n)||0).toLocaleString('id-ID')}
-  function laporanKasirEscape(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+  function rk4Money(value){return Math.max(0,Number(value)||0)}
+  function rk4Rupiah(value){return 'Rp '+rk4Money(value).toLocaleString('id-ID')}
+  function rk4Esc(value){return String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 
-  function laporanKasirDate(t){
-    const n=Number(t?.id);
-    if(Number.isFinite(n)&&n>0){
-      const d=new Date(n);
+  function rk4GetTransactionDate(tx){
+    const id=Number(tx?.id);
+    if(Number.isFinite(id)&&id>0){
+      const d=new Date(id);
       if(!Number.isNaN(d.getTime()))return d;
     }
-    const text=String(t?.date||'').trim();
-    const m=text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    const text=String(tx?.date||'').trim();
+    const m=text.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
     if(m){
       let y=Number(m[3]);if(y<100)y+=2000;
       const d=new Date(y,Number(m[2])-1,Number(m[1]));
@@ -8044,223 +8062,142 @@ async function initKasirViews(){
     }
     return new Date(0);
   }
-  function laporanKasirDateText(t){
-    const d=laporanKasirDate(t);
-    if(d.getTime()===0)return String(t?.date||'Tanggal tidak diketahui');
+  function rk4DateText(tx){
+    const d=rk4GetTransactionDate(tx);
+    if(d.getTime()===0)return String(tx?.date||'Tanggal tidak diketahui');
     return d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
   }
 
-  function laporanKasirItems(t){
-    const source=Array.isArray(t?.itemsDetail)?t.itemsDetail:
-                 Array.isArray(t?.items)?t.items:
-                 Array.isArray(t?.cart)?t.cart:[];
-    if(!source.length)return [];
-    const products=Array.isArray(window.__rekapinyuProdukKasirData)?window.__rekapinyuProdukKasirData:[];
-    return source.map(x=>{
-      const id=String(x?.id??x?.productId??'');
-      const product=products.find(p=>String(p?.id??'')===id);
-      return {
-        id,
-        name:String(x?.name??x?.nama??x?.productName??product?.name??'Produk'),
-        photo:String(x?.photo??''),
-        photoFileName:String(x?.photoFileName??product?.photoFileName??''),
-        qty:Math.max(0,Number(x?.qty??x?.jumlah)||0),
-        price:Math.max(0,Number(x?.price??x?.harga_jual??product?.price)||0),
-        hpp:Math.max(0,Number(x?.hpp??x?.cost??x?.harga_hpp??x?.grosir??product?.cost??product?.grosir)||0)
-      };
-    });
+  function rk4TransactionItems(tx){
+    const source=Array.isArray(tx?.itemsDetail)?tx.itemsDetail:[];
+    return source.map(item=>({
+      name:String(item?.name??item?.nama??item?.productName??'Produk'),
+      qty:Math.max(0,Number(item?.qty)||0),
+      price:rk4Money(item?.price),
+      cost:rk4Money(item?.cost??item?.hpp??item?.harga_hpp)
+    }));
   }
 
-  function laporanKasirProfit(t){
-    const items=laporanKasirItems(t);
-    return items.reduce((sum,item)=>{
-      return sum+((Number(item.price)||0)-(Number(item.hpp)||0))*(Number(item.qty)||0);
-    },0);
+  function rk4NormalizeTx(tx){
+    if(!tx||typeof tx!=='object'||tx.id==null)return null;
+    const normalized={...tx};
+    normalized.id=tx.id;
+    normalized.date=String(tx.date||'');
+    const items=rk4TransactionItems(tx);
+    normalized.items=Number(tx.items)||items.reduce((sum,item)=>sum+item.qty,0);
+    normalized.total=rk4Money(tx.total);
+    normalized.paid=rk4Money(tx.paid);
+    normalized.change=rk4Money(tx.change);
+    normalized.discount=rk4Money(tx.discount);
+    return normalized;
   }
 
-  function laporanKasirNormalizeTransaction(raw){
-    if(!raw||typeof raw!=='object')return null;
-    const hasIdentity=raw.id!=null||raw.date!=null||raw.total!=null||raw.itemsDetail!=null||raw.items!=null||raw.cart!=null;
-    if(!hasIdentity)return null;
-    const tx={...raw};
-    tx.id=raw.id!=null?raw.id:Date.now()+Math.random();
-    tx.date=String(raw.date||'');
-    tx.total=Number(raw.total)||0;
-    tx.paid=Number(raw.paid)||0;
-    tx.change=Number(raw.change)||0;
-    tx.discount=Number(raw.discount)||0;
-    tx.items=Number(raw.items)||laporanKasirItems(raw).reduce((n,x)=>n+(Number(x.qty)||0),0);
-    return tx;
-  }
-
-  function laporanKasirCollectRaw(raw){
+  async function rk4ReadKasirFolder(){
+    const folder=await window.__rekapinyuGetDataSubdirectory?.('Kasir');
+    if(!folder)return [];
     const found=[];
-    const add=value=>{
-      if(Array.isArray(value))value.forEach(v=>{const tx=laporanKasirNormalizeTransaction(v);if(tx)found.push(tx)});
-      else if(value&&typeof value==='object'){
-        const tx=laporanKasirNormalizeTransaction(value);
-        if(tx)found.push(tx);
-      }
-    };
-    if(Array.isArray(raw)){add(raw);return found;}
-    if(!raw||typeof raw!=='object')return found;
 
-    // Format harian yang dibuat oleh Menu Kasir.
-    add(raw.TransaksiKasir);
-    add(raw.LaporanKasir);
-
-    // Format alternatif/backup yang mungkin sudah tersimpan di folder Kasir.
-    add(raw.transactions);
-    add(raw.transaksi);
-    add(raw.data);
-    add(raw.itemsDetail&&raw.id!=null?raw:null);
-
-    // Bila satu file langsung berupa satu objek transaksi.
-    if(!found.length)add(raw);
-    return found;
-  }
-
-  function laporanKasirUnique(list){
-    const seen=new Set();
-    return list.filter(tx=>{
-      const id=String(tx?.id??'').trim();
-      const key=id||JSON.stringify(tx);
-      if(seen.has(key))return false;
-      seen.add(key);
-      return true;
-    }).sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));
-  }
-
-  async function laporanKasirReadFolder(){
-    const dir=await window.__rekapinyuGetDataSubdirectory?.('Kasir');
-    if(!dir)return [];
-    const all=[];
-    async function walk(currentDir){
-      for await(const [entryName,entry] of currentDir.entries()){
+    async function walk(directory){
+      for await(const [entryName,entry] of directory.entries()){
         if(entry?.kind==='directory'){
           await walk(entry);
           continue;
         }
         if(entry?.kind!=='file'||!/\.json$/i.test(String(entryName)))continue;
         try{
-          const file=await entry.getFile();
-          const raw=JSON.parse(await file.text());
-          all.push(...laporanKasirCollectRaw(raw));
-        }catch(_){
-          // File JSON yang tidak valid/khusus tidak menghentikan pembacaan file lain.
-        }
+          const raw=JSON.parse(await (await entry.getFile()).text());
+          if(Array.isArray(raw?.TransaksiKasir)){
+            raw.TransaksiKasir.forEach(tx=>{const item=rk4NormalizeTx(tx);if(item)found.push(item)});
+          }else{
+            const item=rk4NormalizeTx(raw);
+            if(item)found.push(item);
+          }
+        }catch(_){}
       }
     }
-    await walk(dir);
-    return laporanKasirUnique(all);
+
+    await walk(folder);
+    const seen=new Set();
+    return found.filter(tx=>{
+      const key=String(tx.id);
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    }).sort((a,b)=>rk4GetTransactionDate(b)-rk4GetTransactionDate(a));
   }
 
-  async function loadLaporanKasirFromFolder(){
-    if(laporanKasirLoadPromise)return laporanKasirLoadPromise;
-    laporanKasirLoadPromise=(async()=>{
-      try{
-        const loaded=await laporanKasirReadFolder();
-        laporanKasirLoadedData=Array.isArray(loaded)?loaded:[];
-        window.__rekapinyuKasirTransactionsRealtime=laporanKasirLoadedData;
-        return laporanKasirLoadedData;
-      }catch(_){
-        laporanKasirLoadedData=[];
-        return [];
-      }finally{
-        laporanKasirLoadPromise=null;
-      }
-    })();
-    return laporanKasirLoadPromise;
-  }
-
-  function ensurePreviewModal(){
-    if(document.getElementById('laporan-kasir-preview-modal'))return;
+  function rk4EnsureDetail(){
+    if(document.getElementById('rk4-report-detail'))return;
     const modal=document.createElement('div');
-    modal.id='laporan-kasir-preview-modal';
-    modal.className='laporan-kasir-preview-modal';
-    modal.innerHTML='<div class="laporan-kasir-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="laporan-kasir-preview-title"><div class="laporan-kasir-preview-head"><strong id="laporan-kasir-preview-title">Preview Transaksi</strong><button type="button" class="laporan-kasir-preview-close" data-laporan-close title="Tutup"><i class="fa-solid fa-xmark"></i></button></div><div class="laporan-kasir-preview-body" id="laporan-kasir-preview-body"></div></div>';
+    modal.id='rk4-report-detail';
+    modal.innerHTML='<div class="rk4-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="rk4-detail-title"><div class="rk4-detail-head"><strong id="rk4-detail-title">Detail Transaksi</strong><button type="button" class="rk4-detail-close" data-rk4-detail-close title="Tutup"><i class="fa-solid fa-xmark"></i></button></div><div class="rk4-detail-body" id="rk4-detail-body"></div></div>';
     document.body.appendChild(modal);
-    modal.addEventListener('click',e=>{
-      if(e.target===modal||e.target.closest('[data-laporan-close]'))modal.classList.remove('is-open');
-    });
+    modal.addEventListener('click',e=>{if(e.target===modal||e.target.closest('[data-rk4-detail-close]'))modal.classList.remove('is-open')});
   }
 
-  function openPreview(id){
-    const tx=laporanKasirData().find(t=>String(t?.id)===String(id));
+  function rk4OpenDetail(id){
+    const tx=reportTransactions.find(item=>String(item.id)===String(id));
     if(!tx)return;
-    ensurePreviewModal();
-    const body=document.getElementById('laporan-kasir-preview-body');
+    rk4EnsureDetail();
+    const modal=document.getElementById('rk4-report-detail');
+    const body=document.getElementById('rk4-detail-body');
     if(!body)return;
-    const items=laporanKasirItems(tx);
-    const totalQty=items.reduce((a,x)=>a+(Number(x.qty)||0),0);
-    const subtotal=items.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
-    const discount=Math.min(subtotal,Math.max(0,Number(tx.discount)||0));
-    const total=Math.max(0,Number(tx.total)||subtotal-discount);
-    body.innerHTML=`<div class="laporan-kasir-preview-summary"><div><span>Hari, Tanggal</span><strong>${laporanKasirEscape(laporanKasirDateText(tx))}</strong></div><div><span>Total Transaksi</span><strong>${laporanKasirRupiah(total)}</strong></div><div><span>Jumlah Produk</span><strong>${items.length} produk</strong></div><div><span>Total Item Dibeli</span><strong>${totalQty} item</strong></div></div><div class="laporan-kasir-product-list">${items.length?items.map((x,i)=>`<div class="laporan-kasir-product-row"><div class="laporan-kasir-product-photo" data-laporan-photo="${i}">${x.photo?`<img src="${laporanKasirEscape(x.photo)}" alt="${laporanKasirEscape(x.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="laporan-kasir-product-info"><strong>${laporanKasirEscape(x.name)}</strong><span>${Number(x.qty)||0} × ${laporanKasirRupiah(x.price)}${tx.discount?' · Diskon transaksi: '+laporanKasirRupiah(tx.discount):''}</span></div><div class="laporan-kasir-product-total">${laporanKasirRupiah((Number(x.qty)||0)*(Number(x.price)||0))}</div></div>`).join(''):'<div class="laporan-kasir-empty">Detail produk transaksi lama tidak tersedia.</div>'}</div>`;
-    document.getElementById('laporan-kasir-preview-modal')?.classList.add('is-open');
-
-    items.forEach((x,i)=>{
-      if(!x.photoFileName||typeof window.__rekapinyuResolveProdukKasirPhoto!=='function')return;
-      const target=body.querySelector(`[data-laporan-photo="${i}"]`);
-      if(!target)return;
-      const cached=window.__rekapinyuGetProdukKasirPhotoUrl?.(x.photoFileName);
-      const apply=url=>{
-        if(!url)return;
-        const current=body.querySelector(`[data-laporan-photo="${i}"]`);
-        if(!current)return;
-        current.innerHTML='';
-        const img=document.createElement('img');
-        img.src=url;
-        img.alt=x.name||'';
-        current.appendChild(img);
-      };
-      if(cached)apply(cached);
-      else window.__rekapinyuResolveProdukKasirPhoto(x.photoFileName).then(apply).catch(()=>{});
-    });
+    const items=rk4TransactionItems(tx);
+    const subtotal=items.reduce((sum,item)=>sum+item.qty*item.price,0);
+    const discount=Math.min(subtotal,rk4Money(tx.discount));
+    const total=tx.total>0?rk4Money(tx.total):Math.max(0,subtotal-discount);
+    body.innerHTML=`<div class="rk4-detail-meta"><div><span>Tanggal</span><strong>${rk4Esc(rk4DateText(tx))}</strong></div><div><span>ID Transaksi</span><strong>${rk4Esc(tx.id)}</strong></div><div><span>Uang Diterima</span><strong>${rk4Rupiah(tx.paid)}</strong></div><div><span>Kembalian</span><strong>${rk4Rupiah(tx.change)}</strong></div></div><div>${items.length?items.map(item=>`<div class="rk4-detail-item"><div class="rk4-detail-item-name">${rk4Esc(item.name)}<span class="rk4-detail-item-sub">${item.qty} × ${rk4Rupiah(item.price)}</span></div><div class="rk4-detail-item-total">${rk4Rupiah(item.qty*item.price)}</div></div>`).join(''):'<div class="rk4-report-empty">Detail produk tidak tersedia di file transaksi ini.</div>'}</div><div class="rk4-detail-totals"><div class="rk4-detail-total-row"><span>Subtotal</span><strong>${rk4Rupiah(subtotal)}</strong></div><div class="rk4-detail-total-row"><span>Diskon</span><strong>${rk4Rupiah(discount)}</strong></div><div class="rk4-detail-total-row total"><span>Total</span><strong>${rk4Rupiah(total)}</strong></div></div>`;
+    modal.classList.add('is-open');
   }
 
-  function renderLaporanKasir(){
-    const g=document.getElementById('laporan-kasir-grid');
-    if(!g)return;
-
-    // Selalu baca ulang folder Kasir saat laporan dibuka/dirender.
-    g.innerHTML='<div class="laporan-kasir-history-card"><div class="laporan-kasir-empty">Membaca transaksi kasir...</div></div>';
-
-    loadLaporanKasirFromFolder().then(tx=>{
-      if(!document.getElementById('laporan-kasir-grid'))return;
-      const list=Array.isArray(tx)?tx:[];
-      const omzet=list.reduce((a,t)=>a+(Number(t.total)||0),0);
-      const profit=list.reduce((a,t)=>a+laporanKasirProfit(t),0);
-
-      const g=document.getElementById('laporan-kasir-grid');
-      if(!g)return;
-      g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${list.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${list.length} transaksi</span></div><div class="laporan-kasir-history-list">${list.length?list.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir di folder Kasir.</div>'}</div></div>`;
-      ensurePreviewModal();
-    }).catch(()=>{
-      const g=document.getElementById('laporan-kasir-grid');
-      if(g)g.innerHTML='<div class="laporan-kasir-history-card"><div class="laporan-kasir-empty">Folder Kasir belum dapat dibaca.</div></div>';
-    });
+  function rk4Render(){
+    const summary=document.getElementById('rk4-report-summary');
+    const list=document.getElementById('rk4-report-list');
+    const count=document.getElementById('rk4-report-count');
+    if(!summary||!list||!count)return;
+    const transactions=Array.isArray(reportTransactions)?reportTransactions:[];
+    const omzet=transactions.reduce((sum,tx)=>sum+rk4Money(tx.total),0);
+    const itemCount=transactions.reduce((sum,tx)=>sum+rk4Money(tx.items),0);
+    summary.innerHTML=`<div class="rk4-report-summary-card"><span>Total Omzet</span><strong>${rk4Rupiah(omzet)}</strong></div><div class="rk4-report-summary-card"><span>Total Item</span><strong>${itemCount.toLocaleString('id-ID')}</strong></div><div class="rk4-report-summary-card"><span>Total Transaksi</span><strong>${transactions.length.toLocaleString('id-ID')}</strong></div>`;
+    count.textContent=`${transactions.length.toLocaleString('id-ID')} transaksi`;
+    if(!transactions.length){list.innerHTML='<div class="rk4-report-empty">Belum ada file transaksi JSON di folder Kasir.</div>';return;}
+    list.innerHTML=transactions.map(tx=>`<article class="rk4-report-card"><div class="rk4-report-card-date">${rk4Esc(rk4DateText(tx))}</div><div class="rk4-report-card-items">${rk4Money(tx.items).toLocaleString('id-ID')} item dibeli</div><div class="rk4-report-card-total">${rk4Rupiah(tx.total)}</div><button type="button" class="rk4-report-view" data-rk4-view="${rk4Esc(tx.id)}" title="Lihat detail transaksi" aria-label="Lihat detail transaksi"><i class="fa-solid fa-eye"></i></button></article>`).join('');
   }
 
-  async function openPreviewFromFolder(id){
-    await loadLaporanKasirFromFolder();
-    openPreview(id);
+  async function rk4Load(){
+    const run=++reportLoadSequence;
+    const list=document.getElementById('rk4-report-list');
+    const count=document.getElementById('rk4-report-count');
+    const refresh=document.getElementById('rk4-report-refresh');
+    if(list)list.innerHTML='<div class="rk4-report-empty">Membaca folder Kasir...</div>';
+    if(count)count.textContent='Membaca...';
+    refresh?.classList.add('is-loading');
+    try{
+      const data=await rk4ReadKasirFolder();
+      if(run!==reportLoadSequence)return;
+      reportTransactions=data;
+      rk4Render();
+    }catch(_){
+      if(run!==reportLoadSequence)return;
+      reportTransactions=[];
+      const summary=document.getElementById('rk4-report-summary');
+      if(summary)summary.innerHTML='';
+      if(count)count.textContent='0 transaksi';
+      if(list)list.innerHTML='<div class="rk4-report-empty">Folder Kasir belum dapat dibaca. Pastikan folder yang dipilih di Produk Kasir masih dapat diakses.</div>';
+    }finally{refresh?.classList.remove('is-loading');}
+    return reportTransactions;
   }
 
   document.addEventListener('click',e=>{
-    const b=e.target.closest('[data-laporan-view]');
-    if(b){
-      e.preventDefault();
-      openPreviewFromFolder(b.dataset.laporanView);
-    }
+    const refresh=e.target.closest('#rk4-report-refresh');
+    if(refresh){e.preventDefault();rk4Load();return;}
+    const view=e.target.closest('[data-rk4-view]');
+    if(view){e.preventDefault();rk4OpenDetail(view.dataset.rk4View);return;}
   });
 
-  window.__renderLaporanKasir=renderLaporanKasir;
-  window.__rekapinyuLoadLaporanKasirFolder=loadLaporanKasirFromFolder;
-
-  document.addEventListener('DOMContentLoaded',()=>{
-    renderLaporanKasir();
-  });
+  window.__renderLaporanKasir=rk4Load;
+  window.__rekapinyuLoadLaporanKasirFolder=rk4Load;
+  document.addEventListener('DOMContentLoaded',()=>{rk4EnsureDetail();rk4Load()});
 })();
 </script>
 <style id="rekapinyu-welcome-popup-css">
