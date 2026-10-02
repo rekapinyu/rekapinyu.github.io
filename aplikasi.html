@@ -1408,7 +1408,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 #sidebar .sidebar-logout-box button i{color:inherit!important;}
 </style>
 
-<style id="kasir-produk-barcode-profit-final-css" data-folder-label="1">
+<style id="kasir-produk-barcode-profit-final-css">
 .pk3-field select{display:block;width:100%;height:38px;box-sizing:border-box;padding:0 10px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#0f172a;font-size:12px;outline:none}.pk3-field select:focus{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.12)}
 .pk3-barcode-field{position:relative!important}.pk3-barcode-list:empty{display:none!important}.pk3-barcode-list{position:absolute!important;left:0!important;right:0!important;top:calc(100% + 4px)!important;display:flex!important;flex-direction:column!important;gap:2px!important;margin:0!important;padding:4px!important;max-height:132px!important;overflow-y:auto!important;overflow-x:hidden!important;background:#fff!important;border:1px solid #cbd5e1!important;border-radius:10px!important;box-shadow:0 10px 24px rgba(15,23,42,.12)!important;z-index:200!important;box-sizing:border-box!important}.pk3-barcode-chip{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:100%!important;min-height:30px!important;box-sizing:border-box!important;padding:6px 8px!important;border:0!important;border-radius:7px!important;background:#f8fafc!important;color:#1e3a8a!important;font-size:10px!important;font-weight:800!important}.pk3-barcode-chip:hover{background:#eff6ff!important}.pk3-barcode-chip span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}.pk3-barcode-chip button{flex:0 0 auto!important;border:0!important;background:transparent!important;color:#dc2626!important;font-size:14px!important;line-height:1!important;cursor:pointer!important;padding:2px 4px!important;border-radius:5px!important}.pk3-barcode-chip button:hover{background:#fee2e2!important}.pk3-edit-row .pk3-barcode-field{position:relative!important}.pk3-edit-row .pk3-barcode-list{z-index:300!important}.kasir-search-wrap{position:relative}.kasir-search-wrap input{padding-right:28px!important}
 .kasir-barcode-input-wrap{width:190px!important}
@@ -1512,8 +1512,8 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   .pk3-heading{align-items:flex-start!important}
   .pk3-heading-actions{gap:6px!important}
   .pk3-folder-pick,#pk3-count{height:32px!important;min-height:32px!important;padding:0 9px!important;font-size:10px!important}
-  .pk3-folder-pick span{display:none!important}
-  .pk3-folder-pick{width:34px!important;padding:0!important}
+  .pk3-folder-pick{width:auto!important;min-width:34px!important;max-width:min(52vw,260px)!important;padding:0 9px!important;overflow:hidden!important}
+  .pk3-folder-pick span{display:inline-block!important;max-width:calc(min(52vw,260px) - 32px)!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
   .pk3-heading #pk3-count{min-width:74px!important}
   .pk3-form{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
   .pk3-name,.pk3-photo-field,.pk3-add{grid-column:auto!important;}
@@ -2232,7 +2232,7 @@ bind();
 <div class="pk3-heading">
 <div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
 <div class="pk3-heading-actions">
-<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Pilih folder penyimpanan foto produk"><i class="fa-solid fa-folder-open"></i><span>Pilih Folder</span></button>
+<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Pilih folder penyimpanan foto produk" aria-pressed="false"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span></button>
 <span id="pk3-count">0 produk</span>
 </div>
 </div>
@@ -5465,7 +5465,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if($('pk3-photo-name'))$('pk3-photo-name').textContent='Pilih foto';
     if($('pk3-category'))$('pk3-category').value='Lainnya';
     updateFolderStatus();
-    updatePk3FolderPickLabel();
   }
 
   function idbOpen(){
@@ -5598,35 +5597,23 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function updateFolderStatus(){
     const btn=$('pk3-folder-pick');
     if(!btn)return;
-    let handle=null;
-    let storedName='';
-    try{handle=await getPhotoDirectoryQuiet()}catch(_){}
-    try{storedName=await idbGetFolderName()}catch(_){}
-    const name=String(handle?.name||storedName||'').trim();
-    const active=!!handle;
-    btn.classList.toggle('is-active',active||!!name);
-    btn.setAttribute('aria-pressed',(active||!!name)?'true':'false');
-    btn.title=name?`Folder foto: ${name}`:'Pilih folder penyimpanan foto produk';
-    btn.innerHTML=name
-      ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(name)}</span>`
+
+    // Nama yang ditampilkan adalah nama FOLDER INDUK yang dipilih user,
+    // bukan nama subfolder "Produk".
+    let selectedFolderName='';
+    try{selectedFolderName=String(await idbGetFolderName()||'').trim()}catch(_){}
+    if(!selectedFolderName){
+      try{selectedFolderName=String(photoDirectoryHandle?.name||'').trim()}catch(_){}
+    }
+
+    const active=!!selectedFolderName;
+    btn.classList.toggle('is-active',active);
+    btn.setAttribute('aria-pressed',active?'true':'false');
+    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Pilih folder penyimpanan foto produk';
+    btn.innerHTML=active
+      ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(selectedFolderName)}</span>`
       : `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span>`;
   }
-
-  function updatePk3FolderPickLabel(){
-    const button=document.getElementById('pk3-folder-pick');
-    if(!button)return;
-    let name='';
-    try{name=String(photoDirectoryHandle?.name||'').trim()}catch(_){}
-    if(!name){
-      try{name=String(localStorage.getItem('rekapinyu_selected_folder_name')||'').trim()}catch(_){}
-    }
-    if(!name)name='Pilih Folder';
-    const label=button.querySelector('[data-folder-label]')||button.querySelector('span');
-    if(label)label.textContent=name;
-    else button.setAttribute('aria-label',name);
-    button.title=name;
-  }
-
 
   function fileNameForProduct(productName){
     let base=String(productName||'').trim()
@@ -6371,15 +6358,17 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       if(e.target.closest('[data-pk3-close]'))closeEdit();
     });
     $('pk3-folder-pick')?.addEventListener('click',async()=>{
+      const btn=$('pk3-folder-pick');
       try{
-        const btn=$('pk3-folder-pick');
-        if(btn){btn.disabled=true;}
+        if(btn)btn.disabled=true;
         await selectPhotoDirectory();
+        await updateFolderStatus();
       }catch(err){
-        if(err?.name!=='AbortError' && typeof showModal==='function')showModal('Folder Foto',err?.message||'Folder foto belum dipilih.');
+        if(err?.name!=='AbortError' && typeof showModal==='function'){
+          showModal('Folder Foto',err?.message||'Folder foto belum dipilih.');
+        }
       }finally{
-        const btn=$('pk3-folder-pick');
-        if(btn){btn.disabled=false;}
+        if(btn)btn.disabled=false;
       }
     });
     $('pk3-photo')?.addEventListener('change',e=>{
