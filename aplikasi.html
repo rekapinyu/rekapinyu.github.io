@@ -4520,9 +4520,33 @@ function updateUserAvatarUI() {
       const expenseGroups=groupByDate(pengeluaranData);
       const kasbonGroups=groupByDate(kasbonData);
 
-      /* HANYA gunakan file yang memang sudah ada di Data/Rekap.
-         Tidak ada getFileHandle(...,{create:true}) di implementasi ini. */
+      /* INPUT DATA: gunakan/BUAT file harian di folder Data/Rekap yang SUDAH ADA.
+         Folder tidak pernah dibuat otomatis. Hanya file JSON harian yang dibuat
+         ketika ada input baru dan folder Data/Rekap memang sudah tersedia. */
+      const historyDates=[...historyGroups.keys()];
+      for(const key of historyDates){
+        const info=historyGroups.get(key)?.info;
+        if(!info)continue;
+        const existingEntry=existingByKey.get(key);
+        const payload=makePayload(
+          info,
+          historyGroups.get(key)?.items||[],
+          expenseGroups.get(key)?.items||[],
+          kasbonGroups.get(key)?.items||[]
+        );
+        if(existingEntry){
+          await writeJson(existingEntry.handle,payload);
+        }else{
+          const targetName=fileName(info);
+          const handle=await dir.getFileHandle(targetName,{create:true});
+          await writeJson(handle,payload);
+        }
+      }
+
+      /* Data Pengeluaran/Kasbon yang tanggalnya belum mempunyai History
+         tetap hanya memperbarui file Rekap yang memang sudah ada. */
       for(const [key,entry] of existingByKey){
+        if(historyGroups.has(key))continue;
         const info=entry.info;
         const payload=makePayload(
           info,
