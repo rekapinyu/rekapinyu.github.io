@@ -7849,5 +7849,165 @@ async function initKasirViews(){
 })();
 </script>
 
+
+<script id="rekapinyu-requested-rekap-import-kasbon-pengeluaran-fix">
+(function(){
+  'use strict';
+  /* PATCH TERBATAS: hanya Import History + file JSON Kasbon/Pengeluaran. */
+  const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const pad=n=>String(n).padStart(2,'0');
+  const dateInfo=item=>{
+    const d=new Date();
+    const y=Number(item?.year)||d.getFullYear();
+    const mi=Number.isFinite(Number(item?.monthIndex))?Number(item.monthIndex):Math.max(0,MONTHS.indexOf(String(item?.month||'')));
+    const dt=Number(item?.date)||d.getDate();
+    const date=new Date(y,mi,dt);
+    return {day:String(item?.day||DAYS[date.getDay()]),date:dt,monthIndex:mi,month:String(item?.month||MONTHS[mi]),year:y,key:`${y}-${pad(mi+1)}-${pad(dt)}`};
+  };
+  const itemDate=item=>dateInfo(item);
+  const groupByDate=list=>{
+    const m=new Map();
+    (Array.isArray(list)?list:[]).forEach(item=>{const i=itemDate(item);if(!m.has(i.key))m.set(i.key,{info:i,items:[]});m.get(i.key).items.push(item)});
+    return m;
+  };
+  async function rekapDir(){
+    const dir=await window.__rekapinyuGetDataSubdirectory?.('Rekap');
+    if(!dir)throw new Error('Folder Data/Rekap tidak ditemukan. Pilih folder utama yang sudah memiliki Data/Rekap terlebih dahulu.');
+    return dir;
+  }
+  async function writeJsonFile(dir,name,payload){
+    const handle=await dir.getFileHandle(name,{create:true});
+    const writer=await handle.createWritable();
+    try{await writer.write(JSON.stringify(payload,null,2));}finally{await writer.close();}
+  }
+  function payloadFor(type,info,items){
+    const base={Rekap_hari:info.day,Tanggal:info.date,Bulan:info.month,Tahun:info.year};
+    base[type]=items;
+    return base;
+  }
+  async function saveSeparateRekapFiles(){
+    const dir=await rekapDir();
+    const expenses=groupByDate(window.pengeluaranData||[]);
+    const kasbons=groupByDate(window.kasbonData||[]);
+    for(const {info,items} of expenses.values()){
+      await writeJsonFile(dir,`Pengeluaran_${info.day}_${info.date}_${info.month}_${info.year}.json`,payloadFor('Pengeluaran',info,items));
+    }
+    for(const {info,items} of kasbons.values()){
+      await writeJsonFile(dir,`Kasbon_${info.day}_${info.date}_${info.month}_${info.year}.json`,payloadFor('Kasbon',info,items));
+    }
+    return true;
+  }
+
+  const originalSave=window.__rekapinyuSaveLocalRekap;
+  window.__rekapinyuSaveLocalRekap=async function(){
+    let baseResult=true;
+    try{ if(typeof originalSave==='function') baseResult=await originalSave(); }catch(err){ console.warn('Rekapinyu base JSON save:',err); baseResult=false; }
+    try{ await saveSeparateRekapFiles(); }
+    catch(err){ console.warn('Rekapinyu separate JSON save:',err); baseResult=false; }
+    return baseResult;
+  };
+  window.__rekapinyuSavePengeluaranCloud=window.__rekapinyuSaveLocalRekap;
+  window.__rekapinyuSaveKasbonCloud=window.__rekapinyuSaveLocalRekap;
+
+  /* Loader tambahan: Kasbon/Pengeluaran membaca file khususnya sendiri. */
+  const originalLoad=window.__rekapinyuLoadLocalRekap;
+  async function loadSeparateRekapFiles(){
+    const dir=await rekapDir();
+    const files=[];
+    async function walk(cur){
+      for await(const [name,entry] of cur.entries()){
+        if(entry?.kind==='directory'){await walk(entry);continue;}
+        if(entry?.kind==='file' && /^(?:Kasbon|Pengeluaran)_.+\.json$/i.test(String(name))) files.push({name:String(name),handle:entry});
+      }
+    }
+    await walk(dir);
+    const expenseMap=new Map(),kasbonMap=new Map();
+    const add=(map,item)=>{if(!item||typeof item!=='object')return;const key=String(item.id??'').trim()||JSON.stringify(item);if(!map.has(key))map.set(key,item)};
+    for(const f of files){
+      try{
+        const raw=await (await f.handle.getFile()).text();
+        const data=JSON.parse(raw);
+        const target=/^Pengeluaran_/i.test(f.name)?data.Pengeluaran:data.Kasbon;
+        (Array.isArray(target)?target:[]).forEach(x=>add(/^Pengeluaran_/i.test(f.name)?expenseMap:kasbonMap,x));
+      }catch(err){console.warn('Rekapinyu: file JSON khusus dilewati.',f.name,err)}
+    }
+    if(files.length){
+      window.pengeluaranData=Array.from(expenseMap.values()).sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
+      window.kasbonData=Array.from(kasbonMap.values()).sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
+      try{window.populatePengeluaranFilters?.();window.renderPengeluaranGrid?.();window.renderKasbonGrid?.();window.renderMobileAdminSummary?.()}catch(_){}
+    }
+    return true;
+  }
+  window.__rekapinyuLoadSeparateRekap=loadSeparateRekapFiles;
+  window.__rekapinyuLoadLocalRekap=async function(){
+    let result=true;
+    try{if(typeof originalLoad==='function')result=await originalLoad()}catch(err){console.warn('Rekapinyu base JSON load:',err);result=false}
+    try{await loadSeparateRekapFiles()}catch(err){console.warn('Rekapinyu separate JSON load:',err);result=false}
+    return result;
+  };
+
+  /* IMPORT HISTORY: picker langsung dibuka pada Data/Rekap dan hanya menerima
+     JSON yang dibuat oleh Backup History. */
+  async function importHistoryBackupOnly(){
+    try{
+      const dir=await rekapDir();
+      if(!('showOpenFilePicker' in window))throw new Error('Browser ini belum mendukung pemilihan file langsung dari folder Data/Rekap. Gunakan Chrome/Edge terbaru.');
+      const picked=await window.showOpenFilePicker({
+        multiple:false,
+        startIn:dir,
+        types:[{description:'Rekapinyu History Backup JSON',accept:{'application/json':['.json']}}]
+      });
+      const handle=picked?.[0];
+      if(!handle)return;
+      const file=await handle.getFile();
+      const name=String(file.name||'');
+      if(!/^BackupHistory_.+\.json$/i.test(name))throw new Error('Import hanya menerima file JSON hasil Backup History. Pilih file BackupHistory_...json.');
+      const text=await file.text();
+      if(!text.trim())throw new Error('File backup JSON kosong.');
+      let payload;try{payload=JSON.parse(text)}catch(_){throw new Error('File backup bukan JSON yang valid.')}
+      if(payload?.format!=='Rekapinyu History Backup JSON' || Number(payload?.version)!==1 || !Array.isArray(payload?.history)){
+        throw new Error('File ditolak. Import History hanya menerima file JSON yang dibuat oleh fitur Backup di menu History.');
+      }
+      if(!payload.history.length)throw new Error('File backup History tidak berisi data.');
+      const normalize=window.__rekapinyuNormalizeImportedHistoryItem;
+      const imported=payload.history.map((item,i)=>{
+        if(typeof normalize==='function')return normalize(item,i);
+        const mi=Number.isFinite(Number(item?.monthIndex))?Number(item.monthIndex):MONTHS.indexOf(item?.month);
+        const y=Number(item?.year),d=Number(item?.date);if(!Number.isFinite(y)||!Number.isFinite(d)||mi<0)return null;
+        return {...item,id:item?.id!==''&&Number.isFinite(Number(item?.id))?Number(item.id):Date.now()+i,monthIndex:mi,month:item?.month||MONTHS[mi],day:item?.day||DAYS[new Date(y,mi,d).getDay()],year:y,date:d};
+      }).filter(Boolean);
+      if(!imported.length)throw new Error('Tidak ada data History yang valid pada file backup.');
+      const merged=new Map();
+      (Array.isArray(window.historyData)?window.historyData:[]).forEach(item=>merged.set(String(item?.id??'').trim()||JSON.stringify(item),item));
+      imported.forEach(item=>merged.set(String(item?.id??'').trim()||JSON.stringify(item),item));
+      window.historyData=Array.from(merged.values());
+      try{window.syncBackupFromHistory?.();}catch(_){}
+      const saved=await window.__rekapinyuSaveLocalRekap?.();
+      if(saved===false)throw new Error('Data berhasil diimport tetapi gagal disimpan ke folder Data/Rekap.');
+      try{window.populateHistoryFilters?.();window.renderHistory?.();window.renderBackupGrid?.();}catch(_){}
+      window.showModal?.('Import Berhasil',`${imported.length} data History dari Backup berhasil diimport.`);
+    }catch(err){
+      if(err?.name==='AbortError')return;
+      window.showModal?.('Import Gagal',err?.message||'File backup History tidak dapat diimport.','fa-solid fa-circle-xmark text-rose-600');
+    }
+  }
+  function bindImport(){
+    const btn=document.getElementById('history-io-import');
+    if(!btn||btn.dataset.rekapImportPatch==='1')return;
+    const replacement=btn.cloneNode(true);
+    replacement.dataset.rekapImportPatch='1';
+    btn.replaceWith(replacement);
+    replacement.addEventListener('click',e=>{e.preventDefault();importHistoryBackupOnly()});
+    const oldFile=document.getElementById('history-io-import-file');
+    if(oldFile)oldFile.disabled=true;
+  }
+  function start(){bindImport();try{window.__rekapinyuLoadLocalRekap?.()}catch(_){}
+    window.addEventListener('focus',()=>{try{if(!document.getElementById('view-history')?.classList.contains('hidden'))window.__rekapinyuLoadLocalRekap?.()}catch(_){} });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+</script>
+
 </body>
 </html>
