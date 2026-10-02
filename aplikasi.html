@@ -6550,6 +6550,10 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const value=e?.detail?.products;
     if(Array.isArray(value))window.__rekapinyuRefreshProdukKasir(value);
   });
+  window.__rekapinyuLoadProdukKasirFolder=async function(){
+    await load();
+    return Array.isArray(products)?products:[];
+  };
   window.__initProdukKasir=function(){bind();load();};
 })();
 </script>
@@ -6607,9 +6611,29 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function loadKasirStore(){
-    /* KASIR PRODUCT SOURCE — satu implementasi baru.
-       Menu Kasir hanya MEMBACA JSON produk yang sudah ada di Data/Produk.
-       Tidak membuat folder/file dan tidak memakai fallback data lama untuk daftar produk. */
+    /* KASIR PRODUCT SOURCE:
+       Menu Kasir membaca sumber yang sama dengan Menu Produk Kasir.
+       Tidak membuat folder/file dan tidak mengubah data Produk Kasir. */
+    try{
+      if(typeof window.__rekapinyuLoadProdukKasirFolder==='function'){
+        const source=await window.__rekapinyuLoadProdukKasirFolder();
+        if(Array.isArray(source)&&source.length){
+          kasirProducts=source.map(p=>{
+            const barcodes=productBarcodes(p);
+            const manualStock=Math.max(0,Number(p.manualStock)||0);
+            return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
+          });
+          window.__rekapinyuProdukKasirData=kasirProducts;
+          kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
+          return kasirProducts;
+        }
+      }
+    }catch(e){
+      console.warn('Rekapinyu: data Produk Kasir belum dapat dibaca.',e);
+    }
+
+    /* Fallback kompatibilitas: tetap membaca JSON Produk bila sumber Produk Kasir
+       belum tersedia pada saat Menu Kasir pertama kali dibuka. */
     const dir=await window.__rekapinyuGetDataSubdirectory?.('Produk');
     if(!dir){
       kasirProducts=[];
@@ -6649,7 +6673,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
             normalized.barcode=normalized.barcodes[0]||'';
             loaded.push(normalized);
           }
-        }catch(_){/* file JSON lain di folder diabaikan */}
+        }catch(_){}
       }
     }
     await walk(dir);
@@ -6667,6 +6691,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
     return kasirProducts;
   }
+
   function saveKasirStore(){
     window.__rekapinyuProdukKasirData=kasirProducts;
     window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;
