@@ -3,6 +3,23 @@
 <html lang="id">
 <head>
 <meta charset="utf-8"/>
+<!-- REKAPINYU FOLDER SAFETY: aplikasi TIDAK BOLEH membuat folder otomatis.
+     Semua getDirectoryHandle dipaksa membaca folder yang sudah ada (create:false).
+     Pembuatan FILE tetap diperbolehkan untuk fitur backup/data yang memang diminta. -->
+<script id="rekapinyu-no-auto-folder-create">
+(function(){
+  try{
+    if(!window.__rekapinyuDirectoryCreateGuardInstalled && window.FileSystemDirectoryHandle?.prototype?.getDirectoryHandle){
+      const original=FileSystemDirectoryHandle.prototype.getDirectoryHandle;
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle=function(name,options){
+        const safeOptions=Object.assign({},options||{}, {create:false});
+        return original.call(this,name,safeOptions);
+      };
+      window.__rekapinyuDirectoryCreateGuardInstalled=true;
+    }
+  }catch(_){}
+})();
+</script>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <title>Aplikasi Keuangan - Toko</title>
 <!-- Tailwind CSS -->
@@ -5492,20 +5509,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       return await dataDir.getDirectoryHandle(String(name),{create:false});
     }catch(_){return null;}
   }
-  /* SAFETY GUARD: blokir pembuatan DIREKTORI dari kode aplikasi.
-     getFileHandle(...,{create:true}) tetap tidak disentuh karena itu membuat file, bukan folder. */
-  try{
-    const __rekapinyuOriginalGetDirectoryHandle=FileSystemDirectoryHandle.prototype.getDirectoryHandle;
-    if(!window.__rekapinyuDirectoryCreateGuardInstalled){
-      FileSystemDirectoryHandle.prototype.getDirectoryHandle=function(name,options){
-        if(options&&options.create===true){
-          throw new Error('Pembuatan folder otomatis dinonaktifkan. Folder harus sudah ada.');
-        }
-        return __rekapinyuOriginalGetDirectoryHandle.call(this,name,options);
-      };
-      window.__rekapinyuDirectoryCreateGuardInstalled=true;
-    }
-  }catch(_){}
+  /* SAFETY GUARD SUDAH DIPASANG DI HEAD sebelum seluruh logika aplikasi berjalan.
+     Semua getDirectoryHandle selalu dipaksa create:false; folder tidak pernah dibuat otomatis.
+     getFileHandle(...,{create:true}) tetap diperbolehkan karena hanya membuat FILE di folder yang sudah ada. */
 
   window.__rekapinyuGetDataRootDirectory=getDataRootDirectory;
   window.__rekapinyuGetDataSubdirectory=getDataSubdirectory;
