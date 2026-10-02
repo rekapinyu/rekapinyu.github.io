@@ -3465,7 +3465,7 @@ function updateUserAvatarUI() {
             }).join('');
         }
 
-        document.getElementById('finance-form').addEventListener('submit', (e) => {
+        document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const income = parseNum(document.getElementById('income').value);
             const expense = parseNum(document.getElementById('expense').value);
@@ -3494,8 +3494,14 @@ function updateUserAvatarUI() {
             };
 
             historyData.unshift(newEntry);
+            let inputDataSaved=false;
             if (currentSessionUser && currentSessionUser.phone) {
-                window.__rekapinyuSaveLocalRekap?.();
+                inputDataSaved=await window.__rekapinyuSaveLocalRekap?.();
+            }
+            if(!inputDataSaved){
+                historyData.shift();
+                showModal("Gagal Disimpan", "Folder Data/Rekap belum tersedia atau file InputData tidak dapat disimpan.", "fa-solid fa-circle-xmark text-rose-600");
+                return;
             }
 
             document.getElementById('finance-form').reset();
@@ -4431,8 +4437,10 @@ function updateUserAvatarUI() {
       try{
         const data=await readJsonHandle(entry.handle);
 
-        /* History tetap hanya mengambil InputData. */
-        normalizeLoadedArray(data.InputData).forEach(item=>addUnique(historyMap,item));
+        /* HISTORY: hanya membaca file JSON InputData_* dari folder Data/Rekap. */
+        if(/^InputData_.+\.json$/i.test(String(entry.name))){
+          normalizeLoadedArray(data.InputData).forEach(item=>addUnique(historyMap,item));
+        }
 
         /* Kasbon dan Pengeluaran mengambil data langsung dari JSON Rekap. */
         normalizeLoadedArray(data.Pengeluaran).forEach(item=>addUnique(pengeluaranMap,item));
@@ -4527,17 +4535,17 @@ function updateUserAvatarUI() {
       for(const key of historyDates){
         const info=historyGroups.get(key)?.info;
         if(!info)continue;
-        const existingEntry=existingByKey.get(key);
+        const targetName=fileName(info);
+        const existingInputEntry=existing.find(entry=>String(entry.name).toLowerCase()===targetName.toLowerCase());
         const payload=makePayload(
           info,
           historyGroups.get(key)?.items||[],
           expenseGroups.get(key)?.items||[],
           kasbonGroups.get(key)?.items||[]
         );
-        if(existingEntry){
-          await writeJson(existingEntry.handle,payload);
+        if(existingInputEntry){
+          await writeJson(existingInputEntry.handle,payload);
         }else{
-          const targetName=fileName(info);
           const handle=await dir.getFileHandle(targetName,{create:true});
           await writeJson(handle,payload);
         }
