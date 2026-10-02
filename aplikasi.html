@@ -5531,20 +5531,48 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(_){return null;}
   }
 
+  /* FOLDER ACCESS — READ EXISTING ONLY
+     Tidak pernah membuat folder apa pun. Semua akses direktori wajib create:false.
+     Jika Data atau subfolder target belum ada, akses gagal dan aplikasi tidak membuatnya. */
   async function getDataRootDirectory(){
     let root=photoDirectoryHandle;
     if(!root){try{root=await idbGet()}catch(_){} }
     if(!root)return null;
     try{if((await root.queryPermission({mode:'readwrite'}))!=='granted')return null;}catch(_){return null;}
-    return root;
+    try{
+      // Root yang dipilih harus sudah merupakan folder Data, atau parent yang SUDAH memiliki Data.
+      if(String(root.name||'')==='Data') return root;
+      await root.getDirectoryHandle('Data',{create:false});
+      return root;
+    }catch(_){
+      return null;
+    }
   }
   async function getDataSubdirectory(name){
     const root=await getDataRootDirectory(); if(!root)return null;
     try{
-      const dataDir=String(root.name||'')==='Data'?root:await root.getDirectoryHandle('Data',{create:false});
+      const dataDir=String(root.name||'')==='Data'
+        ?root
+        :await root.getDirectoryHandle('Data',{create:false});
+      // Subfolder harus sudah ada. Tidak pernah menggunakan create:true.
       return await dataDir.getDirectoryHandle(String(name),{create:false});
     }catch(_){return null;}
   }
+  /* SAFETY GUARD: blokir pembuatan DIREKTORI dari kode aplikasi.
+     getFileHandle(...,{create:true}) tetap tidak disentuh karena itu membuat file, bukan folder. */
+  try{
+    const __rekapinyuOriginalGetDirectoryHandle=FileSystemDirectoryHandle.prototype.getDirectoryHandle;
+    if(!window.__rekapinyuDirectoryCreateGuardInstalled){
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle=function(name,options){
+        if(options&&options.create===true){
+          throw new Error('Pembuatan folder otomatis dinonaktifkan. Folder harus sudah ada.');
+        }
+        return __rekapinyuOriginalGetDirectoryHandle.call(this,name,options);
+      };
+      window.__rekapinyuDirectoryCreateGuardInstalled=true;
+    }
+  }catch(_){}
+
   window.__rekapinyuGetDataRootDirectory=getDataRootDirectory;
   window.__rekapinyuGetDataSubdirectory=getDataSubdirectory;
 
