@@ -7031,18 +7031,28 @@ async function initKasirViews(){
     return true;
   }
 
-  /* KEMBALIAN KASIR — SATU IMPLEMENTASI BARU, SATU SUMBER PERHITUNGAN */
+  /* KEMBALIAN + PEMBAYARAN KASIR — SATU IMPLEMENTASI */
+  function kasirMoney(value){
+    return Math.max(0,Number(String(value??'').replace(/[^0-9]/g,''))||0);
+  }
+  function getKasirPaymentCalculation(cart=kasirCart,paidValue,discountValue){
+    const source=Array.isArray(cart)?cart:[];
+    const subtotal=source.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
+    const discount=Math.min(subtotal,kasirMoney(discountValue));
+    const paid=kasirMoney(paidValue);
+    const total=Math.max(0,subtotal-discount);
+    const change=Math.max(0,paid-total);
+    return {subtotal,discount,total,paid,change};
+  }
   function updateKasirPaymentSummary(){
-    const total=kasirCart.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
-    const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/\D/g,''))||0);
-    const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/\D/g,''))||0;
-    const finalTotal=Math.max(0,total-discount);
-    const change=Math.max(0,paid-finalTotal);
+    const paid=document.getElementById('kasir-popup-paid')?.value||'';
+    const discount=document.getElementById('kasir-popup-discount')?.value||'';
+    const calc=getKasirPaymentCalculation(kasirCart,paid,discount);
     const totalEl=document.getElementById('kasir-popup-total');
     const changeEl=document.getElementById('kasir-popup-change');
-    if(totalEl)totalEl.textContent=rupiah(finalTotal);
-    if(changeEl)changeEl.textContent=rupiah(change);
-    return {total,discount,paid,finalTotal,change};
+    if(totalEl)totalEl.textContent=rupiah(calc.total);
+    if(changeEl)changeEl.textContent=rupiah(calc.change);
+    return calc;
   }
   document.addEventListener('input',e=>{
     const id=e.target?.id;
@@ -7050,6 +7060,7 @@ async function initKasirViews(){
     updateKasirPaymentSummary();
     renderKasirReceiptPreview();
   });
+
   /* KASIR BLUETOOTH — IMPLEMENTASI TUNGGAL. Implementasi lama dihapus seluruhnya. */
   const kasirBluetooth={device:null,characteristic:null,connecting:false};
   const kasirBluetoothServices=[
@@ -7230,61 +7241,97 @@ async function initKasirViews(){
     const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     return `${date}, ${time}`;
   }
-  function buildKasirEscPosReceipt(){
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
-    const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0;
-    const finalTotal=Math.max(0,total-discount);
-    const change=Math.max(0,paid-finalTotal);
+  function buildKasirEscPosReceipt(printState){
+    const state=printState||window.__kasirPrintState||{};
+    const cart=Array.isArray(state.cart)?state.cart:kasirCart;
+    const calc=getKasirPaymentCalculation(cart,state.paid,state.discount);
     const info=getKasirReceiptStoreInfo();
-    const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+    const invoiceId=String(state.invoiceId||window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId());
     const printerSettings=getKasirPrinterSettings();
-    const receiptWidth=Number(printerSettings.paperWidth)||32;
+    const receiptWidth=Math.max(24,Math.min(48,Number(printerSettings.paperWidth)||32));
     const clean=v=>String(v??'').replace(/[^\x20-\x7E\n]/g,'');
-    const line=(left,right,width=receiptWidth)=>{left=clean(left);right=clean(right);const spaces=Math.max(1,width-left.length-right.length);return left+' '.repeat(spaces)+right};
+    const wrap=(value,width)=>{
+      const words=clean(value).split(/\s+/).filter(Boolean);
+      if(!words.length)return [''];
+      const lines=[];let current='';
+      words.forEach(word=>{
+        while(word.length>width){
+          if(current){lines.push(current);current='';}
+          lines.push(word.slice(0,width));word=word.slice(width);
+        }
+        if(!word)return;
+        const next=current?current+' '+word:word;
+        if(next.length<=width)current=next;
+        else{if(current)lines.push(current);current=word;}
+      });
+      if(current)lines.push(current);
+      return lines;
+    };
+    const line=(left,right,width=receiptWidth)=>{
+      left=clean(left);right=clean(right);
+      if(left.length+right.length+1>width){
+        left=left.slice(0,Math.max(1,width-right.length-1));
+      }
+      return left+' '.repeat(Math.max(1,width-left.length-right.length))+right;
+    };
     const separator='-'.repeat(receiptWidth)+'\n';
+
     let out='\x1B\x40';
     out+='\x1B\x61\x01';
     out+='\x1B\x21\x18'+clean(info.name).toUpperCase()+'\x1B\x21\x00\n';
-    out+='\x1B\x21\x10'+clean(info.address).toLowerCase()+'\x1B\x21\x00\n';
-    out+='\x1B\x21\x10'+clean(info.phone).toLowerCase()+'\x1B\x21\x00\n';
-    out+='\x1B\x61\x00';
+    out+='\x1B\x21\x00'+clean(info.address)+'\n';
+    out+=clean(info.phone)+'\n';
     out+=separator;
-    out+=`ID Struk : ${invoiceId}\n`;
-    out+=`${getKasirReceiptDate()}\n`;
+    out+='ID Struk : '+clean(invoiceId)+'\n';
+    out+=clean(getKasirReceiptDate())+'\n';
     out+=separator;
-    kasirCart.forEach(x=>{
-      out+=clean(x.name).slice(0,receiptWidth)+'\n';
-      out+=line(`${x.qty} x ${rupiah(x.price)}`,rupiah(x.qty*x.price),32)+'\n';
+
+    cart.forEach(item=>{
+      const nameLines=wrap(item?.name||item?.nama||item?.productName||'Produk',receiptWidth);
+      nameLines.forEach(nameLine=>{out+=nameLine+'\n';});
+      const qty=Number(item?.qty)||0;
+      const price=Number(item?.price)||0;
+      out+=line(String(qty)+' x '+rupiah(price),rupiah(qty*price),receiptWidth)+'\n';
     });
+
     out+=separator;
-    out+=line('Total',rupiah(finalTotal),32)+'\n';
-    out+=line('Uang Diterima',rupiah(paid),32)+'\n';
-    out+=line('Diskon',rupiah(discount),32)+'\n';
-    out+=line('Kembalian',rupiah(change),32)+'\n';
+    out+=line('Subtotal',rupiah(calc.subtotal),receiptWidth)+'\n';
+    out+=line('Diskon',rupiah(calc.discount),receiptWidth)+'\n';
+    out+=line('Total',rupiah(calc.total),receiptWidth)+'\n';
+    out+=line('Uang Diterima',rupiah(calc.paid),receiptWidth)+'\n';
+    out+=line('Kembalian',rupiah(calc.change),receiptWidth)+'\n';
     out+=separator;
     out+=clean(info.footer||'Keterangan')+'\n';
     out+='\n\n';
+
     return new TextEncoder().encode(out+'\x1D\x56\x00');
   }
 
-  async function printKasirReceiptBluetooth(){
+  async function printKasirReceiptBluetooth(printState){
     const characteristic=kasirBluetooth.characteristic;
     if(!kasirBluetooth.device?.gatt?.connected||!characteristic){
       throw new Error('Printer Bluetooth belum siap untuk mencetak.');
     }
     const printerSettings=getKasirPrinterSettings();
     const copies=Math.min(5,Math.max(1,Number(printerSettings.copyCount)||1));
-    const chunkSize=180;
-    for(let copy=0;copy<copies;copy++){
-      const data=buildKasirEscPosReceipt();
-      for(let i=0;i<data.length;i+=chunkSize){
-        const chunk=data.slice(i,i+chunkSize);
-        if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(chunk);
-        else if(characteristic.writeValue)await characteristic.writeValue(chunk);
-        else throw new Error('Karakteristik printer tidak mendukung penulisan data.');
-        await new Promise(resolve=>setTimeout(resolve,25));
+    const state=printState||window.__kasirPrintState||{};
+    try{
+      for(let copy=0;copy<copies;copy++){
+        const data=buildKasirEscPosReceipt(state);
+        for(let i=0;i<data.length;i+=180){
+          const chunk=data.slice(i,i+180);
+          if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse){
+            await characteristic.writeValueWithoutResponse(chunk);
+          }else if(characteristic.writeValue){
+            await characteristic.writeValue(chunk);
+          }else{
+            throw new Error('Karakteristik printer tidak mendukung penulisan data.');
+          }
+          await new Promise(resolve=>setTimeout(resolve,25));
+        }
       }
+    }finally{
+      window.__kasirPrintState=null;
     }
   }
 
@@ -7316,34 +7363,39 @@ async function initKasirViews(){
     });
   }
 
-  function renderKasirReceiptPreview(){
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
-    const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0;
-    const finalTotal=Math.max(0,total-discount);
+  function renderKasirReceiptPreview(printState){
+    const state=printState||window.__kasirPrintState||{};
+    const cart=Array.isArray(state.cart)?state.cart:kasirCart;
+    const paidValue=state.hasOwnProperty('paid')?state.paid:document.getElementById('kasir-popup-paid')?.value||'';
+    const discountValue=state.hasOwnProperty('discount')?state.discount:document.getElementById('kasir-popup-discount')?.value||'';
+    const calc=getKasirPaymentCalculation(cart,paidValue,discountValue);
     const preview=document.getElementById('kasir-receipt-preview');
     if(!preview)return;
     const info=getKasirReceiptStoreInfo();
-    const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+    const invoiceId=state.invoiceId||window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+
     const itemList=document.getElementById('kasir-payment-items-list');
     if(itemList){
-      itemList.innerHTML=kasirCart.map((x,i)=>`<div class="kasir-payment-item"><div class="kasir-payment-item-photo" data-kasir-payment-photo="${i}">${x.photo?`<img src="${esc(x.photo)}" alt="${esc(x.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="kasir-payment-item-name">${esc(x.name)}</div><div class="kasir-payment-item-qty">${x.qty} Item</div></div>`).join('');
+      itemList.innerHTML=cart.map((x,i)=>`<div class="kasir-payment-item"><div class="kasir-payment-item-photo" data-kasir-payment-photo="${i}">${x.photo?`<img src="${esc(x.photo)}" alt="${esc(x.name)}">`:'<i class="fa-solid fa-image"></i>'}</div><div class="kasir-payment-item-name">${esc(x.name)}</div><div class="kasir-payment-item-qty">${Number(x.qty)||0} Item</div></div>`).join('');
       renderKasirPaymentItemPhotos();
     }
-    preview.innerHTML=`<div class="kasir-receipt-header"><strong>${esc(info.name).toUpperCase()}</strong><br><span>${esc(info.address).toLowerCase()}</span><br><span>${esc(info.phone).toLowerCase()}</span></div>
+
+    preview.innerHTML=`<div class="kasir-receipt-header"><strong>${esc(info.name).toUpperCase()}</strong><br><span>${esc(info.address)}</span><br><span>${esc(info.phone)}</span></div>
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
       <div>ID Struk : ${esc(invoiceId)}</div>
       <div>${esc(getKasirReceiptDate())}</div>
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
-      ${kasirCart.map(x=>`<div style="margin-bottom:4px"><div>${esc(x.name)}</div><div class="r-row"><span>${x.qty} x ${rupiah(x.price)}</span><span>${rupiah(x.qty*x.price)}</span></div></div>`).join('')}
+      ${cart.map(x=>`<div style="margin-bottom:4px"><div>${esc(x.name)}</div><div class="r-row"><span>${Number(x.qty)||0} x ${rupiah(x.price)}</span><span>${rupiah((Number(x.qty)||0)*(Number(x.price)||0))}</span></div></div>`).join('')}
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
-      <div class="r-row"><strong>Total</strong><strong>${rupiah(finalTotal)}</strong></div>
-      <div class="r-row"><span>Uang Diterima</span><span>${rupiah(paid)}</span></div>
-      <div class="r-row"><span>Diskon</span><span>${rupiah(discount)}</span></div>
-      <div class="r-row"><span>Kembalian</span><span>${rupiah(Math.max(0,paid-finalTotal))}</span></div>
+      <div class="r-row"><span>Subtotal</span><strong>${rupiah(calc.subtotal)}</strong></div>
+      <div class="r-row"><span>Diskon</span><span>${rupiah(calc.discount)}</span></div>
+      <div class="r-row"><strong>Total</strong><strong>${rupiah(calc.total)}</strong></div>
+      <div class="r-row"><span>Uang Diterima</span><span>${rupiah(calc.paid)}</span></div>
+      <div class="r-row"><span>Kembalian</span><strong>${rupiah(calc.change)}</strong></div>
       <div style="border-top:1px dashed #111;margin:6px 0"></div>
       <div>${esc(info.footer||'Keterangan')}</div>`;
   }
+
   document.addEventListener('submit',e=>{
     if(e.target.id!=='receipt-settings-form')return;
     e.preventDefault();
@@ -7354,18 +7406,25 @@ async function initKasirViews(){
   });
 
   function openKasirPaymentPopup(){
-    if(!kasirCart.length){showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');return}
+    if(!kasirCart.length){
+      showModal('Gagal','Keranjang masih kosong.','fa-solid fa-circle-exclamation text-rose-600');
+      return;
+    }
     const popup=document.getElementById('kasir-payment-popup');
     const paid=document.getElementById('kasir-popup-paid');
     const discount=document.getElementById('kasir-popup-discount');
     if(paid)paid.value='';
     if(discount)discount.value='';
     window.__kasirCurrentInvoiceId=getKasirReceiptInvoiceId();
-    renderKasirReceiptPreview();
+    window.__kasirPrintState=null;
     updateKasirPaymentSummary();
+    renderKasirReceiptPreview();
     popup?.classList.add('is-open');
     popup?.setAttribute('aria-hidden','false');
-    updateKasirBluetoothUi(kasirBluetooth.device?.gatt?.connected?'connected':'disconnected',kasirBluetooth.device?.gatt?.connected?'Printer Bluetooth tersambung':'Koneksi Bluetooth terputus');
+    updateKasirBluetoothUi(
+      kasirBluetooth.device?.gatt?.connected?'connected':'disconnected',
+      kasirBluetooth.device?.gatt?.connected?'Printer Bluetooth tersambung':'Koneksi Bluetooth terputus'
+    );
     setTimeout(()=>paid?.focus(),50);
   }
   function closeKasirPaymentPopup(){
@@ -7375,49 +7434,79 @@ async function initKasirViews(){
   }
   async function saveKasirPaymentOnly(){
     if(!kasirCart.length)return;
-    updateKasirPaymentSummary();
     const paid=document.getElementById('kasir-popup-paid')?.value||'';
     const discount=document.getElementById('kasir-popup-discount')?.value||'';
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    const finalTotal=Math.max(0,total-(Number(String(discount).replace(/[^0-9]/g,''))||0));
-    if((Number(String(paid).replace(/[^0-9]/g,''))||0)<finalTotal){showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');return}
+    const calc=getKasirPaymentCalculation(kasirCart,paid,discount);
+    if(calc.paid<calc.total){
+      showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
+      return;
+    }
     const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
-    commitKasirReceiptInvoiceId();window.__kasirCurrentInvoiceId=null;closeKasirPaymentPopup();try{window.__renderLaporanKasir?.()}catch(e){}
+    commitKasirReceiptInvoiceId();
+    window.__kasirCurrentInvoiceId=null;
+    window.__kasirPrintState=null;
+    closeKasirPaymentPopup();
+    try{window.__renderLaporanKasir?.()}catch(e){}
     showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir.','fa-solid fa-circle-check text-emerald-600');
   }
 
   async function saveAndPrintKasirPayment(){
     if(!kasirCart.length)return;
-    updateKasirPaymentSummary();
+
     const paid=document.getElementById('kasir-popup-paid')?.value||'';
     const discount=document.getElementById('kasir-popup-discount')?.value||'';
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    const finalTotal=Math.max(0,total-(Number(String(discount).replace(/[^0-9]/g,''))||0));
-    if((Number(String(paid).replace(/[^0-9]/g,''))||0)<finalTotal){
+    const calc=getKasirPaymentCalculation(kasirCart,paid,discount);
+
+    if(calc.paid<calc.total){
       showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
       return;
     }
-    // Transaksi disimpan terlebih dahulu agar keberhasilan transaksi tidak bergantung pada printer Bluetooth.
+
     commitKasirReceiptInvoiceId();
+
+    /* WAJIB diambil sebelum saveKasirTransaction(), karena fungsi penyimpanan
+       mengosongkan kasirCart setelah transaksi berhasil. */
+    const printState={
+      cart:JSON.parse(JSON.stringify(kasirCart.map(item=>({
+        name:String(item?.name||item?.nama||item?.productName||'Produk'),
+        qty:Number(item?.qty)||0,
+        price:Number(item?.price)||0
+      })))),
+      paid:calc.paid,
+      discount:calc.discount,
+      invoiceId:String(window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId())
+    };
+
+    /* Simpan data transaksi terlebih dahulu. */
     const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
-    window.__kasirCurrentInvoiceId=null;
-    closeKasirPaymentPopup();
 
-    // Setelah transaksi tersimpan ke Laporan Kasir/localStorage/Firestore, cetak dilakukan sebagai proses terpisah.
-    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir. Printer Bluetooth belum tersambung sehingga struk belum dicetak.','fa-solid fa-circle-check text-emerald-600');
-      return;
-    }
-    renderKasirReceiptPreview();
+    window.__kasirPrintState=printState;
+    renderKasirReceiptPreview(printState);
+
     try{
-      await printKasirReceiptBluetooth();
-      showModal('Berhasil','Transaksi berhasil disimpan, masuk ke Laporan Kasir, dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
+      if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
+        updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
+        closeKasirPaymentPopup();
+        window.__kasirCurrentInvoiceId=null;
+        showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir. Printer Bluetooth belum tersambung sehingga struk belum dicetak.','fa-solid fa-circle-check text-emerald-600');
+        window.__kasirPrintState=null;
+        return;
+      }
+
+      await printKasirReceiptBluetooth(printState);
+
+      window.__kasirCurrentInvoiceId=null;
+      closeKasirPaymentPopup();
+      try{window.__renderLaporanKasir?.()}catch(e){}
+      showModal('Berhasil Dicetak','Struk berhasil dicetak oleh printer Bluetooth 58mm.','fa-brands fa-bluetooth-b text-emerald-600');
     }catch(err){
       updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak.','fa-solid fa-circle-check text-emerald-600');
+      window.__kasirCurrentInvoiceId=null;
+      closeKasirPaymentPopup();
+      showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak melalui printer Bluetooth.','fa-solid fa-circle-check text-emerald-600');
+      window.__kasirPrintState=null;
     }
   }
 
