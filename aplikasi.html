@@ -7231,13 +7231,15 @@ async function initKasirViews(){
     return `${date}, ${time}`;
   }
   function buildKasirEscPosReceipt(){
-    const total=kasirCart.reduce((a,x)=>a+x.qty*x.price,0);
-    const discount=Math.min(total,Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0);
-    const paid=Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0;
+    const printState=window.__kasirBluetoothPrintState||{};
+    const cart=Array.isArray(printState.cart)?printState.cart:kasirCart;
+    const total=cart.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
+    const discount=Math.min(total,Math.max(0,Number(printState.discount)||Number(String(document.getElementById('kasir-popup-discount')?.value||'').replace(/[^0-9]/g,''))||0));
+    const paid=Math.max(0,Number(printState.paid)||Number(String(document.getElementById('kasir-popup-paid')?.value||'').replace(/[^0-9]/g,''))||0);
     const finalTotal=Math.max(0,total-discount);
     const change=Math.max(0,paid-finalTotal);
     const info=getKasirReceiptStoreInfo();
-    const invoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+    const invoiceId=printState.invoiceId||window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
     const printerSettings=getKasirPrinterSettings();
     const receiptWidth=Number(printerSettings.paperWidth)||32;
     const clean=v=>String(v??'').replace(/[^\x20-\x7E\n]/g,'');
@@ -7253,41 +7255,46 @@ async function initKasirViews(){
     out+=`ID Struk : ${invoiceId}\n`;
     out+=`${getKasirReceiptDate()}\n`;
     out+=separator;
-    kasirCart.forEach(x=>{
+    cart.forEach(x=>{
       const itemName=String(x.name||x.nama||x.productName||'Produk');
       const itemQty=Number(x.qty)||0;
       const itemPrice=Number(x.price)||0;
       out+=clean(itemName).slice(0,receiptWidth)+'\n';
-      out+=line(String(itemQty)+' x '+rupiah(itemPrice),rupiah(itemQty*itemPrice),32)+'\n';
+      out+=line(String(itemQty)+' x '+rupiah(itemPrice),rupiah(itemQty*itemPrice),receiptWidth)+'\n';
     });
     out+=separator;
-    out+=line('Total',rupiah(finalTotal),32)+'\n';
-    out+=line('Uang Diterima',rupiah(paid),32)+'\n';
-    out+=line('Diskon',rupiah(discount),32)+'\n';
-    out+=line('Kembalian',rupiah(change),32)+'\n';
+    out+=line('Total',rupiah(finalTotal),receiptWidth)+'\n';
+    out+=line('Uang Diterima',rupiah(paid),receiptWidth)+'\n';
+    out+=line('Diskon',rupiah(discount),receiptWidth)+'\n';
+    out+=line('Kembalian',rupiah(change),receiptWidth)+'\n';
     out+=separator;
     out+=clean(info.footer||'Keterangan')+'\n';
     out+='\n\n';
     return new TextEncoder().encode(out+'\x1D\x56\x00');
   }
 
-  async function printKasirReceiptBluetooth(){
+  async function printKasirReceiptBluetooth(printState){
     const characteristic=kasirBluetooth.characteristic;
     if(!kasirBluetooth.device?.gatt?.connected||!characteristic){
       throw new Error('Printer Bluetooth belum siap untuk mencetak.');
     }
+    if(printState)window.__kasirBluetoothPrintState=printState;
     const printerSettings=getKasirPrinterSettings();
     const copies=Math.min(5,Math.max(1,Number(printerSettings.copyCount)||1));
     const chunkSize=180;
-    for(let copy=0;copy<copies;copy++){
-      const data=buildKasirEscPosReceipt();
-      for(let i=0;i<data.length;i+=chunkSize){
-        const chunk=data.slice(i,i+chunkSize);
-        if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(chunk);
-        else if(characteristic.writeValue)await characteristic.writeValue(chunk);
-        else throw new Error('Karakteristik printer tidak mendukung penulisan data.');
-        await new Promise(resolve=>setTimeout(resolve,25));
+    try{
+      for(let copy=0;copy<copies;copy++){
+        const data=buildKasirEscPosReceipt();
+        for(let i=0;i<data.length;i+=chunkSize){
+          const chunk=data.slice(i,i+chunkSize);
+          if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(chunk);
+          else if(characteristic.writeValue)await characteristic.writeValue(chunk);
+          else throw new Error('Karakteristik printer tidak mendukung penulisan data.');
+          await new Promise(resolve=>setTimeout(resolve,25));
+        }
       }
+    }finally{
+      window.__kasirBluetoothPrintState=null;
     }
   }
 
@@ -7405,17 +7412,30 @@ async function initKasirViews(){
     /* Cetak kembali memakai printer Bluetooth ESC/POS 58mm yang sudah tersambung.
        Tidak membuka window.print()/popup browser. Transaksi tetap disimpan dahulu. */
     commitKasirReceiptInvoiceId();
+
+    /* Snapshot sebelum penyimpanan karena saveKasirTransaction mengosongkan cart setelah berhasil. */
+    const printState={
+      cart:JSON.parse(JSON.stringify(kasirCart.map(x=>({
+        id:x.id,
+        name:String(x.name||x.nama||x.productName||'Produk'),
+        qty:Number(x.qty)||0,
+        price:Number(x.price)||0
+      }))),
+      paid:Number(String(paid).replace(/[^0-9]/g,''))||0,
+      discount:Number(String(discount).replace(/[^0-9]/g,''))||0,
+      invoiceId:window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId()
+    };
+
     const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
 
-    renderKasirReceiptPreview();
     try{
       if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
         updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
         showModal('Gagal','Printer Bluetooth belum tersambung. Hubungkan printer Bluetooth 58mm lalu coba Cetak dan Simpan lagi.','fa-solid fa-bluetooth-b text-rose-600');
         return;
       }
-      await printKasirReceiptBluetooth();
+      await printKasirReceiptBluetooth(printState);
     }catch(err){
       showModal('Gagal','Transaksi sudah tersimpan, tetapi struk gagal dicetak melalui printer Bluetooth. Periksa koneksi printer 58mm lalu coba cetak lagi.','fa-solid fa-print text-rose-600');
       return;
