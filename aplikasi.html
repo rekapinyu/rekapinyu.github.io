@@ -7254,8 +7254,11 @@ async function initKasirViews(){
     out+=`${getKasirReceiptDate()}\n`;
     out+=separator;
     kasirCart.forEach(x=>{
-      out+=clean(x.name).slice(0,receiptWidth)+'\n';
-      out+=line(`${x.qty} x ${rupiah(x.price)}`,rupiah(x.qty*x.price),32)+'\n';
+      const itemName=String(x.name||x.nama||x.productName||'Produk');
+      const itemQty=Number(x.qty)||0;
+      const itemPrice=Number(x.price)||0;
+      out+=clean(itemName).slice(0,receiptWidth)+'\n';
+      out+=line(String(itemQty)+' x '+rupiah(itemPrice),rupiah(itemQty*itemPrice),32)+'\n';
     });
     out+=separator;
     out+=line('Total',rupiah(finalTotal),32)+'\n';
@@ -7421,7 +7424,7 @@ async function initKasirViews(){
     window.__kasirCurrentInvoiceId=null;
     closeKasirPaymentPopup();
     try{window.__renderLaporanKasir?.()}catch(e){}
-    showModal('Berhasil','Transaksi berhasil disimpan dan struk langsung dicetak melalui printer Bluetooth 58mm.','fa-brands fa-bluetooth-b text-emerald-600');
+    showModal('Berhasil Dicetak','Struk berhasil dicetak oleh printer Bluetooth 58mm secara realtime.','fa-brands fa-bluetooth-b text-emerald-600');
   }
 
   function focusKasirSearch(){
@@ -7989,6 +7992,13 @@ async function initKasirViews(){
   async function renderLaporanKasir(){
     const g=document.getElementById('laporan-kasir-grid');if(!g)return;
     try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){}
+    try{
+      const folderTx=await loadKasirTransactionsFromFolder();
+      if(Array.isArray(folderTx)){
+        kasirTransactions=folderTx;
+        window.__rekapinyuKasirTransactionsRealtime=folderTx;
+      }
+    }catch(_){}
     const tx=laporanKasirData().sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);const profit=tx.reduce((a,t)=>a+laporanKasirProfit(t),0);g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${tx.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${tx.length} transaksi</span></div><div class="laporan-kasir-history-list">${tx.length?tx.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).length} produk · ${laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>'}</div></div>`;ensurePreviewModal()}
   document.addEventListener('click',e=>{const b=e.target.closest('[data-laporan-view]');if(b){e.preventDefault();openPreview(b.dataset.laporanView)}});window.__renderLaporanKasir=renderLaporanKasir;document.addEventListener('DOMContentLoaded',renderLaporanKasir);
 })();
