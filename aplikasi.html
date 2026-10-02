@@ -4424,9 +4424,8 @@ function updateUserAvatarUI() {
     return Number(b?.timestamp||b?.id||0)-Number(a?.timestamp||a?.id||0);
   }
 
-  /* HISTORY — satu implementasi baru.
-     Hanya membaca file JSON hasil Menu Input Data yang SUDAH ADA di Data/Rekap.
-     Tidak membuat folder/file dan tidak membaca backup sebagai sumber History. */
+  /* HISTORY / KASBON / PENGELUARAN — membaca langsung seluruh JSON yang SUDAH ADA di Data/Rekap.
+     Tidak membuat folder/file baru dan tetap membaca subfolder secara rekursif. */
   async function listRekapFiles(dir){
     const files=[];
     async function walk(currentDir,pathPrefix=''){
@@ -4434,7 +4433,7 @@ function updateUserAvatarUI() {
         const entryPath=pathPrefix?`${pathPrefix}/${entryName}`:String(entryName);
         if(entry?.kind==='directory'){await walk(entry,entryPath);continue;}
         if(entry?.kind!=='file')continue;
-        if(!/^InputData_.*\.json$/i.test(String(entryName)))continue;
+        if(!/\.json$/i.test(String(entryName)))continue;
         files.push({name:String(entryName),path:entryPath,handle:entry});
       }
     }
@@ -4445,35 +4444,77 @@ function updateUserAvatarUI() {
   function fileInfoFromData(data,name){
     const y=Number(data?.Tahun),d=Number(data?.Tanggal),m=String(data?.Bulan||'');
     if(Number.isFinite(y)&&d>0&&MONTHS.includes(m))return dateInfoFromParts(data?.Rekap_hari,d,m,y);
-    const match=String(name||'').match(/^InputData_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
+    const match=String(name||'').match(/^(?:InputData|PengeluaranKasbon)_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
     return match?dateInfoFromParts(match[1],Number(match[2]),match[3],Number(match[4])):null;
   }
 
   async function load(){
     const dir=await getDir();
-    if(!dir){loaded=false;historyData=[];pengeluaranData=[];kasbonData=[];syncBackupFromHistory();renderHistory?.();return false;}
+    if(!dir){
+      loaded=false;
+      historyData=[];
+      pengeluaranData=[];
+      kasbonData=[];
+      syncBackupFromHistory();
+      renderHistory?.();
+      renderPengeluaranGrid?.();
+      renderKasbonGrid?.();
+      return false;
+    }
+
+    /* Menu Kasbon dan Pengeluaran otomatis membaca seluruh JSON
+       dari Data/Rekap, termasuk file di dalam subfolder. */
     const files=await listRekapFiles(dir);
     const historyMap=new Map();
+    const pengeluaranMap=new Map();
+    const kasbonMap=new Map();
+
     const addUnique=(map,item)=>{
       if(!item||typeof item!=='object')return;
-      const id=String(item.id??'').trim(),key=id||JSON.stringify(item);
+      const id=String(item.id??'').trim();
+      const key=id||JSON.stringify(item);
       if(!map.has(key))map.set(key,item);
     };
+
     for(const entry of files){
       try{
         const data=await readJsonHandle(entry.handle);
+
+        /* History tetap hanya mengambil InputData. */
         normalizeLoadedArray(data.InputData).forEach(item=>addUnique(historyMap,item));
-      }catch(err){console.warn('Rekapinyu: file InputData dilewati karena JSON tidak valid.',entry.name,err);}
+
+        /* Kasbon dan Pengeluaran mengambil data langsung dari JSON Rekap. */
+        normalizeLoadedArray(data.Pengeluaran).forEach(item=>addUnique(pengeluaranMap,item));
+        normalizeLoadedArray(data.Kasbon).forEach(item=>addUnique(kasbonMap,item));
+      }catch(err){
+        console.warn('Rekapinyu: file JSON Rekap dilewati karena JSON tidak valid.',entry.name,err);
+      }
     }
+
     historyData=Array.from(historyMap.values()).sort(sortNewest);
-    pengeluaranData=[];
-    kasbonData=[];
+    pengeluaranData=Array.from(pengeluaranMap.values()).sort(sortNewest);
+    kasbonData=Array.from(kasbonMap.values()).sort(sortNewest);
+
     syncBackupFromHistory();
-    window.__rekapinyuDataLaporanBulanan=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(historyData):[];
+    window.__rekapinyuDataLaporanBulanan=
+      typeof window.__rekapinyuBuildLaporanBulanan==='function'
+        ?window.__rekapinyuBuildLaporanBulanan(historyData):[];
+
     loaded=true;
-    try{populateHistoryFilters?.();renderHistory?.();renderReport?.();populatePengeluaranFilters?.();renderPengeluaranGrid?.();renderKasbonGrid?.();populateBackupFilters?.();renderBackupGrid?.();renderMobileAdminSummary?.();}catch(_){}
+    try{
+      populateHistoryFilters?.();
+      renderHistory?.();
+      renderReport?.();
+      populatePengeluaranFilters?.();
+      renderPengeluaranGrid?.();
+      renderKasbonGrid?.();
+      populateBackupFilters?.();
+      renderBackupGrid?.();
+      renderMobileAdminSummary?.();
+    }catch(_){}
     return true;
   }
+
 
   function groupByDate(list){
     const groups=new Map();
@@ -4504,13 +4545,18 @@ function updateUserAvatarUI() {
   }
 
   async function save(){
+    /* KASBON / PENGELUARAN — SATU IMPLEMENTASI FINAL.
+       Data selalu bersumber dari Data/Rekap yang SUDAH ADA.
+       Tidak pernah membuat folder baru.
+       Tidak pernah membuat file JSON baru.
+       Jika file harian belum ada, data hanya dibaca/ditampilkan dan tidak dibuatkan file baru.
+       File yang SUDAH ADA boleh diperbarui melalui handle yang sudah ditemukan. */
     writeChain=writeChain.then(async()=>{
       const dir=await getDir();
-      if(!dir)throw new Error('Folder target Produk Kasir belum dipilih atau izinnya belum tersedia.');
+      if(!dir)return false;
 
       const existing=await listRekapFiles(dir);
       const existingByKey=new Map();
-
       for(const entry of existing){
         try{
           const data=await readJsonHandle(entry.handle);
@@ -4522,45 +4568,26 @@ function updateUserAvatarUI() {
       const historyGroups=groupByDate(historyData);
       const expenseGroups=groupByDate(pengeluaranData);
       const kasbonGroups=groupByDate(kasbonData);
-      const keys=new Set([...existingByKey.keys(),...historyGroups.keys(),...expenseGroups.keys(),...kasbonGroups.keys()]);
 
-      for(const key of keys){
-        const info=existingByKey.get(key)?.info
-          ||historyGroups.get(key)?.info
-          ||expenseGroups.get(key)?.info
-          ||kasbonGroups.get(key)?.info;
-        if(!info)continue;
-
+      /* HANYA gunakan file yang memang sudah ada di Data/Rekap.
+         Tidak ada getFileHandle(...,{create:true}) di implementasi ini. */
+      for(const [key,entry] of existingByKey){
+        const info=entry.info;
         const payload=makePayload(
           info,
           historyGroups.get(key)?.items||[],
           expenseGroups.get(key)?.items||[],
           kasbonGroups.get(key)?.items||[]
         );
-
-        const handle=existingByKey.get(key)?.handle
-          ||await dir.getFileHandle(fileName(info),{create:true});
-
-        await writeJson(handle,payload);
-
-        // Penyimpanan khusus Kasbon/Pengeluaran tetap berada di Data/Rekap,
-        // satu file harian dengan nama yang diminta.
-        const expItems=expenseGroups.get(key)?.items||[];
-        const kasbonItems=kasbonGroups.get(key)?.items||[];
-        if(expItems.length||kasbonItems.length){
-          const specialName=`PengeluaranKasbon_${info.day}_${info.date}_${info.month}_${info.year}.json`;
-          const specialHandle=await dir.getFileHandle(specialName,{create:true});
-          await writeJson(specialHandle,{Rekap_hari:info.day,Tanggal:info.date,Bulan:info.month,Tahun:info.year,Pengeluaran:expItems,Kasbon:kasbonItems});
-        }
+        await writeJson(entry.handle,payload);
       }
 
       window.__rekapinyuDataLaporanBulanan=
         typeof window.__rekapinyuBuildLaporanBulanan==='function'
           ?window.__rekapinyuBuildLaporanBulanan(Array.isArray(historyData)?historyData:[]):[];
-
       return true;
     }).catch(err=>{
-      console.warn('Rekapinyu: penyimpanan JSON operasional gagal.',err);
+      console.warn('Rekapinyu: pembaruan JSON operasional gagal.',err);
       return false;
     });
     return writeChain;
