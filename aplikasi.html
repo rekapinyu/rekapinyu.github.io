@@ -3068,16 +3068,16 @@ function updateUserAvatarUI() {
                         <input type="number" step="0.01" id="edit-val-profit-pct" value="${item.profitPercentage !== undefined ? item.profitPercentage : 10}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
                     </div>
                 `;
-                saveBtn.onclick = function() {
+                saveBtn.onclick = async function() {
+                    const oldInfo = itemDateInfo(item);
                     item.income = parseNum(document.getElementById('edit-val-income').value);
                     item.expense = parseNum(document.getElementById('edit-val-expense').value);
                     item.cashout = parseNum(document.getElementById('edit-val-cashout').value);
                     item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct').value) || 10;
                     // Samakan hitungan profit History dengan Form Input Data Harian.
                     item.profit = Math.max((item.income - item.cashout) * (item.profitPercentage / 100), 0);
-                    saveAndRefreshHistory();
-                    syncBackupFromHistory();
-                    renderBackupGrid();
+                    const saved = await saveEditedHistoryAndRefresh(item, oldInfo);
+                    if (!saved) return;
                     closeEditModal();
                     showModal("Berhasil", "Nominal dan profit persen transaksi berhasil diperbarui.");
                 };
@@ -3110,7 +3110,8 @@ function updateUserAvatarUI() {
                         </div>
                     </div>
                 `;
-                saveBtn.onclick = function() {
+                saveBtn.onclick = async function() {
+                    const oldInfo = itemDateInfo(item);
                     item.day = document.getElementById('edit-val-day').value;
                     item.date = parseInt(document.getElementById('edit-val-date').value) || item.date;
                     const monthSelect = document.getElementById('edit-val-month');
@@ -3118,9 +3119,8 @@ function updateUserAvatarUI() {
                     item.monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'));
                     item.year = parseInt(document.getElementById('edit-val-year').value) || item.year;
 
-                    saveAndRefreshHistory();
-                    syncBackupFromHistory();
-                    renderBackupGrid();
+                    const saved = await saveEditedHistoryAndRefresh(item, oldInfo);
+                    if (!saved) return;
                     closeEditModal();
                     showModal("Berhasil", "Tanggal dan waktu transaksi berhasil diperbarui.");
                 };
@@ -3133,6 +3133,143 @@ function updateUserAvatarUI() {
             document.getElementById('edit-modal').classList.add('hidden');
         }
 
+        /* HISTORY JSON SYNC — satu implementasi khusus Edit.
+           Edit History memperbarui file InputData yang sudah ada.
+           Hapus dari aplikasi TIDAK menyentuh file JSON, sehingga reload
+           akan membaca kembali data selama file masih ada di Data/Rekap. */
+        async function syncEditedHistoryItemToJson(item, oldInfo) {
+            const dir = await getDir();
+            if (!dir) return false;
+
+            const entries = await listRekapFiles(dir);
+            const inputEntries = entries.filter(entry => /^InputData_.+\.json$/i.test(String(entry.name)));
+            const newInfo = itemDateInfo(item);
+            const oldDateKey = oldInfo?.dateKey || newInfo.dateKey;
+            const newFileName = fileName(newInfo);
+
+            let sourceEntry = null;
+            let targetEntry = null;
+
+            for (const entry of inputEntries) {
+                try {
+                    const data = await readJsonHandle(entry.handle);
+                    const arr = normalizeLoadedArray(data.InputData);
+                    if (arr.some(x => String(x?.id ?? '') === String(item?.id ?? ''))) {
+                        sourceEntry = {entry, data};
+                    }
+                    if (String(entry.name).toLowerCase() === newFileName.toLowerCase()) {
+                        targetEntry = {entry, data};
+                    }
+                } catch (_) {}
+            }
+
+            if (!sourceEntry && oldDateKey) {
+                const oldName = fileName(oldInfo || newInfo);
+                const found = inputEntries.find(e => String(e.name).toLowerCase() === oldName.toLowerCase());
+                if (found) {
+                    try { sourceEntry = {entry: found, data: await readJsonHandle(found.handle)}; } catch (_) {}
+                }
+            }
+
+            const updatedItem = {...item};
+            updatedItem.day = newInfo.day;
+            updatedItem.date = newInfo.date;
+            updatedItem.monthIndex = newInfo.monthIndex;
+            updatedItem.month = newInfo.month;
+            updatedItem.year = newInfo.year;
+
+            const sourceData = sourceEntry?.data ? {...sourceEntry.data} : null;
+            const sourceItems = normalizeLoadedArray(sourceData?.InputData);
+            const targetData = targetEntry?.data ? {...targetEntry.data} : null;
+
+            if (sourceEntry && String(sourceEntry.entry.name).toLowerCase() === newFileName.toLowerCase()) {
+                const nextItems = sourceItems.map(x =>
+                    String(x?.id ?? '') === String(updatedItem?.id ?? '') ? updatedItem : x
+                );
+                const payload = {
+                    ...(sourceData || {}),
+                    Rekap_hari: newInfo.day,
+                    Tanggal: newInfo.date,
+                    Bulan: newInfo.month,
+                    Tahun: newInfo.year,
+                    InputData: nextItems
+                };
+                await writeJson(sourceEntry.entry.handle, payload);
+                return true;
+            }
+
+            if (sourceEntry) {
+                const remaining = sourceItems.filter(x =>
+                    String(x?.id ?? '') !== String(updatedItem?.id ?? '')
+                );
+                const sourceInfo = oldInfo || fileInfoFromData(sourceData, sourceEntry.entry.name);
+                if (sourceInfo) {
+                    await writeJson(sourceEntry.entry.handle, {
+                        ...sourceData,
+                        Rekap_hari: sourceInfo.day,
+                        Tanggal: sourceInfo.date,
+                        Bulan: sourceInfo.month,
+                        Tahun: sourceInfo.year,
+                        InputData: remaining
+                    });
+                }
+            }
+
+            let targetHandle = targetEntry?.entry?.handle || null;
+            let targetPayload = targetData ? {...targetData} : null;
+            if (!targetHandle) {
+                targetHandle = await dir.getFileHandle(newFileName, {create:true});
+                targetPayload = {
+                    Rekap_hari: newInfo.day,
+                    Tanggal: newInfo.date,
+                    Bulan: newInfo.month,
+                    Tahun: newInfo.year,
+                    InputData: [],
+                    Pengeluaran: [],
+                    Kasbon: []
+                };
+            }
+
+            const targetItems = normalizeLoadedArray(targetPayload?.InputData);
+            const withoutEdited = targetItems.filter(x =>
+                String(x?.id ?? '') !== String(updatedItem?.id ?? '')
+            );
+            await writeJson(targetHandle, {
+                ...targetPayload,
+                Rekap_hari: newInfo.day,
+                Tanggal: newInfo.date,
+                Bulan: newInfo.month,
+                Tahun: newInfo.year,
+                InputData: [...withoutEdited, updatedItem]
+            });
+            return true;
+        }
+
+        function saveAndRefreshHistory() {
+            renderHistory();
+        }
+
+        async function saveEditedHistoryAndRefresh(item, oldInfo) {
+            writeChain = writeChain.then(async () => {
+                const saved = await syncEditedHistoryItemToJson(item, oldInfo);
+                if (!saved) throw new Error('Folder Data/Rekap belum tersedia atau file InputData tidak dapat diperbarui.');
+                populateHistoryFilters();
+                renderHistory();
+                syncBackupFromHistory();
+                renderBackupGrid();
+                window.__rekapinyuDataLaporanBulanan =
+                    typeof window.__rekapinyuBuildLaporanBulanan === 'function'
+                        ? window.__rekapinyuBuildLaporanBulanan(Array.isArray(historyData) ? historyData : [])
+                        : [];
+                return true;
+            }).catch(err => {
+                console.warn('Rekapinyu: edit History gagal disinkronkan ke JSON.', err);
+                showModal("Gagal Disimpan", err?.message || "Perubahan History gagal diperbarui ke file JSON.", "fa-solid fa-circle-xmark text-rose-600");
+                return false;
+            });
+            return writeChain;
+        }
+
         function deleteHistoryItem(id) {
             const item = historyData.find(d => d.id === id);
             if (!item) return;
@@ -3142,19 +3279,9 @@ function updateUserAvatarUI() {
 
             historyData = historyData.filter(d => d.id !== id);
             syncBackupFromHistory();
-            if (currentSessionUser && currentSessionUser.phone) {
-                window.__rekapinyuSaveLocalRekap?.();
-            }
             populateHistoryFilters();
             renderHistory();
             showModal("Berhasil", "Data History berhasil dihapus.");
-        }
-
-        function saveAndRefreshHistory() {
-            if (currentSessionUser && currentSessionUser.phone) {
-                window.__rekapinyuSaveLocalRekap?.();
-            }
-            renderHistory();
         }
 
         document.getElementById('pengeluaran-form').addEventListener('submit', (e) => {
@@ -4410,9 +4537,12 @@ function updateUserAvatarUI() {
   }
 
   function fileInfoFromData(data,name){
+    const fileNameText=String(name||'');
+    const inputMatch=fileNameText.match(/^InputData_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
+    if(inputMatch)return dateInfoFromParts(inputMatch[1],Number(inputMatch[2]),inputMatch[3],Number(inputMatch[4]));
     const y=Number(data?.Tahun),d=Number(data?.Tanggal),m=String(data?.Bulan||'');
     if(Number.isFinite(y)&&d>0&&MONTHS.includes(m))return dateInfoFromParts(data?.Rekap_hari,d,m,y);
-    const match=String(name||'').match(/^(?:InputData|PengeluaranKasbon)_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
+    const match=fileNameText.match(/^PengeluaranKasbon_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
     return match?dateInfoFromParts(match[1],Number(match[2]),match[3],Number(match[4])):null;
   }
 
@@ -4450,7 +4580,18 @@ function updateUserAvatarUI() {
 
         /* HISTORY: hanya membaca file JSON InputData_* dari folder Data/Rekap. */
         if(/^InputData_.+\.json$/i.test(String(entry.name))){
-          normalizeLoadedArray(data.InputData).forEach(item=>addUnique(historyMap,item));
+          const fileInfo=fileInfoFromData(data,entry.name);
+          normalizeLoadedArray(data.InputData).forEach(item=>{
+            const aligned={...item};
+            if(fileInfo){
+              aligned.day=fileInfo.day;
+              aligned.date=fileInfo.date;
+              aligned.monthIndex=fileInfo.monthIndex;
+              aligned.month=fileInfo.month;
+              aligned.year=fileInfo.year;
+            }
+            addUnique(historyMap,aligned);
+          });
         }
 
         /* Kasbon dan Pengeluaran mengambil data langsung dari JSON Rekap. */
