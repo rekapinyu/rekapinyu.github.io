@@ -4373,7 +4373,7 @@ function updateUserAvatarUI() {
   }
 
   function fileName(info){
-    return `Rekap_Hari_${info.day}_${info.date}_${info.month}_${info.year}.json`;
+    return `InputData_${info.day}_${info.date}_${info.month}_${info.year}.json`;
   }
 
   function itemDateInfo(item){
@@ -4394,8 +4394,7 @@ function updateUserAvatarUI() {
   }
 
   async function getDir(){
-    if(typeof window.__rekapinyuGetTargetDirectory!=='function')return null;
-    return await window.__rekapinyuGetTargetDirectory();
+    return await getRekapDirectory();
   }
 
   async function readJsonHandle(handle){
@@ -4435,7 +4434,7 @@ function updateUserAvatarUI() {
             continue;
           }
           if(entry?.kind!=='file')continue;
-          if(!/^Rekap_Hari_.*\.json$/i.test(String(entryName)))continue;
+          if(!/^(?:InputData|Rekap_Hari|PengeluaranKasbon)_.*\.json$/i.test(String(entryName)))continue;
           files.push({name:String(entryName),path:entryPath,handle:entry});
         }
       }catch(_){}
@@ -4476,7 +4475,7 @@ function updateUserAvatarUI() {
     if(Number.isFinite(y)&&d>0&&MONTHS.includes(m)){
       return dateInfoFromParts(data?.Rekap_hari,d,m,y);
     }
-    const match=String(name||'').match(/^Rekap_Hari_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
+    const match=String(name||'').match(/^(?:InputData|Rekap_Hari|PengeluaranKasbon)_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
     if(match)return dateInfoFromParts(match[1],Number(match[2]),match[3],Number(match[4]));
     return null;
   }
@@ -4494,7 +4493,6 @@ function updateUserAvatarUI() {
        baru dibuat/diubah di luar aplikasi juga langsung terbaca saat menu History dibuka.
     */
     const files=await listRekapFiles(dir);
-    const backupHistoryFiles=await listBackupHistoryFiles(dir);
     const historyMap=new Map();
     const expenseMap=new Map();
     const kasbonMap=new Map();
@@ -4521,21 +4519,6 @@ function updateUserAvatarUI() {
         normalizeLoadedArray(data.Kasbon).forEach(item=>addUnique(kasbonMap,item));
       }catch(err){
         console.warn('Rekapinyu: file Rekap_Hari dilewati karena JSON tidak valid.',entry.name,err);
-      }
-    }
-
-    /*
-       Tambahkan History dari file BackupHistory JSON.
-       File backup hanya menjadi sumber pembacaan History; tidak mengubah
-       struktur file Rekap_Hari yang digunakan untuk penyimpanan utama.
-    */
-    for(const entry of backupHistoryFiles){
-      try{
-        const data=await readJsonHandle(entry.handle);
-        const backupItems=normalizeLoadedArray(data?.history ?? data?.History ?? data?.data ?? data);
-        backupItems.forEach(item=>addUnique(historyMap,item));
-      }catch(err){
-        console.warn('Rekapinyu: file BackupHistory dilewati karena JSON tidak valid.',entry.name,err);
       }
     }
 
@@ -4596,53 +4579,42 @@ function updateUserAvatarUI() {
   async function save(){
     writeChain=writeChain.then(async()=>{
       const dir=await getDir();
-      if(!dir)throw new Error('Folder target Produk Kasir belum dipilih atau izinnya belum tersedia.');
-
+      if(!dir)throw new Error('Folder Data/Rekap belum tersedia atau izin folder belum diberikan.');
       const existing=await listRekapFiles(dir);
       const existingByKey=new Map();
-
       for(const entry of existing){
         try{
           const data=await readJsonHandle(entry.handle);
           const info=fileInfoFromData(data,entry.name);
-          if(info)existingByKey.set(info.dateKey,{...entry,info});
+          if(info)existingByKey.set(`${info.dateKey}|${/^PengeluaranKasbon_/i.test(entry.name)?'eksp':'input'}`,{...entry,info});
         }catch(_){}
       }
-
       const historyGroups=groupByDate(historyData);
       const expenseGroups=groupByDate(pengeluaranData);
       const kasbonGroups=groupByDate(kasbonData);
-      const keys=new Set([...existingByKey.keys(),...historyGroups.keys(),...expenseGroups.keys(),...kasbonGroups.keys()]);
-
+      const keys=new Set([...historyGroups.keys(),...expenseGroups.keys(),...kasbonGroups.keys()]);
       for(const key of keys){
-        const info=existingByKey.get(key)?.info
-          ||historyGroups.get(key)?.info
-          ||expenseGroups.get(key)?.info
-          ||kasbonGroups.get(key)?.info;
+        const info=historyGroups.get(key)?.info||expenseGroups.get(key)?.info||kasbonGroups.get(key)?.info;
         if(!info)continue;
-
-        const payload=makePayload(
-          info,
-          historyGroups.get(key)?.items||[],
-          expenseGroups.get(key)?.items||[],
-          kasbonGroups.get(key)?.items||[]
-        );
-
-        const handle=existingByKey.get(key)?.handle
-          ||await dir.getFileHandle(fileName(info),{create:true});
-
-        await writeJson(handle,payload);
+        const historyItems=historyGroups.get(key)?.items||[];
+        const expenseItems=expenseGroups.get(key)?.items||[];
+        const kasbonItems=kasbonGroups.get(key)?.items||[];
+        if(historyGroups.has(key)){
+          const mapKey=`${key}|input`;
+          const old=existingByKey.get(mapKey);
+          const handle=old?.handle||await dir.getFileHandle(fileName(info),{create:true});
+          await writeJson(handle,{Rekap_hari:info.day,Tanggal:info.date,Bulan:info.month,Tahun:info.year,InputData:historyItems});
+        }
+        if(expenseGroups.has(key)||kasbonGroups.has(key)){
+          const mapKey=`${key}|eksp`;
+          const old=existingByKey.get(mapKey);
+          const handle=old?.handle||await dir.getFileHandle(`PengeluaranKasbon_${info.day}_${info.date}_${info.month}_${info.year}.json`,{create:true});
+          await writeJson(handle,{Rekap_hari:info.day,Tanggal:info.date,Bulan:info.month,Tahun:info.year,Pengeluaran:expenseItems,Kasbon:kasbonItems});
+        }
       }
-
-      window.__rekapinyuDataLaporanBulanan=
-        typeof window.__rekapinyuBuildLaporanBulanan==='function'
-          ?window.__rekapinyuBuildLaporanBulanan(Array.isArray(historyData)?historyData:[]):[];
-
+      window.__rekapinyuDataLaporanBulanan=typeof window.__rekapinyuBuildLaporanBulanan==='function'?window.__rekapinyuBuildLaporanBulanan(Array.isArray(historyData)?historyData:[]):[];
       return true;
-    }).catch(err=>{
-      console.warn('Rekapinyu: penyimpanan JSON operasional gagal.',err);
-      return false;
-    });
+    }).catch(err=>{console.warn('Rekapinyu: penyimpanan JSON operasional gagal.',err);return false});
     return writeChain;
   }
 
@@ -5176,65 +5148,27 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         }).filter(item => item.income || item.expense || item.cashout || item.profitPercentage);
     }
 
-    function backupAllHistoryToJson() {
+    async function backupAllHistoryToJson() {
         try {
-            const rows = (Array.isArray(historyData) ? [...historyData] : []).sort((a, b) => {
-                const aMonth = Number.isFinite(Number(a.monthIndex)) ? Number(a.monthIndex) : monthNames.indexOf(a.month);
-                const bMonth = Number.isFinite(Number(b.monthIndex)) ? Number(b.monthIndex) : monthNames.indexOf(b.month);
-                const aKey = (Number(a.year)||0) * 12 + (aMonth >= 0 ? aMonth : 0);
-                const bKey = (Number(b.year)||0) * 12 + (bMonth >= 0 ? bMonth : 0);
-                if (aKey !== bKey) return aKey - bKey;
-                const aDate = Number(a.date)||0;
-                const bDate = Number(b.date)||0;
-                if (aDate !== bDate) return aDate - bDate;
-                const aTime = String(a.time||'00:00');
-                const bTime = String(b.time||'00:00');
-                if (aTime !== bTime) return aTime.localeCompare(bTime);
-                return (Number(a.id)||0) - (Number(b.id)||0);
-            }).map(item => ({
-                id: item.id ?? '',
-                day: item.day || '',
-                date: Number(item.date) || 0,
+            const rows = (Array.isArray(historyData) ? [...historyData] : []).sort((a, b) => sortHistoryChronological(a,b)).map(item => ({
+                id: item.id ?? '', day: item.day || '', date: Number(item.date) || 0,
                 monthIndex: Number.isFinite(Number(item.monthIndex)) ? Number(item.monthIndex) : monthNames.indexOf(item.month),
-                month: item.month || '',
-                year: Number(item.year) || 0,
-                time: item.time || '00:00',
-                income: Number(item.income) || 0,
-                expense: Number(item.expense) || 0,
-                cashout: Number(item.cashout) || 0,
+                month: item.month || '', year: Number(item.year) || 0, time: item.time || '00:00',
+                income: Number(item.income) || 0, expense: Number(item.expense) || 0, cashout: Number(item.cashout) || 0,
                 profitPercentage: item.profitPercentage !== undefined ? (parseFloat(item.profitPercentage) || 0) : 10,
-                profit: Number(item.profit) || Math.max(((Number(item.income)||0) - (Number(item.cashout)||0)) * ((item.profitPercentage !== undefined ? parseFloat(item.profitPercentage) : 10) / 100), 0)
+                profit: Number(item.profit) || Math.max(((Number(item.income)||0)-(Number(item.cashout)||0))*((item.profitPercentage !== undefined ? parseFloat(item.profitPercentage) : 10)/100),0)
             }));
-
-            if (!rows.length) {
-                showModal('Backup Gagal', 'Belum ada data History untuk dibackup.', 'fa-solid fa-circle-exclamation text-rose-600');
-                return;
-            }
-
-            const now = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            const fileName = `BackupHistory_${dayNames[now.getDay()]}_${pad(now.getDate())}_${monthNames[now.getMonth()]}_${now.getFullYear()}.json`;
-            const payload = {
-                format: 'Rekapinyu History Backup JSON',
-                version: 1,
-                exportedAt: now.toISOString(),
-                order: 'Hari, Tanggal, Bulan, Tahun',
-                history: rows
-            };
-
-            const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json;charset=utf-8'});
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = fileName;
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-            showModal('Backup Berhasil', `${rows.length} data History berhasil dibackup ke file JSON.`);
-        } catch (error) {
-            showModal('Backup Gagal', error?.message || 'File backup History JSON gagal dibuat.', 'fa-solid fa-circle-xmark text-rose-600');
-        }
+            if(!rows.length){showModal('Backup Gagal','Belum ada data History untuk dibackup.','fa-solid fa-circle-exclamation text-rose-600');return;}
+            const dir=await getBackupDirectory();
+            if(!dir)throw new Error('Folder Data/Backup tidak dapat dibuat. Pastikan folder utama sudah dipilih.');
+            const now=new Date(),pad=n=>String(n).padStart(2,'0');
+            const fileName=`BackupHistory_${dayNames[now.getDay()]}_${pad(now.getDate())}_${monthNames[now.getMonth()]}_${now.getFullYear()}.json`;
+            const payload={format:'Rekapinyu History Backup JSON',version:1,exportedAt:now.toISOString(),order:'Hari, Tanggal, Bulan, Tahun',history:rows};
+            const handle=await dir.getFileHandle(fileName,{create:true});
+            const writer=await handle.createWritable();
+            try{await writer.write(JSON.stringify(payload,null,2));}finally{await writer.close();}
+            showModal('Backup Berhasil',`${rows.length} data History berhasil disimpan ke Data/Backup.`);
+        }catch(error){showModal('Backup Gagal',error?.message||'File backup History JSON gagal dibuat.','fa-solid fa-circle-xmark text-rose-600');}
     }
 
     function parseHistoryJsonPayload(payload) {
@@ -5345,9 +5279,16 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         const importFile = document.getElementById('history-io-import-file');
         if (importButton && importFile && !importButton.dataset.finalHistoryImport) {
             importButton.dataset.finalHistoryImport = '1';
-            importButton.addEventListener('click', () => {
-                importFile.value = '';
-                importFile.click();
+            importButton.addEventListener('click', async () => {
+                try{
+                    const dir=await getBackupDirectory();
+                    if(!dir)throw new Error('Folder Data/Backup belum tersedia. Pilih folder utama terlebih dahulu.');
+                    if('showOpenFilePicker' in window){
+                        const handles=await window.showOpenFilePicker({multiple:false,types:[{description:'Backup History JSON',accept:{'application/json':['.json']}}],excludeAcceptAllOption:true,startIn:dir});
+                        if(!handles?.length)return;
+                        await importHistoryBackupFromJson(await handles[0].getFile());
+                    }else{importFile.value='';importFile.click();}
+                }catch(err){if(err?.name!=='AbortError')showModal('Import Gagal',err?.message||'Folder Data/Backup tidak dapat dibaca.','fa-solid fa-circle-xmark text-rose-600');}
             });
             importFile.addEventListener('change', event => {
                 const file = event.target.files && event.target.files[0];
@@ -5586,6 +5527,22 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(_){return false}
   }
 
+  async function getDataDirectory(subfolder, create=true){
+    const root=await getPhotoDirectoryQuiet();
+    if(!root)return null;
+    try{
+      const dataDir=await root.getDirectoryHandle('Data',{create});
+      return await dataDir.getDirectoryHandle(String(subfolder||''),{create});
+    }catch(err){
+      console.warn('Rekapinyu: folder Data tidak dapat diakses.',err);
+      return null;
+    }
+  }
+  async function getProdukDirectory(){return await getDataDirectory('Produk',true)}
+  async function getKasirDirectory(){return await getDataDirectory('Kasir',true)}
+  async function getRekapDirectory(){return await getDataDirectory('Rekap',true)}
+  async function getBackupDirectory(){return await getDataDirectory('Backup',true)}
+
   async function selectPhotoDirectory(){
     if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pemilihan folder penyimpanan foto. Gunakan Chrome/Edge terbaru di desktop.');
     const picked=await window.showDirectoryPicker({
@@ -5599,6 +5556,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     try{await idbSet(picked)}catch(_){}
     try{await idbSetFolderName(String(picked.name||''))}catch(_){}
     updateFolderStatus();
+    try{await getDataDirectory('Produk',true);await getDataDirectory('Kasir',true);await getDataDirectory('Rekap',true);await getDataDirectory('Backup',true)}catch(_){}
     try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){}
     try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){}
     return picked;
@@ -5877,7 +5835,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     };
   }
   async function writeProdukKasirJson(product){
-    const dir=await getPhotoDirectoryQuiet();
+    const dir=await getProdukDirectory();
     if(!dir||!product?.name)return false;
     const fileName=produkKasirJsonFileName(product.name);
     const handle=await dir.getFileHandle(fileName,{create:true});
@@ -5886,12 +5844,12 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     return true;
   }
   async function deleteProdukKasirJson(productName){
-    const dir=await getPhotoDirectoryQuiet();
+    const dir=await getProdukDirectory();
     if(!dir||!productName)return;
     try{const fh=await dir.getFileHandle(produkKasirJsonFileName(productName),{create:false});await fh.remove()}catch(_){}
   }
   async function syncProdukKasirJson(productsList){
-    const dir=await getPhotoDirectoryQuiet();
+    const dir=await getProdukDirectory();
     if(!dir)return false;
     const list=Array.isArray(productsList)?productsList:[];
     for(const product of list){if(product?.name)await writeProdukKasirJson(product)}
@@ -5913,7 +5871,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function loadProdukKasirJsonFromFolder(){
-    const dir=await getPhotoDirectoryQuiet();
+    const dir=await getProdukDirectory();
     if(!dir)return [];
     const loaded=[];
     async function walk(currentDir){
@@ -6257,7 +6215,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
    */
   async function backupProducts(){
     try{
-      const dir=await requirePhotoDirectory();
+      const dir=await getProdukDirectory();
+      if(!dir)throw new Error('Folder target belum dipilih atau folder Data/Produk tidak dapat dibuat.');
       const latest=read();
       products=latest.map(normalizeProduct);
       if(!products.length){
@@ -6267,7 +6226,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
       const now=new Date();
       const pad=n=>String(n).padStart(2,'0');
-      const fileName=`backupproduk_${pad(now.getDate())}_${pad(now.getMonth()+1)}_${now.getFullYear()}.json`;
+      const fileName=`DataProduk_${DAYS[now.getDay()]}_${pad(now.getDate())}_${MONTHS[now.getMonth()]}_${now.getFullYear()}.json`;
       const payload={
         format:'Rekapinyu Produk Kasir Backup',
         version:1,
@@ -6298,45 +6257,31 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
    * Membaca hanya file JSON backup Produk Kasir, mengganti daftar produk dengan isi backup,
    * lalu menyimpannya kembali melalui jalur penyimpanan Produk Kasir yang sudah ada.
    */
-  function importProducts(file){
-    if(!file)return;
-    const reader=new FileReader();
-    reader.onload=async()=>{
-      try{
-        const raw=String(reader.result||'').trim();
-        if(!raw)throw new Error('File backup kosong.');
-
-        const parsed=JSON.parse(raw);
-        if(!parsed||typeof parsed!=='object')throw new Error('Format file backup tidak valid.');
-        if(parsed.format!=='Rekapinyu Produk Kasir Backup')throw new Error('File bukan backup Produk Kasir Rekapinyu.');
-        if(!Array.isArray(parsed.products)||!parsed.products.length)throw new Error('File backup tidak berisi daftar produk.');
-
-        const imported=parsed.products
-          .map((product,index)=>normalizeProduct({
-            ...product,
-            id:String(product?.id||uid()+'_'+index)
-          }))
-          .filter(product=>product.name);
-
-        if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
-
-        products=imported;
-        await write();
-        render();
-        try{window.__initKasirViews?.()}catch(_){}
-
-        if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport.`);
-      }catch(err){
-        if(typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup tidak dapat dibaca.');
-      }finally{
-        if($('pk3-import-file'))$('pk3-import-file').value='';
+  async function importProducts(file){
+    try{
+      const dir=await getProdukDirectory();
+      if(!dir)throw new Error('Folder Data/Produk belum tersedia. Pilih folder utama terlebih dahulu.');
+      if(!file && 'showOpenFilePicker' in window){
+        const handles=await window.showOpenFilePicker({multiple:false,types:[{description:'Backup Produk Kasir (JSON)',accept:{'application/json':['.json']}}],excludeAcceptAllOption:true,startIn:dir});
+        if(!handles?.length)return;
+        file=await handles[0].getFile();
       }
-    };
-    reader.onerror=()=>{
-      if(typeof showModal==='function')showModal('Import Gagal','File backup tidak dapat dibaca.');
-      if($('pk3-import-file'))$('pk3-import-file').value='';
-    };
-    reader.readAsText(file);
+      if(!file){ const input=$('pk3-import-file'); if(!input)throw new Error('Pemilih file JSON tidak tersedia.'); input.value=''; input.accept='.json,application/json'; input.click(); return; }
+      const raw=String(await file.text()).trim();
+      if(!raw)throw new Error('File backup kosong.');
+      const parsed=JSON.parse(raw);
+      const source=Array.isArray(parsed?.products)?parsed.products:(Array.isArray(parsed?.ProdukKasir)?parsed.ProdukKasir:(Array.isArray(parsed)?parsed:null));
+      if(!Array.isArray(source)||!source.length)throw new Error('File JSON tidak berisi data ProdukKasir yang valid.');
+      const imported=source.map((product,index)=>normalizeProduct({...product,id:String(product?.id||uid()+'_'+index)})).filter(product=>product.name);
+      if(!imported.length)throw new Error('Tidak ada data produk yang valid pada file backup.');
+      products=imported;
+      await write();
+      render();
+      try{window.__initKasirViews?.()}catch(_){}
+      if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport dari Data/Produk.`);
+    }catch(err){
+      if(err?.name!=='AbortError'&&typeof showModal==='function')showModal('Import Gagal',err?.message||'File backup produk tidak dapat dibaca.');
+    }finally{if($('pk3-import-file'))$('pk3-import-file').value='';}
   }
 
   function bind(){
@@ -6403,7 +6348,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
     $('pk3-edit-form')?.addEventListener('submit',saveEdit);
     $('pk3-backup')?.addEventListener('click',backupProducts);
-    $('pk3-import')?.addEventListener('click',()=>$('pk3-import-file')?.click());
+    $('pk3-import')?.addEventListener('click',()=>importProducts());
     $('pk3-import-file')?.addEventListener('change',e=>importProducts(e.target.files?.[0]));
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pk3-edit-modal')?.hidden)closeEdit()});
     updateFolderStatus();
@@ -6412,6 +6357,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   window.__rekapinyuGetProdukKasirDirectory=async function(){return await getPhotoDirectoryQuiet()};
+  window.__rekapinyuGetProdukKasirDataDirectory=async function(){return await getProdukDirectory()};
   window.__rekapinyuResolveProdukKasirPhoto=async function(fileName){
     return await localPhotoUrl(fileName);
   };
@@ -6419,6 +6365,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const clean=String(fileName||'').trim();
     return clean?objectUrls.get(clean)||null:null;
   };
+  window.__rekapinyuLoadProdukKasirFromFolder=loadProdukKasirJsonFromFolder;
   window.__rekapinyuRefreshProdukKasir= function(value){
     products=(Array.isArray(value)?value:[]).map(normalizeProduct);
     window.__rekapinyuProdukKasirData=products;
@@ -6737,7 +6684,13 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(typeof showModal==='function')showModal('Berhasil','Stok produk berhasil diperbarui.','fa-solid fa-circle-check text-emerald-600');
   }
 
-function initKasirViews(){
+async function initKasirViews(){
+    try{
+      const folderProducts=await window.__rekapinyuLoadProdukKasirFromFolder?.();
+      if(Array.isArray(folderProducts)&&folderProducts.length)window.__rekapinyuProdukKasirData=folderProducts;
+      const folderTransactions=await loadKasirTransactionsFromFolder();
+      window.__rekapinyuKasirTransactionsRealtime=Array.isArray(folderTransactions)?folderTransactions:[];
+    }catch(_){ }
     loadKasirStore(); kasirProducts=kasirProducts.map(p=>({...p,barcodes:productBarcodes(p),barcode:productBarcodes(p)[0]||''}));
     const active=kasirTransactionTabs.find(x=>x.id===kasirActiveTransactionTabId); kasirCart=active&&Array.isArray(active.cart)?active.cart:[]; kasirCart=kasirCart.map(x=>({...x,stockSource:x.stockSource==='barcode'?'barcode':'manual',cartKey:x.cartKey||`${x.id}::${x.stockSource==='barcode'?'barcode':'manual'}::legacy`})); if(active)active.cart=kasirCart;
     renderKasirTransactionTabs(); renderKasirProducts(); renderCart(); renderTransactions();
@@ -6749,7 +6702,7 @@ function initKasirViews(){
     const dd=String(d.getDate()).padStart(2,'0');
     const mm=String(d.getMonth()+1).padStart(2,'0');
     const yyyy=d.getFullYear();
-    return {dateKey:`${yyyy}-${mm}-${dd}`,fileName:`${dd}-${mm}-${yyyy}.json`};
+    return {dateKey:`${yyyy}-${mm}-${dd}`,fileName:`Kasir_${DAYS[d.getDay()]}_${dd}_${MONTHS[d.getMonth()]}_${yyyy}.json`};
   }
   function kasirTransactionTimestamp(tx){
     const id=Number(tx?.id);
@@ -6758,26 +6711,30 @@ function initKasirViews(){
     return Number.isFinite(parsed)?parsed:Date.now();
   }
   async function loadKasirTransactionsFromFolder(){
-    const dir=await window.__rekapinyuGetProdukKasirDirectory?.();
+    const dir=await getKasirDirectory();
     if(!dir)return [];
     const all=[];
-    try{
-      for await(const [entryName,entry] of dir.entries()){
-        if(entry?.kind!=="file"||!entryName.toLowerCase().endsWith(".json"))continue;
-        try{
-          const file=await entry.getFile();
-          const raw=JSON.parse(await file.text());
-          if(!Array.isArray(raw?.TransaksiKasir))continue;
-          all.push(...raw.TransaksiKasir);
-        }catch(_){}
-      }
-    }catch(_){}
+    async function walk(currentDir){
+      try{
+        for await(const [entryName,entry] of currentDir.entries()){
+          if(entry?.kind==='directory'){await walk(entry);continue}
+          if(entry?.kind!=="file"||!/^Kasir_.*\.json$/i.test(String(entryName)))continue;
+          try{
+            const file=await entry.getFile();
+            const raw=JSON.parse(await file.text());
+            if(!Array.isArray(raw?.TransaksiKasir))continue;
+            all.push(...raw.TransaksiKasir);
+          }catch(_){}
+        }
+      }catch(_){}
+    }
+    await walk(dir);
     const seen=new Set();
     return all.filter(t=>{const key=String(t?.id||"")||JSON.stringify(t);if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
   }
 
   async function saveKasirHarianJson(){
-    const dir=await window.__rekapinyuGetProdukKasirDirectory?.();
+    const dir=await getKasirDirectory();
     if(!dir)return false;
     const now=Date.now();
     const info=kasirJsonDateInfo(now);
