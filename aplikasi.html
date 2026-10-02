@@ -492,12 +492,14 @@
     }
     #mobile-date-header > *{display:none!important;}
     #mobile-date-header::before{
-      content:url('https://raw.githubusercontent.com/rekapinyu/rekapinyu.github.io/main/Galery/LogoBannerLogin.jpg');
+      content:""!important;
       display:block!important;
       width:161px!important;
       height:41px!important;
-      object-fit:contain!important;
-      object-position:right center!important;
+      background-image:url('https://rekapinyu.github.io/Galery/LogoBannerLogin.jpg')!important;
+      background-position:right center!important;
+      background-repeat:no-repeat!important;
+      background-size:contain!important;
       transform:none!important;
     }
   }
@@ -6134,7 +6136,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
    */
   async function backupProducts(){
     try{
-      const dir=await requirePhotoDirectory();
+      const dir=await window.__rekapinyuGetDataSubdirectory?.('Produk');
+      if(!dir)throw new Error('Folder Data/Produk tidak ditemukan. Pilih folder Data terlebih dahulu dan pastikan subfolder Produk sudah ada.');
       const latest=read();
       products=latest.map(normalizeProduct);
       if(!products.length){
@@ -6166,7 +6169,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         await writable.close();
       }
 
-      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup ke folder ${dir.name}.`);
+      if(typeof showModal==='function')showModal('Backup Berhasil',`${products.length} produk berhasil dibackup ke folder Data/Produk.`);
     }catch(err){
       if(typeof showModal==='function')showModal('Backup Gagal',err?.message||'Gagal membuat file backup di folder Produk Kasir.');
     }
