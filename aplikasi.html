@@ -11,8 +11,11 @@
   try{
     if(!window.__rekapinyuDirectoryCreateGuardInstalled && window.FileSystemDirectoryHandle?.prototype?.getDirectoryHandle){
       const original=FileSystemDirectoryHandle.prototype.getDirectoryHandle;
+      window.__rekapinyuOriginalGetDirectoryHandle=original;
       FileSystemDirectoryHandle.prototype.getDirectoryHandle=function(name,options){
-        const safeOptions=Object.assign({},options||{}, {create:false});
+        const requestedCreate=!!(options&&options.create===true);
+        const allowCreate=!!window.__rekapinyuAllowFolderCreate;
+        const safeOptions=Object.assign({},options||{}, {create:requestedCreate&&allowCreate});
         return original.call(this,name,safeOptions);
       };
       window.__rekapinyuDirectoryCreateGuardInstalled=true;
@@ -2209,11 +2212,19 @@ bind();
 <div class="printer-settings-card"><div class="receipt-settings-heading"><div><h3>Seting Kasir</h3><p>Pengaturan umum yang berkaitan dengan proses transaksi kasir.</p></div><i aria-hidden="true" class="fa-solid fa-cash-register"></i></div><div class="printer-settings-body"><div class="printer-setting-checks"><label><input id="kasir-confirm-cancel" type="checkbox" checked/> <span>Konfirmasi saat membatalkan transaksi</span></label><label><input id="kasir-focus-search" type="checkbox" checked/> <span>Fokus otomatis ke pencarian produk saat membuka Kasir</span></label></div><button type="button" class="receipt-settings-save" id="settings-kasir-save"><i class="fa-solid fa-floppy-disk"></i><span>Simpan Pengaturan Kasir</span></button></div></div>
 </div>
 <div class="app-settings-panel" data-settings-content="toko">
-<div class="printer-settings-card"><div class="receipt-settings-heading"><div><h3>Informasi Toko</h3><p>Informasi toko yang digunakan aplikasi dan dapat disesuaikan dari pengaturan struk.</p></div><i aria-hidden="true" class="fa-solid fa-store"></i></div><div class="printer-settings-body"><div class="settings-info-list"><div><span>Nama Toko</span><strong id="settings-info-store-name">-</strong></div><div><span>Alamat</span><strong id="settings-info-store-address">-</strong></div><div><span>Nomor Handphone</span><strong id="settings-info-store-phone">-</strong></div></div><button type="button" class="receipt-settings-save" data-settings-open="receipt"><i class="fa-solid fa-receipt"></i><span>Ubah Informasi Struk</span></button></div></div>
+<div class="printer-settings-card"><div class="receipt-settings-heading"><div><h3>Informasi Toko</h3><p>Informasi toko yang digunakan aplikasi dan dapat disesuaikan dari pengaturan struk.</p></div><i aria-hidden="true" class="fa-solid fa-store"></i></div><div class="printer-settings-body"><div class="settings-info-list"><div><span>Nama Toko</span><strong id="settings-info-store-name">-</strong></div><div><span>Alamat</span><strong id="settings-info-store-address">-</strong></div><div><span>Nomor Handphone</span><strong id="settings-info-store-phone">-</strong></div></div><button type="button" class="receipt-settings-save rk-folder-manager-btn" id="settings-open-folder-manager"><i class="fa-solid fa-folder-tree"></i><span>Atur Folder</span></button><button type="button" class="receipt-settings-save" data-settings-open="receipt"><i class="fa-solid fa-receipt"></i><span>Ubah Informasi Struk</span></button></div></div>
 </div>
 </div>
 </div>
 </section>
+</div>
+<!-- PATCH: FILE MANAGER FOLDER TARGET, hanya area Atur Folder -->
+<div id="rk-folder-manager" class="rk-folder-manager" hidden>
+  <div class="rk-folder-dialog">
+    <div class="rk-folder-head"><div><strong>Atur Folder</strong><span>Dokumen → Data → Rekap / Produk / Kasir</span></div><button type="button" id="rk-folder-close" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="rk-folder-toolbar"><button type="button" id="rk-folder-open-doc"><i class="fa-solid fa-folder-open"></i> Buka Dokumen</button><span id="rk-folder-current">Belum ada folder Dokumen yang dibuka</span></div>
+    <div id="rk-folder-tree" class="rk-folder-tree"><div class="rk-folder-empty"><i class="fa-solid fa-folder-tree"></i><span>Pilih Dokumen untuk membaca folder Data, Rekap, Produk, Kasir dan file di dalamnya.</span></div></div>
+  </div>
 </div>
 <!-- VIEW PRODUK KASIR -->
 <section class="hidden pk3-view" id="view-produk-kasir">
@@ -5517,13 +5528,19 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-data-root',startIn:'documents'});
     if(!picked)throw new Error('Folder belum dipilih.');
     if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
-    // Hanya menerima folder yang SUDAH memiliki Data/Produk, tanpa membuat folder apa pun.
-    let dataDir=null, produkDir=null;
-    try{dataDir=String(picked.name||'')==='Data'?picked:await picked.getDirectoryHandle('Data',{create:false});}
-    catch(_){throw new Error('Folder Data tidak ditemukan. Pilih folder yang sudah berisi Data/Produk, Data/Kasir, Data/Rekap, dan Data/Backup.');}
-    try{produkDir=await dataDir.getDirectoryHandle('Produk',{create:false});}
-    catch(_){throw new Error('Folder Data/Produk tidak ditemukan. Buat folder tersebut terlebih dahulu.');}
-    if(!(await requestDirectoryPermission(dataDir)) || !(await requestDirectoryPermission(produkDir)))throw new Error('Izin akses folder Data/Produk ditolak.');
+    // Folder pilihan menjadi folder induk penyimpanan. Subfolder Rekap, Produk, dan Kasir dibuat
+    // hanya pada saat pengguna memang memilih folder target ini. Tidak ada folder lain yang dibuat.
+    const required=['Rekap','Produk','Kasir'];
+    const created=[];
+    try{
+      window.__rekapinyuAllowFolderCreate=true;
+      for(const name of required){
+        let sub=null;
+        try{sub=await picked.getDirectoryHandle(name,{create:false});}
+        catch(_){sub=await picked.getDirectoryHandle(name,{create:true});created.push(name);}
+        if(!(await requestDirectoryPermission(sub)))throw new Error(`Izin akses folder ${name} ditolak.`);
+      }
+    }finally{window.__rekapinyuAllowFolderCreate=false;}
     photoDirectoryHandle=picked;
     try{await idbSet(picked)}catch(_){ }
     try{await idbSetFolderName(String(picked.name||''))}catch(_){ }
@@ -5531,6 +5548,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){ }
     try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){ }
     try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){ }
+    try{await window.__rekapinyuLoadProdukKasirFolder?.()}catch(_){ }
     return picked;
   }
 
@@ -5550,10 +5568,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
     if(!root)return null;
     photoDirectoryHandle=root;
-    try{
-      const dataDir=String(root.name||'')==='Data'?root:await root.getDirectoryHandle('Data',{create:false});
-      return await dataDir.getDirectoryHandle('Produk',{create:false});
-    }catch(_){return null;}
+    try{return await root.getDirectoryHandle('Produk',{create:false});}
+    catch(_){return null;}
   }
 
   /* FOLDER ACCESS — READ EXISTING ONLY
@@ -5564,24 +5580,12 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(!root){try{root=await idbGet()}catch(_){} }
     if(!root)return null;
     try{if((await root.queryPermission({mode:'readwrite'}))!=='granted')return null;}catch(_){return null;}
-    try{
-      // Root yang dipilih harus sudah merupakan folder Data, atau parent yang SUDAH memiliki Data.
-      if(String(root.name||'')==='Data') return root;
-      await root.getDirectoryHandle('Data',{create:false});
-      return root;
-    }catch(_){
-      return null;
-    }
+    return root;
   }
   async function getDataSubdirectory(name){
     const root=await getDataRootDirectory(); if(!root)return null;
-    try{
-      const dataDir=String(root.name||'')==='Data'
-        ?root
-        :await root.getDirectoryHandle('Data',{create:false});
-      // Subfolder harus sudah ada. Tidak pernah menggunakan create:true.
-      return await dataDir.getDirectoryHandle(String(name),{create:false});
-    }catch(_){return null;}
+    try{return await root.getDirectoryHandle(String(name),{create:false});}
+    catch(_){return null;}
   }
   /* SAFETY GUARD SUDAH DIPASANG DI HEAD sebelum seluruh logika aplikasi berjalan.
      Semua getDirectoryHandle selalu dipaksa create:false; folder tidak pernah dibuat otomatis.
@@ -7896,6 +7900,70 @@ async function initKasirViews(){
       },250);
     }catch(e){}
   };
+})();
+</script>
+
+<style id="rekapinyu-folder-manager-patch">
+.rk-folder-manager{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}.rk-folder-manager[hidden]{display:none!important}.rk-folder-dialog{width:min(900px,96vw);height:min(680px,92vh);background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 25px 70px rgba(15,23,42,.25);display:flex;flex-direction:column;overflow:hidden}.rk-folder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;border-bottom:1px solid #e2e8f0}.rk-folder-head strong{display:block;font-size:15px;color:#0f172a}.rk-folder-head span{display:block;margin-top:3px;font-size:10px;color:#64748b}.rk-folder-head button{width:34px;height:34px;border:0;border-radius:9px;background:#f1f5f9;color:#475569;cursor:pointer}.rk-folder-toolbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#f8fafc}.rk-folder-toolbar button{border:0;border-radius:9px;background:#059669;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;cursor:pointer}.rk-folder-toolbar span{font-size:10px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rk-folder-tree{flex:1;min-height:0;overflow:auto;padding:14px}.rk-folder-node{margin:2px 0}.rk-folder-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;color:#334155;font-size:11px}.rk-folder-row.folder{font-weight:800}.rk-folder-row.file{font-weight:500}.rk-folder-row:hover{background:#f1f5f9}.rk-folder-row i{width:18px;text-align:center;color:#059669}.rk-folder-children{margin-left:25px;border-left:1px solid #e2e8f0;padding-left:7px}.rk-folder-empty{height:100%;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#94a3b8;font-size:11px;gap:10px}.rk-folder-empty i{font-size:34px;color:#cbd5e1}.rk-folder-manager .rk-folder-file-meta{margin-left:auto;color:#94a3b8;font-size:9px}@media(max-width:600px){.rk-folder-manager{padding:8px}.rk-folder-dialog{width:100%;height:94vh;border-radius:14px}.rk-folder-toolbar{align-items:flex-start;flex-direction:column}.rk-folder-toolbar span{max-width:100%}}
+</style>
+<script id="rekapinyu-folder-manager-patch-js">
+(function(){
+  const $=id=>document.getElementById(id);
+  async function openFolderManager(){
+    const modal=$('rk-folder-manager');if(!modal)return;modal.hidden=false;
+    const tree=$('rk-folder-tree');if(tree)tree.innerHTML='<div class="rk-folder-empty"><i class="fa-solid fa-spinner fa-spin"></i><span>Membaca folder dari perangkat...</span></div>';
+    try{await renderDeviceFolderTree();}catch(e){if(tree)tree.innerHTML='<div class="rk-folder-empty"><i class="fa-solid fa-triangle-exclamation"></i><span>'+String(e?.message||'Folder tidak dapat dibaca.')+'</span></div>';}
+  }
+  async function pickDocuments(){
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembacaan folder perangkat. Gunakan Chrome/Edge terbaru.');
+    const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-manager',startIn:'documents'});
+    if(!picked)return null;
+    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
+    window.__rekapinyuFolderManagerDocuments=picked;
+    return picked;
+  }
+  async function requestDirectoryPermission(handle){try{if((await handle.queryPermission({mode:'readwrite'}))==='granted')return true;return (await handle.requestPermission({mode:'readwrite'}))==='granted';}catch(_){return false}}
+  function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]||m))}
+  async function readNode(dir,depth){
+    const rows=[];
+    for await(const [name,entry] of dir.entries()){
+      if(entry?.kind==='directory'){
+        if(depth>=3 && !['Rekap','Produk','Kasir'].includes(name))continue;
+        rows.push({name,kind:'directory',entry});
+      }else if(entry?.kind==='file' && depth>=2){rows.push({name,kind:'file',entry});}
+    }
+    rows.sort((a,b)=>a.kind===b.kind?a.name.localeCompare(b.name):a.kind==='directory'?-1:1);
+    return rows;
+  }
+  async function renderBranch(dir,depth){
+    const wrap=document.createElement('div');wrap.className=depth?'rk-folder-children':'';
+    const rows=await readNode(dir,depth);
+    for(const row of rows){
+      const node=document.createElement('div');node.className='rk-folder-node';
+      const line=document.createElement('div');line.className='rk-folder-row '+(row.kind==='directory'?'folder':'file');
+      line.innerHTML='<i class="fa-solid '+(row.kind==='directory'?'fa-folder':'fa-file')+'"></i><span>'+esc(row.name)+'</span>'+(row.kind==='file'?'<span class="rk-folder-file-meta">'+esc(String(row.entry?.name||''))+'</span>':'');node.appendChild(line);
+      if(row.kind==='directory' && depth<3){try{node.appendChild(await renderBranch(row.entry,depth+1));}catch(_){}}
+      wrap.appendChild(node);
+    }
+    return wrap;
+  }
+  async function renderDeviceFolderTree(){
+    let docs=window.__rekapinyuFolderManagerDocuments;
+    if(!docs)docs=await pickDocuments();
+    if(!docs)return;
+    const tree=$('rk-folder-tree'),label=$('rk-folder-current');if(label)label.textContent='Dokumen / '+docs.name;
+    let data=null;try{data=await docs.getDirectoryHandle('Data',{create:false});}catch(_){throw new Error('Folder Data tidak ditemukan di Dokumen.');}
+    const out=document.createElement('div');
+    const dataNode=document.createElement('div');dataNode.className='rk-folder-node';
+    const dataLine=document.createElement('div');dataLine.className='rk-folder-row folder';dataLine.innerHTML='<i class="fa-solid fa-folder-open"></i><span>'+esc(data.name)+'</span>';dataNode.appendChild(dataLine);
+    dataNode.appendChild(await renderBranch(data,1));out.appendChild(dataNode);tree.innerHTML='';tree.appendChild(out);
+  }
+  document.addEventListener('click',async e=>{
+    if(e.target.closest('#settings-open-folder-manager')){e.preventDefault();await openFolderManager();return;}
+    if(e.target.closest('#rk-folder-close')){$('rk-folder-manager').hidden=true;return;}
+    if(e.target.closest('#rk-folder-open-doc')){try{window.__rekapinyuFolderManagerDocuments=null;await renderDeviceFolderTree();}catch(err){showModal?.('Atur Folder',err?.message||'Folder tidak dapat dibaca.');}return;}
+  });
+  window.__rekapinyuOpenFolderManager=openFolderManager;
 })();
 </script>
 </body>
