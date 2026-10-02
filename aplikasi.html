@@ -4239,7 +4239,7 @@ function updateUserAvatarUI() {
 <div aria-label="Filter, Import dan Backup History" id="history-io-floating">
 <button aria-label="Buka Filter History" id="history-filter-button" title="Filter History" type="button"><i class="fa-solid fa-filter"></i></button>
 <button aria-label="Backup Semua History ke JSON" id="history-io-export" title="Backup Semua History ke JSON" type="button"><i class="fa-solid fa-database"></i></button>
-<button aria-label="Import History dari Backup JSON" id="history-io-import" title="Import History dari Backup JSON" type="button"><i class="fa-solid fa-file-import"></i></button>
+<button aria-label="Import History dari BackupHistory atau InputData JSON" id="history-io-import" title="Import History dari BackupHistory atau InputData JSON" type="button"><i class="fa-solid fa-file-import"></i></button>
 <input accept=".json,application/json" hidden id="history-io-import-file" type="file">
 </div>
 <div aria-hidden="true" id="history-filter-popup">
@@ -5137,14 +5137,14 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         try {
             const rows = (Array.isArray(historyData) ? [...historyData] : []).sort((a,b)=>sortHistoryChronological(a,b)).map(item=>({id:item.id??'',day:item.day||'',date:Number(item.date)||0,monthIndex:Number.isFinite(Number(item.monthIndex))?Number(item.monthIndex):monthNames.indexOf(item.month),month:item.month||'',year:Number(item.year)||0,time:item.time||'00:00',income:Number(item.income)||0,expense:Number(item.expense)||0,cashout:Number(item.cashout)||0,profitPercentage:item.profitPercentage!==undefined?(parseFloat(item.profitPercentage)||0):10,profit:Number(item.profit)||0}));
             if(!rows.length){showModal('Backup Gagal','Belum ada data History untuk dibackup.','fa-solid fa-circle-exclamation text-rose-600');return;}
-            const dir=await window.__rekapinyuGetDataSubdirectory?.('Backup');
-            if(!dir)throw new Error('Folder Data/Backup tidak ditemukan. Buat folder tersebut terlebih dahulu.');
+            const dir=await window.__rekapinyuGetDataSubdirectory?.('Rekap');
+            if(!dir)throw new Error('Folder Data/Rekap tidak ditemukan. Pastikan folder Data/Rekap sudah tersedia.');
             const now=new Date(),pad=n=>String(n).padStart(2,'0');
             const fileName=`BackupHistory_${dayNames[now.getDay()]}_${pad(now.getDate())}_${monthNames[now.getMonth()]}_${now.getFullYear()}.json`;
             const payload={format:'Rekapinyu History Backup JSON',version:1,exportedAt:now.toISOString(),order:'Hari, Tanggal, Bulan, Tahun',history:rows};
             const handle=await dir.getFileHandle(fileName,{create:true});
             const writer=await handle.createWritable();try{await writer.write(JSON.stringify(payload,null,2));}finally{await writer.close();}
-            showModal('Backup Berhasil',`${rows.length} data History berhasil dibackup ke Data/Backup.`);
+            showModal('Backup Berhasil',`${rows.length} data History berhasil dibackup ke Data/Rekap.`);
         }catch(error){showModal('Backup Gagal',error?.message||'File backup History JSON gagal dibuat.','fa-solid fa-circle-xmark text-rose-600');}
     }
 
@@ -5207,87 +5207,49 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     async function importHistoryBackupFromJson() {
         try {
             const dir = await window.__rekapinyuGetDataSubdirectory?.('Rekap');
-            if (!dir) {
-                throw new Error('Folder Data/Rekap tidak ditemukan. Pastikan folder Data/Rekap sudah tersedia.');
-            }
-            if (!('showOpenFilePicker' in window)) {
-                throw new Error('Browser ini belum mendukung pemilihan file langsung dari folder Data/Rekap. Gunakan Chrome/Edge terbaru.');
-            }
-
-            const picked = await window.showOpenFilePicker({
-                multiple: false,
-                startIn: dir,
-                types: [{
-                    description: 'Rekapinyu History Backup JSON',
-                    accept: {'application/json': ['.json']}
-                }]
-            });
-
+            if (!dir) throw new Error('Folder Data/Rekap tidak ditemukan. Pastikan folder Data/Rekap sudah tersedia.');
+            if (!('showOpenFilePicker' in window)) throw new Error('Browser ini belum mendukung pemilihan file langsung dari folder Data/Rekap. Gunakan Chrome/Edge terbaru.');
+            const picked = await window.showOpenFilePicker({multiple:false,startIn:dir,types:[{description:'Rekapinyu History JSON (BackupHistory / InputData)',accept:{'application/json':['.json']}}]});
             const handle = picked?.[0];
             if (!handle) return;
-
             const file = await handle.getFile();
             const fileName = String(file.name || '');
-            if (!/^BackupHistory_.+\.json$/i.test(fileName)) {
-                throw new Error('File ditolak. Import History hanya menerima file BackupHistory hasil fitur Backup menu History.');
-            }
-
+            if (!/^(?:BackupHistory|InputData)_.+\.json$/i.test(fileName)) throw new Error('File ditolak. Import History hanya menerima file BackupHistory atau InputData dari folder Data/Rekap.');
             const text = await file.text();
-            if (!text.trim()) throw new Error('File backup JSON kosong.');
-
+            if (!text.trim()) throw new Error('File JSON kosong.');
             let payload;
-            try {
-                payload = JSON.parse(text);
-            } catch (_) {
-                throw new Error('File backup bukan JSON yang valid.');
+            try { payload = JSON.parse(text); } catch (_) { throw new Error('File yang dipilih bukan JSON yang valid.'); }
+            const isBackup = /^BackupHistory_.+\.json$/i.test(fileName);
+            const isInputData = /^InputData_.+\.json$/i.test(fileName);
+            let sourceItems = [];
+            if (isBackup) {
+                if (payload?.format !== 'Rekapinyu History Backup JSON' || Number(payload?.version) !== 1 || !Array.isArray(payload?.history)) throw new Error('File ditolak. Format BackupHistory tidak sesuai dengan backup menu History.');
+                sourceItems = payload.history;
+            } else if (isInputData) {
+                if (!Array.isArray(payload?.InputData)) throw new Error('File InputData tidak berisi data InputData yang valid.');
+                sourceItems = payload.InputData;
             }
-
-            if (
-                payload?.format !== 'Rekapinyu History Backup JSON' ||
-                Number(payload?.version) !== 1 ||
-                !Array.isArray(payload?.history)
-            ) {
-                throw new Error('File ditolak. Hanya JSON yang dibuat oleh fitur Backup menu History yang dapat diimport.');
-            }
-
-            const imported = payload.history
-                .map(normalizeImportedHistoryItem)
-                .filter(Boolean)
-                .sort(sortHistoryChronological);
-
-            if (!imported.length) {
-                throw new Error('File backup History tidak berisi data History yang valid.');
-            }
-
+            const imported = sourceItems.map(normalizeImportedHistoryItem).filter(Boolean).sort(sortHistoryChronological);
+            if (!imported.length) throw new Error(`File ${isBackup ? 'BackupHistory' : 'InputData'} tidak berisi data History yang valid.`);
             const merged = new Map();
-            (Array.isArray(historyData) ? historyData : []).forEach(item => {
-                const key = String(item?.id ?? '').trim() || JSON.stringify(item);
-                merged.set(key, item);
-            });
-            imported.forEach(item => {
-                const key = String(item?.id ?? '').trim() || JSON.stringify(item);
-                merged.set(key, item);
-            });
-
+            (Array.isArray(historyData) ? historyData : []).forEach(item => { const key = String(item?.id ?? '').trim() || JSON.stringify(item); merged.set(key, item); });
+            imported.forEach(item => { const key = String(item?.id ?? '').trim() || JSON.stringify(item); merged.set(key, item); });
             historyData = Array.from(merged.values()).sort(sortHistoryChronological);
             syncBackupFromHistory();
-
             if (typeof window.__rekapinyuSaveLocalRekap === 'function') {
                 const saved = await window.__rekapinyuSaveLocalRekap();
-                if (saved === false) {
-                    throw new Error('Data berhasil diimport tetapi gagal disimpan ke folder Data/Rekap.');
-                }
+                if (saved === false) throw new Error('Data berhasil diimport tetapi gagal disimpan ke folder Data/Rekap.');
             }
-
             populateHistoryFilters();
             renderHistory();
             renderBackupGrid();
-            showModal('Import Berhasil', `${imported.length} data History dari Backup berhasil diimport.`);
+            showModal('Import Berhasil', `${imported.length} data History dari ${isBackup ? 'BackupHistory' : 'InputData'} berhasil diimport.`);
         } catch (error) {
             if (error?.name === 'AbortError') return;
-            showModal('Import Gagal', error?.message || 'File backup History tidak dapat diimport.', 'fa-solid fa-circle-xmark text-rose-600');
+            showModal('Import Gagal', error?.message || 'File BackupHistory/InputData tidak dapat diimport.', 'fa-solid fa-circle-xmark text-rose-600');
         }
     }
+
 
     function bindHistoryIo() {
         bindHistoryFilter();
