@@ -953,6 +953,41 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 }
 </style>
 <style id="patch-mobile-admin-income-chooser">@media(max-width:767px){#mobile-admin-settings-button{appearance:none!important;border:0!important;background:transparent!important;padding:4px!important;margin:0!important;width:34px!important;height:34px!important;display:flex!important;align-items:center!important;justify-content:center!important;color:#aab4c1!important;opacity:.75!important;border-radius:10px!important}#mobile-admin-settings-button i{font-size:20px!important}.mobile-admin-income-chooser{position:fixed!important;z-index:99999!important;width:205px!important;background:#fff!important;border:1px solid #e5eaf0!important;border-radius:14px!important;padding:6px!important;box-shadow:0 14px 35px rgba(15,23,42,.16)!important}.mobile-admin-income-chooser button{width:100%!important;min-height:42px!important;border:0!important;background:#fff!important;color:#334155!important;border-radius:10px!important;display:flex!important;align-items:center!important;gap:10px!important;padding:9px 10px!important;font-size:12px!important;font-weight:700!important;text-align:left!important}.mobile-admin-income-chooser button:active{background:#f1f5f9!important}.mobile-admin-income-chooser button i{width:20px!important;text-align:center!important;color:#64748b!important}}@media(min-width:768px){#mobile-admin-settings-button{display:none!important}}</style>
+<style id="kasir-full-printer-css">
+@media print{
+  body > *{display:none!important}
+  #kasir-print-area{
+    display:block!important;
+    position:static!important;
+    width:100%!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+  }
+  #kasir-print-area .kasir-full-print-receipt{
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+    color:#000!important;
+    font-family:monospace!important;
+    font-size:12pt!important;
+    line-height:1.35!important;
+    box-sizing:border-box!important;
+  }
+  #kasir-print-area .kasir-full-print-header{text-align:center!important;margin-bottom:8px!important}
+  #kasir-print-area .kasir-full-print-header strong,
+  #kasir-print-area .kasir-full-print-header span{display:block!important}
+  #kasir-print-area .kasir-full-print-header strong{font-size:16pt!important}
+  #kasir-print-area .kasir-full-print-line{border-top:1px dashed #000!important;margin:7px 0!important}
+  #kasir-print-area .kasir-full-print-item{margin-bottom:6px!important}
+  #kasir-print-area .kasir-full-print-item>div:last-child,
+  #kasir-print-area .kasir-full-print-row{display:flex!important;justify-content:space-between!important;gap:12px!important}
+  @page{margin:0!important}
+}
+</style>
 <style id="kasir-payment-popup-css">
 #kasir-payment-popup{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.58)}
 #kasir-payment-popup.is-open{display:flex}
@@ -1901,6 +1936,9 @@ function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p
 function bindUserActionActivityTracking(){
   if(window.__rekapinyuActivityActionTrackingBound)return;
   window.__rekapinyuActivityActionTrackingBound=true;
+  window.addEventListener('afterprint',()=>{
+    try{window.__kasirPrintCleanup?.()}catch(_){}
+  });
   document.addEventListener('submit',e=>{
     const id=e.target?.id;
     if(id==='finance-form'){addActivity('Menginput Data Baru di menu Input Data','Input Data');return}
@@ -7398,27 +7436,50 @@ async function initKasirViews(){
       showModal('Gagal','Uang diterima masih kurang.','fa-solid fa-circle-exclamation text-rose-600');
       return;
     }
-    // Transaksi disimpan terlebih dahulu agar keberhasilan transaksi tidak bergantung pada printer Bluetooth.
+
+    /* Simpan transaksi terlebih dahulu, lalu langsung buka pencetakan penuh.
+       Tidak lagi bergantung pada printer Bluetooth. */
     commitKasirReceiptInvoiceId();
+    const printInvoiceId=window.__kasirCurrentInvoiceId||getKasirReceiptInvoiceId();
+    const printCart=JSON.parse(JSON.stringify(kasirCart));
     const saved=await saveKasirTransaction({paid,discount});
     if(!saved)return;
+
+    const printArea=document.getElementById('kasir-print-area');
+    if(printArea){
+      const totalPrint=printCart.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
+      const discountPrint=Math.min(totalPrint,Number(String(discount).replace(/[^0-9]/g,''))||0);
+      const paidPrint=Number(String(paid).replace(/[^0-9]/g,''))||0;
+      const finalPrint=Math.max(0,totalPrint-discountPrint);
+      const info=getKasirReceiptStoreInfo();
+      printArea.innerHTML=`<div class="kasir-full-print-receipt">
+        <div class="kasir-full-print-header"><strong>${esc(info.name).toUpperCase()}</strong><span>${esc(info.address).toLowerCase()}</span><span>${esc(info.phone).toLowerCase()}</span></div>
+        <div class="kasir-full-print-line"></div>
+        <div>ID Struk : ${esc(printInvoiceId)}</div>
+        <div>${esc(getKasirReceiptDate())}</div>
+        <div class="kasir-full-print-line"></div>
+        ${printCart.map(x=>`<div class="kasir-full-print-item"><div>${esc(x.name)}</div><div><span>${x.qty} x ${rupiah(x.price)}</span><span>${rupiah(x.qty*x.price)}</span></div></div>`).join('')}
+        <div class="kasir-full-print-line"></div>
+        <div class="kasir-full-print-row"><strong>Total</strong><strong>${rupiah(finalPrint)}</strong></div>
+        <div class="kasir-full-print-row"><span>Uang Diterima</span><span>${rupiah(paidPrint)}</span></div>
+        <div class="kasir-full-print-row"><span>Diskon</span><span>${rupiah(discountPrint)}</span></div>
+        <div class="kasir-full-print-row"><span>Kembalian</span><span>${rupiah(Math.max(0,paidPrint-finalPrint))}</span></div>
+        <div class="kasir-full-print-line"></div>
+        <div>${esc(info.footer||'Keterangan')}</div>
+      </div>`;
+      printArea.style.display='block';
+      window.__kasirPrintCleanup=()=>{
+        printArea.style.display='none';
+        printArea.innerHTML='';
+        window.__kasirPrintCleanup=null;
+      };
+      setTimeout(()=>window.print(),80);
+    }
+
     window.__kasirCurrentInvoiceId=null;
     closeKasirPaymentPopup();
-
-    // Setelah transaksi tersimpan ke Laporan Kasir/localStorage/Firestore, cetak dilakukan sebagai proses terpisah.
-    if(!kasirBluetooth.device?.gatt?.connected||!kasirBluetooth.characteristic){
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      showModal('Berhasil','Transaksi berhasil disimpan dan masuk ke Laporan Kasir. Printer Bluetooth belum tersambung sehingga struk belum dicetak.','fa-solid fa-circle-check text-emerald-600');
-      return;
-    }
-    renderKasirReceiptPreview();
-    try{
-      await printKasirReceiptBluetooth();
-      showModal('Berhasil','Transaksi berhasil disimpan, masuk ke Laporan Kasir, dan struk telah dikirim ke printer Bluetooth.','fa-brands fa-bluetooth-b text-emerald-600');
-    }catch(err){
-      updateKasirBluetoothUi('disconnected','Koneksi Bluetooth terputus');
-      showModal('Transaksi Berhasil','Transaksi sudah tersimpan dan masuk ke Laporan Kasir, tetapi struk gagal dicetak.','fa-solid fa-circle-check text-emerald-600');
-    }
+    try{window.__renderLaporanKasir?.()}catch(e){}
+    showModal('Berhasil','Transaksi berhasil disimpan dan siap dicetak.','fa-solid fa-print text-emerald-600');
   }
 
   function focusKasirSearch(){
@@ -7983,7 +8044,10 @@ async function initKasirViews(){
       else window.__rekapinyuResolveProdukKasirPhoto(x.photoFileName).then(apply).catch(()=>{});
     });
   }
-  function renderLaporanKasir(){const g=document.getElementById('laporan-kasir-grid');if(!g)return;const tx=laporanKasirData().sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);const profit=tx.reduce((a,t)=>a+laporanKasirProfit(t),0);g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${tx.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${tx.length} transaksi</span></div><div class="laporan-kasir-history-list">${tx.length?tx.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).length} produk · ${laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>'}</div></div>`;ensurePreviewModal()}
+  async function renderLaporanKasir(){
+    const g=document.getElementById('laporan-kasir-grid');if(!g)return;
+    try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){}
+    const tx=laporanKasirData().sort((a,b)=>laporanKasirDate(b)-laporanKasirDate(a));const omzet=tx.reduce((a,t)=>a+(Number(t.total)||0),0);const profit=tx.reduce((a,t)=>a+laporanKasirProfit(t),0);g.innerHTML=`<div class="laporan-kasir-sticky-grid"><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-chart-line"></i><span class="laporan-kasir-kicker">Total Omset</span><div class="laporan-kasir-value">${laporanKasirRupiah(omzet)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-coins"></i><span class="laporan-kasir-kicker">Total Profit</span><div class="laporan-kasir-value">${laporanKasirRupiah(profit)}</div></article><article class="laporan-kasir-sticky-card"><i class="fa-solid fa-receipt"></i><span class="laporan-kasir-kicker">Total Transaksi</span><div class="laporan-kasir-value">${tx.length}</div></article></div><div class="laporan-kasir-history-card"><div class="laporan-kasir-history-title"><strong>History Transaksi Terbaru</strong><span>${tx.length} transaksi</span></div><div class="laporan-kasir-history-list">${tx.length?tx.map(t=>`<div class="laporan-kasir-history-row"><div class="laporan-kasir-history-main"><span class="laporan-kasir-history-date">${laporanKasirEscape(laporanKasirDateText(t))}</span><span class="laporan-kasir-history-count">${Number(t.items)||laporanKasirItems(t).length} produk · ${laporanKasirItems(t).reduce((a,x)=>a+(Number(x.qty)||0),0)} item dibeli</span></div><strong class="laporan-kasir-history-total">${laporanKasirRupiah(t.total)}</strong><button type="button" class="laporan-kasir-view-btn" data-laporan-view="${laporanKasirEscape(t.id)}" title="Lihat transaksi" aria-label="Lihat transaksi"><i class="fa-solid fa-eye"></i></button></div>`).join(''):'<div class="laporan-kasir-empty">Belum ada transaksi kasir.</div>'}</div></div>`;ensurePreviewModal()}
   document.addEventListener('click',e=>{const b=e.target.closest('[data-laporan-view]');if(b){e.preventDefault();openPreview(b.dataset.laporanView)}});window.__renderLaporanKasir=renderLaporanKasir;document.addEventListener('DOMContentLoaded',renderLaporanKasir);
 })();
 </script>
