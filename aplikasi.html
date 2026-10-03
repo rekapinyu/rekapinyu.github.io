@@ -3261,54 +3261,114 @@ function updateUserAvatarUI() {
         }
 
         async function syncEditedHistoryItemToJson(item, oldInfo) {
-            const dir = await getDir();
-            if (!dir) {
-                throw new Error('Folder Rekap belum dipilih/tersedia. Pilih folder target pada Menu Produk Kasir terlebih dahulu.');
-            }
+            /*
+             * SATU BLOK PENYIMPANAN HISTORY.
+             * Tidak memakai getDir/listRekapFiles/readJsonHandle/writeJson dari
+             * blok JavaScript lain karena fungsi-fungsi tersebut berada di IIFE
+             * berbeda. Semua kebutuhan Edit History dibuat lokal di sini.
+             */
+            const getRekapDir = async () => {
+                if (typeof window.__rekapinyuGetDataSubdirectory !== 'function') {
+                    throw new Error('Folder Rekap belum terhubung. Gunakan folder yang sudah ditentukan di Menu Produk Kasir.');
+                }
+                const dir = await window.__rekapinyuGetDataSubdirectory('Rekap');
+                if (!dir) {
+                    throw new Error('Folder Rekap belum dipilih/tersedia. Tentukan folder Data/Rekap di Menu Produk Kasir terlebih dahulu.');
+                }
+                return dir;
+            };
 
-            const entries = await listRekapFiles(dir);
-            const inputEntries = entries.filter(entry => /^InputData_.+\.json$/i.test(String(entry.name)));
+            const readJson = async (handle) => {
+                const file = await handle.getFile();
+                const raw = await file.text();
+                const data = JSON.parse(raw);
+                if (!data || typeof data !== 'object') throw new Error('Format file JSON Rekap tidak valid.');
+                return data;
+            };
 
-            const newInfo = historyEditDateInfo(item);
-            const oldName = fileName(oldInfo || newInfo);
-            const newName = fileName(newInfo);
+            const writeJson = async (handle, data) => {
+                const writable = await handle.createWritable();
+                try {
+                    await writable.write(JSON.stringify(data, null, 2));
+                } finally {
+                    await writable.close();
+                }
+            };
+
+            const listJsonFiles = async (root) => {
+                const files = [];
+                const walk = async (dir, prefix = '') => {
+                    for await (const [name, handle] of dir.entries()) {
+                        const path = prefix ? `${prefix}/${name}` : String(name);
+                        if (handle?.kind === 'directory') {
+                            await walk(handle, path);
+                        } else if (handle?.kind === 'file' && /\.json$/i.test(String(name))) {
+                            files.push({ name: String(name), path, handle });
+                        }
+                    }
+                };
+                await walk(root);
+                return files;
+            };
+
+            const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+            const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const pad = value => String(value).padStart(2, '0');
+
+            const dateInfo = (item) => {
+                const year = Number(item?.year);
+                const date = Number(item?.date);
+                let monthIndex = Number(item?.monthIndex);
+                if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+                    monthIndex = months.indexOf(String(item?.month || ''));
+                }
+                if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) monthIndex = 0;
+                const safeYear = Number.isInteger(year) && year > 0 ? year : new Date().getFullYear();
+                const maxDate = new Date(safeYear, monthIndex + 1, 0).getDate();
+                const safeDate = Number.isInteger(date) && date > 0 ? Math.min(date, maxDate) : 1;
+                const d = new Date(safeYear, monthIndex, safeDate);
+                return {
+                    day: days[d.getDay()],
+                    date: safeDate,
+                    monthIndex,
+                    month: months[monthIndex],
+                    year: safeYear,
+                    dateKey: `${safeYear}-${pad(monthIndex + 1)}-${pad(safeDate)}`
+                };
+            };
+
+            const fileNameFor = info => `InputData_${info.day}_${info.date}_${info.month}_${info.year}.json`;
+            const rowsOf = data => Array.isArray(data?.InputData) ? data.InputData : [];
+
+            const dir = await getRekapDir();
+            const entries = await listJsonFiles(dir);
+            const inputEntries = entries.filter(entry => /^InputData_.+\.json$/i.test(entry.name));
+            const newInfo = dateInfo(item);
+            const oldInfoSafe = oldInfo || dateInfo(item);
+            const oldName = fileNameFor(oldInfoSafe);
+            const newName = fileNameFor(newInfo);
 
             let source = null;
             let target = null;
 
             for (const entry of inputEntries) {
-                if (String(entry.name).toLowerCase() === newName.toLowerCase()) {
-                    try {
-                        target = { entry, data: await readJsonHandle(entry.handle) };
-                    } catch (_) {}
+                if (entry.name.toLowerCase() === newName.toLowerCase()) {
+                    try { target = { entry, data: await readJson(entry.handle) }; } catch (_) {}
                 }
-
                 try {
-                    const data = await readJsonHandle(entry.handle);
-                    const rows = normalizeLoadedArray(data.InputData);
-
-                    if (rows.some(row => String(row?.id ?? '') === String(item?.id ?? ''))) {
+                    const data = await readJson(entry.handle);
+                    if (rowsOf(data).some(row => String(row?.id ?? '') === String(item?.id ?? ''))) {
                         source = { entry, data };
                     }
                 } catch (_) {}
             }
 
             if (!source) {
-                const oldEntry = inputEntries.find(entry =>
-                    String(entry.name).toLowerCase() === String(oldName).toLowerCase()
-                );
-
-                if (oldEntry) {
-                    source = {
-                        entry: oldEntry,
-                        data: await readJsonHandle(oldEntry.handle)
-                    };
-                }
+                const oldEntry = inputEntries.find(entry => entry.name.toLowerCase() === oldName.toLowerCase());
+                if (oldEntry) source = { entry: oldEntry, data: await readJson(oldEntry.handle) };
             }
 
-            if (!source) {
-                throw new Error('Data History tidak ditemukan lagi di file InputData sumber.');
-            }
+            if (!source) throw new Error('Data History tidak ditemukan di file InputData pada folder Rekap.');
 
             const updatedItem = {
                 ...item,
@@ -3320,46 +3380,32 @@ function updateUserAvatarUI() {
                 dateKey: newInfo.dateKey
             };
 
-            const sourceData = source.data || {};
-            const sourceRows = normalizeLoadedArray(sourceData.InputData);
-
-            /* NOMINAL SAJA: sumber dan target adalah file yang sama. */
-            if (String(source.entry.name).toLowerCase() === String(newName).toLowerCase()) {
-                const rows = sourceRows.map(row =>
-                    String(row?.id ?? '') === String(updatedItem?.id ?? '')
-                        ? updatedItem
-                        : row
+            /* EDIT NOMINAL: file sumber tetap sama. */
+            if (source.entry.name.toLowerCase() === newName.toLowerCase()) {
+                const updatedRows = rowsOf(source.data).map(row =>
+                    String(row?.id ?? '') === String(updatedItem?.id ?? '') ? updatedItem : row
                 );
-
                 await writeJson(source.entry.handle, {
-                    ...sourceData,
+                    ...source.data,
                     Rekap_hari: newInfo.day,
                     Tanggal: newInfo.date,
                     Bulan: newInfo.month,
                     Tahun: newInfo.year,
-                    InputData: rows
+                    InputData: updatedRows
                 });
-
                 return true;
             }
 
-            /* GANTI TANGGAL: hapus item dari file lama terlebih dahulu. */
-            const remainingRows = sourceRows.filter(row =>
+            /* EDIT TANGGAL: hapus item dari file lama. */
+            const remainingRows = rowsOf(source.data).filter(row =>
                 String(row?.id ?? '') !== String(updatedItem?.id ?? '')
             );
-
-            const oldFileInfo = fileInfoFromData(sourceData, source.entry.name) || oldInfo || newInfo;
-
             await writeJson(source.entry.handle, {
-                ...sourceData,
-                Rekap_hari: oldFileInfo.day,
-                Tanggal: oldFileInfo.date,
-                Bulan: oldFileInfo.month,
-                Tahun: oldFileInfo.year,
+                ...source.data,
                 InputData: remainingRows
             });
 
-            /* Masukkan item ke file tanggal baru. */
+            /* EDIT TANGGAL: masukkan item ke file tanggal baru. */
             let targetHandle = target?.entry?.handle || null;
             let targetData = target?.data || null;
 
@@ -3376,7 +3422,7 @@ function updateUserAvatarUI() {
                 };
             }
 
-            const targetRows = normalizeLoadedArray(targetData.InputData).filter(row =>
+            const targetRows = rowsOf(targetData).filter(row =>
                 String(row?.id ?? '') !== String(updatedItem?.id ?? '')
             );
 
