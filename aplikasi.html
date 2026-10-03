@@ -3046,30 +3046,69 @@ function updateUserAvatarUI() {
             }
         });
 
+        /*
+         * HISTORY EDIT — IMPLEMENTASI BARU, SATU BLOK
+         * Sumber History hanya file InputData_*.json di folder Data/Rekap
+         * yang berasal dari folder target yang sudah dipilih aplikasi.
+         * Edit nominal maupun Hari/Tanggal/Bulan/Tahun langsung memperbarui
+         * file JSON sumbernya. Tidak memakai localStorage sebagai sumber History.
+         */
+        function historyEditDateInfo(item) {
+            const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+            const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const year = Number(item?.year);
+            const date = Number(item?.date);
+            let monthIndex = Number.isFinite(Number(item?.monthIndex))
+                ? Number(item.monthIndex)
+                : months.indexOf(String(item?.month || ''));
+            if (!Number.isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) monthIndex = 0;
+            const safeYear = Number.isFinite(year) && year > 0 ? year : new Date().getFullYear();
+            const safeDate = Number.isFinite(date) && date > 0 ? date : 1;
+            const dateObj = new Date(safeYear, monthIndex, safeDate);
+            return {
+                day: String(item?.day || days[dateObj.getDay()]),
+                date: safeDate,
+                monthIndex,
+                month: String(item?.month || months[monthIndex]),
+                year: safeYear,
+                dateKey: `${safeYear}-${String(monthIndex + 1).padStart(2,'0')}-${String(safeDate).padStart(2,'0')}`
+            };
+        }
+
+        function historyEditValidDate(date, monthIndex, year) {
+            const y = Number(year), d = Number(date), m = Number(monthIndex);
+            if (!Number.isInteger(y) || y < 1 || !Number.isInteger(m) || m < 0 || m > 11) return false;
+            if (!Number.isInteger(d) || d < 1 || d > new Date(y, m + 1, 0).getDate()) return false;
+            return true;
+        }
+
         function openEditSubMenu(id, type) {
-            document.getElementById(`edit-menu-${id}`).classList.add('hidden');
-            const item = historyData.find(d => d.id === id);
-            if(!item) return;
+            document.getElementById(`edit-menu-${id}`)?.classList.add('hidden');
+            const item = historyData.find(d => String(d.id) === String(id));
+            if (!item) return;
 
             const modal = document.getElementById('edit-modal');
             const modalTitle = document.getElementById('edit-modal-title');
             const modalBody = document.getElementById('edit-modal-body');
             const saveBtn = document.getElementById('save-edit-btn');
+            if (!modal || !modalTitle || !modalBody || !saveBtn) return;
+
+            const originalInfo = historyEditDateInfo(item);
 
             if (type === 'nominal') {
                 modalTitle.innerText = `Edit Nominal (ID: ${item.id.toString().slice(-4)})`;
                 modalBody.innerHTML = `
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pendapatan</label>
-                        <input type="text" id="edit-val-income" value="${item.income.toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        <input type="text" id="edit-val-income" value="${Number(item.income || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Total Belanja</label>
-                        <input type="text" id="edit-val-expense" value="${(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        <input type="text" id="edit-val-expense" value="${Number(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pengeluaran</label>
-                        <input type="text" id="edit-val-cashout" value="${(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                        <input type="text" id="edit-val-cashout" value="${Number(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Profit Persen (%)</label>
@@ -3077,17 +3116,25 @@ function updateUserAvatarUI() {
                     </div>
                 `;
                 saveBtn.onclick = async function() {
-                    const oldInfo = itemDateInfo(item);
-                    item.income = parseNum(document.getElementById('edit-val-income').value);
-                    item.expense = parseNum(document.getElementById('edit-val-expense').value);
-                    item.cashout = parseNum(document.getElementById('edit-val-cashout').value);
-                    item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct').value) || 10;
-                    // Samakan hitungan profit History dengan Form Input Data Harian.
-                    item.profit = Math.max((item.income - item.cashout) * (item.profitPercentage / 100), 0);
-                    const saved = await saveEditedHistoryAndRefresh(item, oldInfo);
-                    if (!saved) return;
-                    closeEditModal();
-                    showModal("Berhasil", "Nominal dan profit persen transaksi berhasil diperbarui.");
+                    if (saveBtn.dataset.saving === '1') return;
+                    saveBtn.dataset.saving = '1';
+                    saveBtn.disabled = true;
+                    try {
+                        item.income = parseNum(document.getElementById('edit-val-income')?.value || '');
+                        item.expense = parseNum(document.getElementById('edit-val-expense')?.value || '');
+                        item.cashout = parseNum(document.getElementById('edit-val-cashout')?.value || '');
+                        item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct')?.value) || 10;
+                        item.profit = Math.max((item.income - item.cashout) * (item.profitPercentage / 100), 0);
+
+                        const saved = await saveEditedHistoryAndRefresh(item, originalInfo);
+                        if (!saved) return;
+
+                        closeEditModal();
+                        showModal("Berhasil Disimpan", "Perubahan nominal History berhasil disimpan ke folder Rekap.");
+                    } finally {
+                        saveBtn.dataset.saving = '0';
+                        saveBtn.disabled = false;
+                    }
                 };
             } else if (type === 'datetime') {
                 const daysOptions = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -3104,33 +3151,53 @@ function updateUserAvatarUI() {
                     <div class="grid grid-cols-3 gap-2">
                         <div>
                             <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal</label>
-                            <input type="number" id="edit-val-date" min="1" max="31" value="${item.date}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                            <input type="number" id="edit-val-date" min="1" max="31" value="${originalInfo.date}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bulan</label>
                             <select id="edit-val-month" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                                ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${m === item.month ? 'selected' : ''}>${m}</option>`).join('')}
+                                ${monthsOptions.map((m, idx) => `<option value="${m}" data-index="${idx}" ${idx === originalInfo.monthIndex ? 'selected' : ''}>${m}</option>`).join('')}
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tahun</label>
-                            <input type="number" id="edit-val-year" value="${item.year}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+                            <input type="number" id="edit-val-year" value="${originalInfo.year}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
                         </div>
                     </div>
                 `;
                 saveBtn.onclick = async function() {
-                    const oldInfo = itemDateInfo(item);
-                    item.day = document.getElementById('edit-val-day').value;
-                    item.date = parseInt(document.getElementById('edit-val-date').value) || item.date;
-                    const monthSelect = document.getElementById('edit-val-month');
-                    item.month = monthSelect.value;
-                    item.monthIndex = parseInt(monthSelect.options[monthSelect.selectedIndex].getAttribute('data-index'));
-                    item.year = parseInt(document.getElementById('edit-val-year').value) || item.year;
+                    if (saveBtn.dataset.saving === '1') return;
+                    saveBtn.dataset.saving = '1';
+                    saveBtn.disabled = true;
+                    try {
+                        const selectedDay = document.getElementById('edit-val-day')?.value || originalInfo.day;
+                        const selectedDate = parseInt(document.getElementById('edit-val-date')?.value, 10);
+                        const monthSelect = document.getElementById('edit-val-month');
+                        const selectedMonthIndex = parseInt(monthSelect?.options?.[monthSelect.selectedIndex]?.getAttribute('data-index'), 10);
+                        const selectedMonth = monthSelect?.value || originalInfo.month;
+                        const selectedYear = parseInt(document.getElementById('edit-val-year')?.value, 10);
 
-                    const saved = await saveEditedHistoryAndRefresh(item, oldInfo);
-                    if (!saved) return;
-                    closeEditModal();
-                    showModal("Berhasil", "Tanggal dan waktu transaksi berhasil diperbarui.");
+                        if (!historyEditValidDate(selectedDate, selectedMonthIndex, selectedYear)) {
+                            showModal("Gagal Disimpan", "Tanggal, bulan, atau tahun yang dipilih tidak valid.", "fa-solid fa-circle-xmark text-rose-600");
+                            return;
+                        }
+
+                        item.day = selectedDay;
+                        item.date = selectedDate;
+                        item.monthIndex = selectedMonthIndex;
+                        item.month = selectedMonth;
+                        item.year = selectedYear;
+                        item.dateKey = `${selectedYear}-${String(selectedMonthIndex + 1).padStart(2,'0')}-${String(selectedDate).padStart(2,'0')}`;
+
+                        const saved = await saveEditedHistoryAndRefresh(item, originalInfo);
+                        if (!saved) return;
+
+                        closeEditModal();
+                        showModal("Berhasil Disimpan", "Hari, tanggal, bulan, dan tahun History berhasil disimpan ke folder Rekap.");
+                    } finally {
+                        saveBtn.dataset.saving = '0';
+                        saveBtn.disabled = false;
+                    }
                 };
             }
 
@@ -3141,18 +3208,18 @@ function updateUserAvatarUI() {
             document.getElementById('edit-modal').classList.add('hidden');
         }
 
-        /* HISTORY JSON SYNC — satu implementasi khusus Edit.
-           Edit History memperbarui file InputData yang sudah ada.
-           Hapus dari aplikasi TIDAK menyentuh file JSON, sehingga reload
-           akan membaca kembali data selama file masih ada di Data/Rekap. */
+        /* HISTORY JSON SYNC — IMPLEMENTASI BARU, TIDAK DITUMPUK.
+           Edit nominal memperbarui item pada file InputData sumber.
+           Edit tanggal memindahkan item ke file InputData tanggal baru.
+           File sumber lama juga diperbarui agar data folder Rekap tetap sinkron. */
         async function syncEditedHistoryItemToJson(item, oldInfo) {
             const dir = await getDir();
             if (!dir) return false;
 
             const entries = await listRekapFiles(dir);
             const inputEntries = entries.filter(entry => /^InputData_.+\.json$/i.test(String(entry.name)));
-            const newInfo = itemDateInfo(item);
-            const oldDateKey = oldInfo?.dateKey || newInfo.dateKey;
+            const newInfo = historyEditDateInfo(item);
+            const oldDateInfo = oldInfo || historyEditDateInfo(item);
             const newFileName = fileName(newInfo);
 
             let sourceEntry = null;
@@ -3162,55 +3229,65 @@ function updateUserAvatarUI() {
                 try {
                     const data = await readJsonHandle(entry.handle);
                     const arr = normalizeLoadedArray(data.InputData);
+
                     if (arr.some(x => String(x?.id ?? '') === String(item?.id ?? ''))) {
                         sourceEntry = {entry, data};
                     }
+
                     if (String(entry.name).toLowerCase() === newFileName.toLowerCase()) {
                         targetEntry = {entry, data};
                     }
                 } catch (_) {}
             }
 
-            if (!sourceEntry && oldDateKey) {
-                const oldName = fileName(oldInfo || newInfo);
+            if (!sourceEntry) {
+                const oldName = fileName(oldDateInfo);
                 const found = inputEntries.find(e => String(e.name).toLowerCase() === oldName.toLowerCase());
                 if (found) {
-                    try { sourceEntry = {entry: found, data: await readJsonHandle(found.handle)}; } catch (_) {}
+                    try {
+                        sourceEntry = {entry: found, data: await readJsonHandle(found.handle)};
+                    } catch (_) {}
                 }
             }
 
-            const updatedItem = {...item};
-            updatedItem.day = newInfo.day;
-            updatedItem.date = newInfo.date;
-            updatedItem.monthIndex = newInfo.monthIndex;
-            updatedItem.month = newInfo.month;
-            updatedItem.year = newInfo.year;
+            const updatedItem = {
+                ...item,
+                day: newInfo.day,
+                date: newInfo.date,
+                monthIndex: newInfo.monthIndex,
+                month: newInfo.month,
+                year: newInfo.year,
+                dateKey: newInfo.dateKey
+            };
 
             const sourceData = sourceEntry?.data ? {...sourceEntry.data} : null;
             const sourceItems = normalizeLoadedArray(sourceData?.InputData);
             const targetData = targetEntry?.data ? {...targetEntry.data} : null;
 
+            /* Edit nominal saja: file tanggal tetap, isi item diganti. */
             if (sourceEntry && String(sourceEntry.entry.name).toLowerCase() === newFileName.toLowerCase()) {
                 const nextItems = sourceItems.map(x =>
                     String(x?.id ?? '') === String(updatedItem?.id ?? '') ? updatedItem : x
                 );
-                const payload = {
+
+                await writeJson(sourceEntry.entry.handle, {
                     ...(sourceData || {}),
                     Rekap_hari: newInfo.day,
                     Tanggal: newInfo.date,
                     Bulan: newInfo.month,
                     Tahun: newInfo.year,
                     InputData: nextItems
-                };
-                await writeJson(sourceEntry.entry.handle, payload);
+                });
                 return true;
             }
 
+            /* Edit tanggal: keluarkan item dari file lama. */
             if (sourceEntry) {
                 const remaining = sourceItems.filter(x =>
                     String(x?.id ?? '') !== String(updatedItem?.id ?? '')
                 );
-                const sourceInfo = oldInfo || fileInfoFromData(sourceData, sourceEntry.entry.name);
+                const sourceInfo = oldDateInfo || fileInfoFromData(sourceData, sourceEntry.entry.name);
+
                 if (sourceInfo) {
                     await writeJson(sourceEntry.entry.handle, {
                         ...sourceData,
@@ -3223,8 +3300,11 @@ function updateUserAvatarUI() {
                 }
             }
 
+            /* Masukkan item ke file tanggal baru. Jika file belum ada, buat FILE
+               di folder Rekap yang sudah dipilih; tidak membuat folder baru. */
             let targetHandle = targetEntry?.entry?.handle || null;
             let targetPayload = targetData ? {...targetData} : null;
+
             if (!targetHandle) {
                 targetHandle = await dir.getFileHandle(newFileName, {create:true});
                 targetPayload = {
@@ -3242,6 +3322,7 @@ function updateUserAvatarUI() {
             const withoutEdited = targetItems.filter(x =>
                 String(x?.id ?? '') !== String(updatedItem?.id ?? '')
             );
+
             await writeJson(targetHandle, {
                 ...targetPayload,
                 Rekap_hari: newInfo.day,
@@ -3250,6 +3331,7 @@ function updateUserAvatarUI() {
                 Tahun: newInfo.year,
                 InputData: [...withoutEdited, updatedItem]
             });
+
             return true;
         }
 
@@ -3261,14 +3343,12 @@ function updateUserAvatarUI() {
             writeChain = writeChain.then(async () => {
                 const saved = await syncEditedHistoryItemToJson(item, oldInfo);
                 if (!saved) throw new Error('Folder Data/Rekap belum tersedia atau file InputData tidak dapat diperbarui.');
-                populateHistoryFilters();
-                renderHistory();
-                syncBackupFromHistory();
-                renderBackupGrid();
-                window.__rekapinyuDataLaporanBulanan =
-                    typeof window.__rekapinyuBuildLaporanBulanan === 'function'
-                        ? window.__rekapinyuBuildLaporanBulanan(Array.isArray(historyData) ? historyData : [])
-                        : [];
+
+                /* Setelah file berhasil ditulis, baca ulang folder Rekap agar
+                   tampilan History benar-benar mengikuti JSON yang tersimpan. */
+                const reloaded = await load();
+                if (reloaded === false) throw new Error('File InputData berhasil ditulis tetapi folder Rekap gagal dibaca ulang.');
+
                 return true;
             }).catch(err => {
                 console.warn('Rekapinyu: edit History gagal disinkronkan ke JSON.', err);
