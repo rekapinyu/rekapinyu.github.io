@@ -2852,6 +2852,8 @@ function updateUserAvatarUI() {
                 if (tab === 'backup') {
                     populateBackupFilters();
                     renderBackupGrid();
+                } else if (tab === 'laporan-kasir' && typeof window.__rekapinyuRenderLaporanKasir === 'function') {
+                    startLaporanKasirJsonRealtime();
                 }
             } else if (tab === 'kasir') {
             } else {
@@ -8226,67 +8228,345 @@ async function initKasirViews(){
     }
   });
 
+
+  /* LAPORAN KASIR — satu implementasi, sumber hanya JSON transaksi Kasir. */
+  let rk6ReportTimer=null;
+  let rk6ReportLoading=false;
+
+  function rk6ReportDateFromTransaction(tx){
+    const ts=kasirTransactionTimestamp(tx);
+    const d=new Date(ts);
+    if(Number.isNaN(d.getTime()))return null;
+    const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    return {
+      key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+      label:`${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,
+      time:d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
+      id:Number(tx?.id)||0
+    };
+  }
+
+  function rk6ReportPayloadDate(raw){
+    const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const dd=String(raw?.Tanggal||'').padStart(2,'0');
+    const mm=months.indexOf(String(raw?.Bulan||''));
+    const yyyy=Number(raw?.Tahun);
+    if(!dd||mm<0||!yyyy)return null;
+    const d=new Date(yyyy,mm,Number(dd));
+    if(Number.isNaN(d.getTime()))return null;
+    const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    return {
+      key:`${yyyy}-${String(mm+1).padStart(2,'0')}-${dd}`,
+      label:`${days[d.getDay()]}, ${Number(dd)} ${months[mm]} ${yyyy}`
+    };
+  }
+
+  function rk6ReportItemsCount(tx){
+    if(Array.isArray(tx?.itemsDetail))
+      return tx.itemsDetail.reduce((s,x)=>s+(Number(x?.qty)||0),0);
+    return Math.max(0,Number(tx?.items)||0);
+  }
+
+  function rk6ReportCardData(raw,fileName){
+    const source=Array.isArray(raw?.LaporanKasir)?raw.LaporanKasir:
+                 Array.isArray(raw?.TransaksiKasir)?raw.TransaksiKasir:[];
+    if(!source.length)return null;
+    const payloadDate=rk6ReportPayloadDate(raw);
+    const ordered=[...source].sort((a,b)=>kasirTransactionTimestamp(b)-kasirTransactionTimestamp(a));
+    const latest=ordered[0]||{};
+    const txDate=rk6ReportDateFromTransaction(latest);
+    const dateInfo=payloadDate||txDate;
+    if(!dateInfo)return null;
+    const omzet=source.reduce((s,t)=>s+(Number(t?.total)||0),0);
+    const barang=source.reduce((s,t)=>s+rk6ReportItemsCount(t),0);
+    const profit=Math.round(omzet*0.10);
+    return {
+      key:dateInfo.key,
+      label:dateInfo.label,
+      id:Number(latest?.id)||0,
+      time:txDate?.time||'--.--',
+      omzet,transactions:source.length,barang,profit,
+      fileName:String(fileName||'')
+    };
+  }
+
+  async function rk6ReadKasirJsonReports(){
+    const dir=await window.__rekapinyuGetDataSubdirectory?.('Kasir');
+    if(!dir)return [];
+    const files=[];
+    async function walk(cur){
+      for await(const [name,entry] of cur.entries()){
+        if(entry?.kind==='directory'){await walk(entry);continue;}
+        if(entry?.kind!=='file'||!/^Kasir_.*\.json$/i.test(String(name)))continue;
+        try{
+          const raw=JSON.parse(await (await entry.getFile()).text());
+          const card=rk6ReportCardData(raw,name);
+          if(card)files.push(card);
+        }catch(_){}
+      }
+    }
+    await walk(dir);
+    const byDate=new Map();
+    files.sort((a,b)=>b.key.localeCompare(a.key));
+    files.forEach(card=>{
+      const old=byDate.get(card.key);
+      if(!old){byDate.set(card.key,card);return;}
+      old.omzet+=card.omzet;
+      old.transactions+=card.transactions;
+      old.barang+=card.barang;
+      old.profit+=card.profit;
+      if(card.id>old.id){old.id=card.id;old.time=card.time;old.fileName=card.fileName;}
+    });
+    return Array.from(byDate.values()).sort((a,b)=>b.key.localeCompare(a.key));
+  }
+
+  function rk6RenderReportCards(cards){
+    const list=document.getElementById('rk6-report-list');
+    if(!list)return;
+    if(!cards.length){
+      list.innerHTML='<div class="rk6-report-empty"><i class="fa-solid fa-file-circle-xmark"></i><br>Belum ada data transaksi kasir pada file JSON.</div>';
+      return;
+    }
+    list.innerHTML=cards.map(card=>`
+      <article class="rk6-report-row">
+        <div class="rk6-report-main">
+          <div class="rk6-report-meta">ID: #${esc(card.id||'--')} • Pukul ${esc(card.time||'--.--')}</div>
+          <div class="rk6-report-date"><i class="fa-regular fa-calendar-days"></i><span>${esc(card.label)}</span></div>
+          <div class="rk6-report-stats">
+            <div class="rk6-report-stat omzet">
+              <span class="rk6-report-stat-label"><i class="fa-solid fa-arrow-trend-up"></i> Omset Kasir</span>
+              <strong class="rk6-report-stat-value">${rupiah(card.omzet)}</strong>
+            </div>
+            <div class="rk6-report-stat transaksi">
+              <span class="rk6-report-stat-label"><i class="fa-solid fa-bag-shopping"></i> Total Transaksi Kasir</span>
+              <strong class="rk6-report-stat-value">${card.transactions} Transaksi</strong>
+            </div>
+            <div class="rk6-report-stat barang">
+              <span class="rk6-report-stat-label"><i class="fa-solid fa-arrow-trend-down"></i> Total Barang Terjual</span>
+              <strong class="rk6-report-stat-value">${card.barang} Produk Terjual</strong>
+            </div>
+            <div class="rk6-report-stat profit">
+              <span class="rk6-report-stat-label"><i class="fa-solid fa-wallet"></i> Profit/Keuntungan (10%)</span>
+              <strong class="rk6-report-stat-value">${rupiah(card.profit)}</strong>
+            </div>
+          </div>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  async function renderLaporanKasirJson(){
+    if(rk6ReportLoading)return;
+    const list=document.getElementById('rk6-report-list');
+    if(!list)return;
+    rk6ReportLoading=true;
+    try{
+      const cards=await rk6ReadKasirJsonReports();
+      rk6RenderReportCards(cards);
+    }catch(_){
+      rk6RenderReportCards([]);
+    }finally{
+      rk6ReportLoading=false;
+    }
+  }
+
+  function startLaporanKasirJsonRealtime(){
+    renderLaporanKasirJson();
+    if(rk6ReportTimer)clearInterval(rk6ReportTimer);
+    rk6ReportTimer=setInterval(()=>{
+      const view=document.getElementById('view-laporan-kasir');
+      if(!view||view.classList.contains('hidden')){
+        clearInterval(rk6ReportTimer);
+        rk6ReportTimer=null;
+        return;
+      }
+      renderLaporanKasirJson();
+    },2000);
+  }
+
+  window.__rekapinyuRenderLaporanKasir=renderLaporanKasirJson;
+  document.addEventListener('rekapinyu-kasir-transaction-saved',()=>{
+    const view=document.getElementById('view-laporan-kasir');
+    if(view&&!view.classList.contains('hidden'))renderLaporanKasirJson();
+  });
+
   window.__initKasirViews=initKasirViews;
 })();
 </script>
 
 <style id="laporan-kasir-final-css">
-#view-laporan-kasir{width:100%;min-height:100%;padding:14px;box-sizing:border-box;overflow:auto;background:#f7f9fc}
-#view-laporan-kasir .rk6-report-card{width:100%;max-width:1150px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-sizing:border-box}
-#view-laporan-kasir .rk6-report-head{display:flex;align-items:center;justify-content:flex-start;gap:12px;margin-bottom:10px}
-#view-laporan-kasir .rk6-report-head h3{margin:0;color:#0f172a;font-size:16px;font-weight:900}
-#view-laporan-kasir .rk6-report-head p{margin:3px 0 0;color:#64748b;font-size:10px;line-height:1.45}
-#view-laporan-kasir .rk6-report-status{margin:0 0 10px;padding:8px 10px;border-radius:9px;background:#f8fafc;color:#64748b;font-size:9px;font-weight:700}
-#view-laporan-kasir .rk6-report-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
-#view-laporan-kasir .rk6-report-summary>div{border:1px solid #e2e8f0;border-radius:11px;background:#fff;padding:10px;min-width:0}
-#view-laporan-kasir .rk6-report-summary span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
-#view-laporan-kasir .rk6-report-summary strong{display:block;margin-top:4px;color:#0f172a;font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#view-laporan-kasir .rk6-report-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start;max-height:72vh;overflow:auto;padding:2px}
-#view-laporan-kasir .rk6-report-row{width:100%;aspect-ratio:1/1;box-sizing:border-box;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:8px;padding:11px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 4px 12px rgba(15,23,42,.045);overflow:hidden;transition:.15s}
-#view-laporan-kasir .rk6-report-row:hover{box-shadow:0 8px 20px rgba(15,23,42,.08);transform:translateY(-1px)}
-#view-laporan-kasir .rk6-report-main{min-width:0}
-#view-laporan-kasir .rk6-report-date{display:block;color:#334155;font-size:10px;font-weight:850;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-#view-laporan-kasir .rk6-report-sub{display:block;margin-top:4px;color:#64748b;font-size:8.5px;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-#view-laporan-kasir .rk6-report-total{display:block;color:#0f172a;font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:auto}
-#view-laporan-kasir .rk6-report-view{width:34px;height:34px;flex:0 0 34px;align-self:flex-end;border:0;border-radius:9px;background:#eef2f7;color:#475569;display:flex;align-items:center;justify-content:center;cursor:pointer}
-#view-laporan-kasir .rk6-report-view:hover{background:#dbeafe;color:#2563eb}
-#view-laporan-kasir .rk6-report-empty{grid-column:1/-1;padding:30px 15px;text-align:center;color:#94a3b8;font-size:10px;line-height:1.5}
-#rk6-report-detail{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62)}
-#rk6-report-detail.is-open{display:flex}
-#rk6-report-detail .rk6-detail-dialog{width:min(720px,96vw);max-height:90vh;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(15,23,42,.28)}
-#rk6-report-detail .rk6-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid #e2e8f0}
-#rk6-report-detail .rk6-detail-head strong{color:#0f172a;font-size:13px;font-weight:900}
-#rk6-report-detail .rk6-detail-close{width:32px;height:32px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;cursor:pointer}
-#rk6-report-detail .rk6-detail-body{padding:14px;overflow:auto}
-#rk6-report-detail .rk6-detail-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
-#rk6-report-detail .rk6-detail-meta>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:9px}
-#rk6-report-detail .rk6-detail-meta span{display:block;color:#94a3b8;font-size:8px;font-weight:800;text-transform:uppercase}
-#rk6-report-detail .rk6-detail-meta strong{display:block;margin-top:4px;color:#0f172a;font-size:11px;font-weight:900}
-#rk6-report-detail .rk6-detail-product-list{display:grid;gap:8px;margin-top:4px}
-#rk6-report-detail .rk6-detail-product{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px;border:1px solid #edf2f7;border-radius:11px;background:#f8fafc}
-#rk6-report-detail .rk6-detail-product-photo{width:58px;height:58px;border-radius:9px;overflow:hidden;background:#e2e8f0;color:#94a3b8;display:flex;align-items:center;justify-content:center}
-#rk6-report-detail .rk6-detail-product-photo img{display:block;width:100%;height:100%;object-fit:cover}
-#rk6-report-detail .rk6-detail-product-name{color:#334155;font-size:11px;font-weight:800;min-width:0;overflow-wrap:anywhere}
-#rk6-report-detail .rk6-detail-product-sub{display:block;margin-top:3px;color:#64748b;font-size:9px}
-#rk6-report-detail .rk6-detail-product-total{color:#0f172a;font-size:10px;font-weight:900;white-space:nowrap}
-#rk6-report-detail .rk6-detail-total{margin-top:9px;border-top:1px solid #e2e8f0;padding-top:9px;display:grid;gap:4px}
-#rk6-report-detail .rk6-detail-total-row{display:flex;justify-content:space-between;gap:10px;color:#475569;font-size:10px}
-#rk6-report-detail .rk6-detail-total-row.grand{color:#0f172a;font-weight:900;font-size:12px}
-@media(max-width:900px){
-  #view-laporan-kasir .rk6-report-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* LAPORAN KASIR — hanya area ini */
+#view-laporan-kasir{
+  width:100%;
+  min-height:100%;
+  padding:28px 14px;
+  box-sizing:border-box;
+  overflow:auto;
+  background:#f1f4f8;
 }
-@media(max-width:680px){
-  #view-laporan-kasir{padding:8px}
-  #view-laporan-kasir .rk6-report-summary{grid-template-columns:1fr}
-  #view-laporan-kasir .rk6-report-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  #rk6-report-detail .rk6-detail-meta{grid-template-columns:1fr}
+#view-laporan-kasir .rk6-report-card{
+  width:100%;
+  max-width:900px;
+  margin:0 auto;
+  background:transparent;
+  border:0;
+  padding:0;
+  box-sizing:border-box;
 }
-@media(max-width:430px){
-  #view-laporan-kasir .rk6-report-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-  #view-laporan-kasir .rk6-report-row{padding:9px;border-radius:12px}
-  #view-laporan-kasir .rk6-report-date{font-size:9px}
-  #view-laporan-kasir .rk6-report-sub{font-size:8px}
-  #view-laporan-kasir .rk6-report-total{font-size:10px}
+#view-laporan-kasir .rk6-report-head{
+  display:none;
+}
+#view-laporan-kasir .rk6-report-status{
+  display:none;
+}
+#view-laporan-kasir .rk6-report-summary{
+  display:none;
+}
+#view-laporan-kasir .rk6-report-list{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:16px;
+  width:100%;
+  max-height:none;
+  overflow:visible;
+  padding:0;
+}
+#view-laporan-kasir .rk6-report-row{
+  width:100%;
+  min-width:0;
+  min-height:185px;
+  aspect-ratio:auto;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:0;
+  padding:20px 22px 22px;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(15,23,42,.055);
+  overflow:hidden;
+  transition:.15s;
+}
+#view-laporan-kasir .rk6-report-row:hover{
+  box-shadow:0 12px 30px rgba(15,23,42,.08);
+  transform:translateY(-1px);
+}
+#view-laporan-kasir .rk6-report-main{
+  min-width:0;
+}
+#view-laporan-kasir .rk6-report-meta{
+  color:#7b8798;
+  font-size:9px;
+  line-height:1.4;
+  margin-bottom:5px;
+}
+#view-laporan-kasir .rk6-report-date{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#172033;
+  font-size:15px;
+  font-weight:900;
+  line-height:1.35;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#view-laporan-kasir .rk6-report-date i{
+  color:#16a085;
+  flex:0 0 auto;
+}
+#view-laporan-kasir .rk6-report-sub{
+  display:none;
+}
+#view-laporan-kasir .rk6-report-stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid #edf0f3;
+}
+#view-laporan-kasir .rk6-report-stat{
+  min-width:0;
+  min-height:66px;
+  padding:11px 12px;
+  box-sizing:border-box;
+  border:1px solid #e3e8ee;
+  border-radius:13px;
+  background:#f7f9fb;
+}
+#view-laporan-kasir .rk6-report-stat-label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:#64748b;
+  font-size:8px;
+  font-weight:800;
+  line-height:1.25;
+  text-transform:uppercase;
+}
+#view-laporan-kasir .rk6-report-stat-label i{
+  font-size:9px;
+}
+#view-laporan-kasir .rk6-report-stat-value{
+  display:block;
+  margin-top:6px;
+  color:#0f172a;
+  font-size:14px;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-label,
+#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-value{color:#0f9f8a}
+#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-label,
+#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-value{color:#2563eb}
+#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-label,
+#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-value{color:#ef3340}
+#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-label,
+#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-value{color:#d97706}
+#view-laporan-kasir .rk6-report-view{display:none}
+#view-laporan-kasir .rk6-report-empty{
+  width:100%;
+  box-sizing:border-box;
+  padding:45px 20px;
+  text-align:center;
+  color:#94a3b8;
+  font-size:11px;
+  line-height:1.6;
+  border:1px dashed #cbd5e1;
+  border-radius:16px;
+  background:#fff;
+}
+@media(max-width:760px){
+  #view-laporan-kasir{padding:12px 10px 80px}
+  #view-laporan-kasir .rk6-report-row{
+    min-height:0;
+    padding:16px;
+    border-radius:15px;
+  }
+  #view-laporan-kasir .rk6-report-date{
+    font-size:13px;
+  }
+  #view-laporan-kasir .rk6-report-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:12px;
+    padding-top:12px;
+  }
+  #view-laporan-kasir .rk6-report-stat{
+    min-height:62px;
+    padding:9px 10px;
+  }
+  #view-laporan-kasir .rk6-report-stat-value{
+    font-size:12px;
+  }
 }
 </style>
 
