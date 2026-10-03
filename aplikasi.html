@@ -1901,65 +1901,21 @@ function compare(){const p=phone();if(!p)return;if(!currentPhone){currentPhone=p
 function bindUserActionActivityTracking(){
   if(window.__rekapinyuActivityActionTrackingBound)return;
   window.__rekapinyuActivityActionTrackingBound=true;
-
-  /* Aktifitas hanya dicatat setelah proses benar-benar menghasilkan
-     status BERHASIL. Tidak lagi mencatat submit/click sebelum proses selesai. */
-  const pending=[];
-  const queueActivity=(action,menu)=>{
-    if(!phone())return;
-    pending.push({action:String(action||''),menu:String(menu||'Informasi')});
-    if(pending.length>30)pending.splice(0,pending.length-30);
-    setTimeout(()=>{
-      const i=pending.findIndex(x=>x.action===String(action||'')&&x.menu===String(menu||'Informasi'));
-      if(i>=0)pending.splice(i,1);
-    },15000);
-  };
-  const flushActivities=()=>{
-    if(!pending.length)return;
-    const rows=pending.splice(0,pending.length);
-    rows.forEach(x=>addActivity(x.action,x.menu));
-  };
-
-  /* Pantau popup hasil proses. Hanya popup BERHASIL yang mengesahkan
-     aktifitas yang sudah diantrikan. Popup GAGAL tidak membuat history. */
-  const successObserver=new MutationObserver(()=>{
-    const modal=document.getElementById('custom-modal');
-    const title=String(document.getElementById('modal-title')?.textContent||'').trim().toLowerCase();
-    if(!modal||modal.classList.contains('hidden')||!title)return;
-    if(title==='berhasil'||title.startsWith('berhasil ')||title==='berhasil disimpan'){
-      flushActivities();
-    }else if(title.startsWith('gagal')||title.includes('gagal')){
-      pending.length=0;
-    }
-  });
-  const modal=document.getElementById('custom-modal');
-  if(modal)successObserver.observe(modal,{attributes:true,childList:true,subtree:true,characterData:true});
-
   document.addEventListener('submit',e=>{
     const id=e.target?.id;
-    if(id==='finance-form'){
-      queueActivity('Menginput Data Baru di menu Input Data','Input Data');return;
-    }
-    if(id==='pengeluaran-form'){
-      queueActivity('Menambahkan Pengeluaran di menu Pengeluaran','Pengeluaran');return;
-    }
-    if(id==='kasbon-form'){
-      queueActivity('Menambah Kasbon Pelanggan di menu Kasbon','Kasbon');return;
-    }
-    if(id==='pk3-form'){
-      queueActivity('Menambahkan Produk di Menu Produk Kasir','Produk Kasir');return;
-    }
+    if(id==='finance-form'){addActivity('Menginput Data Baru di menu Input Data','Input Data');return}
+    if(id==='pengeluaran-form'){addActivity('Menambahkan Pengeluaran di menu Pengeluaran','Pengeluaran');return}
+    if(id==='kasbon-form'){addActivity('Menambah Kasbon Pelanggan di menu Kasbon','Kasbon');return}
+    if(id==='pk3-form'){addActivity('Menambahkan Produk di Menu Produk Kasir','Produk Kasir');return}
     if(id==='pk3-edit-form'){
       const f=e.target,initial=window.__rekapinyuPk3EditInitial||{};
       const v=x=>String(f.querySelector(x)?.value??'');
-      if(v('#pk3-edit-name')!==String(initial.name??''))queueActivity('Merubah Nama Produk di menu Produk Kasir','Produk Kasir');
-      if(v('#pk3-edit-cost')!==String(initial.cost??''))queueActivity('Merubah Harga HPP / Grosir di menu Produk Kasir','Produk Kasir');
-      if(v('#pk3-edit-price')!==String(initial.price??''))queueActivity('Merubah Harga Jual di menu Produk Kasir','Produk Kasir');
-      if(v('#pk3-edit-stock')!==String(initial.stock??''))queueActivity('Merubah Stok di menu Produk Kasir','Produk Kasir');
-      if(window.__rekapinyuPk3EditPhotoChanged)queueActivity('Merubah Foto Produk di menu Produk Kasir','Produk Kasir');
-      window.__rekapinyuPk3EditInitial=null;
-      window.__rekapinyuPk3EditPhotoChanged=false;
-      return;
+      if(v('#pk3-edit-name')!==String(initial.name??''))addActivity('Merubah Nama Produk di menu Produk Kasir','Produk Kasir');
+      if(v('#pk3-edit-cost')!==String(initial.cost??''))addActivity('Merubah Harga HPP / Grosir di menu Produk Kasir','Produk Kasir');
+      if(v('#pk3-edit-price')!==String(initial.price??''))addActivity('Merubah Harga Jual di menu Produk Kasir','Produk Kasir');
+      if(v('#pk3-edit-stock')!==String(initial.stock??''))addActivity('Merubah Stok di menu Produk Kasir','Produk Kasir');
+      if(window.__rekapinyuPk3EditPhotoChanged)addActivity('Merubah Foto Produk di menu Produk Kasir','Produk Kasir');
+      window.__rekapinyuPk3EditInitial=null;window.__rekapinyuPk3EditPhotoChanged=false;return;
     }
     if(id==='receipt-settings-form'){
       const form=e.target;
@@ -1969,57 +1925,36 @@ function bindUserActionActivityTracking(){
         phone:String(form.querySelector('#receipt-setting-store-phone')?.value||'').trim(),
         footer:String(form.querySelector('#receipt-setting-footer')?.value||'').trim()
       };
-      const previous=(window.__rekapinyuSettingData?.SettingStruk&&typeof window.__rekapinyuSettingData.SettingStruk==='object')
-        ?window.__rekapinyuSettingData.SettingStruk:{};
+      const p=phone();
+      let previous=(window.__rekapinyuSettingData?.SettingStruk&&typeof window.__rekapinyuSettingData.SettingStruk==='object')?window.__rekapinyuSettingData.SettingStruk:{};
       const changed=['name','address','phone','footer'].some(k=>String(current[k]??'')!==String(previous[k]??''));
-      if(changed)queueActivity('Mengubah Tampilan Struk di menu Seting','Seting');
-      return;
+      if(changed)addActivity('Mengubah Tampilan Struk di menu Seting','Seting');
+      return
     }
   },true);
-
   document.addEventListener('input',e=>{
     if(e.target?.id==='pk3-edit-photo')window.__rekapinyuPk3EditPhotoChanged=true;
   },true);
-
   document.addEventListener('click',e=>{
     const t=e.target?.closest?.('[onclick]');
     if(t){
       const oc=t.getAttribute('onclick')||'';
-      if(/toggleLunasKasbon\(/.test(oc)){
-        queueActivity('Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Kasbon');return;
-      }
-      if(/restoreHistoryFromBackup\(/.test(oc)){
-        queueActivity('Memulihkan Data Backup di menu Backup Otomatis','Backup Otomatis');return;
-      }
-      if(/deleteBackupCard\(/.test(oc)){
-        queueActivity('Menghapus Data Backup di menu Backup Otomatis','Backup Otomatis');return;
-      }
+      if(/toggleLunasKasbon\(/.test(oc)){addActivity('Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Kasbon');return}
+      if(/restoreHistoryFromBackup\(/.test(oc)){addActivity('Memulihkan Data Backup di menu Backup Otomatis','Backup Otomatis');return}
+      if(/deleteBackupCard\(/.test(oc)){addActivity('Menghapus Data Backup di menu Backup Otomatis','Backup Otomatis');return}
     }
-
-    /* Tombol KASIR utama hanya membuka popup pembayaran.
-       History transaksi dicatat hanya saat tombol Simpan / Simpan dan Cetak diproses. */
-    if(e.target?.closest?.('#kasir-save-btn-popup,#kasir-save-print-btn')){
-      queueActivity('Melakukan transaksi di menu KASIR','KASIR');return;
-    }
-
+    if(e.target?.closest?.('#kasir-save-btn,#kasir-save-btn-popup,#kasir-save-print-btn')){addActivity('Melakukan transaksi di menu KASIR','KASIR');return}
     if(e.target?.closest?.('#save-edit-btn')){
       const title=String(document.getElementById('edit-modal-title')?.textContent||'');
-      if(title.startsWith('Edit Waktu & Tanggal Backup')){
-        queueActivity('Merubah Tanggal bulan tahun di Menu Backup Otomatis','Backup Otomatis');
-      }else if(title==='Ganti Nama Pelanggan'){
-        queueActivity('Mengganti Nama Pelanggan di menu Kasbon','Kasbon');
-      }
+      if(title.startsWith('Edit Waktu & Tanggal Backup'))addActivity('Merubah Tanggal bulan tahun di Menu Backup Otomatis','Backup Otomatis');
+      else if(title==='Ganti Nama Pelanggan')addActivity('Mengganti Nama Pelanggan di menu Kasbon','Kasbon');
     }
   },true);
-
   document.addEventListener('focusin',e=>{
     if(e.target?.closest?.('#pk3-edit-form')){
       const f=e.target.closest('#pk3-edit-form');
       if(!window.__rekapinyuPk3EditInitial)window.__rekapinyuPk3EditInitial={
-        name:String(f.querySelector('#pk3-edit-name')?.value??''),
-        cost:String(f.querySelector('#pk3-edit-cost')?.value??''),
-        price:String(f.querySelector('#pk3-edit-price')?.value??''),
-        stock:String(f.querySelector('#pk3-edit-stock')?.value??'')
+        name:String(f.querySelector('#pk3-edit-name')?.value??''),cost:String(f.querySelector('#pk3-edit-cost')?.value??''),price:String(f.querySelector('#pk3-edit-price')?.value??''),stock:String(f.querySelector('#pk3-edit-stock')?.value??'')
       };
     }
   },true);
