@@ -1875,7 +1875,7 @@ function activityDate(item){const d=new Date(Number(item?.timestamp)||item?.time
 function dateText(d){return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`}
 function timeText(d){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 const allowedActivityActions=new Set([
- 'Melakukan transaksi di menu KASIR','Menambahkan Produk di Menu Produk Kasir','Merubah Nama Produk di menu Produk Kasir','Merubah Harga HPP / Grosir di menu Produk Kasir','Merubah Harga Jual di menu Produk Kasir','Merubah Foto Produk di menu Produk Kasir','Merubah Stok di menu Produk Kasir','Menginput Data Baru di menu Input Data','Menambahkan Pengeluaran di menu Pengeluaran','Mengubah Pengeluaran di menu Pengeluaran','Menghapus Pengeluaran di menu Pengeluaran','Mengubah Nominal di Menu History','Merubah Tanggal Bulan tahun di menu History','Menghapus Data di menu History','Mencetak Laporan Bulanan di Menu Laporan Bulanan','Menambah Kasbon Pelanggan di menu Kasbon','Mengganti Nama Pelanggan di menu Kasbon','Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Merubah Tanggal bulan tahun di Menu Backup Otomatis','Menghapus Data Backup di menu Backup Otomatis','Memulihkan Data Backup di menu Backup Otomatis','Mengubah Tampilan Struk di menu Seting'
+ 'Melakukan transaksi di menu KASIR','Menambahkan Produk di Menu Produk Kasir','Merubah Nama Produk di menu Produk Kasir','Merubah Harga HPP / Grosir di menu Produk Kasir','Merubah Harga Jual di menu Produk Kasir','Merubah Foto Produk di menu Produk Kasir','Merubah Stok di menu Produk Kasir','Menginput Data Baru di menu Input Data','Menambahkan Pengeluaran di menu Pengeluaran','Mengubah Pengeluaran di menu Pengeluaran','Menghapus Pengeluaran di menu Pengeluaran','Mencetak Laporan Bulanan di Menu Laporan Bulanan','Menambah Kasbon Pelanggan di menu Kasbon','Mengganti Nama Pelanggan di menu Kasbon','Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Merubah Tanggal bulan tahun di Menu Backup Otomatis','Menghapus Data Backup di menu Backup Otomatis','Memulihkan Data Backup di menu Backup Otomatis','Mengubah Tampilan Struk di menu Seting'
 ]);
 function sanitizeActivityData(data){return(Array.isArray(data)?data:[]).filter(item=>allowedActivityActions.has(String(item?.action||''))).sort((a,b)=>activityDate(a)-activityDate(b))}
 function activityPeriodStart(ts){const d=new Date(ts);return new Date(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours()>=6?6:0,0,0,0).getTime()}
@@ -1939,7 +1939,6 @@ function bindUserActionActivityTracking(){
     const t=e.target?.closest?.('[onclick]');
     if(t){
       const oc=t.getAttribute('onclick')||'';
-      if(/deleteHistoryItem\(/.test(oc)){addActivity('Menghapus Data di menu History','History');return}
       if(/toggleLunasKasbon\(/.test(oc)){addActivity('Memperbarui Kasbon Pelanggan Menjadi Lunas di menu Kasbon','Kasbon');return}
       if(/restoreHistoryFromBackup\(/.test(oc)){addActivity('Memulihkan Data Backup di menu Backup Otomatis','Backup Otomatis');return}
       if(/deleteBackupCard\(/.test(oc)){addActivity('Menghapus Data Backup di menu Backup Otomatis','Backup Otomatis');return}
@@ -1947,9 +1946,7 @@ function bindUserActionActivityTracking(){
     if(e.target?.closest?.('#kasir-save-btn,#kasir-save-btn-popup,#kasir-save-print-btn')){addActivity('Melakukan transaksi di menu KASIR','KASIR');return}
     if(e.target?.closest?.('#save-edit-btn')){
       const title=String(document.getElementById('edit-modal-title')?.textContent||'');
-      if(title.startsWith('Edit Nominal'))addActivity('Mengubah Nominal di Menu History','History');
-      else if(title.startsWith('Edit Waktu & Tanggal ('))addActivity('Merubah Tanggal Bulan tahun di menu History','History');
-      else if(title.startsWith('Edit Waktu & Tanggal Backup'))addActivity('Merubah Tanggal bulan tahun di Menu Backup Otomatis','Backup Otomatis');
+      if(title.startsWith('Edit Waktu & Tanggal Backup'))addActivity('Merubah Tanggal bulan tahun di Menu Backup Otomatis','Backup Otomatis');
       else if(title==='Ganti Nama Pelanggan')addActivity('Mengganti Nama Pelanggan di menu Kasbon','Kasbon');
     }
   },true);
@@ -2133,6 +2130,33 @@ bind();
 <i class="fa-solid fa-percent"></i>
 </span>
 <input class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold transition" id="profit-percentage" placeholder="10" required="" step="0.01" type="number" value="10"/>
+</div>
+</div>
+<div class="w-full border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+<div class="px-3.5 py-2.5 border-b border-slate-200">
+<label class="block text-xs font-bold uppercase text-slate-500">Input Manual Hari, Tanggal, Bulan, Tahun</label>
+</div>
+<div class="grid grid-cols-4 divide-x divide-slate-200">
+<div class="p-2.5">
+<label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Hari</label>
+<select id="input-manual-day" class="w-full px-2 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-semibold">
+<option value="Minggu">Minggu</option><option value="Senin">Senin</option><option value="Selasa">Selasa</option><option value="Rabu">Rabu</option><option value="Kamis">Kamis</option><option value="Jumat">Jumat</option><option value="Sabtu">Sabtu</option>
+</select>
+</div>
+<div class="p-2.5">
+<label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Tanggal</label>
+<input id="input-manual-date" min="1" max="31" type="number" class="w-full px-2 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-semibold" placeholder="1"/>
+</div>
+<div class="p-2.5">
+<label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Bulan</label>
+<select id="input-manual-month" class="w-full px-2 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-semibold">
+<option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option><option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option><option value="6">Juli</option><option value="7">Agustus</option><option value="8">September</option><option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option>
+</select>
+</div>
+<div class="p-2.5">
+<label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Tahun</label>
+<input id="input-manual-year" min="1" type="number" class="w-full px-2 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-semibold" placeholder="2026"/>
+</div>
 </div>
 </div>
 <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 text-sm" type="submit">
@@ -3030,22 +3054,6 @@ function updateUserAvatarUI() {
             document.getElementById('custom-modal').classList.add('hidden');
         }
 
-        function toggleEditMenu(id) {
-            const menu = document.getElementById(`edit-menu-${id}`);
-            document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
-                if(el.id !== `edit-menu-${id}`) el.classList.add('hidden');
-            });
-            menu.classList.toggle('hidden');
-        }
-
-        window.addEventListener('click', function(e) {
-            if (!e.target.closest('.toggle-edit-container')) {
-                document.querySelectorAll('[id^="edit-menu-"]').forEach(el => {
-                    el.classList.add('hidden');
-                });
-            }
-        });
-
         /*
          * HISTORY EDIT — SATU IMPLEMENTASI FINAL
          * Sumber data: InputData_*.json di folder Data/Rekap yang telah dipilih
@@ -3120,56 +3128,6 @@ function updateUserAvatarUI() {
             if (!modal || !modalTitle || !modalBody || !saveBtn) return;
 
             const oldInfo = historyEditDateInfo(item);
-
-            if (type === 'nominal') {
-                modalTitle.innerText = `Edit Nominal (ID: ${String(item.id).slice(-4)})`;
-
-                modalBody.innerHTML = `
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pendapatan</label>
-                        <input type="text" id="edit-val-income" value="${Number(item.income || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Total Belanja</label>
-                        <input type="text" id="edit-val-expense" value="${Number(item.expense || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Pengeluaran</label>
-                        <input type="text" id="edit-val-cashout" value="${Number(item.cashout || 0).toLocaleString('id-ID')}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Profit Persen (%)</label>
-                        <input type="number" step="0.01" id="edit-val-profit-pct" value="${item.profitPercentage !== undefined ? item.profitPercentage : 10}" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
-                    </div>
-                `;
-
-                saveBtn.onclick = async function () {
-                    if (saveBtn.dataset.saving === '1') return;
-
-                    saveBtn.dataset.saving = '1';
-                    saveBtn.disabled = true;
-
-                    try {
-                        item.income = parseNum(document.getElementById('edit-val-income')?.value || '');
-                        item.expense = parseNum(document.getElementById('edit-val-expense')?.value || '');
-                        item.cashout = parseNum(document.getElementById('edit-val-cashout')?.value || '');
-                        item.profitPercentage = parseFloat(document.getElementById('edit-val-profit-pct')?.value) || 10;
-                        item.profit = Math.max((item.income - item.cashout) * (item.profitPercentage / 100), 0);
-
-                        const saved = await saveEditedHistoryAndRefresh(item, oldInfo);
-                        if (!saved) return;
-
-                        closeEditModal();
-                        showModal(
-                            "Berhasil Disimpan",
-                            "Perubahan nominal History berhasil disimpan ke file InputData di folder Rekap."
-                        );
-                    } finally {
-                        saveBtn.dataset.saving = '0';
-                        saveBtn.disabled = false;
-                    }
-                };
-            }
 
             if (type === 'datetime') {
                 const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
@@ -3798,6 +3756,19 @@ function updateUserAvatarUI() {
             }).join('');
         }
 
+        (function initManualInputDate() {
+            const now = new Date();
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const dayEl = document.getElementById('input-manual-day');
+            const dateEl = document.getElementById('input-manual-date');
+            const monthEl = document.getElementById('input-manual-month');
+            const yearEl = document.getElementById('input-manual-year');
+            if (dayEl) dayEl.value = days[now.getDay()];
+            if (dateEl) dateEl.value = now.getDate();
+            if (monthEl) monthEl.value = String(now.getMonth());
+            if (yearEl) yearEl.value = now.getFullYear();
+        })();
+
         document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const income = parseNum(document.getElementById('income').value);
@@ -3811,13 +3782,31 @@ function updateUserAvatarUI() {
             const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
+            const manualDay = String(document.getElementById('input-manual-day')?.value || days[now.getDay()]);
+            const manualDate = parseInt(document.getElementById('input-manual-date')?.value, 10);
+            const manualMonthIndex = parseInt(document.getElementById('input-manual-month')?.value, 10);
+            const manualYear = parseInt(document.getElementById('input-manual-year')?.value, 10);
+
+            if (!Number.isInteger(manualDate) || manualDate < 1 || manualDate > 31 ||
+                !Number.isInteger(manualMonthIndex) || manualMonthIndex < 0 || manualMonthIndex > 11 ||
+                !Number.isInteger(manualYear) || manualYear < 1) {
+                showModal("Gagal Disimpan", "Hari, tanggal, bulan, dan tahun manual harus diisi dengan benar.", "fa-solid fa-circle-xmark text-rose-600");
+                return;
+            }
+
+            const maxManualDate = new Date(manualYear, manualMonthIndex + 1, 0).getDate();
+            if (manualDate > maxManualDate) {
+                showModal("Gagal Disimpan", `Tanggal ${manualDate} tidak valid untuk bulan ${months[manualMonthIndex]} ${manualYear}.`, "fa-solid fa-circle-xmark text-rose-600");
+                return;
+            }
+
             const newEntry = {
                 id: Date.now(),
-                day: days[now.getDay()],
-                date: now.getDate(),
-                monthIndex: now.getMonth(),
-                month: months[now.getMonth()],
-                year: now.getFullYear(),
+                day: manualDay,
+                date: manualDate,
+                monthIndex: manualMonthIndex,
+                month: months[manualMonthIndex],
+                year: manualYear,
                 time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                 income: income,
                 expense: expense,
@@ -3839,6 +3828,16 @@ function updateUserAvatarUI() {
 
             document.getElementById('finance-form').reset();
             document.getElementById('profit-percentage').value = "10";
+            const resetNow = new Date();
+            const resetDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const manualDayEl = document.getElementById('input-manual-day');
+            const manualDateEl = document.getElementById('input-manual-date');
+            const manualMonthEl = document.getElementById('input-manual-month');
+            const manualYearEl = document.getElementById('input-manual-year');
+            if (manualDayEl) manualDayEl.value = resetDays[resetNow.getDay()];
+            if (manualDateEl) manualDateEl.value = resetNow.getDate();
+            if (manualMonthEl) manualMonthEl.value = String(resetNow.getMonth());
+            if (manualYearEl) manualYearEl.value = resetNow.getFullYear();
             profitDisplay.innerText = "Rp 0";
 
             // PATCH FOKUS: setelah input tersimpan, semua tampilan turunan langsung diperbarui.
@@ -3962,22 +3961,7 @@ function updateUserAvatarUI() {
                                     <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
                                 </h3>
                             </div>
-                            <div class="relative toggle-edit-container">
-                                <button onclick="toggleEditMenu(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
-                                    <i class="fa-solid fa-pen-to-square text-emerald-600"></i> Edit
-                                </button>
-                                <div id="edit-menu-${item.id}" class="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 hidden z-30">
-                                    <button onclick="openEditSubMenu(${item.id}, 'nominal')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
-                                        <i class="fa-solid fa-coins text-emerald-600 w-4"></i> Edit Nominal
-                                    </button>
-                                    <button onclick="openEditSubMenu(${item.id}, 'datetime')" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
-                                        <i class="fa-solid fa-calendar text-blue-600 w-4"></i> Edit Tanggal & Waktu
-                                    </button>
-                                    <button onclick="deleteHistoryItem(${item.id})" class="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 flex items-center gap-2">
-                                        <i class="fa-solid fa-trash text-rose-600 w-4"></i> Hapus
-                                    </button>
-                                </div>
-                            </div>
+
                         </div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
