@@ -4650,11 +4650,26 @@ function updateUserAvatarUI() {
       const parts=String(item.dateKey).split('-');
       if(parts.length===3)return dateInfoFromParts(item.day,parts[2],parts[1]-1,parts[0]);
     }
+
+    /* Input Data menggunakan tanggal manual sebagai tanggal transaksi.
+       Jangan memakai id/timestamp (yang hanya menjadi ID/waktu penyimpanan),
+       karena itu akan mengembalikan data ke tanggal hari ini. */
+    const explicitDate=Number(item.date);
+    const explicitYear=Number(item.year);
+    const explicitMonth=Number.isFinite(Number(item.monthIndex))
+      ? Number(item.monthIndex)
+      : (item.month ?? item.bulan);
+    if(Number.isInteger(explicitDate) && explicitDate>=1 &&
+       Number.isInteger(explicitYear) && explicitYear>=1 &&
+       explicitMonth!==undefined && explicitMonth!==null && String(explicitMonth)!==''){
+      return dateInfoFromParts(item.day,explicitDate,explicitMonth,explicitYear);
+    }
+
     if(item.timestamp || item.id){
       const ts=Number(item.timestamp||item.id);
       if(Number.isFinite(ts)&&ts>100000000000)return periodInfo(new Date(ts));
     }
-    return dateInfoFromParts(item.day,item.date,Number.isFinite(Number(item.monthIndex))?Number(item.monthIndex):(item.month||item.bulan),item.year);
+    return periodInfo();
   }
 
   function normalizeLoadedArray(value){
