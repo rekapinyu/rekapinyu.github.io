@@ -7109,9 +7109,27 @@ async function initKasirViews(){
   }
   async function loadKasirFolderData(){const tx=await loadKasirTransactionsFromFolder();kasirTransactions=tx;window.__rekapinyuKasirTransactionsRealtime=kasirTransactions;try{renderTransactions()}catch(_){ }return tx;}
   window.__rekapinyuLoadKasirFolder=loadKasirFolderData;
-  async function saveKasirHarianJson(){
+  async function saveKasirHarianJson(transactionToGuarantee=null){
     const dir=await window.__rekapinyuGetDataSubdirectory?.('Kasir'); if(!dir)return false;
-    const now=Date.now(),info=kasirJsonDateInfo(now),tx=Array.isArray(kasirTransactions)?kasirTransactions:[],daily=tx.filter(item=>kasirJsonDateInfo(kasirTransactionTimestamp(item)).dateKey===info.dateKey);
+    const now=Date.now(),info=kasirJsonDateInfo(now);
+    const memoryTx=Array.isArray(kasirTransactions)?kasirTransactions:[];
+    let fileTx=[];
+    try{
+      const existingHandle=await dir.getFileHandle(info.fileName,{create:false});
+      const existingRaw=JSON.parse(await (await existingHandle.getFile()).text());
+      if(Array.isArray(existingRaw?.TransaksiKasir))fileTx=existingRaw.TransaksiKasir.filter(x=>x&&typeof x==='object');
+    }catch(_){/* file harian belum ada */}
+    const candidates=[...fileTx,...memoryTx];
+    if(transactionToGuarantee&&typeof transactionToGuarantee==='object')candidates.push(transactionToGuarantee);
+    const seen=new Set(),merged=[];
+    for(const item of candidates){
+      const key=String(item?.id??'').trim()||JSON.stringify(item);
+      if(seen.has(key))continue;
+      seen.add(key);
+      merged.push(item);
+    }
+    const daily=merged.filter(item=>kasirJsonDateInfo(kasirTransactionTimestamp(item)).dateKey===info.dateKey)
+      .sort((a,b)=>kasirTransactionTimestamp(b)-kasirTransactionTimestamp(a));
     const d=new Date(now),payload={Hari:info.fileName.split('_')[1],Tanggal:String(d.getDate()).padStart(2,'0'),Bulan:['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getMonth()],Tahun:d.getFullYear(),TransaksiKasir:daily,LaporanKasir:daily};
     const handle=await dir.getFileHandle(info.fileName,{create:true});const writer=await handle.createWritable();try{await writer.write(JSON.stringify(payload,null,2));}finally{await writer.close();}return true;
   }
@@ -7190,7 +7208,7 @@ async function initKasirViews(){
          dihapus dari daftar, stok barcode + manual menjadi stok nyata. */
       const produkSaved=await window.__rekapinyuSyncProdukKasirJson?.(kasirProducts);
       if(produkSaved!==true)throw new Error('Folder target belum dipilih atau file JSON Produk Kasir tidak dapat diperbarui.');
-      const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.();
+      const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.(transaction);
       if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
       try{document.dispatchEvent(new CustomEvent('rekapinyu-kasir-transaction-saved',{detail:{transaction}}))}catch(_){}
       /* JSON Produk Kasir sudah menjadi sumber stok. Beritahu kedua tampilan
