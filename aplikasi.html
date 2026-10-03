@@ -2364,14 +2364,8 @@ bind();
 </section>
 <!-- VIEW LAPORAN KASIR -->
 <section class="hidden laporan-kasir-view" id="view-laporan-kasir">
-  <div class="rk6-report-card">
-    <div class="rk6-report-head">
-      <div><h3>Laporan Kasir</h3><p>Menampilkan transaksi yang tersimpan dari Menu Kasir.</p></div>
-
-    </div>
-    <div class="rk6-report-status" id="rk6-report-status">Menyiapkan data transaksi kasir...</div>
-    <div class="rk6-report-summary" id="rk6-report-summary"></div>
-    <div class="rk6-report-list" id="rk6-report-list"></div>
+  <div class="lk12-report-wrap">
+    <div class="lk12-report-list" id="lk12-report-list"></div>
   </div>
 </section>
 <section class="hidden space-y-4 w-full" id="view-history">
@@ -8232,243 +8226,167 @@ async function initKasirViews(){
   window.__initKasirViews=initKasirViews;
 })();
 </script>
-<script id="laporan-kasir-json-single-js">
+
+<script id="laporan-kasir-baru-v12">
 (function(){
   'use strict';
-  /* LAPORAN KASIR — SATU IMPLEMENTASI MANDIRI.
-     Membaca JSON transaksi Kasir dari folder target yang sudah dipilih.
-     Tidak bergantung pada state/fungsi privat Menu Kasir. */
-  let rk5ReportTimer=null;
-  let rk5ReportLoading=false;
-  const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-  const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  /* LAPORAN KASIR V12 — IMPLEMENTASI BARU, SATU BLOK.
+     Satu-satunya sumber data laporan adalah state transaksi Menu Kasir.
+     Tidak membaca folder/JSON sendiri dan tidak membuat loader transaksi baru. */
+  let refreshTimer=null;
+  const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 
-  function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function money(v){
-    if(typeof v==='number')return Number.isFinite(v)?v:0;
-    const n=Number(String(v??'').replace(/[^0-9.-]/g,''));
-    return Number.isFinite(n)?n:0;
+  function esc(value){
+    return String(value??'').replace(/[&<>"']/g,char=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[char]||char));
   }
-  function rupiah(v){return 'Rp '+Math.max(0,money(v)).toLocaleString('id-ID');}
-  function validDate(d){return d instanceof Date&&!Number.isNaN(d.getTime())?d:null;}
-  function parseDate(value){
-    if(value instanceof Date)return validDate(new Date(value.getTime()));
-    if(value===null||value===undefined||value==='')return null;
-    if(typeof value==='number' || /^\d{10,13}$/.test(String(value).trim())){
-      const n=Number(value);
-      if(Number.isFinite(n)&&n>100000000000){const d=new Date(n);if(validDate(d))return d;}
-    }
-    const text=String(value).trim();
-    if(!text)return null;
-    const m=text.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})(?:\D+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?)?/);
-    if(m){
-      let y=Number(m[3]);if(y<100)y+=2000;
-      const d=new Date(y,Number(m[2])-1,Number(m[1]),Number(m[4]||0),Number(m[5]||0),Number(m[6]||0));
-      if(validDate(d))return d;
-    }
-    const iso=new Date(text);
-    return validDate(iso);
+
+  function num(value){
+    if(typeof value==='number')return Number.isFinite(value)?value:0;
+    const parsed=Number(String(value??'').replace(/[^0-9.-]/g,''));
+    return Number.isFinite(parsed)?parsed:0;
   }
-  function txDate(tx,raw){
-    const candidates=[tx?.date,tx?.tanggal,tx?.datetime,tx?.timestamp,tx?.createdAt,tx?.waktu,tx?.time];
-    for(const value of candidates){const d=parseDate(value);if(d)return d;}
-    const id=money(tx?.id);
-    if(id>100000000000){const d=new Date(id);if(validDate(d))return d;}
-    const rawDateParts=[raw?.Tanggal,raw?.tanggal,raw?.Date,raw?.date];
-    const dayValue=rawDateParts.find(v=>v!==undefined&&v!==null&&String(v).trim()!=='');
-    if(dayValue!==undefined){
-      const m=months.findIndex(x=>x.toLowerCase()===String(raw?.Bulan??raw?.bulan??'').toLowerCase());
-      const y=money(raw?.Tahun??raw?.tahun);
-      if(m>=0&&y>0){const d=new Date(y,m,money(dayValue));if(validDate(d))return d;}
+
+  function rupiah(value){
+    return 'Rp '+Math.max(0,num(value)).toLocaleString('id-ID');
+  }
+
+  function transactionDate(tx){
+    const candidates=[tx?.date,tx?.tanggal,tx?.datetime,tx?.createdAt,tx?.waktu];
+    for(const value of candidates){
+      if(value===null||value===undefined||String(value).trim()==='')continue;
+      const text=String(value).trim();
+      const match=text.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})(?:\D+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?)?/);
+      if(match){
+        let year=Number(match[3]);
+        if(year<100)year+=2000;
+        const d=new Date(year,Number(match[2])-1,Number(match[1]),Number(match[4]||0),Number(match[5]||0),Number(match[6]||0));
+        if(!Number.isNaN(d.getTime()))return d;
+      }
+      const parsed=new Date(value);
+      if(!Number.isNaN(parsed.getTime()))return parsed;
+    }
+    const id=num(tx?.id);
+    if(id>=100000000000){
+      const d=new Date(id);
+      if(!Number.isNaN(d.getTime()))return d;
     }
     return null;
   }
-  function looksLikeTransaction(v){
-    if(!v||typeof v!=='object'||Array.isArray(v))return false;
-    const keys=Object.keys(v).map(k=>k.toLowerCase());
-    let score=0;
-    if(keys.some(k=>['total','grandtotal','jumlah','amount','subtotal'].includes(k)))score++;
-    if(keys.some(k=>['items','jumlahitem','totalitem'].includes(k)))score++;
-    if(keys.some(k=>['itemsdetail','details','detail'].includes(k)))score++;
-    if(keys.some(k=>['paid','bayar','dibayar','uangditerima'].includes(k)))score++;
-    if(keys.some(k=>['change','kembalian'].includes(k)))score++;
-    if(keys.some(k=>['date','tanggal','datetime','timestamp','createdat','waktu'].includes(k)))score++;
-    return score>=2;
-  }
-  function normalizeTransaction(v){
-    if(!v||typeof v!=='object'||Array.isArray(v))return null;
-    const itemsDetail=Array.isArray(v.itemsDetail)?v.itemsDetail:
-      Array.isArray(v.ItemsDetail)?v.ItemsDetail:
-      Array.isArray(v.details)?v.details:
-      Array.isArray(v.detail)?v.detail:null;
-    const total=money(v.total??v.grandTotal??v.GrandTotal??v.amount??v.jumlah??v.subtotal);
-    let items=money(v.items??v.itemCount??v.jumlahItem??v.totalItem);
-    if(itemsDetail)items=itemsDetail.reduce((sum,item)=>sum+Math.max(0,money(item?.qty??item?.quantity??item?.jumlah)),0);
-    return {
-      id:v.id??v.ID??v.Id??'',
-      date:v.date??v.tanggal??v.datetime??v.timestamp??v.createdAt??v.waktu??v.time??'',
-      total,
-      items,
-      itemsDetail,
-      paid:money(v.paid??v.bayar??v.dibayar??v.uangDiterima),
-      change:money(v.change??v.kembalian),
-      discount:money(v.discount??v.diskon)
-    };
-  }
-  function extractTransactions(raw){
-    if(Array.isArray(raw)){
-      const txs=raw.filter(looksLikeTransaction).map(normalizeTransaction).filter(Boolean);
-      return txs.length?txs:[];
+
+  function itemCount(tx){
+    if(Array.isArray(tx?.itemsDetail)){
+      return tx.itemsDetail.reduce((sum,item)=>sum+Math.max(0,num(item?.qty??item?.quantity??item?.jumlah)),0);
     }
-    if(!raw||typeof raw!=='object')return [];
-    const priority=['TransaksiKasir','LaporanKasir','transaksiKasir','laporanKasir','Transactions','transactions','DataTransaksi','dataTransaksi','Transaksi','transaksi','Penjualan','penjualan','Sales','sales'];
-    for(const key of priority){
-      if(Object.prototype.hasOwnProperty.call(raw,key)){
-        const found=extractTransactions(raw[key]);
-        if(found.length)return found;
-      }
-    }
-    for(const value of Object.values(raw)){
-      const found=extractTransactions(value);
-      if(found.length)return found;
-    }
-    return [];
+    return Math.max(0,num(tx?.items??tx?.itemCount??tx?.jumlahItem??tx?.totalItem));
   }
-  async function getScanRoots(){
-    const roots=[];
-    try{
-      const root=await window.__rekapinyuGetDataRootDirectory?.();
-      if(root)roots.push(root);
-    }catch(_){ }
-    try{
-      const kasir=await window.__rekapinyuGetDataSubdirectory?.('Kasir');
-      if(kasir&&!roots.includes(kasir))roots.push(kasir);
-    }catch(_){ }
-    return roots;
+
+  function getKasirSource(){
+    const data=window.__rekapinyuKasirTransactionsRealtime;
+    return Array.isArray(data)?data.filter(item=>item&&typeof item==='object'):[];
   }
-  async function readJsonTransactions(){
-    const roots=await getScanRoots();
-    if(!roots.length)throw new Error('Folder Data/Kasir belum dapat diakses. Pastikan folder target sudah dipilih dan izinnya diberikan.');
-    const all=[];
-    const seenFiles=new Set();
-    async function walk(dir,path=''){
-      for await(const [name,entry] of dir.entries()){
-        const current=`${path}/${name}`;
-        if(entry?.kind==='directory'){await walk(entry,current);continue;}
-        if(entry?.kind!=='file'||!String(name).toLowerCase().endsWith('.json'))continue;
-        if(seenFiles.has(current))continue;
-        seenFiles.add(current);
-        try{
-          const raw=JSON.parse(await (await entry.getFile()).text());
-          const txs=extractTransactions(raw);
-          txs.forEach(tx=>all.push({...tx,__file:name}));
-        }catch(e){console.warn('Rekapinyu: JSON Kasir tidak dapat dibaca:',current,e);}
-      }
-    }
-    for(const root of roots)await walk(root);
-    const unique=new Map();
-    for(const tx of all){
-      const key=String(tx.id||'').trim()||JSON.stringify([tx.date,tx.total,tx.items,tx.paid,tx.change]);
-      if(!unique.has(key))unique.set(key,tx);
-    }
-    return [...unique.values()];
-  }
-  function buildCards(transactions){
+
+  function makeDailyReports(){
     const groups=new Map();
-    transactions.forEach(tx=>{
-      const d=txDate(tx);
-      if(!d)return;
-      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      if(!groups.has(key))groups.set(key,{date:d,transactions:[]});
-      groups.get(key).transactions.push(tx);
-    });
-    return [...groups.values()].sort((a,b)=>b.date-a.date).map(group=>{
-      group.transactions.sort((a,b)=>{
-        const da=txDate(a)?.getTime()||0,db=txDate(b)?.getTime()||0;
-        return db-da;
-      });
-      const omzet=group.transactions.reduce((s,t)=>s+Math.max(0,t.total),0);
-      const barang=group.transactions.reduce((s,t)=>s+Math.max(0,t.items),0);
-      const latest=group.transactions[0]||{};
-      const latestDate=txDate(latest)||group.date;
-      const time=latestDate.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+    for(const tx of getKasirSource()){
+      const date=transactionDate(tx);
+      if(!date)continue;
+      const key=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+      if(!groups.has(key))groups.set(key,{date,rows:[]});
+      groups.get(key).rows.push(tx);
+    }
+
+    return Array.from(groups.values()).sort((a,b)=>b.date-a.date).map(group=>{
+      const rows=[...group.rows].sort((a,b)=>(transactionDate(b)?.getTime()||0)-(transactionDate(a)?.getTime()||0));
+      const omzet=rows.reduce((sum,tx)=>sum+Math.max(0,num(tx?.total)),0);
+      const barang=rows.reduce((sum,tx)=>sum+itemCount(tx),0);
+      const latest=rows[0]||{};
+      const latestDate=transactionDate(latest)||group.date;
       return {
         dateKey:group.date.getTime(),
-        label:`${days[group.date.getDay()]}, ${group.date.getDate()} ${months[group.date.getMonth()]} ${group.date.getFullYear()}`,
-        id:money(latest.id),
-        time,
+        label:`${DAYS[group.date.getDay()]}, ${group.date.getDate()} ${MONTHS[group.date.getMonth()]} ${group.date.getFullYear()}`,
+        id:String(latest?.id??'').trim()||'--',
+        time:latestDate.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         omzet,
-        transactions:group.transactions.length,
+        transactions:rows.length,
         barang,
         profit:Math.round(omzet*0.10)
       };
     });
   }
-  function render(cards){
-    const list=document.getElementById('rk6-report-list');
+
+  function render(){
+    const list=document.getElementById('lk12-report-list');
     if(!list)return;
-    if(!cards.length){
-      list.innerHTML='<div class="rk6-report-empty"><i class="fa-solid fa-file-circle-xmark"></i><br>Belum ada data transaksi kasir pada file JSON.</div>';
+    const source=getKasirSource();
+    const reports=makeDailyReports();
+    if(!reports.length){
+      list.innerHTML=`<div class="lk12-empty"><i class="fa-solid fa-receipt"></i><strong>Belum ada transaksi yang diterima dari Menu Kasir.</strong><span>Transaksi yang diterima Menu Laporan Kasir: ${source.length}</span></div>`;
       return;
     }
-    list.innerHTML=cards.map(card=>`<article class="rk6-report-row"><div class="rk6-report-main"><div class="rk6-report-meta">ID: #${esc(card.id||'--')} • Pukul ${esc(card.time||'--:--')}</div><div class="rk6-report-date"><i class="fa-regular fa-calendar-days"></i><span>${esc(card.label)}</span></div><div class="rk6-report-stats"><div class="rk6-report-stat omzet"><span class="rk6-report-stat-label"><i class="fa-solid fa-arrow-trend-up"></i> Omset Kasir</span><strong class="rk6-report-stat-value">${rupiah(card.omzet)}</strong></div><div class="rk6-report-stat transaksi"><span class="rk6-report-stat-label"><i class="fa-solid fa-bag-shopping"></i> Total Transaksi Kasir</span><strong class="rk6-report-stat-value">${card.transactions} Transaksi</strong></div><div class="rk6-report-stat barang"><span class="rk6-report-stat-label"><i class="fa-solid fa-arrow-trend-down"></i> Total Barang Terjual</span><strong class="rk6-report-stat-value">${card.barang} Produk Terjual</strong></div><div class="rk6-report-stat profit"><span class="rk6-report-stat-label"><i class="fa-solid fa-wallet"></i> Profit/Keuntungan (10%)</span><strong class="rk6-report-stat-value">${rupiah(card.profit)}</strong></div></div></div></article>`).join('');
+    list.innerHTML=reports.map(report=>`
+      <article class="lk12-card">
+        <div class="lk12-meta">ID: #${esc(report.id)} <span>•</span> Pukul ${esc(report.time)}</div>
+        <div class="lk12-date"><i class="fa-regular fa-calendar-days"></i><span>${esc(report.label)}</span></div>
+        <div class="lk12-stats">
+          <div><small><i class="fa-solid fa-arrow-trend-up"></i> Omset Kasir</small><strong class="omzet">${rupiah(report.omzet)}</strong></div>
+          <div><small><i class="fa-solid fa-bag-shopping"></i> Total Transaksi Kasir</small><strong class="transaksi">${report.transactions} Transaksi</strong></div>
+          <div><small><i class="fa-solid fa-box"></i> Total Barang Terjual</small><strong class="barang">${report.barang} Produk Terjual</strong></div>
+          <div><small><i class="fa-solid fa-wallet"></i> Profit/Keuntungan (10%)</small><strong class="profit">${rupiah(report.profit)}</strong></div>
+        </div>
+      </article>`).join('');
   }
-  async function renderLaporanKasir(){
-    if(rk5ReportLoading)return;
-    const list=document.getElementById('rk6-report-list');
-    if(!list)return;
-    rk5ReportLoading=true;
-    try{
-      const txs=await readJsonTransactions();
-      render(buildCards(txs));
-    }catch(e){
-      console.warn('Rekapinyu: Laporan Kasir gagal membaca JSON.',e);
-      list.innerHTML='<div class="rk6-report-empty"><i class="fa-solid fa-folder-open"></i><br>Folder data transaksi kasir belum dapat dibaca.</div>';
-    }finally{rk5ReportLoading=false;}
-  }
-  function startLaporanKasir(){
-    renderLaporanKasir();
-    if(rk5ReportTimer)clearInterval(rk5ReportTimer);
-    rk5ReportTimer=setInterval(()=>{
+
+  function start(){
+    render();
+    if(refreshTimer)clearInterval(refreshTimer);
+    refreshTimer=setInterval(()=>{
       const view=document.getElementById('view-laporan-kasir');
-      if(!view||view.classList.contains('hidden')){clearInterval(rk5ReportTimer);rk5ReportTimer=null;return;}
-      renderLaporanKasir();
-    },2000);
+      if(!view||view.classList.contains('hidden')){
+        clearInterval(refreshTimer);
+        refreshTimer=null;
+        return;
+      }
+      render();
+    },1000);
   }
-  window.__rekapinyuRenderLaporanKasir=renderLaporanKasir;
-  window.__rekapinyuStartLaporanKasir=startLaporanKasir;
+
+  window.__rekapinyuStartLaporanKasir=start;
+  window.__rekapinyuRenderLaporanKasir=render;
   document.addEventListener('rekapinyu-kasir-transaction-saved',()=>{
     const view=document.getElementById('view-laporan-kasir');
-    if(view&&!view.classList.contains('hidden'))renderLaporanKasir();
+    if(view&&!view.classList.contains('hidden'))render();
   });
 })();
 </script>
 
-
-
-<style id="laporan-kasir-final-css">
+<style id="laporan-kasir-baru-v12-css">
 #view-laporan-kasir{width:100%;min-height:100%;padding:18px 14px;box-sizing:border-box;overflow:auto;background:#f1f4f8}
-#view-laporan-kasir .rk6-report-card{width:100%;max-width:900px;margin:0 auto;background:transparent;border:0;padding:0;box-sizing:border-box}
-#view-laporan-kasir .rk6-report-head,#view-laporan-kasir .rk6-report-status,#view-laporan-kasir .rk6-report-summary{display:none}
-#view-laporan-kasir .rk6-report-list{display:grid;grid-template-columns:1fr;gap:16px;width:100%;max-height:none;overflow:visible;padding:0}
-#view-laporan-kasir .rk6-report-row{width:100%;min-width:0;min-height:185px;box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:20px 22px 22px;border:1px solid #e2e8f0;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055);overflow:hidden;transition:.15s}
-#view-laporan-kasir .rk6-report-row:hover{box-shadow:0 12px 30px rgba(15,23,42,.08);transform:translateY(-1px)}
-#view-laporan-kasir .rk6-report-main{min-width:0}
-#view-laporan-kasir .rk6-report-meta{color:#7b8798;font-size:9px;line-height:1.4;margin-bottom:5px}
-#view-laporan-kasir .rk6-report-date{display:flex;align-items:center;gap:7px;color:#172033;font-size:15px;font-weight:900;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#view-laporan-kasir .rk6-report-date i{color:#16a085;flex:0 0 auto}
-#view-laporan-kasir .rk6-report-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #edf0f3}
-#view-laporan-kasir .rk6-report-stat{min-width:0;min-height:66px;padding:11px 12px;box-sizing:border-box;border:1px solid #e3e8ee;border-radius:13px;background:#f7f9fb}
-#view-laporan-kasir .rk6-report-stat-label{display:flex;align-items:center;gap:6px;color:#64748b;font-size:8px;font-weight:800;line-height:1.25;text-transform:uppercase}
-#view-laporan-kasir .rk6-report-stat-label i{font-size:9px}
-#view-laporan-kasir .rk6-report-stat-value{display:block;margin-top:6px;color:#0f172a;font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-value{color:#0f9f8a}
-#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-value{color:#2563eb}
-#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-value{color:#ef3340}
-#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-value{color:#d97706}
-#view-laporan-kasir .rk6-report-empty{width:100%;box-sizing:border-box;padding:45px 20px;text-align:center;color:#94a3b8;font-size:11px;line-height:1.6;border:1px dashed #cbd5e1;border-radius:16px;background:#fff}
-@media(max-width:760px){#view-laporan-kasir{padding:12px 10px 80px}#view-laporan-kasir .rk6-report-row{min-height:0;padding:16px;border-radius:15px}#view-laporan-kasir .rk6-report-date{font-size:13px}#view-laporan-kasir .rk6-report-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px}#view-laporan-kasir .rk6-report-stat{min-height:62px;padding:9px 10px}#view-laporan-kasir .rk6-report-stat-value{font-size:12px}}
+#view-laporan-kasir .lk12-report-wrap{width:100%;max-width:900px;margin:0 auto}
+#view-laporan-kasir .lk12-report-list{display:grid;grid-template-columns:1fr;gap:16px;width:100%}
+#view-laporan-kasir .lk12-card{width:100%;box-sizing:border-box;padding:20px 22px 22px;border:1px solid #e2e8f0;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055);transition:.15s}
+#view-laporan-kasir .lk12-card:hover{box-shadow:0 12px 30px rgba(15,23,42,.08);transform:translateY(-1px)}
+#view-laporan-kasir .lk12-meta{color:#7b8798;font-size:9px;line-height:1.4;margin-bottom:5px}
+#view-laporan-kasir .lk12-meta span{padding:0 4px}
+#view-laporan-kasir .lk12-date{display:flex;align-items:center;gap:7px;color:#172033;font-size:15px;font-weight:900;line-height:1.35}
+#view-laporan-kasir .lk12-date i{color:#16a085;flex:0 0 auto}
+#view-laporan-kasir .lk12-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #edf0f3}
+#view-laporan-kasir .lk12-stats>div{min-width:0;min-height:66px;padding:11px 12px;box-sizing:border-box;border:1px solid #e3e8ee;border-radius:13px;background:#f7f9fb}
+#view-laporan-kasir .lk12-stats small{display:flex;align-items:center;gap:6px;color:#64748b;font-size:8px;font-weight:800;line-height:1.25;text-transform:uppercase}
+#view-laporan-kasir .lk12-stats strong{display:block;margin-top:6px;font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-laporan-kasir .lk12-stats .omzet{color:#0f9f8a}
+#view-laporan-kasir .lk12-stats .transaksi{color:#2563eb}
+#view-laporan-kasir .lk12-stats .barang{color:#ef3340}
+#view-laporan-kasir .lk12-stats .profit{color:#d97706}
+#view-laporan-kasir .lk12-empty{width:100%;box-sizing:border-box;padding:50px 20px;text-align:center;border:1px dashed #cbd5e1;border-radius:16px;background:#fff;color:#94a3b8;display:flex;flex-direction:column;align-items:center;gap:8px}
+#view-laporan-kasir .lk12-empty i{font-size:34px;color:#cbd5e1}
+#view-laporan-kasir .lk12-empty strong{font-size:12px;color:#64748b}
+#view-laporan-kasir .lk12-empty span{font-size:10px;color:#94a3b8}
+@media(max-width:760px){#view-laporan-kasir{padding:12px 10px 80px}#view-laporan-kasir .lk12-card{padding:16px;border-radius:15px}#view-laporan-kasir .lk12-date{font-size:13px}#view-laporan-kasir .lk12-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px}#view-laporan-kasir .lk12-stats>div{min-height:62px;padding:9px 10px}#view-laporan-kasir .lk12-stats strong{font-size:12px}}
 </style>
+
 <style id="rekapinyu-welcome-popup-css">
 #rekapinyu-welcome-popup{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62)}
 #rekapinyu-welcome-popup.is-open{display:flex}
