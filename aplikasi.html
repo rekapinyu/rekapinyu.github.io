@@ -6267,8 +6267,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     window.__rekapinyuProdukKasirLoaded=true;
     try{await syncProdukKasirJson(products)}catch(e){console.warn('Rekapinyu: ProdukKasir JSON gagal diperbarui.',e)}
     render();
-    try{document.dispatchEvent(new CustomEvent('rekapinyu-produk-kasir-realtime-updated',{detail:{products:products.map(p=>normalizeProduct(p))}}))}catch(_){}
-    try{window.__initKasirViews?.()}catch(_){}
+    try{window.__publishProdukKasirRealtime?.(products)}catch(_){}
     return products;
   }
 
@@ -6461,7 +6460,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       }
 
       await write();
-      try{window.__initKasirViews?.()}catch(_){}
+      
 
       if(oldPhotoName&&oldPhotoName!==target.photoFileName){
         const dir=await getPhotoDirectoryQuiet();
@@ -6504,7 +6503,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         const u=objectUrls.get(removed.photoFileName);if(u){URL.revokeObjectURL(u);objectUrls.delete(removed.photoFileName)}
       }
       render();
-      try{window.__initKasirViews?.()}catch(_){}
+      
     }catch(e){
       if(removed)products.push(removed);
       if(typeof showModal==='function')showModal('Gagal Menghapus Produk',e?.message||'Produk gagal dihapus.');
@@ -6550,7 +6549,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         const dir=await getPhotoDirectoryQuiet();
         if(dir){try{const fh=await dir.getFileHandle(oldFileName,{create:false});await fh.remove()}catch(_){}}
       }
-      closeEdit();render();try{window.__initKasirViews?.()}catch(_){}
+      closeEdit();render();
       if(typeof showModal==='function')showModal('Berhasil','Produk berhasil diperbarui.','fa-solid fa-circle-check text-emerald-600');
     }catch(err){
       if(typeof showModal==='function')showModal('Gagal Menyimpan Produk',err?.message||'Perubahan produk gagal disimpan.');
@@ -6645,7 +6644,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       products=imported;
       await write();
       render();
-      try{window.__initKasirViews?.()}catch(_){}
+      
       if(typeof showModal==='function')showModal('Import Berhasil',`${imported.length} produk berhasil diimport dari BackupProduk di Data/Produk.`);
     }catch(err){
       if(err?.name!=='AbortError'&&typeof showModal==='function')
@@ -6737,18 +6736,21 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const clean=String(fileName||'').trim();
     return clean?objectUrls.get(clean)||null:null;
   };
-  window.__rekapinyuRefreshProdukKasir= function(value){
+  /* REALTIME PRODUK KASIR -> KASIR — satu publisher saja. */
+  window.__publishProdukKasirRealtime=function(value){
+    const snapshot=(Array.isArray(value)?value:[]).map(normalizeProduct);
+    window.__rekapinyuProdukKasirData=snapshot;
+    window.__rekapinyuProdukKasirLoaded=true;
+    try{document.dispatchEvent(new CustomEvent('rekapinyu-produk-kasir-realtime',{detail:{products:snapshot}}))}catch(_){}
+  };
+  window.__rekapinyuRefreshProdukKasir=function(value){
     products=(Array.isArray(value)?value:[]).map(normalizeProduct);
     window.__rekapinyuProdukKasirData=products;
     window.__rekapinyuProdukKasirLoaded=true;
     render();
     updateFolderStatus();
-    try{window.__initKasirViews?.()}catch(_){}
+    window.__publishProdukKasirRealtime(products);
   };
-  document.addEventListener('rekapinyu-produk-stok-realtime-updated',e=>{
-    const value=e?.detail?.products;
-    if(Array.isArray(value))window.__rekapinyuRefreshProdukKasir(value);
-  });
   window.__initProdukKasir=function(){bind();load();};
 })();
 </script>
@@ -6760,19 +6762,18 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   let kasirTransactionTabs=[{id:'kasir-tab-1',name:'Transaksi 1',cart:[]}];
   let kasirActiveTransactionTabId='kasir-tab-1';
 
-  /* KASIR — sinkronisasi realtime langsung dari Menu Produk Kasir.
-     Hanya memperbarui daftar/stok produk di tampilan Kasir; alur transaksi lainnya tetap. */
-  document.addEventListener('rekapinyu-produk-kasir-realtime-updated',e=>{
+  /* REALTIME PRODUK KASIR -> KASIR — satu listener, satu implementasi. */
+  document.addEventListener('rekapinyu-produk-kasir-realtime',e=>{
     const value=e?.detail?.products;
     if(!Array.isArray(value))return;
     kasirProducts=value.map(p=>{
-      const barcodes=productBarcodes(p);
-      const manualStock=Math.max(0,Number(p?.manualStock)||0);
-      return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
+      const normalized=typeof normalizeProduct==='function'?normalizeProduct(p):{...p};
+      const barcodes=productBarcodes(normalized);
+      const manualStock=Math.max(0,Number(normalized.manualStock)||0);
+      return {...normalized,barcodes,barcode:barcodes[0]||'',manualStock,barcodeStock:barcodes.length,stock:barcodes.length+manualStock};
     });
     window.__rekapinyuProdukKasirData=kasirProducts;
     renderKasirProducts();
-    renderCart();
   });
 
   function renderKasirTransactionTabs(){
