@@ -6267,6 +6267,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     window.__rekapinyuProdukKasirLoaded=true;
     try{await syncProdukKasirJson(products)}catch(e){console.warn('Rekapinyu: ProdukKasir JSON gagal diperbarui.',e)}
     render();
+    try{document.dispatchEvent(new CustomEvent('rekapinyu-produk-kasir-realtime-updated',{detail:{products:products.map(p=>normalizeProduct(p))}}))}catch(_){}
     try{window.__initKasirViews?.()}catch(_){}
     return products;
   }
@@ -6758,6 +6759,21 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   let kasirTransactions=[];
   let kasirTransactionTabs=[{id:'kasir-tab-1',name:'Transaksi 1',cart:[]}];
   let kasirActiveTransactionTabId='kasir-tab-1';
+
+  /* KASIR — sinkronisasi realtime langsung dari Menu Produk Kasir.
+     Hanya memperbarui daftar/stok produk di tampilan Kasir; alur transaksi lainnya tetap. */
+  document.addEventListener('rekapinyu-produk-kasir-realtime-updated',e=>{
+    const value=e?.detail?.products;
+    if(!Array.isArray(value))return;
+    kasirProducts=value.map(p=>{
+      const barcodes=productBarcodes(p);
+      const manualStock=Math.max(0,Number(p?.manualStock)||0);
+      return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
+    });
+    window.__rekapinyuProdukKasirData=kasirProducts;
+    renderKasirProducts();
+    renderCart();
+  });
 
   function renderKasirTransactionTabs(){
     const box=document.getElementById('kasir-transaction-tabs');
