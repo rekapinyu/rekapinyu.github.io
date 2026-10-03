@@ -2852,8 +2852,8 @@ function updateUserAvatarUI() {
                 if (tab === 'backup') {
                     populateBackupFilters();
                     renderBackupGrid();
-                } else if (tab === 'laporan-kasir' && typeof window.__rekapinyuRenderLaporanKasir === 'function') {
-                    startLaporanKasirJsonRealtime();
+                } else if (tab === 'laporan-kasir') {
+                    window.__rekapinyuStartLaporanKasir?.();
                 }
             } else if (tab === 'kasir') {
             } else {
@@ -8229,7 +8229,12 @@ async function initKasirViews(){
   });
 
 
-  /* LAPORAN KASIR — satu implementasi, sumber hanya JSON transaksi Kasir. */
+  window.__initKasirViews=initKasirViews;
+})();
+</script>
+<script id="laporan-kasir-json-single-js">
+(function(){
+/* LAPORAN KASIR — satu implementasi, sumber hanya JSON transaksi Kasir. */
   let rk6ReportTimer=null;
   let rk6ReportLoading=false;
 
@@ -8386,190 +8391,39 @@ async function initKasirViews(){
   }
 
   window.__rekapinyuRenderLaporanKasir=renderLaporanKasirJson;
+  window.__rekapinyuStartLaporanKasir=startLaporanKasirJsonRealtime;
   document.addEventListener('rekapinyu-kasir-transaction-saved',()=>{
     const view=document.getElementById('view-laporan-kasir');
     if(view&&!view.classList.contains('hidden'))renderLaporanKasirJson();
   });
-
-  window.__initKasirViews=initKasirViews;
 })();
 </script>
 
-<style id="laporan-kasir-final-css">
-/* LAPORAN KASIR — hanya area ini */
-#view-laporan-kasir{
-  width:100%;
-  min-height:100%;
-  padding:28px 14px;
-  box-sizing:border-box;
-  overflow:auto;
-  background:#f1f4f8;
-}
-#view-laporan-kasir .rk6-report-card{
-  width:100%;
-  max-width:900px;
-  margin:0 auto;
-  background:transparent;
-  border:0;
-  padding:0;
-  box-sizing:border-box;
-}
-#view-laporan-kasir .rk6-report-head{
-  display:none;
-}
-#view-laporan-kasir .rk6-report-status{
-  display:none;
-}
-#view-laporan-kasir .rk6-report-summary{
-  display:none;
-}
-#view-laporan-kasir .rk6-report-list{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:16px;
-  width:100%;
-  max-height:none;
-  overflow:visible;
-  padding:0;
-}
-#view-laporan-kasir .rk6-report-row{
-  width:100%;
-  min-width:0;
-  min-height:185px;
-  aspect-ratio:auto;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  justify-content:flex-start;
-  gap:0;
-  padding:20px 22px 22px;
-  border:1px solid #e2e8f0;
-  border-radius:18px;
-  background:#fff;
-  box-shadow:0 8px 24px rgba(15,23,42,.055);
-  overflow:hidden;
-  transition:.15s;
-}
-#view-laporan-kasir .rk6-report-row:hover{
-  box-shadow:0 12px 30px rgba(15,23,42,.08);
-  transform:translateY(-1px);
-}
-#view-laporan-kasir .rk6-report-main{
-  min-width:0;
-}
-#view-laporan-kasir .rk6-report-meta{
-  color:#7b8798;
-  font-size:9px;
-  line-height:1.4;
-  margin-bottom:5px;
-}
-#view-laporan-kasir .rk6-report-date{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  color:#172033;
-  font-size:15px;
-  font-weight:900;
-  line-height:1.35;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-#view-laporan-kasir .rk6-report-date i{
-  color:#16a085;
-  flex:0 0 auto;
-}
-#view-laporan-kasir .rk6-report-sub{
-  display:none;
-}
-#view-laporan-kasir .rk6-report-stats{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-  margin-top:14px;
-  padding-top:14px;
-  border-top:1px solid #edf0f3;
-}
-#view-laporan-kasir .rk6-report-stat{
-  min-width:0;
-  min-height:66px;
-  padding:11px 12px;
-  box-sizing:border-box;
-  border:1px solid #e3e8ee;
-  border-radius:13px;
-  background:#f7f9fb;
-}
-#view-laporan-kasir .rk6-report-stat-label{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  color:#64748b;
-  font-size:8px;
-  font-weight:800;
-  line-height:1.25;
-  text-transform:uppercase;
-}
-#view-laporan-kasir .rk6-report-stat-label i{
-  font-size:9px;
-}
-#view-laporan-kasir .rk6-report-stat-value{
-  display:block;
-  margin-top:6px;
-  color:#0f172a;
-  font-size:14px;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-label,
-#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-value{color:#0f9f8a}
-#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-label,
-#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-value{color:#2563eb}
-#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-label,
-#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-value{color:#ef3340}
-#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-label,
-#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-value{color:#d97706}
-#view-laporan-kasir .rk6-report-view{display:none}
-#view-laporan-kasir .rk6-report-empty{
-  width:100%;
-  box-sizing:border-box;
-  padding:45px 20px;
-  text-align:center;
-  color:#94a3b8;
-  font-size:11px;
-  line-height:1.6;
-  border:1px dashed #cbd5e1;
-  border-radius:16px;
-  background:#fff;
-}
-@media(max-width:760px){
-  #view-laporan-kasir{padding:12px 10px 80px}
-  #view-laporan-kasir .rk6-report-row{
-    min-height:0;
-    padding:16px;
-    border-radius:15px;
-  }
-  #view-laporan-kasir .rk6-report-date{
-    font-size:13px;
-  }
-  #view-laporan-kasir .rk6-report-stats{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:8px;
-    margin-top:12px;
-    padding-top:12px;
-  }
-  #view-laporan-kasir .rk6-report-stat{
-    min-height:62px;
-    padding:9px 10px;
-  }
-  #view-laporan-kasir .rk6-report-stat-value{
-    font-size:12px;
-  }
-}
-</style>
 
+
+<style id="laporan-kasir-final-css">
+#view-laporan-kasir{width:100%;min-height:100%;padding:18px 14px;box-sizing:border-box;overflow:auto;background:#f1f4f8}
+#view-laporan-kasir .rk6-report-card{width:100%;max-width:900px;margin:0 auto;background:transparent;border:0;padding:0;box-sizing:border-box}
+#view-laporan-kasir .rk6-report-head,#view-laporan-kasir .rk6-report-status,#view-laporan-kasir .rk6-report-summary{display:none}
+#view-laporan-kasir .rk6-report-list{display:grid;grid-template-columns:1fr;gap:16px;width:100%;max-height:none;overflow:visible;padding:0}
+#view-laporan-kasir .rk6-report-row{width:100%;min-width:0;min-height:185px;box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:20px 22px 22px;border:1px solid #e2e8f0;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055);overflow:hidden;transition:.15s}
+#view-laporan-kasir .rk6-report-row:hover{box-shadow:0 12px 30px rgba(15,23,42,.08);transform:translateY(-1px)}
+#view-laporan-kasir .rk6-report-main{min-width:0}
+#view-laporan-kasir .rk6-report-meta{color:#7b8798;font-size:9px;line-height:1.4;margin-bottom:5px}
+#view-laporan-kasir .rk6-report-date{display:flex;align-items:center;gap:7px;color:#172033;font-size:15px;font-weight:900;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-laporan-kasir .rk6-report-date i{color:#16a085;flex:0 0 auto}
+#view-laporan-kasir .rk6-report-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #edf0f3}
+#view-laporan-kasir .rk6-report-stat{min-width:0;min-height:66px;padding:11px 12px;box-sizing:border-box;border:1px solid #e3e8ee;border-radius:13px;background:#f7f9fb}
+#view-laporan-kasir .rk6-report-stat-label{display:flex;align-items:center;gap:6px;color:#64748b;font-size:8px;font-weight:800;line-height:1.25;text-transform:uppercase}
+#view-laporan-kasir .rk6-report-stat-label i{font-size:9px}
+#view-laporan-kasir .rk6-report-stat-value{display:block;margin-top:6px;color:#0f172a;font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.omzet .rk6-report-stat-value{color:#0f9f8a}
+#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.transaksi .rk6-report-stat-value{color:#2563eb}
+#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.barang .rk6-report-stat-value{color:#ef3340}
+#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-label,#view-laporan-kasir .rk6-report-stat.profit .rk6-report-stat-value{color:#d97706}
+#view-laporan-kasir .rk6-report-empty{width:100%;box-sizing:border-box;padding:45px 20px;text-align:center;color:#94a3b8;font-size:11px;line-height:1.6;border:1px dashed #cbd5e1;border-radius:16px;background:#fff}
+@media(max-width:760px){#view-laporan-kasir{padding:12px 10px 80px}#view-laporan-kasir .rk6-report-row{min-height:0;padding:16px;border-radius:15px}#view-laporan-kasir .rk6-report-date{font-size:13px}#view-laporan-kasir .rk6-report-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px}#view-laporan-kasir .rk6-report-stat{min-height:62px;padding:9px 10px}#view-laporan-kasir .rk6-report-stat-value{font-size:12px}}
+</style>
 <style id="rekapinyu-welcome-popup-css">
 #rekapinyu-welcome-popup{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.62)}
 #rekapinyu-welcome-popup.is-open{display:flex}
