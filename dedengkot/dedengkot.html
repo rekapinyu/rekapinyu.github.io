@@ -4086,6 +4086,18 @@ async function firebaseLogin(){
       if(snap.exists())user={...user,...snap.data()};
     }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
 
+    // KHUSUS APLIKASI SUPER ADMIN: akun harus memiliki role superadmin.
+    const loginRole=String(user.role||user.peran||"").trim().toLowerCase();
+    const loginIsSuperAdmin=loginRole==="superadmin"||user.isSuperAdmin===true;
+    if(!loginIsSuperAdmin){
+      try{await signOut(auth)}catch{}
+      currentSessionUser=null;
+      nativeRemove.call(localStorage,"finance_active_session");
+      checkAuth();
+      notify("Akses Ditolak","Akun ini bukan akun Super Admin. Silakan gunakan akun dengan role Super Admin.","fa-solid fa-circle-xmark text-rose-600");
+      return;
+    }
+
     localSession({...user,uid:credential.user.uid,phone:phoneOf(user.phone||phone),email:credential.user.email});
     try{await hydrate(credential.user.uid)}catch(hydrateErr){console.warn("Rekapinyu: data Firestore belum dapat dimuat; cache lokal dipakai.",hydrateErr)}
     checkAuth();
@@ -4105,7 +4117,22 @@ async function firebaseLogin(){
           let shop=localStorage.getItem(`finance_shop_cover_${phone}`)||"";if(shop.length>MAX)shop="";
           await setDoc(dref(credential.user.uid),{kasirTransactions:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),LaporanKasir:safe(localStorage.getItem(`finance_kasir_transactions_${phone}`),[]),activityData:safe(localStorage.getItem(`finance_activity_desktop_${phone}`),[]),InputData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),historyData:safe(localStorage.getItem(`finance_history_desktop_${phone}`),[]),LaporanBulanan:[],pengeluaranData:safe(localStorage.getItem(`finance_pengeluaran_desktop_${phone}`),[]),kasbonData:safe(localStorage.getItem(`finance_kasbon_desktop_${phone}`),[]),backupOtomatisData:safe(localStorage.getItem(`finance_backup_desktop_${phone}`),[]),shopCover:shop,migratedFromLegacy:true,updatedAt:serverTimestamp()});
         }catch(migrateCloudErr){console.warn("Rekapinyu: migrasi Firestore ditunda karena Rules.",migrateCloudErr)}
-        localSession({uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email});
+        let migratedUser={uid:credential.user.uid,name:legacy.name||"",phone,photo:legacy.photo||"",email:credential.user.email};
+        try{
+          const roleSnap=await getDoc(uref(credential.user.uid));
+          if(roleSnap.exists())migratedUser={...migratedUser,...roleSnap.data()};
+        }catch{}
+        const migratedRole=String(migratedUser.role||migratedUser.peran||"").trim().toLowerCase();
+        const migratedIsSuperAdmin=migratedRole==="superadmin"||migratedUser.isSuperAdmin===true;
+        if(!migratedIsSuperAdmin){
+          try{await signOut(auth)}catch{}
+          currentSessionUser=null;
+          nativeRemove.call(localStorage,"finance_active_session");
+          checkAuth();
+          notify("Akses Ditolak","Akun ini bukan akun Super Admin. Silakan gunakan akun dengan role Super Admin.","fa-solid fa-circle-xmark text-rose-600");
+          return;
+        }
+        localSession({...migratedUser,uid:credential.user.uid,phone:phoneOf(migratedUser.phone||phone),email:credential.user.email});
         try{await hydrate(credential.user.uid)}catch{}
         checkAuth();openDashboardAfterLogin();form.reset();
         notify("Masuk Berhasil","Akun lama berhasil dipindahkan ke Firebase.");
@@ -4393,6 +4420,16 @@ async function consumeLandingLogin(){
       const snap=await getDoc(uref(c.user.uid));
       if(snap.exists())u={...u,...snap.data()};
     }catch(e){console.warn("Rekapinyu handoff: profil Firestore belum dapat dibaca.",e)}
+    const handoffRole=String(u.role||u.peran||"").trim().toLowerCase();
+    const handoffIsSuperAdmin=handoffRole==="superadmin"||u.isSuperAdmin===true;
+    if(!handoffIsSuperAdmin){
+      try{await signOut(auth)}catch{}
+      currentSessionUser=null;
+      nativeRemove.call(localStorage,"finance_active_session");
+      window.__rekapinyuLandingHandoffActive=false;
+      notify("Akses Ditolak","Akun ini bukan akun Super Admin. Silakan gunakan akun dengan role Super Admin.","fa-solid fa-circle-xmark text-rose-600");
+      return false;
+    }
     localSession({...u,uid:c.user.uid,phone:phoneOf(u.phone||data.phone),email:c.user.email});
     window.__rekapinyuLandingHandoffActive=true;
     try{await hydrate(c.user.uid)}catch(e){console.warn("Rekapinyu handoff: data belum dapat dimuat.",e)}
@@ -4424,6 +4461,35 @@ onAuthStateChanged(auth,async u=>{
     window.__rekapinyuAuthBooting=false;
     currentSessionUser=null;
     nativeRemove.call(localStorage,"finance_active_session");
+    checkAuth();
+    return;
+  }
+
+  // Blokir sesi akun non-Super Admin juga saat reload / sesi Firebase dipulihkan.
+  try{
+    const roleSnap=await getDoc(uref(u.uid));
+    const roleData=roleSnap.exists()?roleSnap.data():{};
+    const authRole=String(roleData.role||roleData.peran||"").trim().toLowerCase();
+    const authIsSuperAdmin=authRole==="superadmin"||roleData.isSuperAdmin===true;
+    if(!authIsSuperAdmin){
+      try{await signOut(auth)}catch{}
+      if(dataUnsub)dataUnsub();
+      if(userUnsub)userUnsub();
+      currentSessionUser=null;
+      nativeRemove.call(localStorage,"finance_active_session");
+      window.__rekapinyuLandingHandoffActive=false;
+      window.__rekapinyuAuthBooting=false;
+      checkAuth();
+      notify("Akses Ditolak","Akun ini bukan akun Super Admin. Dashboard Super Admin hanya dapat diakses akun dengan role Super Admin.","fa-solid fa-circle-xmark text-rose-600");
+      return;
+    }
+  }catch(roleErr){
+    console.error("Rekapinyu Super Admin role check:",roleErr);
+    try{await signOut(auth)}catch{}
+    currentSessionUser=null;
+    nativeRemove.call(localStorage,"finance_active_session");
+    window.__rekapinyuLandingHandoffActive=false;
+    window.__rekapinyuAuthBooting=false;
     checkAuth();
     return;
   }
