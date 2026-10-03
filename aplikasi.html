@@ -6261,6 +6261,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     return loaded;
   }
 
+  window.__rekapinyuLoadProdukKasirJson=loadProdukKasirJsonFromFolder;
+
   function publishProdukKasirRealtime(){
     const snapshot=products.map(normalizeProduct);
     window.__rekapinyuProdukKasirData=snapshot;
@@ -6806,75 +6808,33 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
 
   async function loadKasirStore(){
-    /* KASIR PRODUCT SOURCE — SATU IMPLEMENTASI.
-       Saat aplikasi masih dalam halaman yang sama, sumber utama adalah data Produk Kasir
-       yang baru saja disimpan oleh Menu Produk Kasir. JSON folder hanya dipakai sebagai
-       sumber awal setelah reload/aplikasi dibuka kembali. */
-    const live=window.__rekapinyuProdukKasirData;
-    if(window.__rekapinyuProdukKasirLoaded===true && Array.isArray(live)){
-      kasirProducts=live.map(p=>{
-        const q=normalizeProduct(p);
-        const barcodes=productBarcodes(q);
-        const manualStock=Math.max(0,Number(q.manualStock)||0);
-        return {...q,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
-      });
-      window.__rekapinyuProdukKasirData=kasirProducts;
-      kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
-      return kasirProducts;
-    }
-    const dir=await window.__rekapinyuGetDataSubdirectory?.('Produk');
-    if(!dir){
+    /* SUMBER PRODUK KASIR — SATU SUMBER JSON.
+       Menu Kasir hanya membaca file JSON ProdukKasir yang dibuat Menu Produk Kasir
+       di folder target yang dipilih. Tidak lagi membaca Data/Produk, tidak memakai
+       fallback daftar produk lama, dan tidak membuat data produk baru di sini. */
+    const loader=window.__rekapinyuLoadProdukKasirJson;
+    if(typeof loader!=='function'){
       kasirProducts=[];
       window.__rekapinyuProdukKasirData=[];
       kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
       return [];
     }
-    const loaded=[];
-    async function walk(currentDir){
-      for await(const [entryName,entry] of currentDir.entries()){
-        if(entry?.kind==='directory'){await walk(entry);continue;}
-        if(entry?.kind!=='file'||!/\.json$/i.test(String(entryName)))continue;
-        try{
-          const raw=JSON.parse(await (await entry.getFile()).text());
-          const rows=Array.isArray(raw?.products)?raw.products:(Array.isArray(raw?.ProdukKasir)?raw.ProdukKasir:(raw?.nama_produk?[raw]:(Array.isArray(raw)?raw:[])));
-          for(const row of rows){
-            if(!row||typeof row!=='object')continue;
-            const name=String(row.name??row.nama_produk??'').trim();
-            if(!name)continue;
-            const barcodeList=Array.isArray(row.barcodes)?row.barcodes:(Array.isArray(row.barcode_aktif)?row.barcode_aktif:[]);
-            const normalized={
-              id:String(row.id||('folder_'+name)),
-              name,
-              category:String(row.category??row.kategori??'Lainnya'),
-              cost:Number(row.cost??row.harga_hpp??row.grosir)||0,
-              grosir:Number(row.grosir??row.harga_hpp??row.cost)||0,
-              price:Number(row.price??row.harga_jual)||0,
-              barcodes:[...new Set(barcodeList.map(v=>String(v||'').trim()).filter(Boolean))],
-              barcodeStock:Number(row.barcodeStock??row.stok_barcode_aktif)||0,
-              manualStock:Math.max(0,Number(row.manualStock??row.stok_input_manual)||0),
-              stock:Number(row.stock??row.stok)||0,
-              photoFileName:String(row.photoFileName??row.nama_file_foto??'').trim(),
-              photo:String(row.photo||'')
-            };
-            normalized.barcodeStock=normalized.barcodes.length||normalized.barcodeStock;
-            normalized.stock=normalized.barcodes.length+normalized.manualStock;
-            normalized.barcode=normalized.barcodes[0]||'';
-            loaded.push(normalized);
-          }
-        }catch(_){/* file JSON lain di folder diabaikan */}
-      }
-    }
-    await walk(dir);
+    let rows=[];
+    try{rows=await loader();}catch(_){rows=[];}
+    const loaded=Array.isArray(rows)?rows:[];
     const unique=new Map();
-    loaded.forEach(item=>{
-      const key=String(item.id||item.name).trim();
-      if(!unique.has(key))unique.set(key,item);
-    });
-    kasirProducts=Array.from(unique.values()).map(p=>{
-      const barcodes=productBarcodes(p);
-      const manualStock=Math.max(0,Number(p.manualStock)||0);
-      return {...p,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
-    });
+    for(const row of loaded){
+      if(!row||typeof row!=='object')continue;
+      const q=normalizeProduct(row);
+      const name=String(q.name||'').trim();
+      if(!name)continue;
+      const barcodes=productBarcodes(q);
+      const manualStock=Math.max(0,Number(q.manualStock)||0);
+      const product={...q,barcodes,barcode:barcodes[0]||'',manualStock,stock:barcodes.length+manualStock};
+      const key=String(product.id||name).trim();
+      if(!unique.has(key))unique.set(key,product);
+    }
+    kasirProducts=Array.from(unique.values());
     window.__rekapinyuProdukKasirData=kasirProducts;
     kasirTransactions=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
     return kasirProducts;
@@ -8376,36 +8336,13 @@ async function initKasirViews(){
   }
 
   function extractTransactions(raw){
-    if(Array.isArray(raw))return raw.filter(looksLikeTransaction);
-    if(!raw||typeof raw!=='object')return [];
-
-    const preferred=['TransaksiKasir','transaksiKasir','Transactions','transactions','DataTransaksi','dataTransaksi','Transaksi','transaksi'];
-    for(const key of preferred){
-      if(Array.isArray(raw[key])){
-        const rows=raw[key].filter(looksLikeTransaction);
-        if(rows.length)return rows;
-      }
-    }
-
-    /* LaporanKasir dipakai sebagai fallback apabila file tidak mempunyai TransaksiKasir. */
-    const reportKeys=['LaporanKasir','laporanKasir','Sales','sales','Penjualan','penjualan'];
-    for(const key of reportKeys){
-      if(Array.isArray(raw[key])){
-        const rows=raw[key].filter(looksLikeTransaction);
-        if(rows.length)return rows;
-      }
-    }
-
-    const direct=[];
-    if(looksLikeTransaction(raw))direct.push(raw);
-    if(direct.length)return direct;
-
-    const nested=[];
-    for(const value of Object.values(raw)){
-      if(Array.isArray(value))nested.push(...value.filter(looksLikeTransaction));
-      else if(value&&typeof value==='object')nested.push(...extractTransactions(value));
-    }
-    return nested;
+    /* LAPORAN KASIR — SATU SUMBER.
+       Hanya array TransaksiKasir dari JSON Menu Kasir yang boleh dibaca.
+       Tidak membaca LaporanKasir, data memory, atau struktur JSON lain. */
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))return [];
+    return Array.isArray(raw.TransaksiKasir)
+      ? raw.TransaksiKasir.filter(looksLikeTransaction)
+      : [];
   }
 
   async function currentKasirDirectory(){
@@ -8500,7 +8437,7 @@ async function initKasirViews(){
     if(!list)return;
     const reports=makeDailyReports(rows);
     if(!reports.length){
-      list.innerHTML='<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>Belum ada transaksi pada file JSON Kasir.</strong><span>Laporan membaca semua file JSON Kasir dan seluruh subfoldernya dari folder yang dipilih di Menu Produk Kasir.</span></div>';
+      list.innerHTML='<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>Belum ada transaksi pada file JSON Kasir.</strong><span>Laporan hanya membaca file JSON transaksi yang dibuat Menu Kasir di subfolder Kasir dari folder yang dipilih di Menu Produk Kasir.</span></div>';
       return;
     }
     list.innerHTML=reports.map(report=>`
