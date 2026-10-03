@@ -3811,6 +3811,20 @@ const USERS="rekapinyu_users", DATA="rekapinyu_data", MAX=850000;
 const phoneOf=v=>String(v||"").replace(/\D/g,"");
 const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
 const uref=uid=>doc(db,USERS,uid), dref=uid=>doc(db,DATA,uid);
+// SUPER ADMIN: sumber role khusus dashboard ini adalah koleksi Pengguna.
+const superAdminRoleOf=async(uid,phone,email)=>{
+  try{
+    let snap=await getDoc(doc(db,"Pengguna",uid));
+    if(snap.exists())return snap.data()||{};
+    const candidates=[];
+    if(uid)candidates.push(query(collection(db,"Pengguna"),where("uid","==",uid)));
+    if(phone)candidates.push(query(collection(db,"Pengguna"),where("phone","==",phone)));
+    if(email)candidates.push(query(collection(db,"Pengguna"),where("email","==",email)));
+    for(const q of candidates){const qs=await getDocs(q);if(!qs.empty)return qs.docs[0].data()||{};}
+  }catch(e){console.error("Super Admin Pengguna role check:",e)}
+  return {};
+};
+const isSuperAdminRoleData=d=>{const r=String(d?.role??d?.Role??d?.peran??d?.Peran??"").trim().toLowerCase().replace(/[\s_-]+/g,"");return r==="superadmin"||d?.isSuperAdmin===true;};
 const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 function cloudUid(){return auth.currentUser?.uid||null;}
@@ -4086,9 +4100,9 @@ async function firebaseLogin(){
       if(snap.exists())user={...user,...snap.data()};
     }catch(dbErr){console.warn("Rekapinyu: profil Firestore belum dapat dibaca.",dbErr)}
 
-    // KHUSUS APLIKASI SUPER ADMIN: akun harus memiliki role superadmin.
-    const loginRole=String(user.role||user.peran||"").trim().toLowerCase();
-    const loginIsSuperAdmin=loginRole==="superadmin"||user.isSuperAdmin===true;
+    // KHUSUS APLIKASI SUPER ADMIN: role wajib dibaca dari koleksi Pengguna.
+    const penggunaRoleData=await superAdminRoleOf(credential.user.uid,phone,credential.user.email);
+    const loginIsSuperAdmin=isSuperAdminRoleData(penggunaRoleData);
     if(!loginIsSuperAdmin){
       try{await signOut(auth)}catch{}
       currentSessionUser=null;
@@ -4122,8 +4136,8 @@ async function firebaseLogin(){
           const roleSnap=await getDoc(uref(credential.user.uid));
           if(roleSnap.exists())migratedUser={...migratedUser,...roleSnap.data()};
         }catch{}
-        const migratedRole=String(migratedUser.role||migratedUser.peran||"").trim().toLowerCase();
-        const migratedIsSuperAdmin=migratedRole==="superadmin"||migratedUser.isSuperAdmin===true;
+        const migratedRoleData=await superAdminRoleOf(credential.user.uid,phone,credential.user.email);
+        const migratedIsSuperAdmin=isSuperAdminRoleData(migratedRoleData);
         if(!migratedIsSuperAdmin){
           try{await signOut(auth)}catch{}
           currentSessionUser=null;
@@ -4467,10 +4481,8 @@ onAuthStateChanged(auth,async u=>{
 
   // Blokir sesi akun non-Super Admin juga saat reload / sesi Firebase dipulihkan.
   try{
-    const roleSnap=await getDoc(uref(u.uid));
-    const roleData=roleSnap.exists()?roleSnap.data():{};
-    const authRole=String(roleData.role||roleData.peran||"").trim().toLowerCase();
-    const authIsSuperAdmin=authRole==="superadmin"||roleData.isSuperAdmin===true;
+    const roleData=await superAdminRoleOf(u.uid,phoneOf(u.phone||data.phone),c.user.email);
+    const authIsSuperAdmin=isSuperAdminRoleData(roleData);
     if(!authIsSuperAdmin){
       try{await signOut(auth)}catch{}
       if(dataUnsub)dataUnsub();
@@ -5972,7 +5984,7 @@ body>#superadmin-root{position:fixed!important;top:64px!important;right:0!import
 <script type="module" id="superadmin-dashboard-js">
 import { getApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, doc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, getDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 const boot=()=>{
  const app=getApp(),auth=getAuth(app),db=getFirestore(app);
@@ -6002,7 +6014,7 @@ const boot=()=>{
  function renderAll(){fillShopSelect();renderStats();renderUsers();renderShops();drawChart();}
  function upsertSnapshot(target,snap){target.clear();snap.docs.forEach(x=>{const d=x.data()||{},uid=uidOf(d,x.id);if(uid)target.set(uid,{...d,__docId:x.id})});}
  function startListeners(){if(!guard())return;Object.values(state.unsub).forEach(fn=>{try{fn?.()}catch{}});state.unsub={users:null,kasir:null,rekap:null};state.unsub.users=onSnapshot(collection(db,USERS),s=>{state.users=s.docs.map(x=>({uid:x.id,...x.data()}));renderAll()},e=>console.error('Superadmin Pengguna realtime:',e));state.unsub.kasir=onSnapshot(collection(db,KASIR),s=>{upsertSnapshot(state.kasir,s);renderAll()},e=>console.error('Superadmin Kasir realtime:',e));state.unsub.rekap=onSnapshot(collection(db,REKAP),s=>{upsertSnapshot(state.rekap,s);renderAll()},e=>console.error('Superadmin Rekap realtime:',e));}
- async function resolveSuperAdmin(au){try{if(!au){state.superadmin=false;return false}const snap=await getDoc(doc(db,USERS,au.uid));const d=snap.exists()?snap.data():{};state.superadmin=String(d.role||d.peran||'').trim().toLowerCase()==='superadmin'||d.isSuperAdmin===true;return state.superadmin}catch(e){state.superadmin=false;console.error('Superadmin role check:',e);return false}}
+ async function resolveSuperAdmin(au){try{if(!au){state.superadmin=false;return false}let d={};let snap=await getDoc(doc(db,USERS,au.uid));if(snap.exists())d=snap.data()||{};if(!Object.keys(d).length){const qs=await getDocs(query(collection(db,USERS),where('uid','==',au.uid)));if(!qs.empty)d=qs.docs[0].data()||{};}if(!Object.keys(d).length&&au.email){const qs=await getDocs(query(collection(db,USERS),where('email','==',au.email)));if(!qs.empty)d=qs.docs[0].data()||{};}if(!Object.keys(d).length&&au.email?.endsWith('@rekapinyu.app')){const phone=au.email.split('@')[0];const qs=await getDocs(query(collection(db,USERS),where('phone','==',phone)));if(!qs.empty)d=qs.docs[0].data()||{};}const role=String(d.role??d.Role??d.peran??d.Peran??'').trim().toLowerCase().replace(/[\s_-]+/g,'');state.superadmin=role==='superadmin'||d.isSuperAdmin===true;return state.superadmin}catch(e){state.superadmin=false;console.error('Superadmin Pengguna role check:',e);return false}}
  async function detail(uid){const u=state.users.find(x=>(x.uid||x.id)===uid);if(!u)return;const k=state.kasir.get(uid)||{},r=state.rekap.get(uid)||{};$('sa-user-modal-title').textContent='Detail Pengguna';$('sa-user-modal-body').innerHTML=`<div class="sa-panel" style="margin-top:0"><div><strong>${esc(u.name||u.nama||'-')}</strong></div><div style="font-size:10px;color:#64748b;margin-top:6px">${esc(u.phone||u.nomorHp||'-')} · ${esc(u.email||'-')}</div><div style="font-size:10px;color:#64748b;margin-top:10px">Toko: <strong>${esc(shopName(u,k,r))}</strong></div><div class="sa-note" style="margin-top:12px">Data Super Admin dibaca realtime dari Firestore: Pengguna, Kasir, dan Rekap.</div></div>`;$('sa-user-modal').classList.add('is-open');}
  async function delUser(uid){if(!isSuperAdmin())return;const u=state.users.find(x=>(x.uid||x.id)===uid);if(!u)return;if(!confirm(`Hapus data profil pengguna ${u.name||u.nama||u.phone||uid}?`))return;try{await deleteDoc(doc(db,USERS,uid));alert('Profil pengguna berhasil dihapus dari Firestore.');}catch(e){alert('Gagal menghapus pengguna. Periksa Firebase Rules.');console.error(e)}}
  function open(tab){if(!guard())return false;const map={'superadmin-dashboard':'sa-dashboard-page','superadmin-pengguna':'sa-users-page','superadmin-toko':'sa-shops-page','superadmin-aktivitas':'sa-activity-page','superadmin-notifikasi':'sa-notification-page','superadmin-paket':'sa-package-page','superadmin-pengaturan':'sa-settings-page'};const page=map[tab];if(!page)return false;showOnly(page);const title={'superadmin-dashboard':['Dashboard Super Admin','Ringkasan pengguna dan toko terdaftar.'],'superadmin-pengguna':['Pengguna','Management pengguna dan pendaftaran baru.'],'superadmin-toko':['Toko','Seluruh toko terdaftar.'],'superadmin-aktivitas':['Aktifitas Toko Terdaftar','Data transaksi dan grafik perkembangan setiap toko.'],'superadmin-notifikasi':['Notifikasi','Notifikasi super admin.'],'superadmin-paket':['Paket','Manajemen paket.'],'superadmin-pengaturan':['Pengaturan','Pengaturan super admin.']}[tab]||['Super Admin',''];if($('page-title-header'))$('page-title-header').textContent=title[0];if($('page-subtitle-header'))$('page-subtitle-header').textContent=title[1];document.querySelectorAll('#sidebar nav > button').forEach(b=>b.classList.remove('active'));const ids={'superadmin-dashboard':'sa-nav-dashboard','superadmin-pengguna':'sa-nav-users','superadmin-toko':'sa-nav-shops','superadmin-aktivitas':'sa-nav-activity','superadmin-notifikasi':'sa-nav-notifications','superadmin-paket':'sa-nav-packages','superadmin-pengaturan':'sa-nav-settings'};$(ids[tab])?.classList.add('active');startListeners();return true;}
