@@ -6128,22 +6128,30 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     if(docs){
       try{
         if(!isDocumentsDirectoryName(docs.name))docs=null;
-        else if((await docs.queryPermission({mode:'readwrite'}))==='granted')return docs;
-        else if(docs.requestPermission&&(await docs.requestPermission({mode:'readwrite'}))==='granted')return docs;
+        else if((await docs.queryPermission({mode:'readwrite'}))==='granted')return {root:docs,shopFolder:null};
+        else if(docs.requestPermission&&(await docs.requestPermission({mode:'readwrite'}))==='granted')return {root:docs,shopFolder:null};
       }catch(_){docs=null}
     }
     if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembuatan folder otomatis. Gunakan Chrome/Edge terbaru di desktop/tablet.');
-    /* Akses Dokumen hanya dilakukan satu kali bila browser belum memberikan handle Dokumen.
-       Dialog ini bukan pemilihan target Produk Kasir: folder tujuan wajib Dokumen. */
+    /*
+       Dialog ini dipakai untuk memperoleh akses filesystem.
+       Pengguna boleh memilih folder toko yang baru dibuat manual di dalam Dokumen.
+       Bila yang dipilih adalah Dokumen, aplikasi tetap membuat folder toko otomatis.
+    */
     const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-manager',startIn:'documents'});
-    if(!picked)throw new Error('Akses folder Dokumen dibatalkan.');
-    if(!isDocumentsDirectoryName(picked.name)){
-      throw new Error('Folder yang diakses harus folder Dokumen. Folder target Produk Kasir tidak dapat dipilih manual.');
+    if(!picked)throw new Error('Akses folder dibatalkan.');
+    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
+    try{window.__rekapinyuFolderManagerDocuments=isDocumentsDirectoryName(picked.name)?picked:(window.__rekapinyuFolderManagerDocuments||null)}catch(_){}
+    if(isDocumentsDirectoryName(picked.name)){
+      try{await idbSetDocumentsRoot(picked)}catch(_){}
+      return {root:picked,shopFolder:null};
     }
-    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder Dokumen ditolak.');
-    try{window.__rekapinyuFolderManagerDocuments=picked}catch(_){}
-    try{await idbSetDocumentsRoot(picked)}catch(_){}
-    return picked;
+    /*
+       Folder non-Dokumen dianggap sebagai folder toko yang sengaja dibuat manual
+       dari popup Dokumen. Target ini tidak lagi ditolak; subfolder Rekap/Produk/Kasir
+       akan dibuat otomatis di dalamnya.
+    */
+    return {root:null,shopFolder:picked};
   }
 
   async function selectPhotoDirectory(){
@@ -6152,19 +6160,22 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const shopName=safeFolderName(currentShopName());
     if(!shopName)throw new Error('Nama Toko belum tersedia. Folder belum dapat dibuat.');
 
-    const docs=await getDocumentsRootForAutoCreate();
-    if(!docs)throw new Error('Folder Dokumen tidak tersedia.');
-    if(!(await requestDirectoryPermission(docs)))throw new Error('Izin akses folder Dokumen ditolak.');
+    const target=await getDocumentsRootForAutoCreate();
+    let docs=target?.root||null;
+    let shopFolder=target?.shopFolder||null;
 
-    let shopFolder=null;
-    try{shopFolder=await docs.getDirectoryHandle(shopName,{create:false});}
-    catch(_){
-      try{
-        window.__rekapinyuAllowFolderCreate=true;
-        shopFolder=await docs.getDirectoryHandle(shopName,{create:true});
-      }finally{window.__rekapinyuAllowFolderCreate=false;}
+    if(docs){
+      if(!(await requestDirectoryPermission(docs)))throw new Error('Izin akses folder Dokumen ditolak.');
+      try{shopFolder=await docs.getDirectoryHandle(shopName,{create:false});}
+      catch(_){
+        try{
+          window.__rekapinyuAllowFolderCreate=true;
+          shopFolder=await docs.getDirectoryHandle(shopName,{create:true});
+        }finally{window.__rekapinyuAllowFolderCreate=false;}
+      }
     }
-    if(!shopFolder)throw new Error('Folder toko gagal dibuat.');
+
+    if(!shopFolder)throw new Error('Folder toko tidak tersedia. Buat atau pilih folder toko di dalam Dokumen.');
 
     const required=['Rekap','Produk','Kasir'];
     try{
