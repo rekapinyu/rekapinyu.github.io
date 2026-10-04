@@ -5037,6 +5037,7 @@ function arrayFromField(obj,key,fallback=[]){return hasField(obj,key)&&Array.isA
 function normalizeSetting(raw){
   const s=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{};
   return {
+    ...s,
     SettingStruk:s.SettingStruk&&typeof s.SettingStruk==="object"&&!Array.isArray(s.SettingStruk)?s.SettingStruk:{},
     SettingPrinter:s.SettingPrinter&&typeof s.SettingPrinter==="object"&&!Array.isArray(s.SettingPrinter)?{...SETTING_DEFAULTS.SettingPrinter,...s.SettingPrinter}:{...SETTING_DEFAULTS.SettingPrinter},
     SettingKasir:s.SettingKasir&&typeof s.SettingKasir==="object"&&!Array.isArray(s.SettingKasir)?{...SETTING_DEFAULTS.SettingKasir,...s.SettingKasir}:{...SETTING_DEFAULTS.SettingKasir},
@@ -5217,7 +5218,7 @@ const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("lo
     }catch(e){
       log("profil Pengguna saat login tidak dapat dibaca; lanjut dengan data Auth/local",e);
     }
-    localSession({uid:c.user.uid,name:String(d.NamaPengguna||c.user.displayName||""),shopName:String(d.NamaToko||d.shopName||d.storeName||d.tokoName||"").trim(),phone:phoneOf(d.NomorHp||p),email:c.user.email,password:String(d.Pasword||password),role:d.role||"Pengguna"});
+    localSession({uid:c.user.uid,name:String(d.NamaPengguna||c.user.displayName||""),shopName:"",phone:phoneOf(d.NomorHp||p),email:c.user.email,password:String(d.Pasword||password),role:d.role||"Pengguna"});
     try{await hydrate(c.user.uid)}catch(e){log("sinkronisasi Firestore setelah login gagal; login tetap dilanjutkan",e)}
     try{await updateMeta()}catch(e){log("update metadata setelah login gagal; login tetap dilanjutkan",e)}
     renderDashboardSession();openDashboardAfterLogin();form.reset();notify("Masuk Berhasil",`Selamat datang kembali, ${currentSessionUser.name||nameFromPhone(p)}!`,"fa-solid fa-circle-check text-emerald-600");
@@ -5239,49 +5240,112 @@ window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)r
 
 function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
 function realtime(uid){
-  stopCollectionRealtime();const p=currentPhone();Promise.all([getPenggunaRef(uid,p),getKasirRef(uid,p),getRekapRef(uid,p),getAktifitasRef(uid,p)]).then(([pr,kr,rr,ar])=>{
-    const listen=(r,cb,label)=>{const un=onSnapshot(r,s=>{if(!s.exists())return;applyingFirestoreRealtime=true;try{cb(s.data()||{})}finally{applyingFirestoreRealtime=false}try{nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser||{}));upsertRegisteredLocalUser(currentSessionUser||{})}catch{}try{redraw()}catch{}},e=>log(`realtime ${label} gagal`,e));collectionUnsubs.push(un)};
-    listen(kr,d=>{
+  stopCollectionRealtime();
+  const p=currentPhone();
+  const pr=getPenggunaRef(uid,p);
+  const kr=getKasirRef(uid,p);
+  const rr=getRekapRef(uid,p);
+  const ar=getAktifitasRef(uid,p);
+  const commonAfter=()=>{
+    try{nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser||{}));upsertRegisteredLocalUser(currentSessionUser||{})}catch{}
+    try{redraw()}catch{}
+  };
+
+  /* =============================================================
+     REALTIME LISTENER — PENGGUNA
+     Schema: NamaPengguna, NomorHp, Pasword, role
+     ============================================================= */
+  collectionUnsubs.push(onSnapshot(pr,s=>{
+    if(!s.exists()){log("listener Pengguna: dokumen tidak ditemukan",uid);return;}
+    const d=s.data()||{};
+    applyingFirestoreRealtime=true;
+    try{
+      if(!currentSessionUser)currentSessionUser={uid,name:"",phone:p,email:auth.currentUser?.email||"",password:"",role:"Pengguna",shopName:""};
+      currentSessionUser.name=String(d.NamaPengguna||"");
+      currentSessionUser.phone=phoneOf(d.NomorHp||p);
+      currentSessionUser.password=String(d.Pasword||currentSessionUser.password||"");
+      currentSessionUser.role=String(d.role||"Pengguna");
+      document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));
+      updateUserAvatarUI();
+    }finally{applyingFirestoreRealtime=false}
+    commonAfter();
+  },e=>log("realtime Pengguna gagal",e)));
+
+  /* =============================================================
+     REALTIME LISTENER — REKAP
+     Schema: NamaToko, NomorHp, InputData, Pengeluaran, Kasbon
+     ============================================================= */
+  collectionUnsubs.push(onSnapshot(rr,s=>{
+    if(!s.exists()){log("listener Rekap: dokumen tidak ditemukan",uid);return;}
+    const d=s.data()||{};
+    applyingFirestoreRealtime=true;
+    try{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
+      if(hasField(d,"NomorHp")&&currentSessionUser)currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);
+      window.__rekapinyuFirestoreRekap={
+        NamaToko:String(d.NamaToko||""),
+        NomorHp:phoneOf(d.NomorHp||""),
+        InputData:Array.isArray(d.InputData)?d.InputData:[],
+        Pengeluaran:Array.isArray(d.Pengeluaran)?d.Pengeluaran:[],
+        Kasbon:Array.isArray(d.Kasbon)?d.Kasbon:[]
+      };
+    }finally{applyingFirestoreRealtime=false}
+    commonAfter();
+  },e=>log("realtime Rekap gagal",e)));
+
+  /* =============================================================
+     REALTIME LISTENER — KASIR
+     Schema: NamaToko, NomorHp, TotalOmsetKasir, TotalProfitKasir, Seting
+     ============================================================= */
+  collectionUnsubs.push(onSnapshot(kr,s=>{
+    if(!s.exists()){log("listener Kasir: dokumen tidak ditemukan",uid);return;}
+    const d=s.data()||{};
+    applyingFirestoreRealtime=true;
+    try{
+      if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
+      if(hasField(d,"NomorHp")&&currentSessionUser)currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);
       window.__rekapinyuKasirTotalOmset=Number(d.TotalOmsetKasir)||0;
       window.__rekapinyuKasirTotalProfit=Number(d.TotalProfitKasir)||0;
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
 
-      /* REKAPINYU SCANNER HP — listener realtime. Hanya membaca field scanner,
-         tidak mengubah alur data Kasir lainnya. */
-      try{
-        const conn=d.ScannerConnection||{};
-        const scanBtn=document.getElementById("kasir-barcode-scan-btn");
-        if(scanBtn&&typeof setKasirBarcodeIndicator==='function'){
-          setKasirBarcodeIndicator(!!conn.connected);
-          scanBtn.title=conn.connected?"Scanner HP terhubung":"Hubungkan scanner barcode";
-        }
-        const scan=d.ScannerLastScan||{};
-        const processed=String(d.ScannerLastProcessedId||"");
-        const scanId=String(scan.id||"");
-        const barcode=String(scan.barcode||"").trim();
-        if(scanId&&barcode&&scanId!==processed&&typeof addScannedKasirBarcode==='function'){
-          addScannedKasirBarcode(barcode);
-          window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{
-            ScannerLastProcessedId:scanId,
-            ScannerLastProcessedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()
-          },{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
-        }
-      }catch(e){console.warn("Scanner HP realtime gagal",e)}
-
+      /* Scanner HP tetap memakai satu-satunya field schema yang tersedia, yaitu Seting. */
+      const setting=normalizeSetting(d.Seting);
+      const conn=setting.ScannerConnection&&typeof setting.ScannerConnection==="object"?setting.ScannerConnection:{};
+      const scanBtn=document.getElementById("kasir-barcode-scan-btn");
+      if(scanBtn&&typeof setKasirBarcodeIndicator==='function'){
+        setKasirBarcodeIndicator(!!conn.connected);
+        scanBtn.title=conn.connected?"Scanner HP terhubung":"Hubungkan scanner barcode";
+      }
+      const scan=setting.ScannerLastScan&&typeof setting.ScannerLastScan==="object"?setting.ScannerLastScan:{};
+      const processed=String(setting.ScannerLastProcessedId||"");
+      const scanId=String(scan.id||"");
+      const barcode=String(scan.barcode||"").trim();
+      if(scanId&&barcode&&scanId!==processed&&typeof addScannedKasirBarcode==='function'){
+        addScannedKasirBarcode(barcode);
+        const ack={...setting,ScannerLastProcessedId:scanId,ScannerLastProcessedAt:new Date().toISOString()};
+        window.RekapinyuFirebase?.firestoreApi?.setDoc?.(kr,{Seting:ack},{merge:true}).catch?.(e=>console.warn("Scanner HP ack gagal",e));
+      }
       try{window.__rekapinyuReloadSettingsUI?.()}catch{}
-    },"Kasir");
-    listen(ar,d=>{
-      window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
+    }finally{applyingFirestoreRealtime=false}
+    commonAfter();
+  },e=>log("realtime Kasir gagal",e)));
+
+  /* =============================================================
+     REALTIME LISTENER — AKTIFITAS
+     Schema: Aktifitas, NamaToko, NomorHp
+     ============================================================= */
+  collectionUnsubs.push(onSnapshot(ar,s=>{
+    if(!s.exists()){log("listener Aktifitas: dokumen tidak ditemukan",uid);return;}
+    const d=s.data()||{};
+    applyingFirestoreRealtime=true;
+    try{
+      window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",[]);
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
-    },"Aktifitas");
-    listen(rr,d=>{
-      /* Rekap Firestore tidak lagi menjadi sumber untuk Input Data, History,
-         Laporan Bulanan, Backup Otomatis, Kasbon, atau Pengeluaran. */
-      if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim()&&!currentSessionUser.shopName)currentSessionUser.shopName=String(d.NamaToko).trim();
-    },"Rekap-Metadata-Only");
-    listen(pr,d=>{if(!currentSessionUser)return;currentSessionUser.name=String(d.NamaPengguna||currentSessionUser.name||"");currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);currentSessionUser.role=d.role||currentSessionUser.role||"Pengguna";nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));updateUserAvatarUI()},"Pengguna");
-  }).catch(e=>log("realtime setup gagal",e));
+      if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
+      if(hasField(d,"NomorHp")&&currentSessionUser)currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);
+    }finally{applyingFirestoreRealtime=false}
+    commonAfter();
+  },e=>log("realtime Aktifitas gagal",e)));
 }
 
 async function consumeLandingLogin(){try{await authReadyPromise;const hash=window.location.hash||"",m=hash.match(/^#rekapinyu_login=([^&]+)$/);if(!m)return false;const raw=m[1].replace(/-/g,"+").replace(/_/g,"/"),padded=raw+"=".repeat((4-raw.length%4)%4);const bin=atob(padded);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const data=JSON.parse(new TextDecoder().decode(bytes));history.replaceState(null,document.title,window.location.pathname+window.location.search);if(!data?.phone||!data?.password)throw new Error("Data login dari Landing Page tidak lengkap.");const c=await signInWithEmailAndPassword(auth,emailOf(data.phone),data.password);refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();const pr=await getPenggunaRef(c.user.uid,data.phone),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:c.user.uid,name:d.NamaPengguna||c.user.displayName||"",phone:phoneOf(d.NomorHp||data.phone),email:c.user.email,password:String(d.Pasword||data.password),role:d.role||"Pengguna"});window.__rekapinyuLandingHandoffActive=true;await hydrate(c.user.uid);return true}catch(e){log("landing login gagal",e);window.__rekapinyuLandingHandoffActive=false;try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");return false}}
