@@ -2250,7 +2250,7 @@ bind();
 <div class="pk3-heading">
 <div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
 <div class="pk3-heading-actions">
-<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Buat folder penyimpanan Produk Kasir" aria-pressed="false"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span></button>
+<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Buat folder penyimpanan sesuai Nama Toko" aria-pressed="false"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span></button>
 <span id="pk3-count">0 produk</span>
 </div>
 </div>
@@ -5862,46 +5862,36 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(_){return false}
   }
 
-async function getPk3ShopFolderName(){
-    const user=(typeof currentSessionUser!=='undefined'&&currentSessionUser)?currentSessionUser:{};
-    const setting=(window.__rekapinyuSettingData?.SettingStruk)||{};
-    return String(user.shopName||user.storeName||user.tokoName||setting.name||user.name||'').trim();
-  }
-
-  async function clearPk3FolderBinding(){
-    photoDirectoryHandle=null;
-    try{await idbSet(null)}catch(_){ }
-    try{await idbSetFolderName('')}catch(_){ }
-  }
-
   async function selectPhotoDirectory(){
-    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembuatan folder otomatis. Gunakan Chrome/Edge terbaru di desktop/tablet.');
-    const shopName=getPk3ShopFolderName();
-    if(!shopName)throw new Error('Nama Toko belum tersedia. Isi Nama Toko terlebih dahulu pada Seting Struk.');
-    const documents=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-root',startIn:'documents'});
-    if(!documents)throw new Error('Akses Dokumen dibatalkan.');
-    if(!(await requestDirectoryPermission(documents)))throw new Error('Izin akses Dokumen ditolak.');
-    let storeFolder=null;
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pemilihan folder. Gunakan Chrome/Edge terbaru di desktop/tablet.');
+    const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-data-root',startIn:'documents'});
+    if(!picked)throw new Error('Folder belum dipilih.');
+    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
+    // Folder pilihan menjadi folder induk penyimpanan. Hanya tiga subfolder aplikasi yang dibuat
+    // pada folder yang baru dipilih: Rekap, Produk, dan Kasir. Tidak membuat folder lain.
+    const required=['Rekap','Produk','Kasir'];
+    const created=[];
     try{
       window.__rekapinyuAllowFolderCreate=true;
-      storeFolder=await documents.getDirectoryHandle(shopName,{create:true});
-      for(const name of ['Rekap','Produk','Kasir']){
-        const sub=await storeFolder.getDirectoryHandle(name,{create:true});
+      for(const name of required){
+        let sub=null;
+        try{sub=await picked.getDirectoryHandle(name,{create:false});}
+        catch(_){sub=await picked.getDirectoryHandle(name,{create:true});created.push(name);}
         if(!(await requestDirectoryPermission(sub)))throw new Error(`Izin akses folder ${name} ditolak.`);
       }
     }finally{window.__rekapinyuAllowFolderCreate=false;}
-    photoDirectoryHandle=storeFolder;
-    try{await idbSet(storeFolder)}catch(_){ }
-    try{await idbSetFolderName(String(storeFolder.name||shopName))}catch(_){ }
-    await updateFolderStatus();
+    photoDirectoryHandle=picked;
+    try{await idbSet(picked)}catch(_){ }
+    try{await idbSetFolderName(String(picked.name||''))}catch(_){ }
+    updateFolderStatus();
     try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){ }
     try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){ }
     try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){ }
     try{await window.__rekapinyuLoadProdukKasirFolder?.()}catch(_){ }
-    return storeFolder;
+    return picked;
   }
 
-    async function requirePhotoDirectory(){
+  async function requirePhotoDirectory(){
     const dir=await getPhotoDirectoryQuiet();
     if(dir)return dir;
     throw new Error('Pilih Folder terlebih dahulu untuk menentukan lokasi penyimpanan foto produk.');
@@ -5921,14 +5911,27 @@ async function getPk3ShopFolderName(){
     catch(_){return null;}
   }
 
-  /* FOLDER ACCESS — READ EXISTING ONLY
-     Tidak pernah membuat folder apa pun. Semua akses direktori wajib create:false.
-     Jika Data atau subfolder target belum ada, akses gagal dan aplikasi tidak membuatnya. */
+  /* FOLDER ACCESS — AUTO CREATE PER USER / NAMA TOKO
+     Hanya area target folder Produk Kasir. Folder target tidak dapat dipilih manual.
+     Setiap pengguna memiliki folder induk sendiri berdasarkan Nama Toko. */
+  function getActiveShopName(){
+    try{
+      const u=(typeof currentSessionUser!=='undefined'&&currentSessionUser)||{};
+      return String(u.shopName||u.storeName||u.tokoName||u.name||'').trim();
+    }catch(_){return '';}
+  }
+  function safeFolderName(value){
+    return String(value||'').trim().replace(/[<>:"/\\|?*]/g,' ').replace(/[. ]+$/g,'').replace(/\s+/g,' ').trim();
+  }
   async function getDataRootDirectory(){
     let root=photoDirectoryHandle;
     if(!root){try{root=await idbGet()}catch(_){} }
     if(!root)return null;
-    try{if((await root.queryPermission({mode:'readwrite'}))!=='granted')return null;}catch(_){return null;}
+    const shop=safeFolderName(getActiveShopName());
+    try{
+      if(shop && String(root.name||'').trim()!==shop)return null;
+      if((await root.queryPermission({mode:'readwrite'}))!=='granted')return null;
+    }catch(_){return null;}
     return root;
   }
   async function getDataSubdirectory(name){
@@ -5936,15 +5939,10 @@ async function getPk3ShopFolderName(){
     try{return await root.getDirectoryHandle(String(name),{create:false});}
     catch(_){return null;}
   }
-  /* SAFETY GUARD SUDAH DIPASANG DI HEAD sebelum seluruh logika aplikasi berjalan.
-     Semua getDirectoryHandle selalu dipaksa create:false; folder tidak pernah dibuat otomatis.
-     getFileHandle(...,{create:true}) tetap diperbolehkan karena hanya membuat FILE di folder yang sudah ada. */
-
   window.__rekapinyuGetDataRootDirectory=getDataRootDirectory;
   window.__rekapinyuGetDataSubdirectory=getDataSubdirectory;
   window.__rekapinyuGetProdukKasirSelectedFolder=async function(){
-    let root=photoDirectoryHandle;
-    if(!root){try{root=await idbGet()}catch(_){} }
+    const root=await getDataRootDirectory();
     if(!root)return null;
     try{
       const permission=await root.queryPermission({mode:'read'});
@@ -5960,24 +5958,73 @@ async function getPk3ShopFolderName(){
   async function updateFolderStatus(){
     const btn=$('pk3-folder-pick');
     if(!btn)return;
-    const shopName=getPk3ShopFolderName();
+    const shop=safeFolderName(getActiveShopName());
     let selectedFolderName='';
-    try{selectedFolderName=String(await idbGetFolderName()||'').trim()}catch(_){}
-    if(!selectedFolderName){try{selectedFolderName=String(photoDirectoryHandle?.name||'').trim()}catch(_){} }
-    if(!shopName || (selectedFolderName && selectedFolderName!==shopName)){
-      if(selectedFolderName && selectedFolderName!==shopName)await clearPk3FolderBinding();
-      selectedFolderName='';
-    }
-    const active=!!selectedFolderName;
+    try{selectedFolderName=String(await idbGetFolderName()||'').trim()}catch(_){ }
+    try{
+      if(!selectedFolderName && photoDirectoryHandle)selectedFolderName=String(photoDirectoryHandle.name||'').trim();
+    }catch(_){ }
+    const active=!!(shop && selectedFolderName && selectedFolderName===shop && await getDataRootDirectory());
     btn.classList.toggle('is-active',active);
     btn.setAttribute('aria-pressed',active?'true':'false');
-    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Buat folder penyimpanan Produk Kasir';
+    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Buat folder penyimpanan sesuai Nama Toko';
     btn.innerHTML=active
       ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(selectedFolderName)}</span>`
       : `<i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span>`;
   }
 
-    function fileNameForProduct(productName){
+  async function selectPhotoDirectory(){
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembuatan folder otomatis. Gunakan Chrome/Edge terbaru di desktop/tablet.');
+    const shop=safeFolderName(getActiveShopName());
+    if(!shop)throw new Error('Nama Toko pengguna belum tersedia.');
+
+    /* Hapus target lama milik pengguna lain dari state browser. */
+    try{
+      const old=await idbGet();
+      if(old && String(old.name||'').trim()!==shop){
+        photoDirectoryHandle=null;
+        await idbSet(null);
+        await idbSetFolderName('');
+      }
+    }catch(_){ }
+
+    /* Pilih Documents hanya sebagai lokasi induk sistem; pengguna tidak memilih folder toko. */
+    const documents=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-root',startIn:'documents'});
+    if(!documents)throw new Error('Akses Documents belum diberikan.');
+    if(!(await requestDirectoryPermission(documents)))throw new Error('Izin akses Documents ditolak.');
+
+    let picked;
+    try{picked=await documents.getDirectoryHandle(shop,{create:true});}
+    catch(err){throw new Error(`Folder ${shop} tidak dapat dibuat di Documents.`);}
+    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder toko ditolak.');
+
+    const required=['Rekap','Produk','Kasir'];
+    try{
+      window.__rekapinyuAllowFolderCreate=true;
+      for(const name of required){
+        const sub=await picked.getDirectoryHandle(name,{create:true});
+        if(!(await requestDirectoryPermission(sub)))throw new Error(`Izin akses folder ${name} ditolak.`);
+      }
+    }finally{window.__rekapinyuAllowFolderCreate=false;}
+
+    photoDirectoryHandle=picked;
+    try{await idbSet(picked)}catch(_){ }
+    try{await idbSetFolderName(shop)}catch(_){ }
+    updateFolderStatus();
+    try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){ }
+    try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){ }
+    try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){ }
+    try{await window.__rekapinyuLoadProdukKasirFolder?.()}catch(_){ }
+    return picked;
+  }
+
+  async function requirePhotoDirectory(){
+    const dir=await getPhotoDirectoryQuiet();
+    if(dir)return dir;
+    throw new Error('Klik "Buat Folder" terlebih dahulu untuk membuat folder sesuai Nama Toko.');
+  }
+
+  function fileNameForProduct(productName){
     let base=String(productName||'').trim()
       .replace(/[<>:"/\\|?*]/g,' ')
       .replace(/[\u0000-\u001F]/g,' ')
@@ -6727,7 +6774,7 @@ async function getPk3ShopFolderName(){
         await updateFolderStatus();
       }catch(err){
         if(err?.name!=='AbortError' && typeof showModal==='function'){
-          showModal('Buat Folder Produk Kasir',err?.message||'Folder Produk Kasir belum dibuat.');
+          showModal('Buat Folder',err?.message||'Folder toko belum berhasil dibuat.');
         }
       }finally{
         if(btn)btn.disabled=false;
