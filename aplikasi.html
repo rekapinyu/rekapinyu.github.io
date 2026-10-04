@@ -5262,22 +5262,23 @@ function realtime(uid){
 
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
-     /* LISTENER AKTIFITAS SENDIRI — dipisahkan dari listener umum Kasir.
-        Hanya membaca field Aktifitas dari dokumen Kasir secara realtime. */
-     listen(kr,d=>{
-       if(!hasField(d,"Aktifitas"))return;
-       window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
-       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
-     },"Aktifitas");
 
-     /* LISTENER TOTALOMSET SENDIRI — membaca nilai TotalOmset dari Kasir
-        secara realtime tanpa mencampur listener Aktifitas/Kasir lainnya. */
-     listen(kr,d=>{
-       if(!hasField(d,"TotalOmset"))return;
-       const value=d.TotalOmset;
-       window.__rekapinyuKasirTotalOmset=typeof value==="number"?value:Number(value)||0;
-       try{document.dispatchEvent(new CustomEvent("rekapinyu-total-omset-realtime-updated",{detail:{value:window.__rekapinyuKasirTotalOmset}}))}catch{}
-     },"TotalOmset");
+    /* LISTENER AKTIFITAS SENDIRI — tetap membaca field Aktifitas pada dokumen Kasir,
+       tetapi tidak lagi berada di dalam listener Kasir. */
+    listen(kr,d=>{
+      if(!hasField(d,"Aktifitas"))return;
+      window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
+      window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
+    },"Aktifitas");
+
+    /* LISTENER TOTALOMSET SENDIRI — membaca Kasir.TotalOmset secara realtime. */
+    listen(kr,d=>{
+      if(!hasField(d,"TotalOmset"))return;
+      const value=d.TotalOmset;
+      window.__rekapinyuKasirTotalOmset=typeof value==="number"?value:Number(value)||0;
+      try{document.dispatchEvent(new CustomEvent("rekapinyu-total-omset-realtime-updated",{detail:{value:window.__rekapinyuKasirTotalOmset}}))}catch{}
+    },"TotalOmset");
+
     listen(rr,d=>{
       /* Rekap Firestore tidak lagi menjadi sumber untuk Input Data, History,
          Laporan Bulanan, Backup Otomatis, Kasbon, atau Pengeluaran. */
@@ -7294,22 +7295,19 @@ async function initKasirViews(){
       const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.(transaction);
       if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
 
-       /* TOTALOMSET — hasil transaksi Kasir dikirim ke Kasir.TotalOmset
-          setelah transaksi + file JSON berhasil tersimpan. */
-       try{
-         const totalOmset=kasirTransactions.reduce((sum,item)=>sum+(Number(item?.total)||0),0);
-         window.__rekapinyuKasirTotalOmset=totalOmset;
-         const uid=window.RekapinyuFirebase?.uid||null;
-         const p=String(window.RekapinyuFirebase?.auth?.currentUser?.email||"").split("@")[0].replace(/\D/g,"");
-         const getKasirRefFn=window.RekapinyuFirebase?.firestoreApi?.getKasirRef;
-         const setDocFn=window.RekapinyuFirebase?.firestoreApi?.setDoc;
-         if(uid&&p&&typeof getKasirRefFn==="function"&&typeof setDocFn==="function"){
-           const kasirRef=await getKasirRefFn(uid,p);
-           await setDocFn(kasirRef,{TotalOmset:totalOmset,NomorHp:p,updatedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()},{merge:true});
-         }
-       }catch(e){
-         console.warn('Rekapinyu: TotalOmset Kasir gagal disimpan ke Firestore.',e);
-       }
+      /* Hasil transaksi Menu Kasir dikirim ke Kasir -> TotalOmset.
+         Nilainya adalah akumulasi total seluruh transaksi yang sudah tersimpan. */
+      try{
+        const totalOmset=kasirTransactions.reduce((sum,item)=>sum+(Number(item?.total)||0),0);
+        window.__rekapinyuKasirTotalOmset=totalOmset;
+        const kasirRef=await window.RekapinyuFirebase?.firestoreApi?.getKasirRef?.();
+        if(kasirRef&&typeof window.RekapinyuFirebase?.firestoreApi?.setDoc==="function"){
+          await window.RekapinyuFirebase.firestoreApi.setDoc(kasirRef,{TotalOmset:totalOmset,updatedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()},{merge:true});
+        }
+      }catch(e){
+        console.warn("Rekapinyu: TotalOmset gagal dikirim ke Firestore Kasir.",e);
+      }
+
       try{document.dispatchEvent(new CustomEvent('rekapinyu-kasir-transaction-saved',{detail:{transaction}}))}catch(_){}
       /* JSON Produk Kasir sudah menjadi sumber stok. Beritahu kedua tampilan
          secara langsung agar stok berubah realtime tanpa reload/pindah menu. */
