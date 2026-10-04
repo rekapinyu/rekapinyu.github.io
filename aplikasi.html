@@ -4998,13 +4998,14 @@ const log=(...a)=>console.warn("Rekapinyu Firebase:",...a);
    Rekap     -> BackupOtomatis, History, InputData, Kasbon,
                 LaporanBulanan, NamaToko, NomorHp, Pengeluaran
    ================================================================ */
-const KASIR_EMPTY={Aktifitas:[],NamaToko:"",NomorHp:"",Seting:{}};
+const KASIR_EMPTY={Aktifitas:[],TotalOmset:0,NamaToko:"",NomorHp:"",Seting:{}};
 const REKAP_EMPTY={BackupOtomatis:[],History:[],InputData:[],Kasbon:[],LaporanBulanan:[],NamaToko:"",NomorHp:"",Pengeluaran:[]};
 const PENGGUNA_EMPTY={NamaPengguna:"",NomorHp:"",Pasword:"",role:"Pengguna"};
 const SETTING_DEFAULTS={SettingStruk:{},SettingPrinter:{paperWidth:"32",copyCount:1},SettingKasir:{confirmCancel:true,focusSearch:true},invoiceCounter:0};
 
 window.__rekapinyuDataLaporanBulanan=[];
 window.__rekapinyuKasirTransactionsRealtime=[];
+window.__rekapinyuKasirTotalOmset=0;
 window.__rekapinyuActivityData=[];
 window.__rekapinyuProdukKasirData=[];
 window.__rekapinyuProdukKasirLoaded=false;
@@ -5161,6 +5162,7 @@ async function hydrate(uid){
   applyingFirestoreRealtime=true;
   try{
     window.__rekapinyuActivityData=arrayFromField(kd,"Aktifitas",[]);
+    window.__rekapinyuKasirTotalOmset=typeof kd.TotalOmset==="number"?kd.TotalOmset:Number(kd.TotalOmset)||0;
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
     /* DATA OPERASIONAL 6 MENU TIDAK LAGI DIHYDRATE DARI FIRESTORE.
        Sumber tunggalnya adalah satu JSON harian di folder target Produk Kasir. */
@@ -5234,7 +5236,6 @@ function realtime(uid){
     const listen=(r,cb,label)=>{const un=onSnapshot(r,s=>{if(!s.exists())return;applyingFirestoreRealtime=true;try{cb(s.data()||{})}finally{applyingFirestoreRealtime=false}try{nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser||{}));upsertRegisteredLocalUser(currentSessionUser||{})}catch{}try{redraw()}catch{}},e=>log(`realtime ${label} gagal`,e));collectionUnsubs.push(un)};
     listen(kr,d=>{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
-      if(hasField(d,"Aktifitas"))window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
 
       /* REKAPINYU SCANNER HP — listener realtime. Hanya membaca field scanner,
@@ -5261,6 +5262,22 @@ function realtime(uid){
 
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
+     /* LISTENER AKTIFITAS SENDIRI — dipisahkan dari listener umum Kasir.
+        Hanya membaca field Aktifitas dari dokumen Kasir secara realtime. */
+     listen(kr,d=>{
+       if(!hasField(d,"Aktifitas"))return;
+       window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
+       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
+     },"Aktifitas");
+
+     /* LISTENER TOTALOMSET SENDIRI — membaca nilai TotalOmset dari Kasir
+        secara realtime tanpa mencampur listener Aktifitas/Kasir lainnya. */
+     listen(kr,d=>{
+       if(!hasField(d,"TotalOmset"))return;
+       const value=d.TotalOmset;
+       window.__rekapinyuKasirTotalOmset=typeof value==="number"?value:Number(value)||0;
+       try{document.dispatchEvent(new CustomEvent("rekapinyu-total-omset-realtime-updated",{detail:{value:window.__rekapinyuKasirTotalOmset}}))}catch{}
+     },"TotalOmset");
     listen(rr,d=>{
       /* Rekap Firestore tidak lagi menjadi sumber untuk Input Data, History,
          Laporan Bulanan, Backup Otomatis, Kasbon, atau Pengeluaran. */
@@ -7276,6 +7293,23 @@ async function initKasirViews(){
       if(produkSaved!==true)throw new Error('Folder target belum dipilih atau file JSON Produk Kasir tidak dapat diperbarui.');
       const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.(transaction);
       if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
+
+       /* TOTALOMSET — hasil transaksi Kasir dikirim ke Kasir.TotalOmset
+          setelah transaksi + file JSON berhasil tersimpan. */
+       try{
+         const totalOmset=kasirTransactions.reduce((sum,item)=>sum+(Number(item?.total)||0),0);
+         window.__rekapinyuKasirTotalOmset=totalOmset;
+         const uid=window.RekapinyuFirebase?.uid||null;
+         const p=String(window.RekapinyuFirebase?.auth?.currentUser?.email||"").split("@")[0].replace(/\D/g,"");
+         const getKasirRefFn=window.RekapinyuFirebase?.firestoreApi?.getKasirRef;
+         const setDocFn=window.RekapinyuFirebase?.firestoreApi?.setDoc;
+         if(uid&&p&&typeof getKasirRefFn==="function"&&typeof setDocFn==="function"){
+           const kasirRef=await getKasirRefFn(uid,p);
+           await setDocFn(kasirRef,{TotalOmset:totalOmset,NomorHp:p,updatedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()},{merge:true});
+         }
+       }catch(e){
+         console.warn('Rekapinyu: TotalOmset Kasir gagal disimpan ke Firestore.',e);
+       }
       try{document.dispatchEvent(new CustomEvent('rekapinyu-kasir-transaction-saved',{detail:{transaction}}))}catch(_){}
       /* JSON Produk Kasir sudah menjadi sumber stok. Beritahu kedua tampilan
          secara langsung agar stok berubah realtime tanpa reload/pindah menu. */
