@@ -5146,8 +5146,9 @@ async function saveKasbonCloud(){return window.__rekapinyuSaveLocalRekap?.();}
 async function saveBackupCloud(){return true;}
 
 async function saveActivityCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Aktifitas:Array.isArray(window.__rekapinyuActivityData)?window.__rekapinyuActivityData:[],NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
+async function saveTotalOmsetCloud(total){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const value=Math.max(0,Number(total)||0);window.__rekapinyuKasirTotalOmset=value;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{TotalOmset:value,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
 async function saveSettingCloud(){if(!firestoreDataHydrated)return;const p=currentPhone(),uid=cloudUid();if(!uid||!p)return;const s=normalizeSetting(window.__rekapinyuSettingData);window.__rekapinyuSettingData=s;const r=await getKasirRef(uid,p);return enqueue(()=>setDoc(r,{Seting:s,NomorHp:p,updatedAt:serverTimestamp()},{merge:true}));}
-window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengeluaranCloud=savePengeluaranCloud;window.__rekapinyuSaveKasbonCloud=saveKasbonCloud;window.__rekapinyuSaveBackupCloud=saveBackupCloud;window.__rekapinyuSaveActivityCloud=saveActivityCloud;window.__rekapinyuSaveSettingCloud=saveSettingCloud;
+window.__rekapinyuSaveHistoryCloud=saveHistoryCloud;window.__rekapinyuSavePengeluaranCloud=savePengeluaranCloud;window.__rekapinyuSaveKasbonCloud=saveKasbonCloud;window.__rekapinyuSaveBackupCloud=saveBackupCloud;window.__rekapinyuSaveActivityCloud=saveActivityCloud;window.__rekapinyuSaveTotalOmsetCloud=saveTotalOmsetCloud;window.__rekapinyuSaveSettingCloud=saveSettingCloud;
 window.__rekapinyuSaveCloudData=async()=>{const jobs=[saveActivityCloud(),saveSettingCloud()];return Promise.allSettled(jobs)};
 window.__markDataPending=()=>{};window.__requestDataCloudSync=()=>Promise.resolve();
 
@@ -5162,7 +5163,7 @@ async function hydrate(uid){
   applyingFirestoreRealtime=true;
   try{
     window.__rekapinyuActivityData=arrayFromField(kd,"Aktifitas",[]);
-    window.__rekapinyuKasirTotalOmset=typeof kd.TotalOmset==="number"?kd.TotalOmset:Number(kd.TotalOmset)||0;
+    window.__rekapinyuKasirTotalOmset=Math.max(0,Number(kd.TotalOmset)||0);
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
     /* DATA OPERASIONAL 6 MENU TIDAK LAGI DIHYDRATE DARI FIRESTORE.
        Sumber tunggalnya adalah satu JSON harian di folder target Produk Kasir. */
@@ -5260,25 +5261,22 @@ function realtime(uid){
         }
       }catch(e){console.warn("Scanner HP realtime gagal",e)}
 
-      window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);try{window.__rekapinyuReloadSettingsUI?.()}catch{}
+      try{window.__rekapinyuReloadSettingsUI?.()}catch{}
     },"Kasir");
 
-    /* LISTENER AKTIFITAS SENDIRI — tetap membaca field Aktifitas pada dokumen Kasir,
-       tetapi tidak lagi berada di dalam listener Kasir. */
+    /* AKTIFITAS — SATU IMPLEMENTASI, LISTENER SENDIRI.
+       Tidak lagi membaca Aktifitas melalui listener umum Kasir. */
     listen(kr,d=>{
       if(!hasField(d,"Aktifitas"))return;
       window.__rekapinyuActivityData=arrayFromField(d,"Aktifitas",window.__rekapinyuActivityData);
       window.__rekapinyuSetActivityData?.(window.__rekapinyuActivityData);
     },"Aktifitas");
 
-    /* LISTENER TOTALOMSET SENDIRI — membaca Kasir.TotalOmset secara realtime. */
+    /* TOTALOMSET — SATU IMPLEMENTASI, LISTENER SENDIRI. */
     listen(kr,d=>{
       if(!hasField(d,"TotalOmset"))return;
-      const value=d.TotalOmset;
-      window.__rekapinyuKasirTotalOmset=typeof value==="number"?value:Number(value)||0;
-      try{document.dispatchEvent(new CustomEvent("rekapinyu-total-omset-realtime-updated",{detail:{value:window.__rekapinyuKasirTotalOmset}}))}catch{}
+      window.__rekapinyuKasirTotalOmset=Math.max(0,Number(d.TotalOmset)||0);
     },"TotalOmset");
-
     listen(rr,d=>{
       /* Rekap Firestore tidak lagi menjadi sumber untuk Input Data, History,
          Laporan Bulanan, Backup Otomatis, Kasbon, atau Pengeluaran. */
@@ -7295,18 +7293,10 @@ async function initKasirViews(){
       const jsonSaved=await window.__rekapinyuSaveKasirHarianJson?.(transaction);
       if(jsonSaved!==true)throw new Error('File JSON Transaksi Kasir dan Laporan Kasir tidak dapat diperbarui.');
 
-      /* Hasil transaksi Menu Kasir dikirim ke Kasir -> TotalOmset.
-         Nilainya adalah akumulasi total seluruh transaksi yang sudah tersimpan. */
-      try{
-        const totalOmset=kasirTransactions.reduce((sum,item)=>sum+(Number(item?.total)||0),0);
-        window.__rekapinyuKasirTotalOmset=totalOmset;
-        const kasirRef=await window.RekapinyuFirebase?.firestoreApi?.getKasirRef?.();
-        if(kasirRef&&typeof window.RekapinyuFirebase?.firestoreApi?.setDoc==="function"){
-          await window.RekapinyuFirebase.firestoreApi.setDoc(kasirRef,{TotalOmset:totalOmset,updatedAt:window.RekapinyuFirebase?.firestoreApi?.serverTimestamp?.()},{merge:true});
-        }
-      }catch(e){
-        console.warn("Rekapinyu: TotalOmset gagal dikirim ke Firestore Kasir.",e);
-      }
+      /* TOTALOMSET — hasil transaksi dikirim ke Kasir.TotalOmset.
+         Satu sumber nilai: seluruh transaksi Kasir yang sudah tersimpan di memori. */
+      const totalOmset=kasirTransactions.reduce((sum,item)=>sum+(Number(item?.total)||0),0);
+      await window.__rekapinyuSaveTotalOmsetCloud?.(totalOmset);
 
       try{document.dispatchEvent(new CustomEvent('rekapinyu-kasir-transaction-saved',{detail:{transaction}}))}catch(_){}
       /* JSON Produk Kasir sudah menjadi sumber stok. Beritahu kedua tampilan
