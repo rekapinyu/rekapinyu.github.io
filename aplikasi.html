@@ -2250,7 +2250,7 @@ bind();
 <div class="pk3-heading">
 <div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
 <div class="pk3-heading-actions">
-<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Pilih folder penyimpanan foto produk" aria-pressed="false"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span></button>
+<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Buat folder penyimpanan Produk Kasir" aria-pressed="false"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span></button>
 <span id="pk3-count">0 produk</span>
 </div>
 </div>
@@ -5862,36 +5862,46 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(_){return false}
   }
 
+async function getPk3ShopFolderName(){
+    const user=(typeof currentSessionUser!=='undefined'&&currentSessionUser)?currentSessionUser:{};
+    const setting=(window.__rekapinyuSettingData?.SettingStruk)||{};
+    return String(user.shopName||user.storeName||user.tokoName||setting.name||user.name||'').trim();
+  }
+
+  async function clearPk3FolderBinding(){
+    photoDirectoryHandle=null;
+    try{await idbSet(null)}catch(_){ }
+    try{await idbSetFolderName('')}catch(_){ }
+  }
+
   async function selectPhotoDirectory(){
-    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pemilihan folder. Gunakan Chrome/Edge terbaru di desktop/tablet.');
-    const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-data-root',startIn:'documents'});
-    if(!picked)throw new Error('Folder belum dipilih.');
-    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
-    // Folder pilihan menjadi folder induk penyimpanan. Hanya tiga subfolder aplikasi yang dibuat
-    // pada folder yang baru dipilih: Rekap, Produk, dan Kasir. Tidak membuat folder lain.
-    const required=['Rekap','Produk','Kasir'];
-    const created=[];
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembuatan folder otomatis. Gunakan Chrome/Edge terbaru di desktop/tablet.');
+    const shopName=getPk3ShopFolderName();
+    if(!shopName)throw new Error('Nama Toko belum tersedia. Isi Nama Toko terlebih dahulu pada Seting Struk.');
+    const documents=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-root',startIn:'documents'});
+    if(!documents)throw new Error('Akses Dokumen dibatalkan.');
+    if(!(await requestDirectoryPermission(documents)))throw new Error('Izin akses Dokumen ditolak.');
+    let storeFolder=null;
     try{
       window.__rekapinyuAllowFolderCreate=true;
-      for(const name of required){
-        let sub=null;
-        try{sub=await picked.getDirectoryHandle(name,{create:false});}
-        catch(_){sub=await picked.getDirectoryHandle(name,{create:true});created.push(name);}
+      storeFolder=await documents.getDirectoryHandle(shopName,{create:true});
+      for(const name of ['Rekap','Produk','Kasir']){
+        const sub=await storeFolder.getDirectoryHandle(name,{create:true});
         if(!(await requestDirectoryPermission(sub)))throw new Error(`Izin akses folder ${name} ditolak.`);
       }
     }finally{window.__rekapinyuAllowFolderCreate=false;}
-    photoDirectoryHandle=picked;
-    try{await idbSet(picked)}catch(_){ }
-    try{await idbSetFolderName(String(picked.name||''))}catch(_){ }
-    updateFolderStatus();
+    photoDirectoryHandle=storeFolder;
+    try{await idbSet(storeFolder)}catch(_){ }
+    try{await idbSetFolderName(String(storeFolder.name||shopName))}catch(_){ }
+    await updateFolderStatus();
     try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){ }
     try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){ }
     try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){ }
     try{await window.__rekapinyuLoadProdukKasirFolder?.()}catch(_){ }
-    return picked;
+    return storeFolder;
   }
 
-  async function requirePhotoDirectory(){
+    async function requirePhotoDirectory(){
     const dir=await getPhotoDirectoryQuiet();
     if(dir)return dir;
     throw new Error('Pilih Folder terlebih dahulu untuk menentukan lokasi penyimpanan foto produk.');
@@ -5950,25 +5960,24 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   async function updateFolderStatus(){
     const btn=$('pk3-folder-pick');
     if(!btn)return;
-
-    // Nama yang ditampilkan adalah nama FOLDER INDUK yang dipilih user,
-    // bukan nama subfolder "Produk".
+    const shopName=getPk3ShopFolderName();
     let selectedFolderName='';
     try{selectedFolderName=String(await idbGetFolderName()||'').trim()}catch(_){}
-    if(!selectedFolderName){
-      try{selectedFolderName=String(photoDirectoryHandle?.name||'').trim()}catch(_){}
+    if(!selectedFolderName){try{selectedFolderName=String(photoDirectoryHandle?.name||'').trim()}catch(_){} }
+    if(!shopName || (selectedFolderName && selectedFolderName!==shopName)){
+      if(selectedFolderName && selectedFolderName!==shopName)await clearPk3FolderBinding();
+      selectedFolderName='';
     }
-
     const active=!!selectedFolderName;
     btn.classList.toggle('is-active',active);
     btn.setAttribute('aria-pressed',active?'true':'false');
-    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Pilih folder penyimpanan foto produk';
+    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Buat folder penyimpanan Produk Kasir';
     btn.innerHTML=active
       ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(selectedFolderName)}</span>`
-      : `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span>`;
+      : `<i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span>`;
   }
 
-  function fileNameForProduct(productName){
+    function fileNameForProduct(productName){
     let base=String(productName||'').trim()
       .replace(/[<>:"/\\|?*]/g,' ')
       .replace(/[\u0000-\u001F]/g,' ')
@@ -6718,7 +6727,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         await updateFolderStatus();
       }catch(err){
         if(err?.name!=='AbortError' && typeof showModal==='function'){
-          showModal('Folder Foto',err?.message||'Folder foto belum dipilih.');
+          showModal('Buat Folder Produk Kasir',err?.message||'Folder Produk Kasir belum dibuat.');
         }
       }finally{
         if(btn)btn.disabled=false;
