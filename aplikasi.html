@@ -2250,7 +2250,7 @@ bind();
 <div class="pk3-heading">
 <div><h3>Produk Kasir</h3><p>Semua data produk tersimpan di perangkat ini.</p></div>
 <div class="pk3-heading-actions">
-<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Pilih folder penyimpanan foto produk" aria-pressed="false"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span></button>
+<button type="button" class="pk3-folder-pick" id="pk3-folder-pick" title="Buat Folder" aria-pressed="false"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Buat Folder</span></button>
 <span id="pk3-count">0 produk</span>
 </div>
 </div>
@@ -5744,6 +5744,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   const PHOTO_STORE='handles';
   const PHOTO_KEY='produk-directory';
   const PHOTO_NAME_KEY='produk-directory-name';
+  const PHOTO_DOCUMENTS_KEY='documents-root';
+  let photoDirectoryOwnerKey='';
   let products=[];
   let editingId=null;
   let bound=false;
@@ -5815,42 +5817,56 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
       req.onerror=()=>reject(req.error||new Error('Database browser gagal dibuka.'));
     });
   }
-  async function idbGet(){
+  function photoOwnerKey(){
+    try{
+      const uid=String((typeof currentSessionUser!=='undefined'&&currentSessionUser?.uid)||((typeof auth!=='undefined'&&auth?.currentUser)?auth.currentUser.uid:'')||'').trim();
+      return uid;
+    }catch(_){return ''}
+  }
+  function photoUserKey(base){
+    const owner=photoOwnerKey();
+    return owner?`${base}:${owner}`:'';
+  }
+  async function idbGetByKey(key){
+    const clean=String(key||'');
+    if(!clean)return null;
     const db=await idbOpen();
     return await new Promise((resolve,reject)=>{
-      const tx=db.transaction(PHOTO_STORE,'readonly'),store=tx.objectStore(PHOTO_STORE),req=store.get(PHOTO_KEY);
+      const tx=db.transaction(PHOTO_STORE,'readonly'),store=tx.objectStore(PHOTO_STORE),req=store.get(clean);
       req.onsuccess=()=>resolve(req.result||null);
       req.onerror=()=>reject(req.error||new Error('Folder foto tidak dapat dibaca.'));
       tx.oncomplete=()=>db.close();
     });
   }
-  async function idbSet(value){
+  async function idbSetByKey(key,value){
+    const clean=String(key||'');
+    if(!clean)throw new Error('Sesi pengguna belum tersedia.');
     const db=await idbOpen();
     return await new Promise((resolve,reject)=>{
-      const tx=db.transaction(PHOTO_STORE,'readwrite'),store=tx.objectStore(PHOTO_STORE),req=store.put(value,PHOTO_KEY);
+      const tx=db.transaction(PHOTO_STORE,'readwrite'),store=tx.objectStore(PHOTO_STORE),req=store.put(value,clean);
       req.onsuccess=()=>resolve(true);
       req.onerror=()=>reject(req.error||new Error('Folder foto tidak dapat disimpan.'));
       tx.oncomplete=()=>db.close();
     });
   }
-
-  async function idbSetFolderName(value){
-    const db=await idbOpen();
-    return await new Promise((resolve,reject)=>{
-      const tx=db.transaction(PHOTO_STORE,'readwrite'),store=tx.objectStore(PHOTO_STORE),req=store.put(String(value||''),PHOTO_NAME_KEY);
-      req.onsuccess=()=>resolve(true);
-      req.onerror=()=>reject(req.error||new Error('Nama folder foto tidak dapat disimpan.'));
-      tx.oncomplete=()=>db.close();
-    });
+  async function idbGet(){
+    return await idbGetByKey(photoUserKey(PHOTO_KEY));
+  }
+  async function idbSet(value){
+    return await idbSetByKey(photoUserKey(PHOTO_KEY),value);
   }
   async function idbGetFolderName(){
-    const db=await idbOpen();
-    return await new Promise((resolve,reject)=>{
-      const tx=db.transaction(PHOTO_STORE,'readonly'),store=tx.objectStore(PHOTO_STORE),req=store.get(PHOTO_NAME_KEY);
-      req.onsuccess=()=>resolve(String(req.result||''));
-      req.onerror=()=>reject(req.error||new Error('Nama folder foto tidak dapat dibaca.'));
-      tx.oncomplete=()=>db.close();
-    });
+    const value=await idbGetByKey(photoUserKey(PHOTO_NAME_KEY));
+    return String(value||'');
+  }
+  async function idbSetFolderName(value){
+    return await idbSetByKey(photoUserKey(PHOTO_NAME_KEY),String(value||''));
+  }
+  async function idbGetDocumentsRoot(){
+    return await idbGetByKey(PHOTO_DOCUMENTS_KEY);
+  }
+  async function idbSetDocumentsRoot(value){
+    return await idbSetByKey(PHOTO_DOCUMENTS_KEY,value);
   }
 
   async function requestDirectoryPermission(handle,mode='readwrite'){
@@ -5862,42 +5878,110 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }catch(_){return false}
   }
 
+  function currentShopName(){
+    try{
+      const user=(typeof currentSessionUser!=='undefined'&&currentSessionUser)?currentSessionUser:{};
+      return String(user.shopName||user.storeName||user.tokoName||'').trim();
+    }catch(_){return ''}
+  }
+  function safeFolderName(value){
+    let name=String(value||'').trim()
+      .replace(/[<>:"/\\|?*]/g,' ')
+      .replace(/[\u0000-\u001F]/g,' ')
+      .replace(/\s+/g,' ')
+      .replace(/[. ]+$/g,'')
+      .trim();
+    if(!name)return '';
+    if(/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(name))name=`Toko ${name}`;
+    return name;
+  }
+  function isDocumentsDirectoryName(value){
+    const name=String(value||'').trim().toLowerCase();
+    return /^(documents|dokumen)(?:\s+\d+)?$/i.test(name);
+  }
+  async function getDocumentsRootForAutoCreate(){
+    let docs=null;
+    try{docs=window.__rekapinyuFolderManagerDocuments||null}catch(_){}
+    if(!docs){
+      try{docs=await idbGetDocumentsRoot()}catch(_){}
+    }
+    if(docs){
+      try{
+        if(!isDocumentsDirectoryName(docs.name))docs=null;
+        else if((await docs.queryPermission({mode:'readwrite'}))==='granted')return docs;
+        else if(docs.requestPermission&&(await docs.requestPermission({mode:'readwrite'}))==='granted')return docs;
+      }catch(_){docs=null}
+    }
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembuatan folder otomatis. Gunakan Chrome/Edge terbaru di desktop/tablet.');
+    /* Akses Dokumen hanya dilakukan satu kali bila browser belum memberikan handle Dokumen.
+       Dialog ini bukan pemilihan target Produk Kasir: folder tujuan wajib Dokumen. */
+    const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-manager',startIn:'documents'});
+    if(!picked)throw new Error('Akses folder Dokumen dibatalkan.');
+    if(!isDocumentsDirectoryName(picked.name)){
+      throw new Error('Folder yang diakses harus folder Dokumen. Folder target Produk Kasir tidak dapat dipilih manual.');
+    }
+    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder Dokumen ditolak.');
+    try{window.__rekapinyuFolderManagerDocuments=picked}catch(_){}
+    try{await idbSetDocumentsRoot(picked)}catch(_){}
+    return picked;
+  }
+
   async function selectPhotoDirectory(){
-    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pemilihan folder. Gunakan Chrome/Edge terbaru di desktop/tablet.');
-    const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-data-root',startIn:'documents'});
-    if(!picked)throw new Error('Folder belum dipilih.');
-    if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
-    // Folder pilihan menjadi folder induk penyimpanan. Hanya tiga subfolder aplikasi yang dibuat
-    // pada folder yang baru dipilih: Rekap, Produk, dan Kasir. Tidak membuat folder lain.
+    const owner=photoOwnerKey();
+    if(!owner)throw new Error('Sesi pengguna belum tersedia. Silakan tunggu sampai akun selesai dimuat.');
+    const shopName=safeFolderName(currentShopName());
+    if(!shopName)throw new Error('Nama Toko belum tersedia. Folder belum dapat dibuat.');
+
+    const docs=await getDocumentsRootForAutoCreate();
+    if(!docs)throw new Error('Folder Dokumen tidak tersedia.');
+    if(!(await requestDirectoryPermission(docs)))throw new Error('Izin akses folder Dokumen ditolak.');
+
+    let shopFolder=null;
+    try{shopFolder=await docs.getDirectoryHandle(shopName,{create:false});}
+    catch(_){
+      try{
+        window.__rekapinyuAllowFolderCreate=true;
+        shopFolder=await docs.getDirectoryHandle(shopName,{create:true});
+      }finally{window.__rekapinyuAllowFolderCreate=false;}
+    }
+    if(!shopFolder)throw new Error('Folder toko gagal dibuat.');
+
     const required=['Rekap','Produk','Kasir'];
-    const created=[];
     try{
       window.__rekapinyuAllowFolderCreate=true;
       for(const name of required){
         let sub=null;
-        try{sub=await picked.getDirectoryHandle(name,{create:false});}
-        catch(_){sub=await picked.getDirectoryHandle(name,{create:true});created.push(name);}
+        try{sub=await shopFolder.getDirectoryHandle(name,{create:false});}
+        catch(_){sub=await shopFolder.getDirectoryHandle(name,{create:true});}
         if(!(await requestDirectoryPermission(sub)))throw new Error(`Izin akses folder ${name} ditolak.`);
       }
     }finally{window.__rekapinyuAllowFolderCreate=false;}
-    photoDirectoryHandle=picked;
-    try{await idbSet(picked)}catch(_){ }
-    try{await idbSetFolderName(String(picked.name||''))}catch(_){ }
-    updateFolderStatus();
+
+    photoDirectoryOwnerKey=owner;
+    photoDirectoryHandle=shopFolder;
+    try{await idbSet(shopFolder)}catch(_){ }
+    try{await idbSetFolderName(shopFolder.name)}catch(_){ }
+    await updateFolderStatus();
     try{await scanTargetFolderPhotos();await refreshRenderedPhotos()}catch(_){ }
     try{await window.__rekapinyuLoadLocalRekap?.()}catch(_){ }
     try{await window.__rekapinyuLoadKasirFolder?.()}catch(_){ }
     try{await window.__rekapinyuLoadProdukKasirFolder?.()}catch(_){ }
-    return picked;
+    return shopFolder;
   }
 
   async function requirePhotoDirectory(){
     const dir=await getPhotoDirectoryQuiet();
     if(dir)return dir;
-    throw new Error('Pilih Folder terlebih dahulu untuk menentukan lokasi penyimpanan foto produk.');
+    throw new Error('Folder toko belum dibuat. Klik "Buat Folder" terlebih dahulu.');
   }
 
   async function getPhotoDirectoryQuiet(){
+    const owner=photoOwnerKey();
+    if(!owner)return null;
+    if(photoDirectoryOwnerKey!==owner){
+      photoDirectoryHandle=null;
+      photoDirectoryOwnerKey=owner;
+    }
     let root=photoDirectoryHandle;
     if(root){
       try{if((await root.queryPermission({mode:'readwrite'}))!=='granted')root=null;}catch(_){root=null;}
@@ -5907,6 +5991,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     }
     if(!root)return null;
     photoDirectoryHandle=root;
+    photoDirectoryOwnerKey=owner;
     try{return await root.getDirectoryHandle('Produk',{create:false});}
     catch(_){return null;}
   }
@@ -5915,10 +6000,21 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
      Tidak pernah membuat folder apa pun. Semua akses direktori wajib create:false.
      Jika Data atau subfolder target belum ada, akses gagal dan aplikasi tidak membuatnya. */
   async function getDataRootDirectory(){
+    const owner=photoOwnerKey();
+    if(!owner)return null;
+    if(photoDirectoryOwnerKey!==owner){
+      photoDirectoryHandle=null;
+      photoDirectoryOwnerKey=owner;
+    }
     let root=photoDirectoryHandle;
+    if(root){
+      try{if((await root.queryPermission({mode:'readwrite'}))!=='granted')root=null;}catch(_){root=null;}
+    }
     if(!root){try{root=await idbGet()}catch(_){} }
     if(!root)return null;
     try{if((await root.queryPermission({mode:'readwrite'}))!=='granted')return null;}catch(_){return null;}
+    photoDirectoryHandle=root;
+    photoDirectoryOwnerKey=owner;
     return root;
   }
   async function getDataSubdirectory(name){
@@ -5933,15 +6029,29 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   window.__rekapinyuGetDataRootDirectory=getDataRootDirectory;
   window.__rekapinyuGetDataSubdirectory=getDataSubdirectory;
   window.__rekapinyuGetProdukKasirSelectedFolder=async function(){
+    const owner=photoOwnerKey();
+    if(!owner)return null;
+    if(photoDirectoryOwnerKey!==owner){
+      photoDirectoryHandle=null;
+      photoDirectoryOwnerKey=owner;
+    }
     let root=photoDirectoryHandle;
     if(!root){try{root=await idbGet()}catch(_){} }
     if(!root)return null;
     try{
       const permission=await root.queryPermission({mode:'read'});
-      if(permission==='granted')return root;
+      if(permission==='granted'){
+        photoDirectoryHandle=root;
+        photoDirectoryOwnerKey=owner;
+        return root;
+      }
       if(permission==='prompt'&&root.requestPermission){
         const requested=await root.requestPermission({mode:'readwrite'});
-        if(requested==='granted')return root;
+        if(requested==='granted'){
+          photoDirectoryHandle=root;
+          photoDirectoryOwnerKey=owner;
+          return root;
+        }
       }
     }catch(_){ }
     return null;
@@ -5951,21 +6061,22 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     const btn=$('pk3-folder-pick');
     if(!btn)return;
 
-    // Nama yang ditampilkan adalah nama FOLDER INDUK yang dipilih user,
-    // bukan nama subfolder "Produk".
+    const owner=photoOwnerKey();
     let selectedFolderName='';
-    try{selectedFolderName=String(await idbGetFolderName()||'').trim()}catch(_){}
-    if(!selectedFolderName){
-      try{selectedFolderName=String(photoDirectoryHandle?.name||'').trim()}catch(_){}
+    if(owner){
+      try{selectedFolderName=String(await idbGetFolderName()||'').trim()}catch(_){ }
+      if(!selectedFolderName && photoDirectoryOwnerKey===owner){
+        try{selectedFolderName=String(photoDirectoryHandle?.name||'').trim()}catch(_){ }
+      }
     }
 
     const active=!!selectedFolderName;
     btn.classList.toggle('is-active',active);
     btn.setAttribute('aria-pressed',active?'true':'false');
-    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Pilih folder penyimpanan foto produk';
+    btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Buat Folder';
     btn.innerHTML=active
       ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(selectedFolderName)}</span>`
-      : `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>Pilih Folder</span>`;
+      : `<i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span>`;
   }
 
   function fileNameForProduct(productName){
@@ -6718,7 +6829,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         await updateFolderStatus();
       }catch(err){
         if(err?.name!=='AbortError' && typeof showModal==='function'){
-          showModal('Folder Foto',err?.message||'Folder foto belum dipilih.');
+          showModal('Folder Produk Kasir',err?.message||'Folder toko belum dapat dibuat.');
         }
       }finally{
         if(btn)btn.disabled=false;
