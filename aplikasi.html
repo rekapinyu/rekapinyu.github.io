@@ -5213,29 +5213,31 @@ async function saveSettingCloud(nextSetting){
   const r=getKasirRef(uid,p);
   const setting=normalizeSetting(nextSetting??window.__rekapinyuSettingData);
   window.__rekapinyuSettingData=setting;
-  const docData=exactKasirDoc({
+  const docData={
     NamaToko:currentSessionUser?.shopName,
     NomorHp:p,
-    TotalOmsetKasir:window.__rekapinyuKasirTotalOmset,
-    TotalProfitKasir:window.__rekapinyuKasirTotalProfit,
     Seting:setting
-  });
-  return enqueue(()=>setDoc(r,docData));
+  };
+  /* Jangan menyentuh TotalOmsetKasir/TotalProfitKasir dari menu Setting.
+     Kedua field hanya diperbarui oleh hasil Menu Laporan Kasir. */
+  return enqueue(()=>setDoc(r,docData,{merge:true}));
 }
-async function saveKasirTotalsCloud(){
+async function saveKasirTotalsCloud(totalValue=null,profitValue=null){
   if(!firestoreDataHydrated)return false;
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)return false;
   const r=getKasirRef(uid,p);
-  /* TotalOmset/TotalProfit hanya menggunakan nilai field Firestore yang sudah diterima listener.
-     Jangan menghitung ulang dari file JSON TransaksiKasir. */
-  const total=Number(window.__rekapinyuKasirTotalOmset)||0;
-  const profit=Number(window.__rekapinyuKasirTotalProfit)||0;
+  /* Hanya Menu Laporan Kasir yang boleh mengirim hasil perhitungannya ke Firestore.
+     Firestore tidak menghitung dan tidak membaca file JSON transaksi Kasir. */
+  const total=Number(totalValue??window.__rekapinyuKasirTotalOmset)||0;
+  const profit=Number(profitValue??window.__rekapinyuKasirTotalProfit)||0;
+  window.__rekapinyuKasirTotalOmset=total;
+  window.__rekapinyuKasirTotalProfit=profit;
   const docData=exactKasirDoc({NamaToko:currentSessionUser?.shopName,NomorHp:p,TotalOmsetKasir:total,TotalProfitKasir:profit,Seting:window.__rekapinyuSettingData});
   return enqueue(()=>setDoc(r,docData));
 }
 async function saveAllFirestoreData(){
   const jobs=[];
-  if(auth.currentUser&&currentSessionUser){jobs.push(saveCloudUser(),saveRekapCloud(currentRekapPayload()),saveActivityCloud(),saveSettingCloud(),saveKasirTotalsCloud());}
+  if(auth.currentUser&&currentSessionUser){jobs.push(saveCloudUser(),saveRekapCloud(currentRekapPayload()),saveActivityCloud(),saveSettingCloud());}
   return Promise.allSettled(jobs);
 }
 window.__rekapinyuSaveRekapCloud=saveRekapCloud;
@@ -5292,8 +5294,8 @@ async function hydrate(uid){
   applyingFirestoreRealtime=true;
   try{
     window.__rekapinyuActivityData=arrayFromField(ad,"Aktifitas",[]);
-    window.__rekapinyuKasirTotalOmset=Number(kd.TotalOmsetKasir)||0;
-    window.__rekapinyuKasirTotalProfit=Number(kd.TotalProfitKasir)||0;
+    /* TotalOmsetKasir/TotalProfitKasir tidak menjadi sumber aplikasi.
+       Nilai keduanya dihitung dari Menu Laporan Kasir lalu dikirim ke Firestore. */
     window.__rekapinyuSettingData=normalizeSetting(kd.Seting);
     window.__rekapinyuFirestoreRekap=exactRekapDoc(rd);
     window.__rekapinyuLocalRekapData=exactRekapDoc(rd);
@@ -5461,8 +5463,8 @@ function realtime(uid){
     try{
       if(currentSessionUser&&hasField(d,"NamaToko")&&String(d.NamaToko).trim())currentSessionUser.shopName=String(d.NamaToko).trim();
       if(hasField(d,"NomorHp")&&currentSessionUser)currentSessionUser.phone=phoneOf(d.NomorHp||currentSessionUser.phone);
-      window.__rekapinyuKasirTotalOmset=Number(d.TotalOmsetKasir)||0;
-      window.__rekapinyuKasirTotalProfit=Number(d.TotalProfitKasir)||0;
+      /* TotalOmsetKasir/TotalProfitKasir tidak menimpa hasil lokal Menu Laporan Kasir.
+         Firestore hanya menerima hasil perhitungan dari Menu Laporan Kasir. */
       if(hasField(d,"Seting"))window.__rekapinyuSettingData=normalizeSetting(d.Seting);
 
       /* Scanner HP tetap memakai satu-satunya field schema yang tersedia, yaitu Seting. */
@@ -8874,8 +8876,16 @@ async function initKasirViews(){
     const list=document.getElementById('lk16-report-list');
     if(!list)return;
     const reports=makeDailyReports(rows);
+    /* SUMBER PERHITUNGAN OMSET/PROFIT = transaksi JSON yang dibaca Menu Laporan Kasir.
+       Hasil ini menjadi nilai master aplikasi, lalu dikirim ke Firestore. */
+    const totalOmzet=reports.reduce((sum,report)=>sum+Number(report.omzet||0),0);
+    const totalProfit=Math.round(totalOmzet*0.10);
+    window.__rekapinyuKasirTotalOmset=totalOmzet;
+    window.__rekapinyuKasirTotalProfit=totalProfit;
+    Promise.resolve(window.__rekapinyuSaveKasirTotalsCloud?.(totalOmzet,totalProfit))
+      .catch(error=>console.warn('Rekapinyu: hasil Menu Laporan Kasir gagal disimpan ke Firestore.',error));
     if(!reports.length){
-      list.innerHTML='<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>Belum ada transaksi pada file JSON Kasir.</strong><span>Laporan membaca file JSON Kasir untuk daftar transaksi, sedangkan Omset Kasir dan Profit/Keuntungan dibaca dari Firestore.</span></div>';
+      list.innerHTML='<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>Belum ada transaksi pada file JSON Kasir.</strong><span>Laporan menghitung Omset Kasir dan Profit/Keuntungan dari file JSON Kasir, lalu hasilnya disimpan ke Firestore.</span></div>';
       return;
     }
     const firestoreOmset=Number(window.__rekapinyuKasirTotalOmset)||0;
