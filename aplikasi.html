@@ -6121,36 +6121,33 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
   }
   async function getDocumentsRootForAutoCreate(){
     let docs=null;
-    try{docs=window.__rekapinyuFolderManagerDocuments||null}catch(_){}
+    try{docs=window.__rekapinyuFolderManagerDocuments||null}catch(_){ }
     if(!docs){
-      try{docs=await idbGetDocumentsRoot()}catch(_){}
+      try{docs=await idbGetDocumentsRoot()}catch(_){ }
     }
     if(docs){
       try{
-        if(!isDocumentsDirectoryName(docs.name))docs=null;
-        else if((await docs.queryPermission({mode:'readwrite'}))==='granted')return {root:docs,shopFolder:null};
-        else if(docs.requestPermission&&(await docs.requestPermission({mode:'readwrite'}))==='granted')return {root:docs,shopFolder:null};
+        if(isDocumentsDirectoryName(docs.name)){
+          if((await docs.queryPermission({mode:'readwrite'}))==='granted')return {root:docs,shopFolder:null};
+          if(docs.requestPermission&&(await docs.requestPermission({mode:'readwrite'}))==='granted')return {root:docs,shopFolder:null};
+        }
       }catch(_){docs=null}
     }
-    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung pembuatan folder otomatis. Gunakan Chrome/Edge terbaru di desktop/tablet.');
+    if(!('showDirectoryPicker' in window))throw new Error('Browser ini belum mendukung akses folder perangkat. Gunakan Chrome/Edge terbaru di desktop/tablet.');
     /*
-       Dialog ini dipakai untuk memperoleh akses filesystem.
-       Pengguna boleh memilih folder toko yang baru dibuat manual di dalam Dokumen.
-       Bila yang dipilih adalah Dokumen, aplikasi tetap membuat folder toko otomatis.
+       Pengguna boleh membuat folder toko sendiri dari dialog browser, lalu memilih
+       folder tersebut. Folder yang dipilih dipakai LANGSUNG sebagai target Produk Kasir.
+       Bila yang dipilih adalah Documents/Dokumen, aplikasi tetap membuat folder toko
+       berdasarkan Nama Toko secara otomatis di dalamnya.
     */
     const picked=await window.showDirectoryPicker({mode:'readwrite',id:'rekapinyu-documents-manager',startIn:'documents'});
     if(!picked)throw new Error('Akses folder dibatalkan.');
     if(!(await requestDirectoryPermission(picked)))throw new Error('Izin akses folder ditolak.');
-    try{window.__rekapinyuFolderManagerDocuments=isDocumentsDirectoryName(picked.name)?picked:(window.__rekapinyuFolderManagerDocuments||null)}catch(_){}
     if(isDocumentsDirectoryName(picked.name)){
-      try{await idbSetDocumentsRoot(picked)}catch(_){}
+      try{window.__rekapinyuFolderManagerDocuments=picked}catch(_){ }
+      try{await idbSetDocumentsRoot(picked)}catch(_){ }
       return {root:picked,shopFolder:null};
     }
-    /*
-       Folder non-Dokumen dianggap sebagai folder toko yang sengaja dibuat manual
-       dari popup Dokumen. Target ini tidak lagi ditolak; subfolder Rekap/Produk/Kasir
-       akan dibuat otomatis di dalamnya.
-    */
     return {root:null,shopFolder:picked};
   }
 
@@ -6174,9 +6171,9 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
         }finally{window.__rekapinyuAllowFolderCreate=false;}
       }
     }
+    if(!shopFolder)throw new Error('Folder toko belum tersedia. Buat folder toko di dalam Dokumen lalu pilih folder tersebut.');
 
-    if(!shopFolder)throw new Error('Folder toko tidak tersedia. Buat atau pilih folder toko di dalam Dokumen.');
-
+    /* Subfolder standar SELALU dibuat otomatis di dalam folder target toko. */
     const required=['Rekap','Produk','Kasir'];
     try{
       window.__rekapinyuAllowFolderCreate=true;
