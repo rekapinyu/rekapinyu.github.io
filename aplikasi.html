@@ -5226,9 +5226,10 @@ async function saveKasirTotalsCloud(){
   if(!firestoreDataHydrated)return false;
   const uid=cloudUid(),p=currentPhone();if(!uid||!p)return false;
   const r=getKasirRef(uid,p);
-  const total=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime.reduce((a,x)=>a+(Number(x?.total)||0),0):Number(window.__rekapinyuKasirTotalOmset)||0;
-  const profit=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime.reduce((a,x)=>a+(Number(x?.profit)||0),0):Number(window.__rekapinyuKasirTotalProfit)||0;
-  window.__rekapinyuKasirTotalOmset=total;window.__rekapinyuKasirTotalProfit=profit;
+  /* TotalOmset/TotalProfit hanya menggunakan nilai field Firestore yang sudah diterima listener.
+     Jangan menghitung ulang dari file JSON TransaksiKasir. */
+  const total=Number(window.__rekapinyuKasirTotalOmset)||0;
+  const profit=Number(window.__rekapinyuKasirTotalProfit)||0;
   const docData=exactKasirDoc({NamaToko:currentSessionUser?.shopName,NomorHp:p,TotalOmsetKasir:total,TotalProfitKasir:profit,Seting:window.__rekapinyuSettingData});
   return enqueue(()=>setDoc(r,docData));
 }
@@ -6302,8 +6303,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     btn.classList.toggle('is-active',active);
     btn.setAttribute('aria-pressed',active?'true':'false');
     btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Buat Folder';
-    btn.disabled=active;
-    btn.style.cursor=active?'default':'pointer';
     btn.innerHTML=active
       ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(selectedFolderName)}</span>`
       : `<i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span>`;
@@ -7053,7 +7052,6 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
     $('pk3-folder-pick')?.addEventListener('click',async()=>{
       const btn=$('pk3-folder-pick');
-      if(btn?.disabled || btn?.classList.contains('is-active'))return;
       try{
         if(btn)btn.disabled=true;
         await selectPhotoDirectory();
@@ -7063,7 +7061,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
           showModal('Folder Produk Kasir',err?.message||'Folder toko belum dapat dibuat.');
         }
       }finally{
-        if(btn)btn.disabled=!!btn.classList.contains('is-active');
+        if(btn)btn.disabled=false;
       }
     });
     $('pk3-photo')?.addEventListener('change',e=>{
@@ -8674,15 +8672,13 @@ async function initKasirViews(){
   'use strict';
   /*
      LAPORAN KASIR V16
-     SUMBER UTAMA = FILE JSON DI FOLDER DATA/KASIR.
-     - Membaca SEMUA .json di folder Kasir dan seluruh subfoldernya.
-     - Tidak memilih hanya file terbaru; semua file ikut dibaca.
-     - Jika ID transaksi yang sama ditemukan di beberapa file, versi file dengan lastModified
-       terbaru yang dipakai sehingga backup/file baru tidak menggandakan transaksi.
+     SUMBER TRANSAKSI = FILE JSON DI FOLDER DATA/KASIR.
+     SUMBER OMSET/PROFIT = FIELD FIRESTORE TotalOmsetKasir/TotalProfitKasir.
+     - File JSON hanya dipakai untuk daftar transaksi, tanggal, jumlah transaksi, dan barang terjual.
+     - Omset Kasir dan Profit/Keuntungan tidak dihitung dari file JSON.
      - Folder target mengikuti folder yang sedang dipilih di Menu Produk Kasir.
      - Saat folder target diganti, laporan ikut membaca target baru.
-     - Saat target dikembalikan, laporan membaca ulang folder tersebut dari JSON sehingga data
-       kembali tanpa bergantung pada cache sementara.
+     - Saat target dikembalikan, laporan membaca ulang folder tersebut dari JSON.
   */
 
   const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -8879,18 +8875,20 @@ async function initKasirViews(){
     if(!list)return;
     const reports=makeDailyReports(rows);
     if(!reports.length){
-      list.innerHTML='<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>Belum ada transaksi pada file JSON Kasir.</strong><span>Laporan membaca semua file JSON Kasir dan seluruh subfoldernya dari folder yang dipilih di Menu Produk Kasir.</span></div>';
+      list.innerHTML='<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>Belum ada transaksi pada file JSON Kasir.</strong><span>Laporan membaca file JSON Kasir untuk daftar transaksi, sedangkan Omset Kasir dan Profit/Keuntungan dibaca dari Firestore.</span></div>';
       return;
     }
+    const firestoreOmset=Number(window.__rekapinyuKasirTotalOmset)||0;
+    const firestoreProfit=Number(window.__rekapinyuKasirTotalProfit)||0;
     list.innerHTML=reports.map(report=>`
       <article class="lk16-card">
         <div class="lk16-meta">ID: #${esc(report.id)} <span>•</span> Pukul ${esc(report.time)}</div>
         <div class="lk16-date"><i class="fa-regular fa-calendar-days"></i><span>${esc(report.label)}</span></div>
         <div class="lk16-stats">
-          <div><small><i class="fa-solid fa-arrow-trend-up"></i> Omset Kasir</small><strong class="omzet">${rupiah(report.omzet)}</strong></div>
+          <div><small><i class="fa-solid fa-arrow-trend-up"></i> Omset Kasir</small><strong class="omzet">${rupiah(firestoreOmset)}</strong></div>
           <div><small><i class="fa-solid fa-bag-shopping"></i> Total Transaksi Kasir</small><strong class="transaksi">${report.transactions} Transaksi</strong></div>
           <div><small><i class="fa-solid fa-box"></i> Total Barang Terjual</small><strong class="barang">${report.barang} Produk Terjual</strong></div>
-          <div><small><i class="fa-solid fa-wallet"></i> Profit/Keuntungan (10%)</small><strong class="profit">${rupiah(report.profit)}</strong></div>
+          <div><small><i class="fa-solid fa-wallet"></i> Profit/Keuntungan (10%)</small><strong class="profit">${rupiah(firestoreProfit)}</strong></div>
         </div>
       </article>`).join('');
   }
@@ -8925,7 +8923,8 @@ async function initKasirViews(){
   function start(){
     queueRefresh();
     if(scanTimer)clearInterval(scanTimer);
-    /* Polling hanya untuk mendeteksi perubahan file/folder; sumber data tetap file JSON. */
+    /* Polling hanya untuk mendeteksi perubahan file/folder pada daftar transaksi JSON.
+       Omset/Profit tetap mengikuti nilai Firestore realtime. */
     scanTimer=setInterval(()=>{
       const view=document.getElementById('view-laporan-kasir');
       if(!view||view.classList.contains('hidden'))return;
