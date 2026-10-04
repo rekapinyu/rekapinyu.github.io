@@ -6302,6 +6302,8 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     btn.classList.toggle('is-active',active);
     btn.setAttribute('aria-pressed',active?'true':'false');
     btn.title=active?`Folder penyimpanan: ${selectedFolderName}`:'Buat Folder';
+    btn.disabled=active;
+    btn.style.cursor=active?'default':'pointer';
     btn.innerHTML=active
       ? `<i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>${escapeHtml(selectedFolderName)}</span>`
       : `<i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span>Buat Folder</span>`;
@@ -7051,6 +7053,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
     });
     $('pk3-folder-pick')?.addEventListener('click',async()=>{
       const btn=$('pk3-folder-pick');
+      if(btn?.disabled || btn?.classList.contains('is-active'))return;
       try{
         if(btn)btn.disabled=true;
         await selectPhotoDirectory();
@@ -7060,7 +7063,7 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
           showModal('Folder Produk Kasir',err?.message||'Folder toko belum dapat dibuat.');
         }
       }finally{
-        if(btn)btn.disabled=false;
+        if(btn)btn.disabled=!!btn.classList.contains('is-active');
       }
     });
     $('pk3-photo')?.addEventListener('change',e=>{
