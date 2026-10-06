@@ -3893,6 +3893,23 @@ function updateUserAvatarUI() {
             yearSelect.value = currentSelectedYear;
         }
 
+        /* PATCH FOKUS HISTORY: sumber lokal menjadi prioritas, Firestore hanya fallback. */
+        function historyDateKey(item) {
+            return `${String(item?.day || '').trim()}|${String(item?.date || '').trim()}|${String(item?.month || '').trim()}|${String(item?.year || '').trim()}`.toLowerCase();
+        }
+        function historyValueKey(item) {
+            return `${historyDateKey(item)}|${Number(item?.income) || 0}|${Number(item?.expense) || 0}|${Number(item?.cashout) || 0}`;
+        }
+        function getHistoryForDisplay() {
+            const local = (Array.isArray(historyData) ? historyData : []).map(item => ({...item, __historySource:'local'}));
+            const localDates = new Set(local.map(historyDateKey));
+            const localValues = new Set(local.map(historyValueKey));
+            const cloud = Array.isArray(window.__rekapinyuFirestoreRekap?.InputData) ? window.__rekapinyuFirestoreRekap.InputData : [];
+            const fallback = cloud.filter(item => !localDates.has(historyDateKey(item)) && !localValues.has(historyValueKey(item)))
+                .map(item => ({...item, __historySource:'firestore'}));
+            return [...local, ...fallback];
+        }
+
         // RENDER HISTORY DENGAN ICON (BEARISH, BULLISH, PROFIT)
         function renderHistory() {
             const container = document.getElementById('history-grid');
@@ -3909,7 +3926,9 @@ function updateUserAvatarUI() {
             const fYear = fYearEl ? fYearEl.value : "";
 
             // Pastikan profit History selalu mengikuti rumus pada Form Input Data Harian.
-            historyData.forEach(item => {
+            const displayHistoryData = getHistoryForDisplay();
+
+            displayHistoryData.forEach(item => {
                 const income = Number(item.income) || 0;
                 const cashout = Number(item.cashout) || 0;
                 const pct = item.profitPercentage !== undefined ? (parseFloat(item.profitPercentage) || 0) : 10;
@@ -3917,7 +3936,7 @@ function updateUserAvatarUI() {
                 item.profit = Math.max((income - cashout) * (pct / 100), 0);
             });
 
-            let filtered = historyData.filter(item => {
+            let filtered = displayHistoryData.filter(item => {
                 const text = `${item.day || ''} ${item.date || ''} ${item.month || ''} ${item.year || ''}`.toLowerCase();
                 let matchSearch = !fSearch || text.includes(fSearch);
                 let matchDate = fDate === "" || item.date.toString() === fDate;
@@ -3966,7 +3985,7 @@ function updateUserAvatarUI() {
                                     <i class="fa-regular fa-calendar-days text-emerald-600"></i> ${item.day}, ${item.date} ${item.month} ${item.year}
                                 </h3>
                             </div>
-
+                            <span class="text-[10px] font-semibold whitespace-nowrap ${item.__historySource === 'firestore' ? 'text-blue-600' : 'text-emerald-600'}">data : #${item.__historySource === 'firestore' ? 'Firestore' : 'penyimpanan Lokal'}</span>
                         </div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -4801,7 +4820,7 @@ function updateUserAvatarUI() {
       }
     }
 
-    historyData=Array.from(historyMap.values()).sort(sortNewest);
+    historyData=Array.from(historyMap.values()).map(item=>({...item,__historySource:'local'})).sort(sortNewest);
     pengeluaranData=Array.from(pengeluaranMap.values()).sort(sortNewest);
     kasbonData=Array.from(kasbonMap.values()).sort(sortNewest);
 
@@ -5206,7 +5225,19 @@ async function saveRekapCloud(payload){
   if(!firestoreDataHydrated)return false;
   const uid=cloudUid(),p=currentPhone();
   if(!uid||!p)return false;
-  const r=getRekapRef(uid,p),docData=exactRekapDoc(payload||currentRekapPayload());
+  const r=getRekapRef(uid,p);
+  const incoming=exactRekapDoc(payload||currentRekapPayload());
+  /* PATCH FOKUS INPUTDATA: Firestore menjadi cadangan; lokal selalu prioritas. */
+  const existingCloud=exactRekapDoc(window.__rekapinyuFirestoreRekap||{});
+  const localItems=Array.isArray(historyData)?historyData:[];
+  const localDates=new Set(localItems.map(item=>`${String(item?.day||'').trim()}|${String(item?.date||'').trim()}|${String(item?.month||'').trim()}|${String(item?.year||'').trim()}`.toLowerCase()));
+  const valueKey=item=>`${String(item?.day||'').trim()}|${String(item?.date||'').trim()}|${String(item?.month||'').trim()}|${String(item?.year||'').trim()}|${Number(item?.income)||0}|${Number(item?.expense)||0}|${Number(item?.cashout)||0}`.toLowerCase();
+  const localValues=new Set(localItems.map(valueKey));
+  const cloudBase=Array.isArray(existingCloud.InputData)?existingCloud.InputData:[];
+  const retainedCloud=cloudBase.filter(item=>!localDates.has(historyDateKey(item)) && !localValues.has(valueKey(item)));
+  const mergedInput=[...retainedCloud];
+  for(const item of localItems){if(!mergedInput.some(x=>valueKey(x)===valueKey(item)))mergedInput.push({...item});}
+  const docData=exactRekapDoc({...incoming,InputData:mergedInput});
   window.__rekapinyuLocalRekapData=docData;
   return enqueue(()=>setDoc(r,docData));
 }
