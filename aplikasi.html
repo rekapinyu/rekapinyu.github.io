@@ -9590,7 +9590,11 @@ async function initKasirViews(){
         document.addEventListener('input', function(e) {
             if (e.target?.id === 'input-item-price' || e.target?.id === 'input-cash-paid' || e.target?.id === 'cat-item-price') {
                 cetak_formatNominalInput(e.target);
+                if (e.target.id === 'input-cash-paid') cetak_calculateChange();
             }
+        });
+        document.addEventListener('change', function(e) {
+            if (e.target?.id === 'input-cash-paid') cetak_calculateChange();
         });
 
         /* Navigation Tab Switcher */
@@ -9745,8 +9749,9 @@ async function initKasirViews(){
             const cashInput = document.getElementById('input-cash-paid');
             const changeDisplay = document.getElementById('display-change-amount');
             const changeBox = document.getElementById('change-status-box');
+            if (!cashInput || !changeDisplay || !changeBox) return 0;
 
-            const total = cetak_getCartTotal();
+            const total = Number(cetak_getCartTotal()) || 0;
             const cashPaid = cetak_parseNominal(cashInput.value);
             CETAK_APP_STATE.cashPaid = cashPaid;
 
@@ -9767,6 +9772,7 @@ async function initKasirViews(){
             }
 
             cetak_updateReceiptPreview();
+            return change;
         }
 
         function cetak_setQuickCash(type) {
@@ -9987,35 +9993,49 @@ async function initKasirViews(){
                 return;
             }
 
-            cetak_syncBluetoothFromKasir();
-            if (!CETAK_APP_STATE.isConnectedBT || !CETAK_APP_STATE.bluetoothCharacteristic) {
-                cetak_showToast("Printer Bluetooth belum tersambung di Menu Kasir!", "error");
-                return;
-            }
-            const characteristic = CETAK_APP_STATE.bluetoothCharacteristic;
-
             try {
-                cetak_showToast("Mengirim data ke printer...");
-                const bytes = cetak_generateEscPosBytes();
+                cetak_calculateChange();
+                cetak_syncBluetoothFromKasir();
 
-                const chunkSize = 20;
+                let characteristic = CETAK_APP_STATE.bluetoothCharacteristic;
+                let device = CETAK_APP_STATE.bluetoothDevice;
+
+                if (!device?.gatt?.connected || !characteristic) {
+                    if (typeof connectKasirBluetoothPrinter === 'function') {
+                        await connectKasirBluetoothPrinter();
+                        cetak_syncBluetoothFromKasir();
+                        characteristic = CETAK_APP_STATE.bluetoothCharacteristic;
+                        device = CETAK_APP_STATE.bluetoothDevice;
+                    }
+                }
+
+                if (!device?.gatt?.connected || !characteristic) {
+                    throw new Error("Printer Bluetooth belum tersambung atau layanan cetak tidak tersedia.");
+                }
+
+                const bytes = cetak_generateEscPosBytes();
+                const chunkSize = 180;
+                cetak_showToast("Mengirim data ke printer...");
+
                 for (let i = 0; i < bytes.length; i += chunkSize) {
                     const chunk = bytes.slice(i, i + chunkSize);
-                    if (characteristic.properties.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
+                    if (characteristic.properties?.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
                         await characteristic.writeValueWithoutResponse(chunk);
-                    } else if (characteristic.properties.write && typeof characteristic.writeValue === 'function') {
+                    } else if (characteristic.properties?.write && typeof characteristic.writeValue === 'function') {
+                        await characteristic.writeValue(chunk);
+                    } else if (typeof characteristic.writeValue === 'function') {
                         await characteristic.writeValue(chunk);
                     } else {
-                        throw new Error("Browser atau printer tidak menyediakan metode pengiriman data Bluetooth yang kompatibel.");
+                        throw new Error("Karakteristik printer tidak mendukung pengiriman data Bluetooth.");
                     }
+                    await new Promise(resolve => setTimeout(resolve, 25));
                 }
 
                 cetak_showToast("Struk berhasil dicetak!");
                 cetak_saveAndFinishTransaction(false);
-
             } catch (err) {
                 console.error("Print Error:", err);
-                cetak_showToast(`Gagal mencetak: ${err.message}`, "error");
+                cetak_showToast(`Gagal mencetak: ${err?.message || 'Tidak dapat mengirim struk ke printer.'}`, "error");
             }
         }
 
