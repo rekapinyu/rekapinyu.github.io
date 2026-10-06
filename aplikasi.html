@@ -2360,7 +2360,7 @@ bind();
                             <div class="col-span-8">
                                 <div class="relative">
                                     <span class="absolute left-3.5 top-2.5 text-xs text-slate-400 font-bold">Rp</span>
-                                    <input type="number" id="input-item-price" placeholder="Harga Satuan" min="0" step="500" required
+                                    <input type="text" id="input-item-price" inputmode="numeric" autocomplete="off" placeholder="Harga Satuan" required
                                         class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
                                 </div>
                             </div>
@@ -2405,7 +2405,7 @@ bind();
                         <label class="text-xs font-medium text-slate-600 block">Uang Diterima (Bayar):</label>
                         <div class="relative">
                             <span class="absolute left-3.5 top-2.5 text-sm font-extrabold text-slate-400">Rp</span>
-                            <input type="number" id="input-cash-paid" oninput="cetak_calculateChange()" placeholder="0" min="0" step="1000"
+                            <input type="text" id="input-cash-paid" inputmode="numeric" autocomplete="off" oninput="cetak_calculateChange()" placeholder="0"
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-base font-extrabold text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
                         </div>
 
@@ -8215,7 +8215,7 @@ async function initKasirViews(){
     if(e.target.closest('#settings-printer-disconnect')){e.preventDefault();kasirBluetoothDisconnect();updateSettingsPrinterPanel();showModal('Berhasil','Printer Bluetooth berhasil diputuskan.','fa-solid fa-link-slash text-emerald-600');return}
     if(e.target.closest('#settings-printer-save')){e.preventDefault();saveKasirPrinterSettings();showModal('Berhasil Disimpan','Pengaturan berhasil disimpan.','fa-solid fa-circle-check text-emerald-600');return}
     if(e.target.closest('#settings-kasir-save')){e.preventDefault();const data={confirmCancel:!!document.getElementById('kasir-confirm-cancel')?.checked,focusSearch:!!document.getElementById('kasir-focus-search')?.checked};const s=getSettingState();s.SettingKasir=data;window.__rekapinyuSettingData=s;try{window.__rekapinyuSaveSettingCloud?.()}catch(err){}notify('Berhasil Disimpan','Pengaturan kasir berhasil disimpan.','fa-solid fa-circle-check text-emerald-600');return}
-    if(e.target.closest('#settings-printer-test')){e.preventDefault();const characteristic=kasirBluetooth?.characteristic;if(!kasirBluetooth?.device?.gatt?.connected||!characteristic){showModal('Printer Belum Tersambung','Hubungkan printer Bluetooth terlebih dahulu.','fa-brands fa-bluetooth-b text-rose-600');return}const data=new TextEncoder().encode('\x1B\x40\x1B\x61\x01TEST PRINT REKAPINYU\n\x1B\x61\x00Printer siap digunakan.\n\n');(async()=>{try{if(characteristic.properties?.writeWithoutResponse&&characteristic.writeValueWithoutResponse)await characteristic.writeValueWithoutResponse(data);else await characteristic.writeValue(data);showModal('Berhasil','Test print berhasil dikirim ke printer.','fa-solid fa-print text-emerald-600')}catch(err){showModal('Test Print Gagal',err?.message||'Data test print tidak dapat dikirim.','fa-solid fa-print text-rose-600')}})();return}
+    if(e.target.closest('#settings-printer-test')){e.preventDefault();(async()=>{try{if(!kasirBluetooth?.device?.gatt?.connected||!kasirBluetooth?.characteristic){await connectKasirBluetoothPrinter()}const characteristic=kasirBluetooth?.characteristic;if(!kasirBluetooth?.device?.gatt?.connected||!characteristic)throw new Error('Printer Bluetooth belum tersambung atau layanan cetak tidak tersedia.');const data=new TextEncoder().encode('\x1B\x40\x1B\x61\x01TEST PRINT REKAPINYU\n\x1B\x61\x00Printer siap digunakan.\n\n');if(characteristic.properties?.writeWithoutResponse&&typeof characteristic.writeValueWithoutResponse==='function')await characteristic.writeValueWithoutResponse(data);else if(characteristic.properties?.write&&typeof characteristic.writeValue==='function')await characteristic.writeValue(data);else throw new Error('Karakteristik printer tidak mendukung pengiriman data.');showModal('Berhasil','Test print berhasil dikirim ke printer.','fa-solid fa-print text-emerald-600')}catch(err){showModal('Test Print Gagal',err?.message||'Data test print tidak dapat dikirim.','fa-solid fa-print text-rose-600')}finally{updateSettingsPrinterPanel();try{cetak_syncBluetoothFromKasir?.()}catch(_){}}})();return}
   });
   function saveKasirReceiptSettings(){
     const settings={
@@ -9564,6 +9564,35 @@ async function initKasirViews(){
             return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
         }
 
+        /* NOMINAL MENU CETAK: input tampil otomatis 20.000 / 5.000, tetapi nilai hitung tetap angka asli. */
+        function cetak_parseNominal(value) {
+            const digits = String(value ?? '').replace(/\D/g, '');
+            return digits ? Number(digits) : 0;
+        }
+        function cetak_formatNominalInput(input) {
+            if (!input) return;
+            const raw = String(input.value || '');
+            const cursor = typeof input.selectionStart === 'number' ? input.selectionStart : raw.length;
+            const digitsBeforeCursor = (raw.slice(0, cursor).match(/\d/g) || []).length;
+            const digits = raw.replace(/\D/g, '');
+            const formatted = digits ? Number(digits).toLocaleString('id-ID') : '';
+            input.value = formatted;
+            if (document.activeElement === input && typeof input.setSelectionRange === 'function') {
+                let pos = 0, seen = 0;
+                while (pos < formatted.length && seen < digitsBeforeCursor) {
+                    if (/\d/.test(formatted[pos])) seen++;
+                    pos++;
+                }
+                input.setSelectionRange(pos, pos);
+            }
+        }
+
+        document.addEventListener('input', function(e) {
+            if (e.target?.id === 'input-item-price' || e.target?.id === 'input-cash-paid' || e.target?.id === 'cat-item-price') {
+                cetak_formatNominalInput(e.target);
+            }
+        });
+
         /* Navigation Tab Switcher */
         function cetak_switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -9592,7 +9621,7 @@ async function initKasirViews(){
 
             const name = nameInput.value.trim();
             const qty = parseInt(qtyInput.value) || 1;
-            const price = parseFloat(priceInput.value) || 0;
+            const price = cetak_parseNominal(priceInput.value);
 
             if (!name || price <= 0) {
                 cetak_showToast("Nama & harga produk harus valid!", "error");
@@ -9718,7 +9747,7 @@ async function initKasirViews(){
             const changeBox = document.getElementById('change-status-box');
 
             const total = cetak_getCartTotal();
-            const cashPaid = parseFloat(cashInput.value) || 0;
+            const cashPaid = cetak_parseNominal(cashInput.value);
             CETAK_APP_STATE.cashPaid = cashPaid;
 
             const change = cashPaid - total;
@@ -9755,7 +9784,7 @@ async function initKasirViews(){
             } else if (typeof type === 'number') {
                 cashInput.value = type;
             }
-
+            cetak_formatNominalInput(cashInput);
             cetak_calculateChange();
         }
 
@@ -9959,17 +9988,17 @@ async function initKasirViews(){
             }
 
             cetak_syncBluetoothFromKasir();
-            const characteristic = CETAK_APP_STATE.bluetoothCharacteristic;
-            if (!CETAK_APP_STATE.isConnectedBT || !characteristic) {
+            if (!CETAK_APP_STATE.isConnectedBT || !CETAK_APP_STATE.bluetoothCharacteristic) {
                 cetak_showToast("Printer Bluetooth belum tersambung di Menu Kasir!", "error");
                 return;
             }
+            const characteristic = CETAK_APP_STATE.bluetoothCharacteristic;
 
             try {
                 cetak_showToast("Mengirim data ke printer...");
                 const bytes = cetak_generateEscPosBytes();
 
-                const chunkSize = 100;
+                const chunkSize = 20;
                 for (let i = 0; i < bytes.length; i += chunkSize) {
                     const chunk = bytes.slice(i, i + chunkSize);
                     if (characteristic.properties.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
@@ -10114,7 +10143,7 @@ async function initKasirViews(){
         function cetak_handleSaveCatalog(e) {
             e.preventDefault();
             const name = document.getElementById('cat-item-name').value.trim();
-            const price = parseFloat(document.getElementById('cat-item-price').value) || 0;
+            const price = cetak_parseNominal(document.getElementById('cat-item-price').value) || 0;
 
             if (!name || price <= 0) return;
 
