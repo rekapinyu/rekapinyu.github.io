@@ -2337,7 +2337,7 @@ bind();
                         <span class="flex items-center gap-1.5 text-slate-700"><i class="fa-solid fa-circle-plus text-emerald-500"></i> Tambah Item Produk</span>
                         <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-medium">Input Manual</span>
                     </div>
-                    <form id="add-item-form" onsubmit="cetak_handleAddItem(event)" class="space-y-3">
+                    <form id="add-item-form" onsubmit="return false" class="space-y-3">
                         <div>
                             <input type="text" id="input-item-name" placeholder="Nama Produk (mis: Es Teh Manis)" required
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition">
@@ -2355,7 +2355,7 @@ bind();
                                 </div>
                             </div>
                         </div>
-                        <button type="button" onclick="cetak_handleAddItem(event)" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition">
+                        <button type="button" id="cetak-add-item-button" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition">
                             <i class="fa-solid fa-plus text-sm"></i> Tambahkan ke Struk
                         </button>
                     </form>
@@ -9572,7 +9572,10 @@ async function initKasirViews(){
 
         /* Cart & Item Operations */
         function cetak_handleAddItem(e) {
-            e.preventDefault();
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             const nameInput = document.getElementById('input-item-name');
             const qtyInput = document.getElementById('input-item-qty');
             const priceInput = document.getElementById('input-item-price');
@@ -9607,6 +9610,16 @@ async function initKasirViews(){
             cetak_renderCart();
             cetak_updateReceiptPreview();
             cetak_showToast("Item berhasil ditambahkan!");
+            return false;
+        }
+
+        const cetakAddItemButton = document.getElementById('cetak-add-item-button');
+        if (cetakAddItemButton) {
+            cetakAddItemButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                cetak_handleAddItem(event);
+            });
         }
 
         function cetak_updateQty(id, delta) {
