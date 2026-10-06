@@ -2524,17 +2524,29 @@ bind();
                     </button>
                 </form>
 
-                <!-- Bluetooth mengikuti koneksi Menu Kasir -->
+                <!-- Bluetooth Device Info Box -->
                 <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2">
-                    <div class="flex items-center justify-between gap-3">
-                        <h3 class="text-xs font-bold text-slate-800">Status Bluetooth Thermal</h3>
-                        <span id="bt-status-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition bg-slate-100 text-slate-600 border border-slate-200"><span id="bt-indicator" class="w-2 h-2 rounded-full bg-slate-400"></span><i class="fa-brands fa-bluetooth-b"></i><span id="bt-status-text">Putus</span></span>
-                    </div>
-                    <p id="bt-detail-text" class="text-xs text-slate-500">Belum tersambung. Hubungkan printer dari Menu Kasir.</p>
+                    <h3 class="text-xs font-bold text-slate-800">Status Bluetooth Thermal</h3>
+                    <p id="bt-detail-text" class="text-xs text-slate-500">Tidak ada perangkat tersambung.</p>
+                    <button onclick="cetak_connectBluetoothDevice()" class="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-emerald-700 font-bold rounded-xl py-2.5 text-xs flex items-center justify-center gap-2">
+                        <i class="fa-bluetooth fab text-emerald-600"></i> Kelola Perangkat Bluetooth
+                    </button>
                 </div>
             </section>
 
         </div>
+        <!-- MODAL: Bluetooth Connection Manager -->
+        <div id="bt-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white border border-slate-200 w-full max-w-xs rounded-3xl p-5 space-y-4 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-bluetooth fab text-emerald-600"></i> Printer Bluetooth
+                    </h3>
+                    <button onclick="cetak_closeBluetoothModal()" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+            
+</section>
 <!-- PATCH: FILE MANAGER FOLDER TARGET, hanya area Atur Folder -->
 <div id="rk-folder-manager" class="rk-folder-manager" hidden>
   <div class="rk-folder-dialog">
@@ -8042,25 +8054,6 @@ async function initKasirViews(){
 
   /* KASIR BLUETOOTH — IMPLEMENTASI TUNGGAL. Implementasi lama dihapus seluruhnya. */
   const kasirBluetooth={device:null,characteristic:null,connecting:false};
-  const kasirBluetoothListeners=new Set();
-  window.__rekapinyuGetKasirBluetoothState=function(){
-    return {
-      device:kasirBluetooth.device,
-      characteristic:kasirBluetooth.characteristic,
-      connected:!!(kasirBluetooth.device?.gatt?.connected && kasirBluetooth.characteristic),
-      connecting:!!kasirBluetooth.connecting
-    };
-  };
-  window.__rekapinyuSubscribeKasirBluetooth=function(listener){
-    if(typeof listener!=='function')return function(){};
-    kasirBluetoothListeners.add(listener);
-    try{listener(window.__rekapinyuGetKasirBluetoothState())}catch(e){}
-    return function(){kasirBluetoothListeners.delete(listener)};
-  };
-  function notifyKasirBluetoothListeners(){
-    const state=window.__rekapinyuGetKasirBluetoothState();
-    kasirBluetoothListeners.forEach(fn=>{try{fn(state)}catch(e){}});
-  }
   const kasirBluetoothServices=[
     '0000ffe0-0000-1000-8000-00805f9b34fb',
     '0000ffe5-0000-1000-8000-00805f9b34fb',
@@ -8096,7 +8089,6 @@ async function initKasirViews(){
       printButton.title=connected?'Simpan transaksi dan cetak melalui printer Bluetooth':'Sambungkan printer Bluetooth terlebih dahulu';
     }
     if(typeof updateSettingsPrinterPanel==='function')updateSettingsPrinterPanel();
-    notifyKasirBluetoothListeners();
   }
 
   function kasirBluetoothDisconnect(){
@@ -9531,23 +9523,12 @@ async function initKasirViews(){
         /* Initialize App on Load */
         window.__rekapinyuInitCetak = function() {
             cetak_loadLocalStorage();
-            CETAK_APP_STATE.cart = [];
-            CETAK_APP_STATE.cashPaid = 0;
-            CETAK_APP_STATE.customerName = '';
-            const customerInput = document.getElementById('input-customer-name');
-            const cashInput = document.getElementById('input-cash-paid');
-            if (customerInput) customerInput.value = '';
-            if (cashInput) cashInput.value = '';
-            cetak_syncBluetoothFromKasir();
-            if (!CETAK_APP_STATE.__kasirBtSubscribed && typeof window.__rekapinyuSubscribeKasirBluetooth === 'function') {
-                window.__rekapinyuSubscribeKasirBluetooth(cetak_syncBluetoothFromKasir);
-                CETAK_APP_STATE.__kasirBtSubscribed = true;
-            }
             cetak_renderCart();
             cetak_renderCatalog();
             cetak_renderHistory();
             cetak_updateReceiptPreview();
             cetak_populateStoreForm();
+            cetak_syncBluetoothFromKasir();
         };
 
         /* Save & Load LocalStorage */
@@ -9908,45 +9889,43 @@ async function initKasirViews(){
             return new Uint8Array(bytes);
         }
 
-        /* Bluetooth Cetak mengikuti koneksi Bluetooth yang dipakai Menu Kasir. */
-        function cetak_syncBluetoothFromKasir(state) {
-            const shared = state || (typeof window.__rekapinyuGetKasirBluetoothState === 'function' ? window.__rekapinyuGetKasirBluetoothState() : null);
-            if (shared) {
-                CETAK_APP_STATE.bluetoothDevice = shared.device || null;
-                CETAK_APP_STATE.bluetoothCharacteristic = shared.characteristic || null;
-                CETAK_APP_STATE.isConnectedBT = !!shared.connected;
-            } else {
-                CETAK_APP_STATE.bluetoothDevice = null;
-                CETAK_APP_STATE.bluetoothCharacteristic = null;
-                CETAK_APP_STATE.isConnectedBT = false;
+        /* Web Bluetooth API Connection */
+        async function cetak_connectBluetoothDevice() {
+            if (typeof connectKasirBluetoothPrinter !== 'function') {
+                cetak_showToast("Koneksi Bluetooth Menu Kasir belum tersedia.", "error");
+                return;
             }
-            cetak_updateBTUI();
+            await connectKasirBluetoothPrinter();
+            cetak_syncBluetoothFromKasir();
         }
 
-        function cetak_updateBTUI() {
-            const indicator = document.getElementById('bt-indicator');
-            const statusText = document.getElementById('bt-status-text');
-            const statusBtn = document.getElementById('bt-status-btn');
-            const detailText = document.getElementById('bt-detail-text');
-            const nameDisplay = document.getElementById('bt-name-display');
-            const stateDisplay = document.getElementById('bt-state-display');
+        function cetak_disconnectBluetoothDevice() {
+            if (typeof kasirBluetoothDisconnect === 'function') kasirBluetoothDisconnect();
+            cetak_syncBluetoothFromKasir();
+        }
 
-            if (CETAK_APP_STATE.isConnectedBT) {
-                if(indicator) indicator.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-                if(statusText) statusText.textContent = 'Konek';
-                if(statusBtn) statusBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition bg-emerald-50 text-emerald-700 border border-emerald-200';
-                const devName = CETAK_APP_STATE.bluetoothDevice?.name || 'Thermal Printer';
-                if(nameDisplay) nameDisplay.textContent = devName;
-                if(stateDisplay) { stateDisplay.textContent = 'Tersambung (Siap Cetak)'; stateDisplay.className = 'font-bold text-emerald-600'; }
-                if(detailText) detailText.textContent = `Mengikuti koneksi printer Kasir: ${devName}`;
-            } else {
-                if(indicator) indicator.className = 'w-2 h-2 rounded-full bg-slate-400';
-                if(statusText) statusText.textContent = 'Putus';
-                if(statusBtn) statusBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition bg-slate-100 text-slate-600 border border-slate-200';
-                if(nameDisplay) nameDisplay.textContent = 'Belum Ada';
-                if(stateDisplay) { stateDisplay.textContent = 'Terputus'; stateDisplay.className = 'font-bold text-amber-500'; }
-                if(detailText) detailText.textContent = 'Belum tersambung. Hubungkan printer dari Menu Kasir.';
+        function cetak_onBTDisconnected() {
+            cetak_syncBluetoothFromKasir();
+        }
+
+
+        function cetak_syncBluetoothFromKasir() {
+            const connected = !!(typeof kasirBluetooth !== 'undefined' && kasirBluetooth.device?.gatt?.connected && kasirBluetooth.characteristic);
+            CETAK_APP_STATE.bluetoothDevice = connected ? kasirBluetooth.device : null;
+            CETAK_APP_STATE.bluetoothCharacteristic = connected ? kasirBluetooth.characteristic : null;
+            CETAK_APP_STATE.isConnectedBT = connected;
+
+            const detailText = document.getElementById('bt-detail-text');
+            if (detailText) {
+                detailText.textContent = connected
+                    ? `Tersambung ke ${kasirBluetooth.device?.name || 'Printer Bluetooth'}`
+                    : 'Printer mengikuti koneksi Bluetooth pada Menu Kasir.';
             }
+        }
+
+        // Pantau status koneksi yang sama dari Menu Kasir tanpa membuat koneksi Bluetooth baru.
+        if (!window.__rekapinyuCetakBluetoothSyncTimer) {
+            window.__rekapinyuCetakBluetoothSyncTimer = setInterval(cetak_syncBluetoothFromKasir, 500);
         }
 
         /* Print Actions */
@@ -9956,10 +9935,10 @@ async function initKasirViews(){
                 return;
             }
 
-            const shared = typeof window.__rekapinyuGetKasirBluetoothState === 'function' ? window.__rekapinyuGetKasirBluetoothState() : null;
-            if (!shared?.connected || !shared.characteristic) {
-                cetak_syncBluetoothFromKasir(shared);
-                cetak_showToast("Printer Bluetooth belum tersambung. Hubungkan dari Menu Kasir.", "error");
+            cetak_syncBluetoothFromKasir();
+            const characteristic = CETAK_APP_STATE.bluetoothCharacteristic;
+            if (!CETAK_APP_STATE.isConnectedBT || !characteristic) {
+                cetak_showToast("Printer Bluetooth belum tersambung di Menu Kasir!", "error");
                 return;
             }
 
@@ -9970,7 +9949,6 @@ async function initKasirViews(){
                 const chunkSize = 100;
                 for (let i = 0; i < bytes.length; i += chunkSize) {
                     const chunk = bytes.slice(i, i + chunkSize);
-                    const characteristic = shared.characteristic;
                     if (characteristic.properties.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
                         await characteristic.writeValueWithoutResponse(chunk);
                     } else if (characteristic.properties.write && typeof characteristic.writeValue === 'function') {
@@ -10196,6 +10174,15 @@ async function initKasirViews(){
             cetak_saveData();
             cetak_updateReceiptPreview();
             cetak_showToast("Pengaturan toko disimpan!");
+        }
+
+        /* Bluetooth Modal Control */
+        function cetak_openBluetoothModal() {
+            document.getElementById('bt-modal').classList.remove('hidden');
+        }
+
+        function cetak_closeBluetoothModal() {
+            document.getElementById('bt-modal').classList.add('hidden');
         }
 
         /* Custom Toast Notification */
