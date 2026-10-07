@@ -3046,7 +3046,56 @@ function updateUserAvatarUI() {
         function switchTab(tab) {
             if (window.matchMedia('(max-width:767px)').matches) {
                 const mobileAllowed = ['home','history','activity','laporan-kasir','report'];
-                if (!mobileAllowed.includes(tab)) { window.__rekapinyuShowMobileHome?.(); return; }
+                if (tab === 'home') {
+                    window.__rekapinyuShowMobileHome?.();
+                    return;
+                }
+                if (!mobileAllowed.includes(tab)) {
+                    window.__rekapinyuShowMobileHome?.();
+                    return;
+                }
+
+                /* MOBILE SAJA: satu jalur tampilan agar view tidak saling menumpuk. */
+                const mobileViews = ['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings','cetak'];
+                mobileViews.forEach(v=>document.getElementById(`view-${v}`)?.classList.add('hidden'));
+                document.getElementById('mobile-home-view')?.classList.add('hidden');
+                document.getElementById('activity-main-container')?.classList.add('hidden');
+
+                const target=document.getElementById(`view-${tab}`);
+                if(target)target.classList.remove('hidden');
+                if(tab==='activity')document.getElementById('activity-main-container')?.classList.remove('hidden');
+
+                const mobileTitles={
+                    history:['Riwayat Rekapitulasi Realtime','Semua riwayat entri data harian lengkap.'],
+                    activity:['Aktifitas','History aktifitas penggunaan aplikasi secara realtime.'],
+                    'laporan-kasir':['Laporan Kasir','Ringkasan transaksi penjualan dari menu Kasir.'],
+                    report:['Laporan Rekapitulasi Bulanan','Akumulasi total pendapatan, belanja, pengeluaran, dan profit bulanan.']
+                };
+                const mt=mobileTitles[tab];
+                if(mt){
+                    document.getElementById('page-title-header').innerText=mt[0];
+                    document.getElementById('page-subtitle-header').innerText=mt[1];
+                }
+                const mobileActiveId=tab==='history'?'nav-mobile-history':tab==='activity'?'nav-mobile-activity':tab==='laporan-kasir'?'nav-mobile-laporan-kasir':'nav-mobile-report';
+                ['nav-mobile-home','nav-mobile-history','nav-mobile-activity','nav-mobile-laporan-kasir','nav-mobile-report'].forEach(id=>{
+                    const el=document.getElementById(id);
+                    if(!el)return;
+                    const isActive=id===mobileActiveId;
+                    el.className=isActive
+                        ? 'mobile-dock-item flex flex-col items-center justify-center py-2 px-4 text-emerald-600 transition'
+                        : 'mobile-dock-item flex flex-col items-center justify-center py-2 px-4 text-slate-400 transition';
+                    const span=el.querySelector('span');
+                    if(span)span.className=isActive?'text-[11px] font-semibold':'text-[11px] font-medium';
+                });
+
+                if(tab==='report')window.__rekapinyuRenderMobileLaporanBulanan?.();
+                if(tab==='laporan-kasir')window.__rekapinyuRenderMobileLaporanKasir?.();
+                if(tab==='history'){
+                    if(typeof window.__rekapinyuLoadLocalRekap==='function')window.__rekapinyuLoadLocalRekap().catch(err=>console.warn('Rekapinyu: History gagal membaca folder target.',err));
+                    if(typeof populateHistoryFilters==='function')populateHistoryFilters();
+                    if(typeof renderHistory==='function')renderHistory();
+                }
+                return;
             }
             if (tab === 'home') {
                 if (window.matchMedia('(max-width:767px)').matches && typeof window.__rekapinyuShowMobileHome === 'function') {
@@ -4983,6 +5032,13 @@ function updateUserAvatarUI() {
     })();
     </script>
 <!-- HISTORY LAYOUT: posisi tepat di bawah header dengan jarak kecil -->
+<style id="mobile-view-guard-single">
+@media(max-width:767px){
+  #view-input{display:none!important;}
+  #rekapinyu-welcome-popup{display:none!important;}
+  #rekapinyu-welcome-popup.is-open{display:none!important;}
+}
+</style>
 <style id="history-layout-single">
 #view-history{
   width:100%!important;
@@ -9699,7 +9755,7 @@ async function initKasirViews(){
 (function(){
   const popupId='rekapinyu-welcome-popup';
   let lastSession='';
-  function openPopup(){const p=document.getElementById(popupId);if(!p)return;p.classList.add('is-open');p.setAttribute('aria-hidden','false')}
+  function openPopup(){if(window.matchMedia&&window.matchMedia('(max-width:767px)').matches)return;const p=document.getElementById(popupId);if(!p)return;p.classList.add('is-open');p.setAttribute('aria-hidden','false')}
   function closePopup(){const p=document.getElementById(popupId);if(!p)return;p.classList.remove('is-open');p.setAttribute('aria-hidden','true')}
   function sessionKey(){try{return currentSessionUser&&currentSessionUser.phone?String(currentSessionUser.phone):''}catch(e){return ''}}
   function check(){const key=sessionKey();if(key&&key!==lastSession){lastSession=key;openPopup()}else if(!key){lastSession='';closePopup()}}
@@ -9715,7 +9771,7 @@ async function initKasirViews(){
   const popup=document.getElementById('rekapinyu-welcome-popup');
   if(!btn||!popup||btn.dataset.guideBound==='1')return;
   btn.dataset.guideBound='1';
-  btn.addEventListener('click',function(e){e.preventDefault();popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')});
+  btn.addEventListener('click',function(e){e.preventDefault();if(window.matchMedia&&window.matchMedia('(max-width:767px)').matches)return;popup.classList.add('is-open');popup.setAttribute('aria-hidden','false')});
 })();
 </script>
 <script id="mobile-kasir-scanner-menu-only">
