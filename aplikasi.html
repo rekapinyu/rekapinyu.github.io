@@ -2321,6 +2321,10 @@ bind();
 </div>
 <!-- VIEW CETAK — isi dari cetakstruk.html, tanpa header cetakstruk -->
 <section class="hidden" id="view-cetak">
+<div id="cetak-toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-2xl z-[100001] opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-2">
+<i id="cetak-toast-icon" class="fa-solid fa-circle-info text-emerald-400"></i>
+<span id="cetak-toast-message">Pesan notifikasi</span>
+</div>
         <div id="cetak-module-content" class="w-full min-h-full p-0 max-w-[1120px] mx-auto">
 
             <!-- TAB 1: KASIR & INPUT PRODUK -->
@@ -10206,7 +10210,14 @@ async function initKasirViews(){
         window.cetak_disconnectBluetoothDevice = cetak_disconnectBluetoothDevice;
         window.cetak_onBTDisconnected = cetak_onBTDisconnected;
         window.cetak_printViaBluetooth = cetak_printViaBluetooth;
+        window.cetak_printViaBrowser = cetak_printViaBrowser;
+        window.cetak_updateReceiptPreview = cetak_updateReceiptPreview;
+        window.cetak_calculateChange = cetak_calculateChange;
+        window.cetak_setQuickCash = cetak_setQuickCash;
+        window.cetak_resetCart = cetak_resetCart;
+        window.cetak_saveAndFinishTransaction = cetak_saveAndFinishTransaction;
         window.cetak_syncBluetoothStatus = cetak_syncBluetoothStatus;
+        window.cetak_showToast = cetak_showToast;
 
         cetak_syncBluetoothStatus();
 
@@ -10419,13 +10430,14 @@ async function initKasirViews(){
             cetak_showToast("Pengaturan toko disimpan!");
         }
 
-        /* Custom Toast Notification */
+        /* Custom Toast Notification — Menu Cetak only */
         function cetak_showToast(message, type = "info") {
-            const toast = document.getElementById('toast');
-            const msgEl = document.getElementById('toast-message');
-            const iconEl = document.getElementById('toast-icon');
+            const toast = document.getElementById('cetak-toast');
+            const msgEl = document.getElementById('cetak-toast-message');
+            const iconEl = document.getElementById('cetak-toast-icon');
+            if (!toast || !msgEl || !iconEl) return;
 
-            msgEl.textContent = message;
+            msgEl.textContent = String(message ?? '');
             if (type === "error") {
                 iconEl.className = "fa-solid fa-circle-exclamation text-rose-400";
             } else {
@@ -10435,7 +10447,8 @@ async function initKasirViews(){
             toast.classList.remove('opacity-0', 'pointer-events-none');
             toast.classList.add('opacity-100');
 
-            setTimeout(() => {
+            clearTimeout(window.__rekapinyuCetakToastTimer);
+            window.__rekapinyuCetakToastTimer = setTimeout(() => {
                 toast.classList.remove('opacity-100');
                 toast.classList.add('opacity-0', 'pointer-events-none');
             }, 2500);
