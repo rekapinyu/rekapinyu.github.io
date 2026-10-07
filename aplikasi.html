@@ -4883,42 +4883,121 @@ function updateUserAvatarUI() {
         if(!window.matchMedia('(max-width:767px)').matches)return;
         const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
         const keyDate=(d,m,y)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const now=new Date(), days=[];
-        for(let i=6;i>=0;i--){const d=new Date(now);d.setHours(0,0,0,0);d.setDate(now.getDate()-i);days.push(d);}
-        const hist=Array.isArray(historyData)?historyData:[];
-        const tx=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)?window.__rekapinyuKasirTransactionsRealtime:[];
-        const normDate=x=>{
-          const d=Number(x?.date), m=Number(x?.monthIndex), y=Number(x?.year);
-          if(!d||Number.isNaN(m)||!y)return null;
-          return keyDate(d,m,y);
-        };
-        const hmap={};
-        hist.forEach(x=>{const k=normDate(x);if(k)hmap[k]=x});
-        const tmap={};
-        tx.forEach(x=>{
-          let dt=x.date||x.tanggal||x.createdAt||x.timestamp;
-          let d=null;
-          if(dt?.toDate)d=dt.toDate(); else if(dt instanceof Date)d=dt; else if(typeof dt==='string'||typeof dt==='number'){const z=new Date(dt);if(!Number.isNaN(z.getTime()))d=z}
-          if(!d && x.day && x.month && x.year)d=new Date(Number(x.year),Math.max(0,Number(x.month)-1),Number(x.day));
-          if(!d)return;
-          const k=keyDate(d.getDate(),d.getMonth(),d.getFullYear());
-          if(!tmap[k])tmap[k]={omzet:0,profit:0,count:0};
-          tmap[k].omzet+=Number(x.total)||0;tmap[k].count++;
-          const items=Array.isArray(x.cart)?x.cart:(Array.isArray(x.itemsDetail)?x.itemsDetail:[]);
-          tmap[k].profit+=items.reduce((sum,it)=>sum+(Math.max(Number(it.price)||0-(Number(it.hpp??it.cost)||0),0)*(Number(it.qty)||1)),0);
+        const now=new Date();
+        now.setHours(0,0,0,0);
+
+        /* Beranda membaca sumber yang sama dengan dock History. */
+        const historySource=typeof getHistoryForDisplay==='function'
+          ? getHistoryForDisplay()
+          : (Array.isArray(historyData)?historyData:[]);
+
+        const historyByDate={};
+        historySource.forEach(item=>{
+          const d=Number(item?.date);
+          const m=Number(item?.monthIndex);
+          const y=Number(item?.year);
+          if(!d||Number.isNaN(m)||!y)return;
+          historyByDate[keyDate(d,m,y)]=item;
         });
+
+        /* Beranda membaca hasil harian yang sudah dibuat Menu dock Laporan Kasir.
+           Jika laporan belum pernah dirender, gunakan transaksi realtime sebagai fallback
+           tanpa mengubah sumber/logic menu lain. */
+        let kasirReports=Array.isArray(window.__rekapinyuMobileLaporanKasirDailyReports)
+          ? window.__rekapinyuMobileLaporanKasirDailyReports.slice()
+          : [];
+
+        if(!kasirReports.length){
+          const tx=Array.isArray(window.__rekapinyuKasirTransactionsRealtime)
+            ? window.__rekapinyuKasirTransactionsRealtime : [];
+          const groups={};
+          const transactionDateOf=x=>{
+            let dt=x?.date||x?.tanggal||x?.createdAt||x?.timestamp;
+            if(dt?.toDate)return dt.toDate();
+            if(dt instanceof Date)return dt;
+            if(typeof dt==='string'||typeof dt==='number'){
+              const z=new Date(dt);
+              if(!Number.isNaN(z.getTime()))return z;
+            }
+            if(x?.day&&x?.month&&x?.year){
+              return new Date(Number(x.year),Number(x.month)-1,Number(x.day));
+            }
+            return null;
+          };
+          tx.forEach(x=>{
+            const d=transactionDateOf(x);
+            if(!d)return;
+            d.setHours(0,0,0,0);
+            const k=keyDate(d.getDate(),d.getMonth(),d.getFullYear());
+            if(!groups[k])groups[k]={date:d,omzet:0,transactions:0,profit:0};
+            groups[k].omzet+=Number(x?.total??x?.grandTotal??x?.amount??x?.jumlah??x?.subtotal)||0;
+            groups[k].transactions++;
+          });
+          kasirReports=Object.values(groups).sort((a,b)=>b.date-a.date).map(g=>({
+            label:g.date.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+            date:g.date,
+            omzet:g.omzet,
+            transactions:g.transactions,
+            profit:Math.round(g.omzet*0.10)
+          }));
+        }
+
+        const kasirByDate={};
+        kasirReports.forEach(report=>{
+          let d=report?.date;
+          if(!(d instanceof Date)){
+            d=new Date(d||'');
+          }
+          if(Number.isNaN(d.getTime()))return;
+          const k=keyDate(d.getDate(),d.getMonth(),d.getFullYear());
+          kasirByDate[k]=report;
+        });
+
+        /* Terbaru -> 7 hari terakhir. */
+        const days=[];
+        for(let i=0;i<7;i++){
+          const d=new Date(now);
+          d.setDate(now.getDate()-i);
+          days.push(d);
+        }
+
         const card=(d,type)=>{
           const k=keyDate(d.getDate(),d.getMonth(),d.getFullYear());
           const day=d.toLocaleDateString('id-ID',{weekday:'short'});
           const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit'});
           if(type==='kasir'){
-            const v=tmap[k], has=!!v;
-            return `<div class="mobile-home-day-card"><div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div><div class="mobile-home-day-main">${has?`<div class="mobile-home-day-value">${rupiah(v.omzet)}</div><div class="mobile-home-day-sub">${v.count} transaksi • Profit ${rupiah(v.profit)}</div>`:`<div class="mobile-home-day-empty">Belum ada transaksi</div>`}</div></div>`;
+            const v=kasirByDate[k];
+            return `<div class="mobile-home-day-card">
+              <div class="mobile-home-day-head">
+                <span class="mobile-home-day-name">${day}</span>
+                <span class="mobile-home-day-date">${date}</span>
+              </div>
+              <div class="mobile-home-day-main">
+                ${v
+                  ? `<div class="mobile-home-day-value">${rupiah(v.omzet)}</div>
+                     <div class="mobile-home-day-sub">${Number(v.transactions)||0} transaksi • Profit ${rupiah(v.profit)}</div>`
+                  : `<div class="mobile-home-day-empty">Belum ada data Laporan Kasir</div>`}
+              </div>
+            </div>`;
           }
-          const v=hmap[k],has=!!v;
-          return `<div class="mobile-home-day-card"><div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div><div class="mobile-home-day-main">${has?`<div class="mobile-home-day-value">${rupiah(v.income)}</div><div class="mobile-home-day-sub">Belanja ${rupiah(v.expense)} • Profit ${rupiah(v.profit)}</div>`:`<div class="mobile-home-day-empty">Belum ada data</div>`}</div></div>`;
+
+          const v=historyByDate[k];
+          return `<div class="mobile-home-day-card">
+            <div class="mobile-home-day-head">
+              <span class="mobile-home-day-name">${day}</span>
+              <span class="mobile-home-day-date">${date}</span>
+            </div>
+            <div class="mobile-home-day-main">
+              ${v
+                ? `<div class="mobile-home-day-value">${rupiah(v.income)}</div>
+                   <div class="mobile-home-day-sub">Belanja ${rupiah(v.expense)} • Profit ${rupiah(v.profit)}</div>`
+                : `<div class="mobile-home-day-empty">Belum ada data History</div>`}
+            </div>
+          </div>`;
         };
-        const kc=document.getElementById('mobile-home-kasir-carousel'),rc=document.getElementById('mobile-home-rekap-carousel');
+
+        const kc=document.getElementById('mobile-home-kasir-carousel');
+        const rc=document.getElementById('mobile-home-rekap-carousel');
         if(kc)kc.innerHTML=days.map(d=>card(d,'kasir')).join('');
         if(rc)rc.innerHTML=days.map(d=>card(d,'rekap')).join('');
       };
@@ -9485,6 +9564,7 @@ async function initKasirViews(){
     const reports=makeDailyReports(rows);
     /* SUMBER PERHITUNGAN OMSET/PROFIT = transaksi JSON yang dibaca Menu Laporan Kasir.
        Hasil ini menjadi nilai master aplikasi, lalu dikirim ke Firestore. */
+    window.__rekapinyuMobileLaporanKasirDailyReports=reports.slice();
     const totalOmzet=reports.reduce((sum,report)=>sum+Number(report.omzet||0),0);
     const totalProfit=Math.round(totalOmzet*0.10);
     window.__rekapinyuKasirTotalOmset=totalOmzet;
