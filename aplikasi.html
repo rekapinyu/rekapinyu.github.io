@@ -5036,25 +5036,36 @@ function updateUserAvatarUI() {
         }
       });
     document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
-    function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
-    /* MOBILE SAJA: pastikan setelah reload seluruh proses inisialisasi selesai tetap kembali ke Beranda. */
-    window.addEventListener('pageshow',function(){
-      if(window.matchMedia('(max-width:767px)').matches){
-        window.setTimeout(function(){
-          home();
-          const inputView=document.getElementById('view-input');
-          if(inputView)inputView.classList.add('hidden');
-        },0);
-      }
+    function initMobileHome(){
+      if(!window.matchMedia('(max-width:767px)').matches)return;
+      home();
+      renderMobileAdminSummary();
+      syncMobileProfileButton();
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
+
+    /* MOBILE SAJA: satu pengunci tampilan Beranda. Tidak menghapus #view-input,
+       hanya memastikan view Input Data tidak pernah terbuka di Beranda mobile. */
+    const mobileHomeViewLock=new MutationObserver(function(){
+      if(!window.matchMedia('(max-width:767px)').matches)return;
+      if(document.documentElement.getAttribute('data-mobile-view')!=='home')return;
+      const inputView=document.getElementById('view-input');
+      if(inputView && !inputView.classList.contains('hidden'))inputView.classList.add('hidden');
+      const homeView=document.getElementById('mobile-home-view');
+      if(homeView && homeView.classList.contains('hidden'))homeView.classList.remove('hidden');
     });
+    mobileHomeViewLock.observe(document.documentElement,{attributes:true,attributeFilter:['data-mobile-view']});
+    mobileHomeViewLock.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','style']});
+    if(window.matchMedia('(max-width:767px)').matches)home();
     })();
     </script>
 <!-- HISTORY LAYOUT: posisi tepat di bawah header dengan jarak kecil -->
 <style id="mobile-view-guard-single">
 @media(max-width:767px){
-  html:not([data-mobile-view]) #view-input{display:none!important;}
+  /* Hanya mengatur tampilan mobile. #view-input tetap ada untuk desktop. */
   html[data-mobile-view="home"] #view-input{display:none!important;}
-  #rekapinyu-welcome-popup{display:none!important;}
+  html[data-mobile-view="home"] #mobile-home-view{display:block!important;}
+  #rekapinyu-welcome-popup,
   #rekapinyu-welcome-popup.is-open{display:none!important;}
 }
 </style>
