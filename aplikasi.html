@@ -4928,21 +4928,24 @@ function updateUserAvatarUI() {
             kasirMap.set(dateKey(d),report);
           });
 
-          const latestDate=(dates)=>{
-            const valid=dates.filter(Boolean).map(d=>new Date(d.getFullYear(),d.getMonth(),d.getDate()));
-            if(!valid.length)return null;
-            return valid.sort((a,b)=>b-a)[0];
-          };
-          const latestKasir=latestDate(Array.from(kasirMap.values()).map(toDate));
-          const latestHistory=latestDate(Array.from(historyMap.values()).map(toDate));
-          const buildDays=(latest)=>{
-            if(!latest)return [];
+          /* CAROUSEL: selalu gunakan tanggal hari ini sebagai tanggal terbaru,
+             lalu tampilkan 7 hari: hari ini sampai 6 hari sebelumnya.
+             Sumber data tetap sama dengan menu masing-masing; tanggal tanpa data
+             tetap ditampilkan sebagai kotak kosong. */
+          const buildDays=()=>{
+            const today=new Date();
+            today.setHours(0,0,0,0);
             const result=[];
-            for(let i=6;i>=0;i--){const d=new Date(latest);d.setDate(latest.getDate()-i);result.push(d);}
+            for(let i=6;i>=0;i--){
+              const d=new Date(today);
+              d.setDate(today.getDate()-i);
+              result.push(d);
+            }
             return result;
           };
-          const kasirDays=buildDays(latestKasir);
-          const historyDays=buildDays(latestHistory);
+          const carouselDays=buildDays();
+          const kasirDays=carouselDays;
+          const historyDays=carouselDays;
           const card=(d,type)=>{
             const key=dateKey(d);
             const day=d.toLocaleDateString('id-ID',{weekday:'short'});
