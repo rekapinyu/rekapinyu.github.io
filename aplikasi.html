@@ -5029,26 +5029,54 @@ function updateUserAvatarUI() {
       window.__rekapinyuShowMobileHome=home;
     document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
     function initMobileHome(){if(window.matchMedia('(max-width:767px)').matches){home();renderMobileAdminSummary();syncMobileProfileButton()}};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initMobileHome);else initMobileHome();
-    /* MOBILE SAJA: pastikan setelah reload seluruh proses inisialisasi selesai tetap kembali ke Beranda. */
-    window.addEventListener('pageshow',function(){
-      if(window.matchMedia('(max-width:767px)').matches){
-        window.setTimeout(function(){
-          home();
-          const inputView=document.getElementById('view-input');
-          if(inputView)inputView.classList.add('hidden');
-        },0);
-      }
-    });
     })();
     </script>
-<!-- HISTORY LAYOUT: posisi tepat di bawah header dengan jarak kecil -->
-<style id="mobile-view-guard-single">
-@media(max-width:767px){
-  #view-input{display:none!important;}
-  #rekapinyu-welcome-popup{display:none!important;}
-  #rekapinyu-welcome-popup.is-open{display:none!important;}
+<!-- MOBILE HOME FINAL SINGLE IMPLEMENTATION: reload + Firestore realtime -->
+<style id="mobile-home-final-single">
+@media (max-width:767px){
+  #view-input,#view-pengeluaran,#view-kasbon,#view-history,#view-report,#view-backup,#view-kasir,#view-produk-kasir,#view-laporan-kasir,#view-activity,#view-settings,#view-cetak{display:none!important;}
+  #activity-main-container{display:none!important;}
+  #mobile-home-view{display:block!important;}
 }
 </style>
+<script id="mobile-home-final-single-js">
+(function(){
+  'use strict';
+  const isMobile=()=>window.matchMedia&&window.matchMedia('(max-width:767px)').matches;
+  const hideAll=()=>{
+    ['input','pengeluaran','kasbon','history','report','backup','kasir','produk-kasir','laporan-kasir','activity','settings','cetak'].forEach(v=>document.getElementById('view-'+v)?.classList.add('hidden'));
+    document.getElementById('activity-main-container')?.classList.add('hidden');
+    document.getElementById('pengeluaran-sticky-container')?.classList.add('hidden');
+    document.getElementById('kasbon-sticky-container')?.classList.add('hidden');
+    document.getElementById('backup-sticky-container')?.classList.add('hidden');
+  };
+  const render=()=>{try{window.__rekapinyuRenderMobileReportHome?.()}catch(e){console.warn('Rekapinyu mobile home render:',e)}};
+  const home=()=>{
+    if(!isMobile())return;
+    hideAll();
+    document.getElementById('mobile-home-view')?.classList.remove('hidden');
+    const t=document.getElementById('page-title-header'),sub=document.getElementById('page-subtitle-header');
+    if(t)t.innerText='Beranda';
+    if(sub)sub.innerText='Ringkasan laporan 7 hari terakhir.';
+    ['nav-mobile-home','nav-mobile-history','nav-mobile-activity','nav-mobile-laporan-kasir','nav-mobile-report'].forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      const active=id==='nav-mobile-home';
+      el.className=active?'mobile-dock-item flex flex-col items-center justify-center py-2 px-1 text-emerald-600 transition':'mobile-dock-item flex flex-col items-center justify-center py-2 px-1 text-slate-400 transition';
+      if(id==='nav-mobile-activity')el.classList.add('mobile-dock-activity');
+      const sp=el.querySelector('span');if(sp)sp.className=active?'text-[10px] font-semibold':'text-[10px] font-medium';
+    });
+    render();
+  };
+  window.__rekapinyuShowMobileHome=home;
+  document.addEventListener('rekapinyu-mobile-home-firestore-updated',()=>{if(isMobile()&&!document.getElementById('mobile-home-view')?.classList.contains('hidden'))render()});
+  const boot=()=>{if(!isMobile())return;home();try{window.renderMobileAdminSummary?.()}catch{}try{window.syncMobileProfileButton?.()}catch{}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.addEventListener('pageshow',()=>{if(isMobile())boot()});
+})();
+</script>
+
+<!-- HISTORY LAYOUT: posisi tepat di bawah header dengan jarak kecil -->
+
 <style id="history-layout-single">
 #view-history{
   width:100%!important;
@@ -6134,6 +6162,7 @@ function realtime(uid){
         Pengeluaran:Array.isArray(d.Pengeluaran)?d.Pengeluaran:[],
         Kasbon:Array.isArray(d.Kasbon)?d.Kasbon:[]
       };
+      if(window.matchMedia?.('(max-width:767px)').matches)document.dispatchEvent(new CustomEvent('rekapinyu-mobile-home-firestore-updated'));
     }finally{applyingFirestoreRealtime=false}
     commonAfter();
   },e=>log("realtime Rekap gagal",e)));
@@ -6155,6 +6184,7 @@ function realtime(uid){
         TotalOmsetKasir:Number(d.TotalOmsetKasir)||0,
         TotalProfitKasir:Number(d.TotalProfitKasir)||0
       };
+      if(window.matchMedia?.('(max-width:767px)').matches)document.dispatchEvent(new CustomEvent('rekapinyu-mobile-home-firestore-updated'));
       if(window.matchMedia('(max-width:767px)').matches){
         try{window.__rekapinyuRenderMobileLaporanKasir?.()}catch{}
       }
