@@ -3217,6 +3217,9 @@ function updateUserAvatarUI() {
                 if (backupStickyContainer) backupStickyContainer.classList.remove('hidden');
             }
 
+            if (tab === 'report' && window.matchMedia('(max-width:767px)').matches) {
+                window.__rekapinyuRenderMobileLaporanBulanan?.();
+            }
             if (tab === 'input' || tab === 'backup' || tab === 'laporan-kasir' || tab === 'settings') {
                 if (tab === 'backup') {
                     populateBackupFilters();
@@ -4810,8 +4813,7 @@ function updateUserAvatarUI() {
             window.closeMobileProfileMenu=function(){const menu=document.getElementById('mobile-profile-menu');if(menu)menu.classList.add('hidden')};
       window.renderMobileAdminSummary=renderMobileAdminSummary;
 
-      /* MOBILE SAJA: Laporan Kasir mengambil langsung TotalOmsetKasir dan TotalProfitKasir
-         dari listener Firestore Kasir, lalu menampilkannya dalam satu grid ikon. */
+      /* MOBILE SAJA: Laporan Kasir membaca TOTAL dari Firestore dan memakai gaya grid/icon seperti History. */
       window.__rekapinyuRenderMobileLaporanKasir=function(){
         if(!window.matchMedia('(max-width:767px)').matches)return;
         const view=document.getElementById('view-laporan-kasir');
@@ -4830,15 +4832,63 @@ function updateUserAvatarUI() {
         const rupiah=n=>'Rp '+n.toLocaleString('id-ID');
         panel.innerHTML=`
           <div class="mobile-laporan-kasir-card">
-            <div class="mobile-laporan-kasir-icon"><i class="fa-solid fa-cash-register"></i></div>
-            <div class="mobile-laporan-kasir-label">Total Omset Kasir</div>
-            <div class="mobile-laporan-kasir-value">${rupiah(omzet)}</div>
+            <div class="mobile-laporan-kasir-card-head">
+              <div><div class="mobile-laporan-kasir-card-title"><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><div class="mobile-laporan-kasir-card-value">${rupiah(omzet)}</div></div>
+              <span class="mobile-laporan-kasir-icon mobile-laporan-kasir-icon-omset"><i class="fa-solid fa-cash-register"></i></span>
+            </div>
           </div>
           <div class="mobile-laporan-kasir-card">
-            <div class="mobile-laporan-kasir-icon"><i class="fa-solid fa-sack-dollar"></i></div>
-            <div class="mobile-laporan-kasir-label">Total Profit Kasir</div>
-            <div class="mobile-laporan-kasir-value">${rupiah(profit)}</div>
+            <div class="mobile-laporan-kasir-card-head">
+              <div><div class="mobile-laporan-kasir-card-title"><i class="fa-solid fa-wallet"></i> Total Profit Kasir</div><div class="mobile-laporan-kasir-card-value profit">${rupiah(profit)}</div></div>
+              <span class="mobile-laporan-kasir-icon mobile-laporan-kasir-icon-profit"><i class="fa-solid fa-sack-dollar"></i></span>
+            </div>
           </div>`;
+      };
+
+      /* MOBILE SAJA: Laporan Bulanan selalu memakai sumber yang sama dengan Menu History. */
+      window.__rekapinyuRenderMobileLaporanBulanan=function(){
+        if(!window.matchMedia('(max-width:767px)').matches)return;
+        const view=document.getElementById('view-report');
+        if(!view)return;
+        let panel=document.getElementById('mobile-laporan-bulanan-history-grid');
+        if(!panel){
+          panel=document.createElement('div');
+          panel.id='mobile-laporan-bulanan-history-grid';
+          panel.className='mobile-laporan-bulanan-history-grid';
+          view.appendChild(panel);
+        }
+        Array.from(view.children).forEach(el=>{if(el!==panel)el.classList.add('hidden')});
+        const source=typeof getHistoryForDisplay==='function'?getHistoryForDisplay():(Array.isArray(historyData)?historyData:[]);
+        const map=new Map();
+        const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        source.forEach(item=>{
+          const month=String(item?.month||months[Number(item?.monthIndex)]||'').trim();
+          const year=Number(item?.year)||0;
+          if(!month||!year)return;
+          const key=month+'|'+year;
+          if(!map.has(key))map.set(key,{month,year,pendapatan:0,belanja:0,pengeluaran:0,profit:0,count:0});
+          const g=map.get(key);
+          g.pendapatan+=Number(item?.income)||0;
+          g.belanja+=Number(item?.expense)||0;
+          g.pengeluaran+=Number(item?.cashout)||0;
+          g.profit+=Number(item?.profit)||0;
+          g.count++;
+        });
+        const rows=Array.from(map.values()).sort((a,b)=>b.year-a.year||months.indexOf(b.month)-months.indexOf(a.month));
+        const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
+        if(!rows.length){
+          panel.innerHTML='<div class="mobile-laporan-bulanan-empty"><i class="fa-solid fa-chart-pie"></i><strong>Belum ada data History.</strong><span>Laporan Bulanan otomatis membaca data dari menu History.</span></div>';
+          return;
+        }
+        panel.innerHTML=rows.map(g=>`<article class="mobile-laporan-bulanan-card">
+          <div class="mobile-laporan-bulanan-head"><div><div class="mobile-laporan-bulanan-title"><i class="fa-regular fa-calendar-days"></i> ${g.month} ${g.year}</div><small>${g.count} data History</small></div></div>
+          <div class="mobile-laporan-bulanan-grid">
+            <div><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>${rupiah(g.pendapatan)}</strong></div>
+            <div><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>${rupiah(g.belanja)}</strong></div>
+            <div><div><i class="fa-solid fa-arrow-trend-down"></i> Pengeluaran</div><strong>${rupiah(g.pengeluaran)}</strong></div>
+            <div><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>${rupiah(g.profit)}</strong></div>
+          </div>
+        </article>`).join('');
       };
 
       window.__rekapinyuRenderMobileReportHome=function(){
@@ -9522,6 +9572,34 @@ async function initKasirViews(){
   });
 })();
 </script>
+
+<style id="mobile-dock-laporan-history-style">
+@media(max-width:767px){
+  #view-laporan-kasir{padding:12px!important;background:#f1f4f8!important}
+  #mobile-laporan-kasir-firestore-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:1100px;margin:0 auto}
+  .mobile-laporan-kasir-card{min-width:0;background:#fff;border:1px solid #e5eaf0;border-radius:16px;padding:12px;box-shadow:0 8px 22px rgba(15,23,42,.055)}
+  .mobile-laporan-kasir-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+  .mobile-laporan-kasir-card-title{display:flex;align-items:center;gap:6px;color:#64748b;font-size:10px;font-weight:800;line-height:1.25}
+  .mobile-laporan-kasir-card-title i{color:#16a085}
+  .mobile-laporan-kasir-card-value{margin-top:7px;color:#0f9f8a;font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mobile-laporan-kasir-card-value.profit{color:#d97706}
+  .mobile-laporan-kasir-icon{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .mobile-laporan-kasir-icon-omset{background:#e9f8f4;color:#16a085}
+  .mobile-laporan-kasir-icon-profit{background:#fef3c7;color:#d97706}
+  #mobile-laporan-bulanan-history-grid{display:flex;flex-direction:column;gap:10px;width:100%;max-width:1100px;margin:0 auto}
+  .mobile-laporan-bulanan-card{background:#fff;border:1px solid #e5eaf0;border-radius:16px;padding:12px;box-shadow:0 8px 22px rgba(15,23,42,.055)}
+  .mobile-laporan-bulanan-title{display:flex;align-items:center;gap:7px;color:#172033;font-size:13px;font-weight:900}
+  .mobile-laporan-bulanan-title i{color:#16a085}
+  .mobile-laporan-bulanan-head small{display:block;margin-top:3px;color:#94a3b8;font-size:9px}
+  .mobile-laporan-bulanan-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #edf0f3}
+  .mobile-laporan-bulanan-grid>div{min-width:0;padding:9px;border:1px solid #e8edf2;border-radius:12px;background:#f7f9fb}
+  .mobile-laporan-bulanan-grid>div>div{display:flex;align-items:center;gap:5px;color:#64748b;font-size:9px;font-weight:800}
+  .mobile-laporan-bulanan-grid>div:nth-child(1)>div i{color:#16a085}.mobile-laporan-bulanan-grid>div:nth-child(2)>div i{color:#2563eb}.mobile-laporan-bulanan-grid>div:nth-child(3)>div i{color:#ef4444}.mobile-laporan-bulanan-grid>div:nth-child(4)>div i{color:#d97706}
+  .mobile-laporan-bulanan-grid strong{display:block;margin-top:5px;font-size:11px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mobile-laporan-bulanan-empty{padding:45px 16px;text-align:center;background:#fff;border:1px dashed #cbd5e1;border-radius:16px;color:#94a3b8;display:flex;flex-direction:column;align-items:center;gap:7px}
+  .mobile-laporan-bulanan-empty i{font-size:32px;color:#cbd5e1}.mobile-laporan-bulanan-empty strong{font-size:12px;color:#64748b}.mobile-laporan-bulanan-empty span{font-size:10px}
+}
+</style>
 
 <style id="laporan-kasir-baru-v16-css">
 #view-laporan-kasir{width:100%;min-height:100%;padding:18px 14px;box-sizing:border-box;overflow:auto;background:#f1f4f8}
