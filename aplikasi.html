@@ -2902,10 +2902,16 @@ function updateUserAvatarUI() {
         }
 
         function updateUserInStorage() {
-            localStorage.setItem('finance_active_session', JSON.stringify(currentSessionUser));
+            const safeSession = {...(currentSessionUser || {})};
+            delete safeSession.password;
+            delete safeSession.Pasword;
+            localStorage.setItem('finance_active_session', JSON.stringify(safeSession));
             const index = registeredUsers.findIndex(u => u.phone === currentSessionUser.phone);
             if (index !== -1) {
-                registeredUsers[index] = currentSessionUser;
+                const safeUser = {...currentSessionUser};
+                delete safeUser.password;
+                delete safeUser.Pasword;
+                registeredUsers[index] = safeUser;
                 localStorage.setItem('finance_registered_users', JSON.stringify(registeredUsers));
             }
         }
@@ -5327,6 +5333,13 @@ function updateUserAvatarUI() {
   });
 })();
 </script>
+<!-- REKAPINYU SECURITY HARDENING — hanya lapisan keamanan; UI/menu tetap original.
+     Firebase Auth menjadi sumber identitas; UID silang ditolak oleh lapisan aplikasi.
+     Write Firestore ditolak tanpa sesi Auth aktif atau jika UID sesi berubah.
+     Password tidak dipersistenkan oleh jalur baru ke localStorage/Firestore.
+     API write mentah Firestore/Storage tidak diekspos melalui window.RekapinyuFirebase.
+     Keamanan server-side tetap wajib melalui Firestore Rules, Storage Rules,
+     Authentication, App Check, dan validasi backend untuk data anti-manipulasi. -->
 <!-- REKAPINYU: FIREBASE — SATU IMPLEMENTASI FINAL SCHEMA KASIR / PENGGUNA / REKAP -->
 <script type="module" id="rekapinyu-firebase-final-schema">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
@@ -5382,8 +5395,10 @@ function collectionRef(name){return collection(db,name);}
    Data hanya ditulis oleh aksi penyimpanan yang memang dipanggil aplikasi.
    ================================================================ */
 function directRef(name,uid){
-  if(!uid)throw new Error(`Sesi Firebase tidak tersedia untuk collection ${name}.`);
-  return doc(db,name,uid);
+  const activeUid=auth.currentUser?.uid||"";
+  if(!activeUid)throw new Error(`Sesi Firebase tidak tersedia untuk collection ${name}.`);
+  if(String(uid)!==String(activeUid))throw new Error("Akses Firestore ditolak: UID sesi tidak cocok.");
+  return doc(db,name,activeUid);
 }
 function getPenggunaRef(uid,p){if(refs.pengguna?.id===uid)return refs.pengguna;refs.pengguna=directRef(COLLECTION.PENGGUNA,uid);return refs.pengguna;}
 function getKasirRef(uid,p){if(refs.kasir?.id===uid)return refs.kasir;refs.kasir=directRef(COLLECTION.KASIR,uid);return refs.kasir;}
@@ -5421,10 +5436,13 @@ const PHOTO_MAX_BYTES=102400;
 function upsertRegisteredLocalUser(user){
   const p=phoneOf(user?.phone);if(!p)return null;
   const rows=safe(localStorage.getItem("finance_registered_users"),[]),list=Array.isArray(rows)?rows:[],incoming={...(user||{}),phone:p};
+  /* SECURITY: kredensial tidak boleh dipersistenkan di localStorage. */
+  delete incoming.password;delete incoming.Pasword;
   delete incoming.photo;delete incoming.cover;delete incoming.coverX;delete incoming.coverY;
   const i=list.findIndex(x=>phoneOf(x?.phone)===p);
   if(i>=0){
     list[i]={...list[i],...incoming};
+    delete list[i].password;delete list[i].Pasword;
     delete list[i].photo;delete list[i].cover;delete list[i].coverX;delete list[i].coverY;
   }else list.unshift(incoming);
   nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));return list[i>=0?i:0];
@@ -5443,9 +5461,9 @@ const photoStore={
     for(let pass=0;pass<18;pass++){const w=Math.max(320,Math.round(sw*scale)),h=Math.max(320,Math.round(sh*scale)),c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d",{alpha:false});if(!ctx)throw new Error("Browser tidak mendukung pemrosesan gambar.");ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(img,0,0,w,h);for(let q=.96;q>=.30;q-=.025){const d=c.toDataURL("image/jpeg",q);last=d;if(this.dataUrlBytes(d)<=maxBytes)return d}scale*=.90}
     if(last&&this.dataUrlBytes(last)<=maxBytes)return last;throw new Error("Gambar tidak dapat dikompres hingga 100 KB.");
   },
-  hydrate(p){if(!currentSessionUser)return;const profile=this.readProfile(p),cover=this.readCover(p);Object.defineProperty(currentSessionUser,"photo",{value:profile,writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"cover",{value:cover?.src||"",writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"coverX",{value:Number(cover?.x)||50,writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"coverY",{value:Number(cover?.y)||50,writable:true,configurable:true,enumerable:false});nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);try{updateUserAvatarUI?.()}catch{}try{this.refreshCover()}catch{}},
-  async saveProfile(file){const p=phoneOf(currentSessionUser?.phone);if(!p)throw new Error("Sesi pengguna tidak ditemukan.");const data=await this.compress(file,PHOTO_MAX_BYTES,1800,1800);nativeSet.call(localStorage,this.profileKey(p),data);currentSessionUser.photo=data;nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);updateUserAvatarUI();return data;},
-  async saveCover(file,x=50,y=50){const p=phoneOf(currentSessionUser?.phone);if(!p)throw new Error("Sesi pengguna tidak ditemukan.");const data=await this.compress(file,PHOTO_MAX_BYTES,2200,1400),clean={src:data,x:Math.max(0,Math.min(100,Number(x)||50)),y:Math.max(0,Math.min(100,Number(y)||50))};nativeSet.call(localStorage,this.coverKey(p),JSON.stringify(clean));currentSessionUser.cover=clean.src;currentSessionUser.coverX=clean.x;currentSessionUser.coverY=clean.y;nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);this.refreshCover();return clean;},
+  hydrate(p){if(!currentSessionUser)return;const profile=this.readProfile(p),cover=this.readCover(p);Object.defineProperty(currentSessionUser,"photo",{value:profile,writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"cover",{value:cover?.src||"",writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"coverX",{value:Number(cover?.x)||50,writable:true,configurable:true,enumerable:false});Object.defineProperty(currentSessionUser,"coverY",{value:Number(cover?.y)||50,writable:true,configurable:true,enumerable:false});persistSafeSession();upsertRegisteredLocalUser(currentSessionUser);try{updateUserAvatarUI?.()}catch{}try{this.refreshCover()}catch{}},
+  async saveProfile(file){const p=phoneOf(currentSessionUser?.phone);if(!p)throw new Error("Sesi pengguna tidak ditemukan.");const data=await this.compress(file,PHOTO_MAX_BYTES,1800,1800);nativeSet.call(localStorage,this.profileKey(p),data);currentSessionUser.photo=data;persistSafeSession();upsertRegisteredLocalUser(currentSessionUser);updateUserAvatarUI();return data;},
+  async saveCover(file,x=50,y=50){const p=phoneOf(currentSessionUser?.phone);if(!p)throw new Error("Sesi pengguna tidak ditemukan.");const data=await this.compress(file,PHOTO_MAX_BYTES,2200,1400),clean={src:data,x:Math.max(0,Math.min(100,Number(x)||50)),y:Math.max(0,Math.min(100,Number(y)||50))};nativeSet.call(localStorage,this.coverKey(p),JSON.stringify(clean));currentSessionUser.cover=clean.src;currentSessionUser.coverX=clean.x;currentSessionUser.coverY=clean.y;persistSafeSession();upsertRegisteredLocalUser(currentSessionUser);this.refreshCover();return clean;},
   coverUi:null,
   initCover(){
     if(this.coverUi)return;const input=document.getElementById("shop-cover-input"),frame=document.getElementById("foto-sampul-toko"),image=document.getElementById("shop-cover-image"),placeholder=document.getElementById("shop-cover-placeholder"),save=document.getElementById("shop-cover-save"),hint=document.getElementById("shop-cover-edit-hint");if(!input||!frame||!image||!placeholder||!save)return;
@@ -5469,24 +5487,40 @@ window.refreshShopCoverPhoto=()=>photoStore.refreshCover();
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>photoStore.initCover(),{once:true});else photoStore.initCover();
 
 function enqueue(task){
+  /* SECURITY: write hanya boleh berjalan saat Firebase Auth aktif dan UID sesi cocok. */
+  const activeUid=auth.currentUser?.uid||"";
+  const sessionUid=currentSessionUser?.uid||"";
+  if(!activeUid||((sessionUid)&&String(sessionUid)!==String(activeUid))){
+    const rejected=Promise.reject(new Error("Penyimpanan ditolak: sesi pengguna tidak valid."));
+    cloudSaveChain=cloudSaveChain.catch(()=>{}).then(()=>rejected);
+    return cloudSaveChain;
+  }
   /* Jika satu write sebelumnya gagal, antrean wajib pulih agar write berikutnya
      tetap dikirim ke Firestore. Error task saat ini tetap diteruskan ke pemanggil. */
-  cloudSaveChain=cloudSaveChain.catch(()=>{}).then(task).catch(e=>{log("penyimpanan Firestore gagal",e);throw e});
+  cloudSaveChain=cloudSaveChain.catch(()=>{}).then(()=>{
+    if(!auth.currentUser?.uid||String(auth.currentUser.uid)!==String(activeUid))throw new Error("Penyimpanan ditolak: sesi Firebase berubah.");
+    return task();
+  }).catch(e=>{log("penyimpanan Firestore gagal",e);throw e});
   return cloudSaveChain;
 }
 function notify(t,m,i){if(typeof showModal==="function")showModal(t,m,i);else alert(`${t}\n${m}`)}
+function persistSafeSession(){
+  const safeSession={...(currentSessionUser||{})};
+  delete safeSession.password;delete safeSession.Pasword;
+  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(safeSession));
+}
 function localSession(u){
   const p=phoneOf(u.phone),registered=safe(localStorage.getItem("finance_registered_users"),[]),old=Array.isArray(registered)?registered.find(x=>phoneOf(x?.phone)===p)||{}:{};
   const hasExplicitPhoto=Object.prototype.hasOwnProperty.call(u,"photo");
   const hasExplicitCover=Object.prototype.hasOwnProperty.call(u,"cover");
   const localProfile=hasExplicitPhoto?String(u.photo||""):photoStore.readProfile(p)||"";
   const localCover=hasExplicitCover?(u.cover?{src:String(u.cover||""),x:Number(u.coverX)||50,y:Number(u.coverY)||50}:null):photoStore.readCover(p)||null;
-  currentSessionUser={uid:u.uid,name:u.name||old.name||"",phone:p,email:u.email||auth.currentUser?.email||old.email||"",password:u.password??old.password??"",role:u.role||old.role||"Pengguna",shopName:String(u.shopName??old.shopName??old.storeName??old.tokoName??"").trim()};
+  currentSessionUser={uid:u.uid,name:u.name||old.name||"",phone:p,email:u.email||auth.currentUser?.email||old.email||"",password:u.password??"",role:u.role||old.role||"Pengguna",shopName:String(u.shopName??old.shopName??old.storeName??old.tokoName??"").trim()};
   Object.defineProperty(currentSessionUser,"photo",{value:localProfile,writable:true,configurable:true,enumerable:false});
   Object.defineProperty(currentSessionUser,"cover",{value:localCover?.src||"",writable:true,configurable:true,enumerable:false});
   Object.defineProperty(currentSessionUser,"coverX",{value:Number(localCover?.x)||50,writable:true,configurable:true,enumerable:false});
   Object.defineProperty(currentSessionUser,"coverY",{value:Number(localCover?.y)||50,writable:true,configurable:true,enumerable:false});
-  nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));upsertRegisteredLocalUser(currentSessionUser);
+  persistSafeSession();upsertRegisteredLocalUser(currentSessionUser);
 }
 
 function exactRekapDoc(payload={}){
@@ -5523,7 +5557,7 @@ async function writeBaseSchema(uid,p,name){
   const [pr,kr,rr,ar]=[getPenggunaRef(uid,pClean),getKasirRef(uid,pClean),getRekapRef(uid,pClean),getAktifitasRef(uid,pClean)];
   const setting=normalizeSetting(SETTING_DEFAULTS);
   await Promise.all([
-    setDoc(pr,{NamaPengguna:nameClean,NomorHp:pClean,Pasword:String(currentSessionUser?.password||""),role:String(currentSessionUser?.role||"Pengguna")}),
+    setDoc(pr,{NamaPengguna:nameClean,NomorHp:pClean,role:String(currentSessionUser?.role||"Pengguna")}),
     setDoc(kr,{NamaToko:shopName,NomorHp:pClean,TotalOmsetKasir:0,TotalProfitKasir:0,Seting:setting}),
     setDoc(rr,{NamaToko:shopName,NomorHp:pClean,InputData:[],Pengeluaran:[],Kasbon:[]}),
     setDoc(ar,{Aktifitas:[],NamaToko:shopName,NomorHp:pClean})
@@ -5613,7 +5647,7 @@ async function enforceExactFirestoreSchema(uid,p,docs){
   const cleanPengguna={
     NamaPengguna:String(pu.NamaPengguna||currentSessionUser?.name||auth.currentUser?.displayName||"").trim(),
     NomorHp:phoneOf(pu.NomorHp||p),
-    Pasword:String(pu.Pasword||currentSessionUser?.password||""),
+    /* SECURITY: password tidak dimuat dari Firestore ke sesi aplikasi. */
     role:String(pu.role||currentSessionUser?.role||"Pengguna")
   };
   const cleanKasir=exactKasirDoc({
@@ -5651,7 +5685,7 @@ async function hydrate(uid){
   };
   const pu=docs.pengguna,kd=docs.kasir,rd=docs.rekap,ad=docs.aktifitas;
   const shopName=String(kd.NamaToko||rd.NamaToko||currentSessionUser?.shopName||"").trim();
-  const user={uid,name:String(pu.NamaPengguna||currentSessionUser?.name||auth.currentUser?.displayName||""),shopName,phone:phoneOf(pu.NomorHp||p),email:auth.currentUser?.email||currentSessionUser?.email||"",password:String(pu.Pasword||currentSessionUser?.password||""),role:String(pu.role||"Pengguna")};
+  const user={uid,name:String(pu.NamaPengguna||currentSessionUser?.name||auth.currentUser?.displayName||""),shopName,phone:phoneOf(pu.NomorHp||p),email:auth.currentUser?.email||currentSessionUser?.email||"",password:"",role:String(pu.role||"Pengguna")};
   localSession(user);
   applyingFirestoreRealtime=true;
   try{
@@ -5688,13 +5722,13 @@ async function saveCloudUser(extra={}){
   const payload={
     NamaPengguna:String(extra.name??currentSessionUser?.name??u.displayName??"").trim(),
     NomorHp:p,
-    Pasword:String(extra.password??currentSessionUser?.password??""),
     role:String(extra.role??currentSessionUser?.role??"Pengguna")
   };
   if(!currentSessionUser)currentSessionUser={uid:u.uid,name:"",phone:p,email:u.email||"",password:"",role:"Pengguna",shopName:""};
   currentSessionUser.name=payload.NamaPengguna;
   currentSessionUser.phone=p;
-  currentSessionUser.password=payload.Pasword;
+  /* SECURITY: password tetap hanya berada di RAM sesi. */
+  currentSessionUser.password=String(extra.password??currentSessionUser.password??"");
   currentSessionUser.role=payload.role;
   const r=getPenggunaRef(u.uid,p);
   return enqueue(()=>setDoc(r,payload));
@@ -5757,7 +5791,7 @@ const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("lo
 const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="register-form")return;e.preventDefault();e.stopImmediatePropagation();rekapinyuAuth.submit(e.target)};document.addEventListener("submit",authSubmitGuard,true);window.__rekapinyuAuthController=rekapinyuAuth;
 
 window.handleLogout=async()=>{try{await window.__rekapinyuSaveLocalRekap?.();await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();window.location.replace("https://rekapinyu.github.io/login")}};
-window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
+window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();persistSafeSession();await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
 function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
 function realtime(uid){
@@ -5784,7 +5818,7 @@ function realtime(uid){
       if(!currentSessionUser)currentSessionUser={uid,name:"",phone:p,email:auth.currentUser?.email||"",password:"",role:"Pengguna",shopName:""};
       currentSessionUser.name=String(d.NamaPengguna||"");
       currentSessionUser.phone=phoneOf(d.NomorHp||p);
-      currentSessionUser.password=String(d.Pasword||currentSessionUser.password||"");
+      currentSessionUser.password="";
       currentSessionUser.role=String(d.role||"Pengguna");
       document.getElementById("sidebar-user-name")?.replaceChildren(document.createTextNode(currentSessionUser.name));
       updateUserAvatarUI();
@@ -5872,9 +5906,19 @@ function realtime(uid){
 async function consumeLandingLogin(){try{await authReadyPromise;const hash=window.location.hash||"",m=hash.match(/^#rekapinyu_login=([^&]+)$/);if(!m)return false;const raw=m[1].replace(/-/g,"+").replace(/_/g,"/"),padded=raw+"=".repeat((4-raw.length%4)%4);const bin=atob(padded);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const data=JSON.parse(new TextDecoder().decode(bytes));history.replaceState(null,document.title,window.location.pathname+window.location.search);if(!data?.phone||!data?.password)throw new Error("Data login dari Landing Page tidak lengkap.");const c=await signInWithEmailAndPassword(auth,emailOf(data.phone),data.password);refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();const pr=await getPenggunaRef(c.user.uid,data.phone),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:c.user.uid,name:d.NamaPengguna||c.user.displayName||"",phone:phoneOf(d.NomorHp||data.phone),email:c.user.email,password:String(d.Pasword||data.password),role:d.role||"Pengguna"});window.__rekapinyuLandingHandoffActive=true;await hydrate(c.user.uid);return true}catch(e){log("landing login gagal",e);window.__rekapinyuLandingHandoffActive=false;try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");return false}}
 const landingHandoffPromise=consumeLandingLogin();
 
-window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
+const publicFirebaseApi={
+  app,
+  auth,
+  ready:false,
+  uid:null,
+  schema:COLLECTION,
+  firestoreApi:Object.freeze({collection,query,where,limit,getDocs,doc,getDoc,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())}),
+  storageApi:Object.freeze({getDownloadURL})
+};
+Object.seal(publicFirebaseApi);
+window.RekapinyuFirebase=publicFirebaseApi;
 
-onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;currentSessionUser=null;try{nativeRemove.call(localStorage,"finance_active_session")}catch{}window.location.replace("https://rekapinyu.github.io/login");return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:d.Pasword||"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
+onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPromise;window.RekapinyuFirebase.ready=true;window.RekapinyuFirebase.uid=u?.uid||null;if(!u){firestoreDataHydrated=false;currentSessionUser=null;try{nativeRemove.call(localStorage,"finance_active_session")}catch{}window.location.replace("https://rekapinyu.github.io/login");return}try{if(!currentSessionUser){const p=phoneOf(u.email?.split("@")[0]||"");const pr=await getPenggunaRef(u.uid,p),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:u.uid,name:d.NamaPengguna||u.displayName||"",phone:phoneOf(d.NomorHp||p),email:u.email,password:"",role:d.role||"Pengguna"})}firestoreDataHydrated=false;await hydrate(u.uid);try{await window.__rekapinyuLoadLocalRekap?.()}catch{}realtime(u.uid);renderDashboardSession();try{redraw()}catch{}}catch(e){console.error("Firebase schema final:",e);log("sinkronisasi sesi Auth/Firestore gagal; sesi login tetap dipertahankan",e);renderDashboardSession()}});
 
 (function(){function redrawOnFocus(){try{redraw?.()}catch{}}window.addEventListener("focus",redrawOnFocus);window.addEventListener("pageshow",redrawOnFocus);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")redrawOnFocus()})})();
 </script>
