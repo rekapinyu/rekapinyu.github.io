@@ -9947,12 +9947,14 @@ async function initKasirViews(){
             return new Uint8Array(bytes);
         }
 
-        /* MENU CETAK BLUETOOTH — SATU IMPLEMENTASI MANDIRI.
-           Tidak memakai device, characteristic, pairing, connect, atau state Bluetooth Menu Kasir. */
+        /* MENU CETAK BLUETOOTH — IMPLEMENTASI TUNGGAL, MANDIRI.
+           Tidak terhubung ke state, fungsi, device, characteristic, pairing,
+           atau listener Bluetooth milik Menu Kasir. */
         const CETAK_BLUETOOTH_STATE = {
             device: null,
             characteristic: null,
-            connecting: false
+            connecting: false,
+            writing: false
         };
 
         const CETAK_BLUETOOTH_SERVICES = [
@@ -9964,6 +9966,13 @@ async function initKasirViews(){
             '49535343-8841-43f4-a8d4-ecbe34729bb3',
             '0000ae30-0000-1000-8000-00805f9b34fb'
         ];
+
+        function cetak_isBluetoothReady() {
+            return !!(
+                CETAK_BLUETOOTH_STATE.device?.gatt?.connected &&
+                CETAK_BLUETOOTH_STATE.characteristic
+            );
+        }
 
         function cetak_updateBluetoothUi(message='Printer Bluetooth belum tersambung', connected=false, connecting=false) {
             CETAK_APP_STATE.bluetoothDevice = connected ? CETAK_BLUETOOTH_STATE.device : null;
@@ -9996,7 +10005,7 @@ async function initKasirViews(){
                 button.style.opacity = connected ? '1' : '0.6';
                 button.style.cursor = connected ? 'pointer' : 'not-allowed';
                 button.title = connected
-                    ? 'Cetak langsung ke printer Bluetooth yang sudah terhubung'
+                    ? 'Cetak langsung ke printer Bluetooth Menu Cetak'
                     : 'Pairing printer Bluetooth terlebih dahulu';
             });
         }
@@ -10012,9 +10021,10 @@ async function initKasirViews(){
         function cetak_bindBluetoothDevice(device) {
             if (!device) return;
             try {
-                if (device.__rekapinyuCetakBluetoothBound) return;
+                device.removeEventListener('gattserverdisconnected', cetak_handleBluetoothDisconnected);
+            } catch (_) {}
+            try {
                 device.addEventListener('gattserverdisconnected', cetak_handleBluetoothDisconnected);
-                device.__rekapinyuCetakBluetoothBound = true;
             } catch (_) {}
         }
 
@@ -10025,7 +10035,7 @@ async function initKasirViews(){
             try {
                 const exposed = await server.getPrimaryServices();
                 for (const service of exposed) {
-                    if (!seenServices.has(service.uuid)) {
+                    if (service && !seenServices.has(service.uuid)) {
                         seenServices.add(service.uuid);
                         services.push(service);
                     }
@@ -10036,39 +10046,43 @@ async function initKasirViews(){
                 if (seenServices.has(serviceUuid)) continue;
                 try {
                     const service = await server.getPrimaryService(serviceUuid);
-                    seenServices.add(service.uuid);
-                    services.push(service);
+                    if (service && !seenServices.has(service.uuid)) {
+                        seenServices.add(service.uuid);
+                        services.push(service);
+                    }
                 } catch (_) {}
             }
 
-            const writable = [];
+            const candidates = [];
             for (const service of services) {
                 try {
                     const characteristics = await service.getCharacteristics();
                     for (const characteristic of characteristics) {
-                        if (characteristic?.properties?.write || characteristic?.properties?.writeWithoutResponse) {
-                            writable.push(characteristic);
+                        if (characteristic?.properties?.writeWithoutResponse) {
+                            candidates.push({ characteristic, priority: 1 });
+                        } else if (characteristic?.properties?.write) {
+                            candidates.push({ characteristic, priority: 2 });
                         }
                     }
                 } catch (_) {}
             }
 
-            return writable.find(c => c.properties?.write) ||
-                   writable.find(c => c.properties?.writeWithoutResponse) ||
-                   writable[0] || null;
+            candidates.sort((a, b) => a.priority - b.priority);
+            return candidates[0]?.characteristic || null;
         }
 
         async function cetak_connectBluetoothDevice() {
             if (CETAK_BLUETOOTH_STATE.connecting) return CETAK_BLUETOOTH_STATE.device;
 
             if (!window.isSecureContext || !navigator.bluetooth) {
+                cetak_updateBluetoothUi('Bluetooth web tidak tersedia. Gunakan HTTPS dengan Chrome/Edge yang mendukung Web Bluetooth.', false, false);
                 cetak_showToast('Bluetooth web tidak tersedia. Gunakan HTTPS dengan Chrome/Edge yang mendukung Web Bluetooth.', 'error');
                 return null;
             }
 
-            if (CETAK_BLUETOOTH_STATE.device?.gatt?.connected && CETAK_BLUETOOTH_STATE.characteristic) {
+            if (cetak_isBluetoothReady()) {
                 cetak_updateBluetoothUi(
-                    `Tersambung ke ${CETAK_BLUETOOTH_STATE.device.name || 'Printer Bluetooth'}`,
+                    `Tersambung ke ${CETAK_BLUETOOTH_STATE.device?.name || 'Printer Bluetooth'}`,
                     true,
                     false
                 );
@@ -10079,29 +10093,25 @@ async function initKasirViews(){
             cetak_updateBluetoothUi('Memilih printer Bluetooth...', false, true);
 
             try {
-                let device = CETAK_BLUETOOTH_STATE.device;
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: CETAK_BLUETOOTH_SERVICES
+                });
 
-                if (!device) {
-                    device = await navigator.bluetooth.requestDevice({
-                        acceptAllDevices: true,
-                        optionalServices: CETAK_BLUETOOTH_SERVICES
-                    });
+                if (!device?.gatt) {
+                    throw new Error('Perangkat Bluetooth tidak menyediakan koneksi GATT.');
                 }
 
                 CETAK_BLUETOOTH_STATE.device = device;
                 cetak_bindBluetoothDevice(device);
 
-                if (!device.gatt) {
-                    throw new Error('Perangkat Bluetooth tidak menyediakan koneksi GATT.');
-                }
-
                 const server = device.gatt.connected
                     ? device.gatt
                     : await device.gatt.connect();
-                const characteristic = await cetak_findWritableCharacteristic(server);
 
+                const characteristic = await cetak_findWritableCharacteristic(server);
                 if (!characteristic) {
-                    throw new Error('Printer tersambung, tetapi characteristic cetak tidak ditemukan. Pastikan printer mendukung BLE ESC/POS.');
+                    throw new Error('Printer tersambung, tetapi saluran cetak Bluetooth tidak ditemukan. Pastikan printer mendukung BLE ESC/POS.');
                 }
 
                 CETAK_BLUETOOTH_STATE.characteristic = characteristic;
@@ -10116,9 +10126,16 @@ async function initKasirViews(){
                 CETAK_BLUETOOTH_STATE.characteristic = null;
 
                 if (err?.name === 'NotFoundError') {
+                    CETAK_BLUETOOTH_STATE.device = null;
                     cetak_updateBluetoothUi('Pemilihan printer dibatalkan.', false, false);
                     return null;
                 }
+
+                try {
+                    if (CETAK_BLUETOOTH_STATE.device?.gatt?.connected) {
+                        CETAK_BLUETOOTH_STATE.device.gatt.disconnect();
+                    }
+                } catch (_) {}
 
                 CETAK_BLUETOOTH_STATE.device = null;
                 cetak_updateBluetoothUi('Printer Bluetooth belum tersambung', false, false);
@@ -10126,17 +10143,13 @@ async function initKasirViews(){
                 return null;
             } finally {
                 CETAK_BLUETOOTH_STATE.connecting = false;
-                const ready = !!(
-                    CETAK_BLUETOOTH_STATE.device?.gatt?.connected &&
-                    CETAK_BLUETOOTH_STATE.characteristic
+                cetak_updateBluetoothUi(
+                    cetak_isBluetoothReady()
+                        ? `Tersambung ke ${CETAK_BLUETOOTH_STATE.device?.name || 'Printer Bluetooth'}`
+                        : 'Printer Bluetooth belum tersambung',
+                    cetak_isBluetoothReady(),
+                    false
                 );
-                if (ready) {
-                    cetak_updateBluetoothUi(
-                        `Tersambung ke ${CETAK_BLUETOOTH_STATE.device?.name || 'Printer Bluetooth'}`,
-                        true,
-                        false
-                    );
-                }
             }
         }
 
@@ -10144,6 +10157,8 @@ async function initKasirViews(){
             const device = CETAK_BLUETOOTH_STATE.device;
             CETAK_BLUETOOTH_STATE.characteristic = null;
             CETAK_BLUETOOTH_STATE.device = null;
+            CETAK_BLUETOOTH_STATE.connecting = false;
+            CETAK_BLUETOOTH_STATE.writing = false;
             CETAK_APP_STATE.bluetoothDevice = null;
             CETAK_APP_STATE.bluetoothCharacteristic = null;
             CETAK_APP_STATE.isConnectedBT = false;
@@ -10159,18 +10174,8 @@ async function initKasirViews(){
             cetak_handleBluetoothDisconnected();
         }
 
-        /* Nama fungsi lama dipertahankan hanya sebagai alias kompatibilitas.
-           Alias ini membaca state mandiri Menu Cetak, bukan state Menu Kasir. */
-        function cetak_syncBluetoothFromKasir() {
-            cetak_syncBluetoothStatus();
-        }
-
         function cetak_syncBluetoothStatus() {
-            const connected = !!(
-                CETAK_BLUETOOTH_STATE.device?.gatt?.connected &&
-                CETAK_BLUETOOTH_STATE.characteristic
-            );
-
+            const connected = cetak_isBluetoothReady();
             cetak_updateBluetoothUi(
                 connected
                     ? `Tersambung ke ${CETAK_BLUETOOTH_STATE.device?.name || 'Printer Bluetooth'}`
@@ -10180,24 +10185,39 @@ async function initKasirViews(){
             );
         }
 
-        async function cetak_writeBluetoothBytes(characteristic, bytes) {
-            if (!characteristic) throw new Error('Characteristic printer tidak tersedia.');
+        async function cetak_writeBluetoothBytes(bytes) {
+            if (!cetak_isBluetoothReady()) {
+                throw new Error('Printer Bluetooth belum siap untuk mencetak.');
+            }
+            if (CETAK_BLUETOOTH_STATE.writing) {
+                throw new Error('Printer sedang menerima data cetak. Silakan tunggu sampai proses selesai.');
+            }
 
-            const chunkSize = 20;
-            for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-                const chunk = bytes.slice(offset, offset + chunkSize);
+            const characteristic = CETAK_BLUETOOTH_STATE.characteristic;
+            const chunkSize = characteristic.properties?.writeWithoutResponse ? 20 : 20;
 
-                if (characteristic.properties?.write && typeof characteristic.writeValueWithResponse === 'function') {
-                    await characteristic.writeValueWithResponse(chunk);
-                } else if (characteristic.properties?.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
-                    await characteristic.writeValueWithoutResponse(chunk);
-                } else if (typeof characteristic.writeValue === 'function') {
-                    await characteristic.writeValue(chunk);
-                } else {
-                    throw new Error('Characteristic printer tidak mendukung pengiriman data.');
+            CETAK_BLUETOOTH_STATE.writing = true;
+            try {
+                for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                    if (!cetak_isBluetoothReady()) {
+                        throw new Error('Koneksi printer Bluetooth terputus saat proses mencetak.');
+                    }
+
+                    const chunk = bytes.slice(offset, offset + chunkSize);
+                    if (characteristic.properties?.writeWithoutResponse && typeof characteristic.writeValueWithoutResponse === 'function') {
+                        await characteristic.writeValueWithoutResponse(chunk);
+                    } else if (characteristic.properties?.write && typeof characteristic.writeValueWithResponse === 'function') {
+                        await characteristic.writeValueWithResponse(chunk);
+                    } else if (typeof characteristic.writeValue === 'function') {
+                        await characteristic.writeValue(chunk);
+                    } else {
+                        throw new Error('Characteristic printer tidak mendukung pengiriman data.');
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 15));
                 }
-
-                await new Promise(resolve => setTimeout(resolve, 15));
+            } finally {
+                CETAK_BLUETOOTH_STATE.writing = false;
             }
         }
 
@@ -10209,25 +10229,21 @@ async function initKasirViews(){
 
             try {
                 cetak_calculateChange();
-                cetak_syncBluetoothStatus();
 
-                if (!(CETAK_BLUETOOTH_STATE.device?.gatt?.connected && CETAK_BLUETOOTH_STATE.characteristic)) {
+                if (!cetak_isBluetoothReady()) {
                     const device = await cetak_connectBluetoothDevice();
-                    if (!device) return;
-                }
-
-                if (!(CETAK_BLUETOOTH_STATE.device?.gatt?.connected && CETAK_BLUETOOTH_STATE.characteristic)) {
-                    throw new Error('Printer Bluetooth belum siap untuk mencetak.');
+                    if (!device || !cetak_isBluetoothReady()) return;
                 }
 
                 const bytes = cetak_generateEscPosBytes();
                 cetak_showToast('Mengirim struk ke printer Bluetooth...');
-                await cetak_writeBluetoothBytes(CETAK_BLUETOOTH_STATE.characteristic, bytes);
+                await cetak_writeBluetoothBytes(bytes);
 
                 cetak_showToast('Struk berhasil dicetak!');
                 cetak_saveAndFinishTransaction(false);
             } catch (err) {
                 console.error('Menu Cetak Bluetooth Error:', err);
+                cetak_syncBluetoothStatus();
                 cetak_showToast(`Gagal mencetak: ${err?.message || 'Tidak dapat mengirim struk ke printer.'}`, 'error');
             }
         }
@@ -10235,7 +10251,6 @@ async function initKasirViews(){
         window.cetak_connectBluetoothDevice = cetak_connectBluetoothDevice;
         window.cetak_disconnectBluetoothDevice = cetak_disconnectBluetoothDevice;
         window.cetak_onBTDisconnected = cetak_onBTDisconnected;
-        window.cetak_syncBluetoothFromKasir = cetak_syncBluetoothFromKasir;
         window.cetak_printViaBluetooth = cetak_printViaBluetooth;
         window.cetak_syncBluetoothStatus = cetak_syncBluetoothStatus;
 
