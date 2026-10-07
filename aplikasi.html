@@ -1729,41 +1729,32 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   }
   #mobile-home-view .mobile-home-report-carousel::-webkit-scrollbar{display:none!important}
   #mobile-home-view .mobile-home-day-card{
-    flex:0 0 100%!important;min-width:100%!important;
-    min-height:0!important;height:auto!important;padding:12px!important;box-sizing:border-box!important;
-    border:1px solid #e5eaf0!important;border-radius:18px!important;
-    background:#fff!important;box-shadow:0 8px 22px rgba(15,23,42,.055)!important;
+    flex:0 0 calc((100% - 18px)/3)!important;min-width:0!important;
+    height:112px!important;padding:10px!important;box-sizing:border-box!important;
+    border:1px solid #e5eaf0!important;border-radius:15px!important;
+    background:#fff!important;box-shadow:0 5px 16px rgba(15,23,42,.05)!important;
     scroll-snap-align:start!important;display:flex!important;flex-direction:column!important;
     justify-content:space-between!important;overflow:hidden!important;
   }
   #mobile-home-view .mobile-home-day-head{
-    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;
-    min-width:0!important;
+    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:5px!important;
   }
   #mobile-home-view .mobile-home-day-name{
-    display:flex!important;align-items:center!important;gap:7px!important;
-    font-size:13px!important;font-weight:900!important;color:#172033!important;
+    font-size:10px!important;font-weight:800!important;color:#334155!important;
     white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
   }
-  #mobile-home-view .mobile-home-day-name::before{
-    content:'\f073';font-family:'Font Awesome 6 Free';font-weight:900;
-    width:38px;height:38px;flex:0 0 38px;border-radius:12px;
-    display:flex;align-items:center;justify-content:center;
-    background:#e9f8f4;color:#16a085;font-size:15px;
-  }
   #mobile-home-view .mobile-home-day-date{
-    display:block!important;color:#94a3b8!important;font-size:9px!important;white-space:nowrap!important;
+    font-size:8px!important;color:#94a3b8!important;white-space:nowrap!important;
   }
   #mobile-home-view .mobile-home-day-main{
-    min-width:0!important;margin-top:10px!important;padding-top:10px!important;
-    border-top:1px solid #edf0f3!important;
+    min-width:0!important;
   }
   #mobile-home-view .mobile-home-day-value{
-    font-size:14px!important;font-weight:900!important;color:#0f9f8a!important;
+    font-size:12px!important;font-weight:900!important;color:#059669!important;
     white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
   }
   #mobile-home-view .mobile-home-day-sub{
-    margin-top:5px!important;font-size:9px!important;color:#94a3b8!important;
+    margin-top:4px!important;font-size:8.5px!important;color:#94a3b8!important;
     white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
   }
   #mobile-home-view .mobile-home-day-empty{
@@ -1776,17 +1767,9 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
   #mobile-home-view .mobile-home-grid-secondary{display:none!important}
   @media(max-width:370px){
     #mobile-home-view .mobile-home-day-card{
-      flex-basis:100%!important;min-width:100%!important;height:auto!important;
-      padding:12px!important;
+      flex-basis:calc((100% - 16px)/3)!important;height:106px!important;
+      padding:8px!important;
     }
-  }
-}
-</style>
-<style id="mobile-home-carousel-no-shadow">
-@media (max-width:767px){
-  #mobile-home-kasir-carousel .mobile-home-day-card,
-  #mobile-home-rekap-carousel .mobile-home-day-card{
-    box-shadow:none!important;
   }
 }
 </style>
@@ -4896,46 +4879,64 @@ function updateUserAvatarUI() {
         </article>`).join('');
       };
 
-      window.__rekapinyuRenderMobileReportHome=function(){
+      window.__rekapinyuRenderMobileReportHome=async function(){
         if(!window.matchMedia('(max-width:767px)').matches)return;
         const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
         const keyDate=(d,m,y)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
-        /* Sumber History: gunakan data yang sama yang sedang dipakai Menu Dock History. */
-        const historySource=Array.isArray(historyData)?historyData:[];
-        const historyByDate={};
-        historySource.forEach(x=>{
+        /* HISTORY: paksa Beranda membaca sumber yang sama dengan Menu Dock History
+           sebelum membuat carousel. */
+        try{
+          if(typeof window.__rekapinyuLoadLocalRekap==='function'){
+            await window.__rekapinyuLoadLocalRekap();
+          }
+        }catch(e){
+          console.warn('Rekapinyu: Beranda gagal memuat History.',e);
+        }
+
+        const hist=Array.isArray(historyData)?historyData:[];
+        const hmap={};
+        hist.forEach(x=>{
           const d=Number(x?.date),m=Number(x?.monthIndex),y=Number(x?.year);
           if(!d||Number.isNaN(m)||!y)return;
-          historyByDate[keyDate(d,m,y)]=x;
+          hmap[keyDate(d,m,y)]=x;
         });
 
-        /* Sumber Laporan Kasir: gunakan hasil harian yang sama yang dirender
-           oleh Menu Dock Laporan Kasir. */
+        /* LAPORAN KASIR: gunakan array laporan harian yang sama persis
+           dengan yang dirender Menu Dock Laporan Kasir. */
         const kasirSource=Array.isArray(window.__rekapinyuMobileLaporanKasirDailyReports)
-          ? window.__rekapinyuMobileLaporanKasirDailyReports.slice() : [];
-        const kasirByDate={};
+          ? window.__rekapinyuMobileLaporanKasirDailyReports.slice():[];
+        const kmap={};
         kasirSource.forEach(x=>{
           const d=x?.date instanceof Date?x.date:new Date(x?.date||'');
           if(Number.isNaN(d.getTime()))return;
-          kasirByDate[keyDate(d.getDate(),d.getMonth(),d.getFullYear())]=x;
+          d.setHours(0,0,0,0);
+          kmap[keyDate(d.getDate(),d.getMonth(),d.getFullYear())]=x;
         });
 
-        const latestHistoryDate=historySource.reduce((latest,x)=>{
+        const latestDate=source=>{
+          return source.reduce((latest,x)=>{
+            let d=null;
+            if(x?.date instanceof Date)d=new Date(x.date);
+            else if(x?.date)d=new Date(x.date);
+            if(d&&!Number.isNaN(d.getTime())){
+              d.setHours(0,0,0,0);
+              if(!latest||d>latest)return d;
+            }
+            return latest;
+          },null);
+        };
+
+        const latestHistory=hist.reduce((latest,x)=>{
           const d=Number(x?.date),m=Number(x?.monthIndex),y=Number(x?.year);
           if(!d||Number.isNaN(m)||!y)return latest;
           const dt=new Date(y,m,d);dt.setHours(0,0,0,0);
           return !latest||dt>latest?dt:latest;
         },null);
 
-        const latestKasirDate=kasirSource.reduce((latest,x)=>{
-          const d=x?.date instanceof Date?x.date:new Date(x?.date||'');
-          if(Number.isNaN(d.getTime()))return latest;
-          d.setHours(0,0,0,0);
-          return !latest||d>latest?d:latest;
-        },null);
+        const latestKasir=latestDate(kasirSource);
 
-        const makeDays=latest=>{
+        const sevenDays=latest=>{
           if(!latest)return [];
           const out=[];
           for(let i=0;i<7;i++){
@@ -4946,15 +4947,15 @@ function updateUserAvatarUI() {
           return out;
         };
 
-        const historyDays=makeDays(latestHistoryDate);
-        const kasirDays=makeDays(latestKasirDate);
+        const historyDays=sevenDays(latestHistory);
+        const kasirDays=sevenDays(latestKasir);
 
         const card=(d,type)=>{
           const k=keyDate(d.getDate(),d.getMonth(),d.getFullYear());
           const day=d.toLocaleDateString('id-ID',{weekday:'long'});
           const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
           if(type==='kasir'){
-            const v=kasirByDate[k];
+            const v=kmap[k];
             return `<div class="mobile-home-day-card">
               <div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div>
               <div class="mobile-home-day-main">${v
@@ -4962,7 +4963,7 @@ function updateUserAvatarUI() {
                 : `<div class="mobile-home-day-empty">Belum ada data Laporan Kasir</div>`}</div>
             </div>`;
           }
-          const v=historyByDate[k];
+          const v=hmap[k];
           return `<div class="mobile-home-day-card">
             <div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div>
             <div class="mobile-home-day-main">${v
@@ -5000,7 +5001,13 @@ function updateUserAvatarUI() {
         const t=document.getElementById('page-title-header'),sub=document.getElementById('page-subtitle-header');
         if(t)t.innerText='Beranda'; if(sub)sub.innerText='Ringkasan laporan 7 hari terakhir.';
         active('nav-mobile-home');
-        if(typeof window.__rekapinyuRenderMobileReportHome==='function')window.__rekapinyuRenderMobileReportHome();
+        if(window.matchMedia('(max-width:767px)').matches && typeof window.__rekapinyuRenderLaporanKasir==='function'){
+          Promise.resolve(window.__rekapinyuRenderLaporanKasir()).finally(()=>{
+            if(typeof window.__rekapinyuRenderMobileReportHome==='function')window.__rekapinyuRenderMobileReportHome();
+          });
+        }else if(typeof window.__rekapinyuRenderMobileReportHome==='function'){
+          window.__rekapinyuRenderMobileReportHome();
+        }
       }
       window.__rekapinyuShowMobileHome=home;
     document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
@@ -9523,6 +9530,7 @@ async function initKasirViews(){
       const latestDate=transactionDate(latest)||group.date;
       return {
         label:`${DAYS[group.date.getDay()]}, ${group.date.getDate()} ${MONTHS[group.date.getMonth()]} ${group.date.getFullYear()}`,
+        date:new Date(group.date.getFullYear(),group.date.getMonth(),group.date.getDate()),
         id:String(latest?.id??latest?.ID??latest?.Id??'--').trim()||'--',
         time:latestDate.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         omzet,
@@ -9537,7 +9545,6 @@ async function initKasirViews(){
     const list=document.getElementById('lk16-report-list');
     if(!list)return;
     const reports=makeDailyReports(rows);
-    window.__rekapinyuMobileLaporanKasirDailyReports=reports.slice();
     /* SUMBER PERHITUNGAN OMSET/PROFIT = transaksi JSON yang dibaca Menu Laporan Kasir.
        Hasil ini menjadi nilai master aplikasi, lalu dikirim ke Firestore. */
     const totalOmzet=reports.reduce((sum,report)=>sum+Number(report.omzet||0),0);
