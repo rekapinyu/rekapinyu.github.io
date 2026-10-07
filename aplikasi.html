@@ -1723,42 +1723,42 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
     color:#94a3b8!important;font-size:9px!important;font-weight:600!important;
   }
   #mobile-home-view .mobile-home-report-carousel{
-    display:flex!important;gap:9px!important;width:100%!important;
+    display:flex!important;gap:10px!important;width:100%!important;
     overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x mandatory!important;
     scrollbar-width:none!important;padding:0 1px 5px!important;box-sizing:border-box!important;
   }
   #mobile-home-view .mobile-home-report-carousel::-webkit-scrollbar{display:none!important}
+  /* Bentuk carousel disamakan dengan kotak/grid Menu Laporan Kasir mobile. */
   #mobile-home-view .mobile-home-day-card{
-    flex:0 0 calc((100% - 18px)/3)!important;min-width:0!important;
-    height:112px!important;padding:10px!important;box-sizing:border-box!important;
-    border:1px solid #e5eaf0!important;border-radius:15px!important;
-    background:#fff!important;box-shadow:0 5px 16px rgba(15,23,42,.05)!important;
-    scroll-snap-align:start!important;display:flex!important;flex-direction:column!important;
-    justify-content:space-between!important;overflow:hidden!important;
+    flex:0 0 calc(100% - 18px)!important;min-width:0!important;
+    box-sizing:border-box!important;padding:12px!important;
+    border:1px solid #e5eaf0!important;border-radius:18px!important;
+    background:#fff!important;box-shadow:none!important;
+    scroll-snap-align:start!important;display:block!important;overflow:hidden!important;
   }
   #mobile-home-view .mobile-home-day-head{
-    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:5px!important;
+    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-width:0!important;
   }
-  #mobile-home-view .mobile-home-day-name{
-    font-size:10px!important;font-weight:800!important;color:#334155!important;
-    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  #mobile-home-view .mobile-home-day-title{
+    display:flex!important;align-items:center!important;gap:7px!important;color:#172033!important;font-size:13px!important;font-weight:900!important;
   }
-  #mobile-home-view .mobile-home-day-date{
-    font-size:8px!important;color:#94a3b8!important;white-space:nowrap!important;
+  #mobile-home-view .mobile-home-day-title i{color:#16a085!important}
+  #mobile-home-view .mobile-home-day-head small{display:block!important;margin-top:3px!important;color:#94a3b8!important;font-size:9px!important}
+  #mobile-home-view .mobile-home-day-icon{
+    width:38px!important;height:38px!important;flex:0 0 38px!important;border-radius:12px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;background:#e9f8f4!important;color:#16a085!important;font-size:15px!important;
   }
-  #mobile-home-view .mobile-home-day-main{
-    min-width:0!important;
+  #mobile-home-view .mobile-home-day-grid{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;
+    margin-top:10px!important;padding-top:10px!important;border-top:1px solid #edf0f3!important;
   }
-  #mobile-home-view .mobile-home-day-value{
-    font-size:12px!important;font-weight:900!important;color:#059669!important;
-    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  #mobile-home-view .mobile-home-day-stat{
+    min-width:0!important;padding:9px!important;border:1px solid #e8edf2!important;border-radius:12px!important;background:#f7f9fb!important;
   }
-  #mobile-home-view .mobile-home-day-sub{
-    margin-top:4px!important;font-size:8.5px!important;color:#94a3b8!important;
-    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
-  }
+  #mobile-home-view .mobile-home-day-stat>div{display:flex!important;align-items:center!important;gap:5px!important;color:#64748b!important;font-size:9px!important;font-weight:800!important}
+  #mobile-home-view .mobile-home-day-stat strong{display:block!important;margin-top:5px!important;font-size:11px!important;color:#334155!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
   #mobile-home-view .mobile-home-day-empty{
-    color:#cbd5e1!important;font-size:9px!important;font-weight:700!important;
+    padding:12px!important;color:#cbd5e1!important;font-size:9px!important;font-weight:700!important;
   }
   #mobile-home-view .mobile-home-report-divider{
     display:block!important;width:100%!important;height:1px!important;
@@ -4952,10 +4952,10 @@ function updateUserAvatarUI() {
             const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'});
             if(type==='kasir'){
               const report=kasirMap.get(key);
-              return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div><div class="mobile-home-day-main">${report?`<div class="mobile-home-day-value">${rupiah(report.omzet)}</div><div class="mobile-home-day-sub">${report.transactions} transaksi • Profit ${rupiah(report.profit)}</div>`:`<div class="mobile-home-day-empty">Belum ada transaksi</div>`}</div></article>`;
+              return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><div><div class="mobile-home-day-title"><i class="fa-regular fa-calendar-days"></i><span>${day}, ${date}</span></div><small>Total Kasir Hari Ini</small></div><span class="mobile-home-day-icon"><i class="fa-solid fa-cash-register"></i></span></div><div class="mobile-home-day-grid">${report?`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><strong>${rupiah(report.omzet)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-sack-dollar"></i> Total Profit Kasir</div><strong>${rupiah(report.profit)}</strong></div>`:`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-sack-dollar"></i> Total Profit Kasir</div><strong>Belum ada transaksi</strong></div>`}</div></article>`;
             }
             const item=historyMap.get(key);
-            return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div><div class="mobile-home-day-main">${item?`<div class="mobile-home-day-value">${rupiah(item.income)}</div><div class="mobile-home-day-sub">Belanja ${rupiah(item.expense)} • Profit ${rupiah(item.profit)}</div>`:`<div class="mobile-home-day-empty">Belum ada data</div>`}</div></article>`;
+            return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><div><div class="mobile-home-day-title"><i class="fa-regular fa-calendar-days"></i><span>${day}, ${date}</span></div><small>Total Rekap Hari Ini</small></div><span class="mobile-home-day-icon"><i class="fa-solid fa-chart-line"></i></span></div><div class="mobile-home-day-grid">${item?`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>${rupiah(item.income)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>${rupiah(item.expense)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>${rupiah(item.profit)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-calendar-day"></i> Tanggal</div><strong>${date}</strong></div>`:`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-calendar-day"></i> Tanggal</div><strong>Belum ada data</strong></div>`}</div></article>`;
           };
 
           kasirBox.innerHTML=kasirDays.length
