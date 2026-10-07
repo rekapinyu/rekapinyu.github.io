@@ -4879,103 +4879,93 @@ function updateUserAvatarUI() {
         </article>`).join('');
       };
 
+      /* MOBILE SAJA: BERANDA CAROUSEL — satu implementasi, sumber sama dengan menu laporan. */
       window.__rekapinyuRenderMobileReportHome=async function(){
         if(!window.matchMedia('(max-width:767px)').matches)return;
+        const kasirBox=document.getElementById('mobile-home-kasir-carousel');
+        const rekapBox=document.getElementById('mobile-home-rekap-carousel');
+        if(!kasirBox||!rekapBox)return;
         const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
-        const keyDate=(d,m,y)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-
-        /* HISTORY: paksa Beranda membaca sumber yang sama dengan Menu Dock History
-           sebelum membuat carousel. */
+        const dateKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const toDate=(item)=>{
+          if(item?.date instanceof Date&&!Number.isNaN(item.date.getTime()))return new Date(item.date.getFullYear(),item.date.getMonth(),item.date.getDate());
+          const day=Number(item?.date??item?.day);
+          const month=Number(item?.monthIndex);
+          const year=Number(item?.year);
+          if(day&&Number.isInteger(month)&&year)return new Date(year,month,day);
+          const raw=item?.tanggal??item?.createdAt??item?.timestamp;
+          if(raw?.toDate){const d=raw.toDate();if(!Number.isNaN(d.getTime()))return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+          if(raw){const d=new Date(raw);if(!Number.isNaN(d.getTime()))return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+          return null;
+        };
+        const empty=(icon,title,text)=>`<div class="mobile-home-day-empty"><i class="${icon}"></i><strong>${title}</strong><span>${text}</span></div>`;
         try{
-          if(typeof window.__rekapinyuLoadLocalRekap==='function'){
-            await window.__rekapinyuLoadLocalRekap();
+          /* HISTORY: gunakan loader History yang sama, lalu sumber display yang sama dengan dock History. */
+          if(typeof window.__rekapinyuLoadLocalRekap==='function')await window.__rekapinyuLoadLocalRekap();
+          const historyRows=typeof getHistoryForDisplay==='function'
+            ?getHistoryForDisplay()
+            :(Array.isArray(historyData)?historyData:[]);
+
+          /* KASIR: gunakan scanner JSON dan pembentuk laporan harian yang sama dengan Menu Laporan Kasir. */
+          let kasirRows=[];
+          try{
+            if(typeof scanKasirJson==='function')kasirRows=await scanKasirJson();
+          }catch(error){
+            kasirRows=[];
+            kasirBox.innerHTML=empty('fa-solid fa-folder-open','Data Kasir belum tersedia','Pilih folder target Produk Kasir agar data Kasir dapat dibaca.');
           }
-        }catch(e){
-          console.warn('Rekapinyu: Beranda gagal memuat History.',e);
-        }
+          const kasirReports=typeof makeDailyReports==='function'?makeDailyReports(kasirRows):[];
 
-        const hist=Array.isArray(historyData)?historyData:[];
-        const hmap={};
-        hist.forEach(x=>{
-          const d=Number(x?.date),m=Number(x?.monthIndex),y=Number(x?.year);
-          if(!d||Number.isNaN(m)||!y)return;
-          hmap[keyDate(d,m,y)]=x;
-        });
+          const historyMap=new Map();
+          historyRows.forEach(item=>{
+            const d=toDate(item);if(!d)return;
+            historyMap.set(dateKey(d),item);
+          });
 
-        /* LAPORAN KASIR: gunakan array laporan harian yang sama persis
-           dengan yang dirender Menu Dock Laporan Kasir. */
-        const kasirSource=Array.isArray(window.__rekapinyuMobileLaporanKasirDailyReports)
-          ? window.__rekapinyuMobileLaporanKasirDailyReports.slice():[];
-        const kmap={};
-        kasirSource.forEach(x=>{
-          const d=x?.date instanceof Date?x.date:new Date(x?.date||'');
-          if(Number.isNaN(d.getTime()))return;
-          d.setHours(0,0,0,0);
-          kmap[keyDate(d.getDate(),d.getMonth(),d.getFullYear())]=x;
-        });
+          const kasirMap=new Map();
+          kasirReports.forEach(report=>{
+            const d=toDate(report);if(!d)return;
+            kasirMap.set(dateKey(d),report);
+          });
 
-        const latestDate=source=>{
-          return source.reduce((latest,x)=>{
-            let d=null;
-            if(x?.date instanceof Date)d=new Date(x.date);
-            else if(x?.date)d=new Date(x.date);
-            if(d&&!Number.isNaN(d.getTime())){
-              d.setHours(0,0,0,0);
-              if(!latest||d>latest)return d;
+          const latestDate=(dates)=>{
+            const valid=dates.filter(Boolean).map(d=>new Date(d.getFullYear(),d.getMonth(),d.getDate()));
+            if(!valid.length)return null;
+            return valid.sort((a,b)=>b-a)[0];
+          };
+          const latestKasir=latestDate(Array.from(kasirMap.values()).map(toDate));
+          const latestHistory=latestDate(Array.from(historyMap.values()).map(toDate));
+          const buildDays=(latest)=>{
+            if(!latest)return [];
+            const result=[];
+            for(let i=6;i>=0;i--){const d=new Date(latest);d.setDate(latest.getDate()-i);result.push(d);}
+            return result;
+          };
+          const kasirDays=buildDays(latestKasir);
+          const historyDays=buildDays(latestHistory);
+          const card=(d,type)=>{
+            const key=dateKey(d);
+            const day=d.toLocaleDateString('id-ID',{weekday:'short'});
+            const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'});
+            if(type==='kasir'){
+              const report=kasirMap.get(key);
+              return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div><div class="mobile-home-day-main">${report?`<div class="mobile-home-day-value">${rupiah(report.omzet)}</div><div class="mobile-home-day-sub">${report.transactions} transaksi • Profit ${rupiah(report.profit)}</div>`:`<div class="mobile-home-day-empty">Belum ada transaksi</div>`}</div></article>`;
             }
-            return latest;
-          },null);
-        };
+            const item=historyMap.get(key);
+            return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div><div class="mobile-home-day-main">${item?`<div class="mobile-home-day-value">${rupiah(item.income)}</div><div class="mobile-home-day-sub">Belanja ${rupiah(item.expense)} • Profit ${rupiah(item.profit)}</div>`:`<div class="mobile-home-day-empty">Belum ada data</div>`}</div></article>`;
+          };
 
-        const latestHistory=hist.reduce((latest,x)=>{
-          const d=Number(x?.date),m=Number(x?.monthIndex),y=Number(x?.year);
-          if(!d||Number.isNaN(m)||!y)return latest;
-          const dt=new Date(y,m,d);dt.setHours(0,0,0,0);
-          return !latest||dt>latest?dt:latest;
-        },null);
-
-        const latestKasir=latestDate(kasirSource);
-
-        const sevenDays=latest=>{
-          if(!latest)return [];
-          const out=[];
-          for(let i=0;i<7;i++){
-            const d=new Date(latest);
-            d.setDate(latest.getDate()-i);
-            out.push(d);
-          }
-          return out;
-        };
-
-        const historyDays=sevenDays(latestHistory);
-        const kasirDays=sevenDays(latestKasir);
-
-        const card=(d,type)=>{
-          const k=keyDate(d.getDate(),d.getMonth(),d.getFullYear());
-          const day=d.toLocaleDateString('id-ID',{weekday:'long'});
-          const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-          if(type==='kasir'){
-            const v=kmap[k];
-            return `<div class="mobile-home-day-card">
-              <div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div>
-              <div class="mobile-home-day-main">${v
-                ? `<div class="mobile-home-day-value">${rupiah(v.omzet)}</div><div class="mobile-home-day-sub">${Number(v.transactions)||0} Transaksi • Profit ${rupiah(v.profit)}</div>`
-                : `<div class="mobile-home-day-empty">Belum ada data Laporan Kasir</div>`}</div>
-            </div>`;
-          }
-          const v=hmap[k];
-          return `<div class="mobile-home-day-card">
-            <div class="mobile-home-day-head"><span class="mobile-home-day-name">${day}</span><span class="mobile-home-day-date">${date}</span></div>
-            <div class="mobile-home-day-main">${v
-              ? `<div class="mobile-home-day-value">${rupiah(v.income)}</div><div class="mobile-home-day-sub">Belanja ${rupiah(v.expense)} • Profit ${rupiah(v.profit)}</div>`
-              : `<div class="mobile-home-day-empty">Belum ada data History</div>`}</div>
-          </div>`;
-        };
-
-        const kc=document.getElementById('mobile-home-kasir-carousel');
-        const rc=document.getElementById('mobile-home-rekap-carousel');
-        if(kc)kc.innerHTML=kasirDays.length?kasirDays.map(d=>card(d,'kasir')).join(''):'<div class="mobile-home-day-empty">Belum ada data Laporan Kasir</div>';
-        if(rc)rc.innerHTML=historyDays.length?historyDays.map(d=>card(d,'rekap')).join(''):'<div class="mobile-home-day-empty">Belum ada data History</div>';
+          kasirBox.innerHTML=kasirDays.length
+            ?kasirDays.map(d=>card(d,'kasir')).join('')
+            :empty('fa-solid fa-cash-register','Belum ada data Laporan Kasir','Data akan tampil setelah transaksi Kasir tersedia.');
+          rekapBox.innerHTML=historyDays.length
+            ?historyDays.map(d=>card(d,'rekap')).join('')
+            :empty('fa-solid fa-chart-line','Belum ada data Laporan Rekap','Data akan tampil setelah data History tersedia.');
+        }catch(error){
+          console.warn('Rekapinyu: carousel Beranda gagal membaca sumber laporan.',error);
+          kasirBox.innerHTML=empty('fa-solid fa-triangle-exclamation','Gagal membaca Laporan Kasir','Periksa folder target dan izin baca data.');
+          rekapBox.innerHTML=empty('fa-solid fa-triangle-exclamation','Gagal membaca Laporan Rekap','Periksa data History pada folder target.');
+        }
       };
 
       function active(id){
@@ -5001,13 +4991,7 @@ function updateUserAvatarUI() {
         const t=document.getElementById('page-title-header'),sub=document.getElementById('page-subtitle-header');
         if(t)t.innerText='Beranda'; if(sub)sub.innerText='Ringkasan laporan 7 hari terakhir.';
         active('nav-mobile-home');
-        if(window.matchMedia('(max-width:767px)').matches && typeof window.__rekapinyuRenderLaporanKasir==='function'){
-          Promise.resolve(window.__rekapinyuRenderLaporanKasir()).finally(()=>{
-            if(typeof window.__rekapinyuRenderMobileReportHome==='function')window.__rekapinyuRenderMobileReportHome();
-          });
-        }else if(typeof window.__rekapinyuRenderMobileReportHome==='function'){
-          window.__rekapinyuRenderMobileReportHome();
-        }
+        if(typeof window.__rekapinyuRenderMobileReportHome==='function')window.__rekapinyuRenderMobileReportHome();
       }
       window.__rekapinyuShowMobileHome=home;
     document.addEventListener('click',e=>{const m=document.getElementById('mobile-profile-menu'),b=document.getElementById('mobile-profile-menu-container');if(m&&b&&!b.contains(e.target))m.classList.add('hidden')});
@@ -9529,8 +9513,8 @@ async function initKasirViews(){
       const latest=rows[0]||{};
       const latestDate=transactionDate(latest)||group.date;
       return {
-        label:`${DAYS[group.date.getDay()]}, ${group.date.getDate()} ${MONTHS[group.date.getMonth()]} ${group.date.getFullYear()}`,
         date:new Date(group.date.getFullYear(),group.date.getMonth(),group.date.getDate()),
+        label:`${DAYS[group.date.getDay()]}, ${group.date.getDate()} ${MONTHS[group.date.getMonth()]} ${group.date.getFullYear()}`,
         id:String(latest?.id??latest?.ID??latest?.Id??'--').trim()||'--',
         time:latestDate.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         omzet,
