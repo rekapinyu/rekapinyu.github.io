@@ -4703,33 +4703,7 @@ function updateUserAvatarUI() {
 <button class="mobile-dock-item flex flex-col items-center justify-center py-2 px-1 text-slate-400 transition" id="nav-mobile-report" onclick="switchTab('report')" type="button"><i class="fa-solid fa-chart-line text-lg mb-0.5"></i><span class="text-[10px] font-medium">Laporan Bulanan</span></button>
 </div>
 </nav>
-<style id="mobile-dock-laporan-kasir-firestore-grid">
-@media(max-width:767px){
-  #mobile-laporan-kasir-firestore-grid{
-    display:grid!important;
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:12px!important;
-    width:100%!important;
-    padding:12px 0 24px!important;
-  }
-  .mobile-laporan-kasir-firestore-card{
-    min-width:0!important;
-    background:#fff!important;
-    border:1px solid #e3e8ee!important;
-    border-radius:18px!important;
-    padding:18px 10px!important;
-    text-align:center!important;
-    box-shadow:0 7px 20px rgba(15,23,42,.055)!important;
-  }
-  .mobile-laporan-kasir-icon{
-    width:48px!important;height:48px!important;margin:0 auto 10px!important;
-    border-radius:15px!important;background:#e9f8f4!important;color:#16a085!important;
-    display:flex!important;align-items:center!important;justify-content:center!important;font-size:20px!important;
-  }
-  .mobile-laporan-kasir-label{font-size:10px!important;font-weight:800!important;color:#64748b!important;line-height:1.3!important}
-  .mobile-laporan-kasir-value{margin-top:6px!important;font-size:13px!important;font-weight:900!important;color:#172033!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-}
-</style>
+
 <!-- MOBILE-ONLY OVERRIDE: original desktop UI is not changed -->
 <style>
     @media (max-width:767px){
@@ -4813,7 +4787,7 @@ function updateUserAvatarUI() {
             window.closeMobileProfileMenu=function(){const menu=document.getElementById('mobile-profile-menu');if(menu)menu.classList.add('hidden')};
       window.renderMobileAdminSummary=renderMobileAdminSummary;
 
-      /* MOBILE SAJA: Laporan Kasir membaca TOTAL dari Firestore dan memakai gaya grid/icon seperti History. */
+      /* MOBILE SAJA: Laporan Kasir — satu kartu untuk satu hari, berisi Omset + Profit dari Firestore. */
       window.__rekapinyuRenderMobileLaporanKasir=function(){
         if(!window.matchMedia('(max-width:767px)').matches)return;
         const view=document.getElementById('view-laporan-kasir');
@@ -4829,20 +4803,34 @@ function updateUserAvatarUI() {
         const data=window.__rekapinyuFirestoreKasirTotals||{};
         const omzet=Number(data.TotalOmsetKasir)||0;
         const profit=Number(data.TotalProfitKasir)||0;
-        const rupiah=n=>'Rp '+n.toLocaleString('id-ID');
+        const now=new Date();
+        const day=now.toLocaleDateString('id-ID',{weekday:'long'});
+        const date=now.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+        const rupiah=n=>'Rp '+(Number(n)||0).toLocaleString('id-ID');
+
         panel.innerHTML=`
-          <div class="mobile-laporan-kasir-card">
-            <div class="mobile-laporan-kasir-card-head">
-              <div><div class="mobile-laporan-kasir-card-title"><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><div class="mobile-laporan-kasir-card-value">${rupiah(omzet)}</div></div>
-              <span class="mobile-laporan-kasir-icon mobile-laporan-kasir-icon-omset"><i class="fa-solid fa-cash-register"></i></span>
+          <article class="mobile-laporan-kasir-day-card">
+            <div class="mobile-laporan-kasir-day-head">
+              <div>
+                <div class="mobile-laporan-kasir-day-title">
+                  <i class="fa-regular fa-calendar-days"></i>
+                  <span>${day}, ${date}</span>
+                </div>
+                <small>Total Kasir Hari Ini</small>
+              </div>
+              <span class="mobile-laporan-kasir-day-icon"><i class="fa-solid fa-cash-register"></i></span>
             </div>
-          </div>
-          <div class="mobile-laporan-kasir-card">
-            <div class="mobile-laporan-kasir-card-head">
-              <div><div class="mobile-laporan-kasir-card-title"><i class="fa-solid fa-wallet"></i> Total Profit Kasir</div><div class="mobile-laporan-kasir-card-value profit">${rupiah(profit)}</div></div>
-              <span class="mobile-laporan-kasir-icon mobile-laporan-kasir-icon-profit"><i class="fa-solid fa-sack-dollar"></i></span>
+            <div class="mobile-laporan-kasir-day-grid">
+              <div class="mobile-laporan-kasir-stat">
+                <div><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div>
+                <strong>${rupiah(omzet)}</strong>
+              </div>
+              <div class="mobile-laporan-kasir-stat">
+                <div><i class="fa-solid fa-sack-dollar"></i> Total Profit Kasir</div>
+                <strong>${rupiah(profit)}</strong>
+              </div>
             </div>
-          </div>`;
+          </article>`;
       };
 
       /* MOBILE SAJA: Laporan Bulanan selalu memakai sumber yang sama dengan Menu History. */
@@ -9575,17 +9563,21 @@ async function initKasirViews(){
 
 <style id="mobile-dock-laporan-history-style">
 @media(max-width:767px){
+  #view-report #report-grid{display:none!important}
   #view-laporan-kasir{padding:12px!important;background:#f1f4f8!important}
-  #mobile-laporan-kasir-firestore-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:1100px;margin:0 auto}
-  .mobile-laporan-kasir-card{min-width:0;background:#fff;border:1px solid #e5eaf0;border-radius:16px;padding:12px;box-shadow:0 8px 22px rgba(15,23,42,.055)}
-  .mobile-laporan-kasir-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
-  .mobile-laporan-kasir-card-title{display:flex;align-items:center;gap:6px;color:#64748b;font-size:10px;font-weight:800;line-height:1.25}
-  .mobile-laporan-kasir-card-title i{color:#16a085}
-  .mobile-laporan-kasir-card-value{margin-top:7px;color:#0f9f8a;font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mobile-laporan-kasir-card-value.profit{color:#d97706}
-  .mobile-laporan-kasir-icon{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px}
-  .mobile-laporan-kasir-icon-omset{background:#e9f8f4;color:#16a085}
-  .mobile-laporan-kasir-icon-profit{background:#fef3c7;color:#d97706}
+  #mobile-laporan-kasir-firestore-grid{display:block!important;width:100%;max-width:1100px;margin:0 auto}
+  .mobile-laporan-kasir-day-card{background:#fff;border:1px solid #e5eaf0;border-radius:18px;padding:12px;box-shadow:0 8px 22px rgba(15,23,42,.055)}
+  .mobile-laporan-kasir-day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+  .mobile-laporan-kasir-day-title{display:flex;align-items:center;gap:7px;color:#172033;font-size:13px;font-weight:900}
+  .mobile-laporan-kasir-day-title i{color:#16a085}
+  .mobile-laporan-kasir-day-head small{display:block;margin-top:3px;color:#94a3b8;font-size:9px}
+  .mobile-laporan-kasir-day-icon{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#e9f8f4;color:#16a085;font-size:15px}
+  .mobile-laporan-kasir-day-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #edf0f3}
+  .mobile-laporan-kasir-stat{min-width:0;padding:9px;border:1px solid #e8edf2;border-radius:12px;background:#f7f9fb}
+  .mobile-laporan-kasir-stat>div{display:flex;align-items:center;gap:5px;color:#64748b;font-size:9px;font-weight:800}
+  .mobile-laporan-kasir-stat:first-child>div i{color:#16a085}
+  .mobile-laporan-kasir-stat:last-child>div i{color:#d97706}
+  .mobile-laporan-kasir-stat strong{display:block;margin-top:5px;font-size:11px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #mobile-laporan-bulanan-history-grid{display:flex;flex-direction:column;gap:10px;width:100%;max-width:1100px;margin:0 auto}
   .mobile-laporan-bulanan-card{background:#fff;border:1px solid #e5eaf0;border-radius:16px;padding:12px;box-shadow:0 8px 22px rgba(15,23,42,.055)}
   .mobile-laporan-bulanan-title{display:flex;align-items:center;gap:7px;color:#172033;font-size:13px;font-weight:900}
