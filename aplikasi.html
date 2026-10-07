@@ -4880,6 +4880,12 @@ function updateUserAvatarUI() {
       };
 
       /* MOBILE SAJA: BERANDA CAROUSEL — satu implementasi, sumber sama dengan menu laporan. */
+<style id="mobile-home-firestore-badge-only">
+@media(max-width:767px){
+  .mobile-home-day-card{position:relative!important}
+  .mobile-home-firestore-badge{position:absolute!important;right:10px!important;bottom:8px!important;color:#2563eb!important;font-size:9px!important;font-weight:800!important;line-height:1!important;white-space:nowrap!important;pointer-events:none!important}
+}
+</style>
       window.__rekapinyuRenderMobileReportHome=async function(){
         if(!window.matchMedia('(max-width:767px)').matches)return;
         const kasirBox=document.getElementById('mobile-home-kasir-carousel');
@@ -4900,74 +4906,48 @@ function updateUserAvatarUI() {
         };
         const empty=(icon,title,text)=>`<div class="mobile-home-day-empty"><i class="${icon}"></i><strong>${title}</strong><span>${text}</span></div>`;
         try{
-          /* HISTORY: gunakan loader History yang sama, lalu sumber display yang sama dengan dock History. */
-          if(typeof window.__rekapinyuLoadLocalRekap==='function')await window.__rekapinyuLoadLocalRekap();
-          const historyRows=typeof getHistoryForDisplay==='function'
-            ?getHistoryForDisplay()
-            :(Array.isArray(historyData)?historyData:[]);
-
-          /* KASIR: gunakan scanner JSON dan pembentuk laporan harian yang sama dengan Menu Laporan Kasir. */
-          let kasirRows=[];
-          try{
-            if(typeof scanKasirJson==='function')kasirRows=await scanKasirJson();
-          }catch(error){
-            kasirRows=[];
-            kasirBox.innerHTML=empty('fa-solid fa-folder-open','Data Kasir belum tersedia','Pilih folder target Produk Kasir agar data Kasir dapat dibaca.');
-          }
-          const kasirReports=typeof makeDailyReports==='function'?makeDailyReports(kasirRows):[];
-
+          /* Hanya area carousel Beranda: sumber Laporan Rekap langsung dari Firestore Rekap.InputData. */
+          const firestoreRekap=window.__rekapinyuFirestoreRekap||{};
+          const historyRows=Array.isArray(firestoreRekap.InputData)?firestoreRekap.InputData:[];
           const historyMap=new Map();
           historyRows.forEach(item=>{
             const d=toDate(item);if(!d)return;
             historyMap.set(dateKey(d),item);
           });
 
-          const kasirMap=new Map();
-          kasirReports.forEach(report=>{
-            const d=toDate(report);if(!d)return;
-            kasirMap.set(dateKey(d),report);
-          });
+          /* Hanya area carousel Beranda: Laporan Kasir langsung dari dua field Firestore Kasir. */
+          const firestoreKasir=window.__rekapinyuFirestoreKasirTotals||{};
+          const totalOmsetKasir=Number(firestoreKasir.TotalOmsetKasir)||0;
+          const totalProfitKasir=Number(firestoreKasir.TotalProfitKasir)||0;
 
-          /* CAROUSEL: selalu gunakan tanggal hari ini sebagai tanggal terbaru,
-             lalu tampilkan 7 hari: hari ini sampai 6 hari sebelumnya.
-             Sumber data tetap sama dengan menu masing-masing; tanggal tanpa data
-             tetap ditampilkan sebagai kotak kosong. */
-          const buildDays=()=>{
-            const today=new Date();
-            today.setHours(0,0,0,0);
-            const result=[];
-            for(let i=0;i<7;i++){
-              const d=new Date(today);
-              d.setDate(today.getDate()-i);
-              result.push(d);
-            }
-            return result;
-          };
-          const carouselDays=buildDays();
-          const kasirDays=carouselDays;
-          const historyDays=carouselDays;
+          /* Tetap 7 hari: hari ini sampai 6 hari sebelumnya. */
+          const today=new Date();
+          today.setHours(0,0,0,0);
+          const carouselDays=[];
+          for(let i=0;i<7;i++){
+            const d=new Date(today);
+            d.setDate(today.getDate()-i);
+            carouselDays.push(d);
+          }
+
           const card=(d,type)=>{
             const key=dateKey(d);
             const day=d.toLocaleDateString('id-ID',{weekday:'long'});
             const date=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+            const firestoreBadge='<span class="mobile-home-firestore-badge">#Firestore</span>';
             if(type==='kasir'){
-              const report=kasirMap.get(key);
-              return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><div><div class="mobile-home-day-title"><i class="fa-regular fa-calendar-days"></i><span>${day}, ${date}</span></div><small>Total Kasir Hari Ini</small></div><span class="mobile-home-day-icon"><i class="fa-solid fa-cash-register"></i></span></div><div class="mobile-home-day-grid">${report?`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><strong>${rupiah(report.omzet)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-sack-dollar"></i> Total Profit Kasir</div><strong>${rupiah(report.profit)}</strong></div>`:`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-sack-dollar"></i> Total Profit Kasir</div><strong>Belum ada transaksi</strong></div>`}</div></article>`;
+              return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><div><div class="mobile-home-day-title"><i class="fa-regular fa-calendar-days"></i><span>${day}, ${date}</span></div><small>Total Kasir Hari Ini</small></div><span class="mobile-home-day-icon"><i class="fa-solid fa-cash-register"></i></span></div><div class="mobile-home-day-grid"><div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Total Omset Kasir</div><strong>${rupiah(totalOmsetKasir)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-sack-dollar"></i> Total Profit Kasir</div><strong>${rupiah(totalProfitKasir)}</strong></div></div>${firestoreBadge}</article>`;
             }
             const item=historyMap.get(key);
-            return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><div><div class="mobile-home-day-title"><i class="fa-regular fa-calendar-days"></i><span>${day}, ${date}</span></div><small>Total Rekap Hari Ini</small></div><span class="mobile-home-day-icon"><i class="fa-solid fa-chart-line"></i></span></div><div class="mobile-home-day-grid">${item?`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>${rupiah(item.income)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>${rupiah(item.expense)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>${rupiah(item.profit)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-calendar-day"></i> Tanggal</div><strong>${date}</strong></div>`:`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-calendar-day"></i> Tanggal</div><strong>Belum ada data</strong></div>`}</div></article>`;
+            return `<article class="mobile-home-day-card"><div class="mobile-home-day-head"><div><div class="mobile-home-day-title"><i class="fa-regular fa-calendar-days"></i><span>${day}, ${date}</span></div><small>Total Rekap Hari Ini</small></div><span class="mobile-home-day-icon"><i class="fa-solid fa-chart-line"></i></span></div><div class="mobile-home-day-grid">${item?`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>${rupiah(item.income)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>${rupiah(item.expense)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>${rupiah(item.profit)}</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-calendar-day"></i> Tanggal</div><strong>${date}</strong></div>`:`<div class="mobile-home-day-stat"><div><i class="fa-solid fa-arrow-trend-up"></i> Pendapatan</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-bag-shopping"></i> Total Belanja</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-wallet"></i> Profit/Keuntungan</div><strong>Rp 0</strong></div><div class="mobile-home-day-stat"><div><i class="fa-solid fa-calendar-day"></i> Tanggal</div><strong>Belum ada data</strong></div>`}</div>${firestoreBadge}</article>`;
           };
 
-          kasirBox.innerHTML=kasirDays.length
-            ?kasirDays.map(d=>card(d,'kasir')).join('')
-            :empty('fa-solid fa-cash-register','Belum ada data Laporan Kasir','Data akan tampil setelah transaksi Kasir tersedia.');
-          rekapBox.innerHTML=historyDays.length
-            ?historyDays.map(d=>card(d,'rekap')).join('')
-            :empty('fa-solid fa-chart-line','Belum ada data Laporan Rekap','Data akan tampil setelah data History tersedia.');
+          kasirBox.innerHTML=carouselDays.map(d=>card(d,'kasir')).join('');
+          rekapBox.innerHTML=carouselDays.map(d=>card(d,'rekap')).join('');
         }catch(error){
-          console.warn('Rekapinyu: carousel Beranda gagal membaca sumber laporan.',error);
-          kasirBox.innerHTML=empty('fa-solid fa-triangle-exclamation','Gagal membaca Laporan Kasir','Periksa folder target dan izin baca data.');
-          rekapBox.innerHTML=empty('fa-solid fa-triangle-exclamation','Gagal membaca Laporan Rekap','Periksa data History pada folder target.');
+          console.warn('Rekapinyu: carousel Firestore Beranda gagal membaca data.',error);
+          kasirBox.innerHTML=empty('fa-solid fa-triangle-exclamation','Gagal membaca Laporan Kasir','Data Firestore Kasir belum tersedia.');
+          rekapBox.innerHTML=empty('fa-solid fa-triangle-exclamation','Gagal membaca Laporan Rekap','Data Firestore InputData belum tersedia.');
         }
       };
 
