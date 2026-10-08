@@ -1842,7 +1842,7 @@ main:has(#view-kasir:not(.hidden)) #view-kasir .kasir-shell{flex:1 1 auto!import
 <!-- Navigation Menu Items -->
 <nav class="flex-1 overflow-y-auto">
 <div aria-hidden="true" class="sidebar-menu-placeholder">KOMUNITAS</div>
-<button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-komunitas" title="Komunitas" type="button">
+<button class="w-full flex items-center gap-3 text-sm font-medium group relative" id="nav-komunitas" onclick="switchTab('komunitas')" title="Komunitas" type="button">
 <span aria-hidden="true" class="sidebar-icon-overlay" id="icon-komunitas"><i aria-hidden="true" class="fa-solid fa-users"></i><i aria-hidden="true" class="fa-solid fa-users"></i></span>
 <span class="sidebar-text truncate">Komunitas</span>
 </button>
@@ -2695,6 +2695,101 @@ bind();
 #kasir-stock-zero-modal .kasir-stock-zero-cancel{border:1px solid #e2e8f0;background:#fff;color:#64748b}
 #kasir-stock-zero-modal .kasir-stock-zero-save{border:1px solid #059669;background:#059669;color:#fff}
 </style>
+<!-- VIEW KOMUNITAS: hanya area menu Komunitas -->
+<style id="rekapinyu-komunitas-css">
+#view-komunitas{
+  position:relative!important;
+  width:100%!important;
+  min-height:100%!important;
+  box-sizing:border-box!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+  background:#f8fafc!important;
+}
+#view-komunitas .komunitas-content{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  box-sizing:border-box!important;
+  padding:18px!important;
+  overflow-y:auto!important;
+  padding-bottom:110px!important;
+}
+#view-komunitas .komunitas-post-box{
+  position:sticky!important;
+  bottom:0!important;
+  z-index:30!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:0!important;
+  padding:10px!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:14px!important;
+  background:rgba(255,255,255,.98)!important;
+  box-shadow:0 -8px 24px rgba(15,23,42,.08)!important;
+}
+#view-komunitas .komunitas-post-input{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  height:42px!important;
+  box-sizing:border-box!important;
+  border:1px solid #dbe3eb!important;
+  border-right:0!important;
+  border-radius:10px 0 0 10px!important;
+  outline:none!important;
+  padding:0 13px!important;
+  background:#f8fafc!important;
+  color:#334155!important;
+  font-size:12px!important;
+}
+#view-komunitas .komunitas-post-input:focus{
+  background:#fff!important;
+  border-color:#93c5fd!important;
+  box-shadow:0 0 0 3px rgba(59,130,246,.10)!important;
+}
+#view-komunitas .komunitas-post-input::placeholder{color:#94a3b8!important}
+#view-komunitas .komunitas-publish-btn{
+  flex:0 0 auto!important;
+  height:42px!important;
+  box-sizing:border-box!important;
+  border:1px solid #2563eb!important;
+  border-radius:0 10px 10px 0!important;
+  padding:0 18px!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  font-size:12px!important;
+  font-weight:800!important;
+  cursor:pointer!important;
+}
+#view-komunitas .komunitas-publish-btn:hover{background:#1d4ed8!important}
+@media(max-width:767px){
+  #view-komunitas .komunitas-content{
+    padding:12px!important;
+    padding-bottom:92px!important;
+  }
+  #view-komunitas .komunitas-post-box{
+    position:fixed!important;
+    left:12px!important;
+    right:12px!important;
+    bottom:78px!important;
+    width:auto!important;
+    padding:8px!important;
+  }
+  #view-komunitas .komunitas-post-input,
+  #view-komunitas .komunitas-publish-btn{height:40px!important}
+}
+</style>
+<section class="hidden" id="view-komunitas">
+  <div class="komunitas-content">
+    <div class="komunitas-post-box">
+      <input class="komunitas-post-input" id="komunitas-post-input" type="text" placeholder="Buat Postingan dengan Komunitas Lain....." autocomplete="off"/>
+      <button class="komunitas-publish-btn" id="komunitas-publish-btn" type="button">Publikasikan</button>
+    </div>
+  </div>
+</section>
 <!-- VIEW KASIR -->
 <section class="hidden kasir-view space-y-4" id="view-kasir"><div aria-hidden="true" id="kasir-stock-zero-modal">
   <div class="kasir-stock-zero-card" role="dialog" aria-modal="true" aria-labelledby="kasir-stock-zero-title">
@@ -3078,7 +3173,7 @@ function updateUserAvatarUI() {
                 document.documentElement.setAttribute('data-mobile-view', tab);
 
                 /* MOBILE SAJA: satu jalur tampilan agar view tidak saling menumpuk. */
-                const mobileViews = ['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings','cetak'];
+                const mobileViews = ['input','pengeluaran','kasbon','kasir','produk-kasir','laporan-kasir','history','report','backup','activity','settings','cetak','komunitas'];
                 mobileViews.forEach(v=>document.getElementById(`view-${v}`)?.classList.add('hidden'));
                 document.getElementById('mobile-home-view')?.classList.add('hidden');
                 document.getElementById('activity-main-container')?.classList.add('hidden');
@@ -3126,7 +3221,7 @@ function updateUserAvatarUI() {
                 }
                 tab = 'input';
             }
-            const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'laporan-kasir', 'history', 'report', 'backup', 'activity', 'settings', 'cetak'];
+            const views = ['input', 'pengeluaran', 'kasbon', 'kasir', 'produk-kasir', 'laporan-kasir', 'history', 'report', 'backup', 'activity', 'settings', 'cetak', 'komunitas'];
             const titles = {
                 input: { title: 'Form Input Keuangan Harian', subtitle: 'Catat pendapatan, belanja, dan pengeluaran harian dengan cepat & akurat.' },
                 pengeluaran: { title: 'Manajemen Pengeluaran', subtitle: 'Catat rincian pembayaran atau pengeluaran secara terpisah.' },
@@ -3139,7 +3234,8 @@ function updateUserAvatarUI() {
                 backup: { title: 'Backup Otomatis Harian', subtitle: 'Pulihkan riwayat data history jika terjadi kehilangan data.' },
                 activity: { title: 'Aktifitas', subtitle: 'History aktifitas penggunaan aplikasi secara realtime.' },
                 settings: { title: 'Setting', subtitle: 'Atur informasi yang tampil pada struk kasir.' },
-                cetak: { title: 'Cetak', subtitle: 'Cetak struk kasir menggunakan tampilan Cetak Struk.' }
+                cetak: { title: 'Cetak', subtitle: 'Cetak struk kasir menggunakan tampilan Cetak Struk.' },
+                komunitas: { title: 'Komunitas', subtitle: 'Buat postingan dengan komunitas lain.' }
             };
 
             const icons = {
@@ -3154,7 +3250,8 @@ function updateUserAvatarUI() {
                 backup: 'fa-cloud-arrow-up',
                 activity: 'fa-list-check',
                 settings: 'fa-gear',
-                cetak: 'fa-print'
+                cetak: 'fa-print',
+                komunitas: 'fa-users'
             };
 
             const pengeluaranStickyContainer = document.getElementById('pengeluaran-sticky-container');
