@@ -89,6 +89,10 @@
         }
       }
     </style>
+<style id="rekapinyu-auth-loading-security-patch">
+#custom-modal #modal-icon .fa-spinner{animation:rekapinyuAuthSpin .9s linear infinite!important}
+@keyframes rekapinyuAuthSpin{to{transform:rotate(360deg)}}
+</style>
 <style id="rekapinyu-session-gate">
   html[data-rekapinyu-session="active"] #auth-container{display:none!important;}
   #foto-sampul-toko{touch-action:none;}
@@ -5707,6 +5711,8 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),s
 const nativeSet=Storage.prototype.setItem,nativeRemove=Storage.prototype.removeItem;
 const COLLECTION={PENGGUNA:"Pengguna",KASIR:"Kasir",REKAP:"Rekap",AKTIFITAS:"Aktifitas"};
 const phoneOf=v=>String(v??"").replace(/\D/g,"");
+const isValidRekapinyuPhone=v=>/^08\d{10,11}$/.test(String(v??""));
+const strictRekapinyuPhone=v=>isValidRekapinyuPhone(v)?String(v):"";
 const emailOf=p=>`${phoneOf(p)}@rekapinyu.app`;
 const safe=(v,d)=>{try{return JSON.parse(v)}catch{return d}};
 const refs={pengguna:null,kasir:null,rekap:null,aktifitas:null};
@@ -6085,19 +6091,82 @@ async function updateMeta(){
 const authReadyPromise=setPersistence(auth,browserLocalPersistence).catch(e=>log("persistensi sesi gagal",e));window.__rekapinyuAuthReady=authReadyPromise;
 function authErrorMessage(err,mode){const c=err?.code||"";if(c==="auth/unauthorized-domain")return"Domain aplikasi belum diizinkan di Firebase Authentication. Tambahkan domain aplikasi ini pada Authorized domains.";if(c==="auth/operation-not-allowed")return"Login Email/Password belum diaktifkan di Firebase Authentication.";if(c==="auth/email-already-in-use")return"Nomor HP tersebut sudah terdaftar. Silakan langsung masuk.";if(c==="auth/invalid-email")return"Nomor HP tidak valid.";if(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found")return"Nomor HP atau Kata Sandi yang Anda masukkan salah.";if(c==="auth/weak-password")return"Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";if(c==="auth/network-request-failed")return"Koneksi ke Firebase gagal. Periksa internet lalu coba lagi.";if(c==="auth/too-many-requests")return"Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.";if(c==="permission-denied")return"Firebase menolak akses Firestore. Periksa Firestore Security Rules.";return mode==="register"?"Pendaftaran gagal. Periksa koneksi Firebase.":"Login gagal. Periksa nomor HP, kata sandi, dan koneksi Firebase.";}
 
+/* ================================================================
+   AUTH SECURITY PATCH — NOMOR HP SAJA
+   Hanya menerima nomor Indonesia yang:
+   - diawali 08
+   - seluruh karakter berupa angka
+   - panjang 12 sampai 13 digit
+   Input lain ditolak sebelum dikirim ke Firebase Authentication.
+   ================================================================ */
+function rekapinyuValidatePhoneInput(raw){
+  const value=String(raw??"");
+  if(!isValidRekapinyuPhone(value)){
+    return {
+      valid:false,
+      message:"Nomor HP harus diawali 08 dan terdiri dari 12–13 angka digit. Contoh: 0815xxxxxx atau 0821xxxxxxx."
+    };
+  }
+  return {valid:true,value};
+}
+function rekapinyuInstallPhoneGuards(){
+  ["login-phone","reg-phone"].forEach(id=>{
+    const input=document.getElementById(id);
+    if(!input||input.dataset.rkPhoneGuard==="1")return;
+    input.dataset.rkPhoneGuard="1";
+    input.setAttribute("inputmode","numeric");
+    input.setAttribute("autocomplete","tel");
+    input.setAttribute("maxlength","13");
+    input.addEventListener("input",()=>{
+      const cleaned=String(input.value||"").replace(/\\D/g,"").slice(0,13);
+      if(input.value!==cleaned)input.value=cleaned;
+    });
+    input.addEventListener("keydown",e=>{
+      if(e.ctrlKey||e.metaKey||e.altKey)return;
+      const allowed=["Backspace","Delete","ArrowLeft","ArrowRight","Home","End","Tab"];
+      if(allowed.includes(e.key))return;
+      if(!/^[0-9]$/.test(e.key))e.preventDefault();
+      if(input.value.length>=13&&/^[0-9]$/.test(e.key)&&input.selectionStart===input.selectionEnd)e.preventDefault();
+    });
+    input.addEventListener("paste",e=>{
+      e.preventDefault();
+      const pasted=(e.clipboardData?.getData("text")||"");
+      const digits=pasted.replace(/\\D/g,"").slice(0,13);
+      const start=input.selectionStart??input.value.length;
+      const end=input.selectionEnd??start;
+      input.value=(input.value.slice(0,start)+digits+input.value.slice(end)).replace(/\\D/g,"").slice(0,13);
+      input.dispatchEvent(new Event("input",{bubbles:true}));
+    });
+  });
+}
+if(document.readyState==="loading"){
+  document.addEventListener("DOMContentLoaded",rekapinyuInstallPhoneGuards,{once:true});
+}else{
+  rekapinyuInstallPhoneGuards();
+}
+
 const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("login-card"),r=document.getElementById("register-card");return !r?.classList.contains("hidden")?document.getElementById("register-form"):( !l?.classList.contains("hidden")?document.getElementById("login-form"):null)},async submit(form){
   if(this.busy||!form)return;const mode=form.id==="register-form"?"register":form.id==="login-form"?"login":"";if(!mode||this.activeForm()!==form)return;this.busy=true;const btn=form.querySelector('button[type="submit"]');if(btn)btn.disabled=true;
   let authenticated=false;
   try{await authReadyPromise;
     if(mode==="register"){
-      const name=document.getElementById("reg-name")?.value.trim()||"",p=phoneOf(document.getElementById("reg-phone")?.value||""),password=document.getElementById("reg-password")?.value||"";
-      if(!name||!p||password.length<6){notify("Gagal Daftar",!name?"Nama wajib diisi.":!p?"Nomor HP wajib diisi.":"Kata sandi minimal 6 karakter.");return}
+      const name=document.getElementById("reg-name")?.value.trim()||"",rawPhone=document.getElementById("reg-phone")?.value||"",p=strictRekapinyuPhone(rawPhone),password=document.getElementById("reg-password")?.value||"";
+      const phoneCheck=rekapinyuValidatePhoneInput(rawPhone);
+      if(!name||!phoneCheck.valid||password.length<6){
+        notify("Gagal Daftar",!name?"Nama wajib diisi.":!phoneCheck.valid?phoneCheck.message:"Kata sandi minimal 6 karakter.","fa-solid fa-circle-xmark text-rose-600");
+        return;
+      }
       const c=await createUserWithEmailAndPassword(auth,emailOf(p),password);authenticated=true;await updateProfile(c.user,{displayName:name});
       try{nativeRemove.call(localStorage,`finance_profile_photo_${p}`);nativeRemove.call(localStorage,`finance_shop_cover_${p}`)}catch{}
       currentSessionUser={uid:c.user.uid,name,shopName:name,phone:p,email:c.user.email,password,role:"Pengguna",photo:"",cover:"",coverX:50,coverY:50};refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();
       await writeBaseSchema(c.user.uid,p,name);await saveCloudUser({name,phone:p,password,role:"Pengguna"});localSession({uid:c.user.uid,name,shopName:name,phone:p,email:c.user.email,password,role:"Pengguna",photo:"",cover:"",coverX:50,coverY:50});await signOut(auth);currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");form.reset();toggleAuthView("login");notify("Pendaftaran Berhasil","Akun berhasil dibuat. Silakan masuk menggunakan Nomor HP dan Kata Sandi.");return;
     }
-    const p=phoneOf(document.getElementById("login-phone")?.value||""),password=document.getElementById("login-password")?.value||"";if(!p||!password){notify("Gagal Masuk","Nomor HP dan Kata Sandi wajib diisi.");return}
+    const rawPhone=document.getElementById("login-phone")?.value||"",p=strictRekapinyuPhone(rawPhone),password=document.getElementById("login-password")?.value||"";
+    const phoneCheck=rekapinyuValidatePhoneInput(rawPhone);
+    if(!phoneCheck.valid||!password){
+      notify("Gagal Masuk",!phoneCheck.valid?phoneCheck.message:"Nomor HP dan Kata Sandi wajib diisi.","fa-solid fa-circle-xmark text-rose-600");
+      return;
+    }
     /* Auth adalah sumber kebenaran login. Setelah sign-in sukses, jangan membatalkan login hanya karena Firestore gagal dibaca/ditulis. */
     const c=await signInWithEmailAndPassword(auth,emailOf(p),password);authenticated=true;refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();
     let d={};
@@ -6124,7 +6193,26 @@ const rekapinyuAuth={busy:false,activeForm(){const l=document.getElementById("lo
 }};
 const authSubmitGuard=e=>{if(e.target?.id!=="login-form"&&e.target?.id!=="register-form")return;e.preventDefault();e.stopImmediatePropagation();rekapinyuAuth.submit(e.target)};document.addEventListener("submit",authSubmitGuard,true);window.__rekapinyuAuthController=rekapinyuAuth;
 
-window.handleLogout=async()=>{try{await window.__rekapinyuSaveLocalRekap?.();await window.__rekapinyuSaveCloudData?.();await signOut(auth)}catch(e){log("logout",e)}finally{firestoreDataHydrated=false;currentSessionUser=null;nativeRemove.call(localStorage,"finance_active_session");refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();window.location.replace("https://rekapinyu.github.io/login")}};
+window.handleLogout=async()=>{
+  if(window.__rekapinyuLogoutBusy)return;
+  window.__rekapinyuLogoutBusy=true;
+  try{
+    showModal("Keluar","Sedang menyimpan data dan mengakhiri sesi...","fa-solid fa-spinner fa-spin text-emerald-600");
+    await window.__rekapinyuSaveLocalRekap?.();
+    await window.__rekapinyuSaveCloudData?.();
+    await signOut(auth);
+  }catch(e){
+    log("logout",e);
+  }finally{
+    firestoreDataHydrated=false;
+    currentSessionUser=null;
+    nativeRemove.call(localStorage,"finance_active_session");
+    refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;
+    refCache.clear();
+    await new Promise(r=>setTimeout(r,350));
+    window.location.replace("https://rekapinyu.github.io/login");
+  }
+};
 window.updateUserInStorage=async()=>{if(!auth.currentUser||!currentSessionUser)return;try{await updateProfile(auth.currentUser,{displayName:currentSessionUser.name||""});await updateMeta();nativeSet.call(localStorage,"finance_active_session",JSON.stringify(currentSessionUser));await window.__rekapinyuSaveCloudData?.()}catch(e){log("perubahan profil gagal",e);notify("Firebase","Perubahan profil gagal disimpan.","fa-solid fa-circle-xmark text-rose-600")}};
 
 function stopCollectionRealtime(){collectionUnsubs.forEach(fn=>{try{fn?.()}catch{}});collectionUnsubs=[];if(userUnsub){try{userUnsub()}catch{}userUnsub=null}window.__rekapinyuStopProdukKasirRealtime?.()}
@@ -6247,7 +6335,7 @@ function realtime(uid){
   },e=>log("realtime Aktifitas gagal",e)));
 }
 
-async function consumeLandingLogin(){try{await authReadyPromise;const hash=window.location.hash||"",m=hash.match(/^#rekapinyu_login=([^&]+)$/);if(!m)return false;const raw=m[1].replace(/-/g,"+").replace(/_/g,"/"),padded=raw+"=".repeat((4-raw.length%4)%4);const bin=atob(padded);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const data=JSON.parse(new TextDecoder().decode(bytes));history.replaceState(null,document.title,window.location.pathname+window.location.search);if(!data?.phone||!data?.password)throw new Error("Data login dari Landing Page tidak lengkap.");const c=await signInWithEmailAndPassword(auth,emailOf(data.phone),data.password);refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();const pr=await getPenggunaRef(c.user.uid,data.phone),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:c.user.uid,name:d.NamaPengguna||c.user.displayName||"",phone:phoneOf(d.NomorHp||data.phone),email:c.user.email,password:String(d.Pasword||data.password),role:d.role||"Pengguna"});window.__rekapinyuLandingHandoffActive=true;await hydrate(c.user.uid);return true}catch(e){log("landing login gagal",e);window.__rekapinyuLandingHandoffActive=false;try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");return false}}
+async function consumeLandingLogin(){try{await authReadyPromise;const hash=window.location.hash||"",m=hash.match(/^#rekapinyu_login=([^&]+)$/);if(!m)return false;const raw=m[1].replace(/-/g,"+").replace(/_/g,"/"),padded=raw+"=".repeat((4-raw.length%4)%4);const bin=atob(padded);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const data=JSON.parse(new TextDecoder().decode(bytes));history.replaceState(null,document.title,window.location.pathname+window.location.search);if(!data?.phone||!data?.password)throw new Error("Data login dari Landing Page tidak lengkap.");const landingPhone=strictRekapinyuPhone(data.phone);if(!landingPhone)throw new Error("Nomor HP login tidak valid. Gunakan 12–13 digit dan wajib diawali 08.");const c=await signInWithEmailAndPassword(auth,emailOf(landingPhone),data.password);refs.pengguna=refs.kasir=refs.rekap=refs.aktifitas=null;refCache.clear();const pr=await getPenggunaRef(c.user.uid,data.phone),s=await getDoc(pr),d=s.exists()?s.data()||{}:{};localSession({uid:c.user.uid,name:d.NamaPengguna||c.user.displayName||"",phone:phoneOf(d.NomorHp||data.phone),email:c.user.email,password:String(d.Pasword||data.password),role:d.role||"Pengguna"});window.__rekapinyuLandingHandoffActive=true;await hydrate(c.user.uid);return true}catch(e){log("landing login gagal",e);window.__rekapinyuLandingHandoffActive=false;try{history.replaceState(null,document.title,window.location.pathname+window.location.search)}catch{}notify("Login Gagal","Sesi dari Landing Page tidak dapat diproses. Silakan login kembali melalui aplikasi.","fa-solid fa-circle-xmark text-rose-600");return false}}
 const landingHandoffPromise=consumeLandingLogin();
 
 window.RekapinyuFirebase={app,auth,db,storage,ready:false,uid:null,refs, schema:COLLECTION, firestoreApi:{collection,query,where,limit,getDocs,doc,getDoc,setDoc,onSnapshot,serverTimestamp,getKasirRef:async()=>getKasirRef(cloudUid(),currentPhone())},storageApi:{ref,uploadBytes,getDownloadURL}};
