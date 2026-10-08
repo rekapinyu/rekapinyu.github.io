@@ -3205,6 +3205,17 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(!photo){try{const p=phone();if(p&&typeof photoStore!=='undefined'&&photoStore&&typeof photoStore.readProfile==='function')photo=String(photoStore.readProfile(p)||'').trim();}catch(_){} }
     return photo;
   }
+  function supabaseProfilePhoto(uid){
+    const id=String(uid||'').trim();
+    if(!id)return '';
+    try{
+      const url=supabase?.storage?.from?.(SUPABASE_PHOTO_BUCKET)?.getPublicUrl?.(`${id}/profile.jpg`)?.data?.publicUrl||'';
+      return url ? `${url}${url.includes('?')?'&':'?'}v=${Date.now()}` : '';
+    }catch(_){return '';}
+  }
+  function communityProfilePhoto(post){
+    return supabaseProfilePhoto(post?.uid)||String(post?.photo||'').trim();
+  }
   function dateLabel(value){
     const d=value?.toDate?value.toDate():(value?new Date(value):new Date());
     return isNaN(d.getTime())?new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}):d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
@@ -3218,7 +3229,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function normalizePost(docSnap){
     const raw=docSnap?.data?.()||{}; const p=raw.PostinganPublik&&typeof raw.PostinganPublik==='object'?raw.PostinganPublik:{};
     const comments=Array.isArray(p.Komentar)?p.Komentar:(typeof p.Komentar==='string'&&p.Komentar.trim()?[{id:'legacy-'+docSnap.id,NamaToko:p.NamaToko||'Toko',NomorHp:p.NomorHp||'',FotoProfil:p.FotoProfil||'',Tanggal:p.Tanggal||raw.Tanggal||'',Isi:p.Komentar}]:[]);
-    return {docId:docSnap.id,id:String(p.id||docSnap.id),store:String(p.NamaToko||p.storeName||'Toko'),phone:String(p.NomorHp||''),photo:String(p.FotoProfil||p.photo||''),date:p.Tanggal||p.createdAt||raw.Tanggal||'',text:String(p.Isi||p.Konten||p.text||''),comments};
+    return {docId:docSnap.id,id:String(p.id||docSnap.id),uid:String(p.UID||p.uid||p.UserId||p.userId||''),store:String(p.NamaToko||p.storeName||'Toko'),phone:String(p.NomorHp||''),photo:String(p.FotoProfil||p.photo||''),date:p.Tanggal||p.createdAt||raw.Tanggal||'',text:String(p.Isi||p.Konten||p.text||''),comments};
   }
   function matchesSearch(post){
     const q=searchTerm.trim().toLowerCase();
@@ -3324,7 +3335,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     }
     visible.forEach(post=>{
       const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
-      const head=document.createElement('div');head.className='komunitas-post-head';head.appendChild(avatar(post.photo,false));
+      const head=document.createElement('div');head.className='komunitas-post-head';head.appendChild(avatar(communityProfilePhoto(post),false));
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
       const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
       const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.appendChild(meta);
@@ -3332,7 +3343,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const title=document.createElement('div');title.className='komunitas-comment-title';title.textContent='Tulis Komentar :';
       const comments=document.createElement('div');comments.className='komunitas-comments';
       post.comments.forEach(c=>{
-        const row=document.createElement('div');row.className='komunitas-comment';row.appendChild(avatar(String(c.FotoProfil||c.photo||''),true));
+        const row=document.createElement('div');row.className='komunitas-comment';row.appendChild(avatar(supabaseProfilePhoto(c.UID||c.uid||c.UserId||c.userId)||String(c.FotoProfil||c.photo||''),true));
         const b=document.createElement('div');b.className='komunitas-comment-body';
         const n=document.createElement('div');n.className='komunitas-comment-store';n.textContent=String(c.NamaToko||c.storeName||'Toko');
         const t=document.createElement('p');t.className='komunitas-comment-text';t.textContent=String(c.Isi||c.text||'');b.append(n,t);row.appendChild(b);comments.appendChild(row);
@@ -3367,7 +3378,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const input=document.getElementById(postInputId);if(!input)return;const value=String(input.value||'').trim();if(!value){input.focus();return;}
     if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
     const a=api(),col=communityCollection(),id=(crypto?.randomUUID?.()||('post-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
-    const payload={PostinganPublik:{id,NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value,Komentar:[]}};
+    const payload={PostinganPublik:{id,UID:String(sessionUser().uid||auth.currentUser?.uid||''),NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value,Komentar:[]}};
     try{await a.setDoc(a.doc(col,id),payload);input.value='';input.focus();}
     catch(e){console.error('Komunitas posting gagal:',e);alert('Postingan gagal disimpan ke Komunitas.');}
   }
@@ -3376,9 +3387,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
     const snap=communityDocs.find(x=>x.docId===docId);if(!snap)return;
     const a=api(),col=communityCollection(),ref=a.doc(col,docId);
-    const next=[...(Array.isArray(snap.comments)?snap.comments:[]),{id:(crypto?.randomUUID?.()||('comment-'+Date.now()+'-'+Math.random().toString(36).slice(2,7))),NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value}];
+    const next=[...(Array.isArray(snap.comments)?snap.comments:[]),{id:(crypto?.randomUUID?.()||('comment-'+Date.now()+'-'+Math.random().toString(36).slice(2,7))),UID:String(sessionUser().uid||auth.currentUser?.uid||''),NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value}];
     try{
-      await a.setDoc(ref,{PostinganPublik:{id:snap.id,NamaToko:snap.store,NomorHp:snap.phone,FotoProfil:snap.photo,Tanggal:snap.date,Isi:snap.text,Komentar:next}},{merge:true});
+      await a.setDoc(ref,{PostinganPublik:{id:snap.id,UID:String(snap.uid||''),NamaToko:snap.store,NomorHp:snap.phone,FotoProfil:snap.photo,Tanggal:snap.date,Isi:snap.text,Komentar:next}},{merge:true});
       input.value='';input.focus();
     }catch(e){console.error('Komentar Komunitas gagal:',e);alert('Komentar gagal disimpan ke Komunitas.');}
   }
