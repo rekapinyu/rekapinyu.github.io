@@ -3425,10 +3425,11 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function communityContent(){return document.querySelector('#view-komunitas .komunitas-content');}
   function closeCommunityPages(){
     const content=communityContent();if(!content)return;
-    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open');
+    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
     document.getElementById('komunitas-notification-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
+    render();
   }
   function profileStats(){
     const me=String(phone()||'').replace(/\D/g,'');
@@ -3582,7 +3583,13 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       communityDocs=snap.docs.map(normalizePost).filter(x=>x.text.trim()).sort((a,b)=>{
         const da=new Date(a.date||0).getTime(),dbb=new Date(b.date||0).getTime();return dbb-da;
       });
-      render();
+      if(communityContent()?.classList.contains('komunitas-single-post-open')){
+        const target=communityContent()?.querySelector('#komunitas-post-list .komunitas-post-card')?.dataset?.docId;
+        const current=target?communityDocs.find(x=>String(x.docId||'')===String(target)):null;
+        if(current)renderPostList([current]);else render();
+      }else{
+        render();
+      }
       updateNotifBadge();
     },err=>{listenerStarted=false;console.error('Komunitas listener gagal:',err);});
     return true;
@@ -3604,7 +3611,15 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const next=[...(Array.isArray(snap.comments)?snap.comments:[]),{id:(crypto?.randomUUID?.()||('comment-'+Date.now()+'-'+Math.random().toString(36).slice(2,7))),UID:String(sessionUser().uid||auth.currentUser?.uid||''),NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value}];
     try{
       await a.setDoc(ref,{PostinganPublik:{Komentar:next}},{mergeFields:['PostinganPublik.Komentar']});
-      input.value='';input.focus();
+      snap.comments=next;
+      input.value='';
+      if(communityContent()?.classList.contains('komunitas-single-post-open')){
+        renderPostList([snap]);
+        const box=document.querySelector('#komunitas-post-list .komunitas-comment-input');
+        if(box)box.focus();
+      }else{
+        input.focus();
+      }
     }catch(e){console.error('Komentar Komunitas gagal:',e);alert('Komentar gagal disimpan ke Komunitas.');}
   }
   function applySearch(){searchTerm=String(document.getElementById(searchInputId)?.value||'').trim();render();}
