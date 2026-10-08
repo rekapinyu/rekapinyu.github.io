@@ -5318,13 +5318,30 @@ function updateUserAvatarUI() {
             return `${historyDateKey(item)}|${Number(item?.income) || 0}|${Number(item?.expense) || 0}|${Number(item?.cashout) || 0}`;
         }
         function getHistoryForDisplay() {
+            /* PRIORITAS MUTLAK PENYIMPANAN LOKAL:
+               1. Jika file InputData JSON masih ada di folder komputer, data dari
+                  file tersebut menjadi sumber tampilan untuk tanggal tersebut.
+               2. Firestore hanya menjadi fallback bila file lokal untuk tanggal
+                  tersebut sudah tidak ada / sudah dihapus.
+               3. Jangan mencampur data Firestore ke tanggal yang masih mempunyai
+                  file JSON lokal. */
             const local = (Array.isArray(historyData) ? historyData : []).map(item => ({...item, __historySource:'local'}));
             const localDates = new Set(local.map(historyDateKey));
-            const localValues = new Set(local.map(historyValueKey));
-            const cloud = Array.isArray(window.__rekapinyuFirestoreRekap?.InputData) ? window.__rekapinyuFirestoreRekap.InputData : [];
-            const fallback = cloud.filter(item => !localDates.has(historyDateKey(item)) && !localValues.has(historyValueKey(item)))
-                .map(item => ({...item, __historySource:'firestore'}));
-            return [...local, ...fallback];
+            const localFileDates = new Set(Array.from(localHistoryFileKeys||[]).filter(Boolean));
+            local.forEach(item=>localFileDates.add(historyDateKey(item)));
+
+            const cloud = Array.isArray(window.__rekapinyuFirestoreRekap?.InputData)
+                ? window.__rekapinyuFirestoreRekap.InputData
+                : [];
+
+            const fallback = cloud
+                .filter(item=>{
+                    const key=historyDateKey(item);
+                    return !localDates.has(key) && !localFileDates.has(key);
+                })
+                .map(item=>({...item,__historySource:'firestore'}));
+
+            return [...local,...fallback];
         }
 
         // RENDER HISTORY DENGAN ICON (BEARISH, BULLISH, PROFIT)
@@ -6296,6 +6313,7 @@ function updateUserAvatarUI() {
   const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   let writeChain=Promise.resolve();
   let loaded=false;
+  let localHistoryFileKeys=new Set();
 
   const pad=n=>String(n).padStart(2,'0');
 
@@ -6425,6 +6443,7 @@ function updateUserAvatarUI() {
     const dir=await getDir();
     if(!dir){
       loaded=false;
+      localHistoryFileKeys=new Set();
       historyData=[];
       pengeluaranData=[];
       kasbonData=[];
@@ -6438,6 +6457,18 @@ function updateUserAvatarUI() {
     /* Menu Kasbon dan Pengeluaran otomatis membaca seluruh JSON
        dari Data/Rekap, termasuk file di dalam subfolder. */
     const files=await listRekapFiles(dir);
+    /* SIMPAN DAFTAR FILE INPUTDATA YANG BENAR-BENAR ADA DI PENYIMPANAN LOKAL.
+       Daftar ini menjadi penentu prioritas: selama file JSON harian masih ada,
+       History wajib menampilkan sumber Lokal dan tidak memakai data Firestore
+       untuk tanggal/file yang sama. */
+    localHistoryFileKeys=new Set(
+      files
+        .filter(entry=>/^InputData_.+\.json$/i.test(String(entry.name)))
+        .map(entry=>{
+          const info=fileInfoFromData({},entry.name);
+          return info?.dateKey||String(entry.path||entry.name).toLowerCase();
+        })
+    );
     const historyMap=new Map();
     const pengeluaranMap=new Map();
     const kasbonMap=new Map();
@@ -6666,6 +6697,25 @@ function updateUserAvatarUI() {
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible')refreshHistoryFromTarget().catch(()=>{});
   });
+
+  /* HISTORY LOCAL REALTIME: File System Access API tidak menyediakan event
+     universal saat file JSON diubah/dihapus dari luar aplikasi. Karena itu,
+     selama Menu History terbuka kita cek ulang folder secara ringan agar perubahan
+     file lokal segera mengalahkan Firestore, dan setelah file lokal dihapus
+     Firestore otomatis menjadi fallback. */
+  let historyLocalRealtimeTimer=null;
+  function startHistoryLocalRealtime(){
+    if(historyLocalRealtimeTimer)return;
+    historyLocalRealtimeTimer=setInterval(()=>{
+      const view=document.getElementById('view-history');
+      if(!view || view.classList.contains('hidden') || document.visibilityState!=='visible')return;
+      refreshHistoryFromTarget().catch(()=>{});
+    },1500);
+  }
+  function stopHistoryLocalRealtime(){
+    if(historyLocalRealtimeTimer){clearInterval(historyLocalRealtimeTimer);historyLocalRealtimeTimer=null;}
+  }
+  startHistoryLocalRealtime();
 })();
 </script>
 <!-- REKAPINYU: FIREBASE — SATU IMPLEMENTASI FINAL SCHEMA KASIR / PENGGUNA / REKAP -->
@@ -10836,7 +10886,15 @@ async function initKasirViews(){
       lastFolderSignature=signature;
       renderReports(rows);
     }catch(error){
-      console.warn('Rekapinyu: Laporan Kasir gagal membaca JSON folder.',error);
+      const message=String(error?.message||'');
+      const expectedFolderState=
+        message.includes('Folder target Produk Kasir belum tersedia.') ||
+        message.includes('Folder target belum dipilih atau izinnya belum aktif.') ||
+        message.includes('Subfolder Kasir tidak ditemukan di dalam folder yang dipilih di Menu Produk Kasir.') ||
+        message.includes('Izin baca folder target belum diberikan.');
+      /* Kondisi folder belum dipilih/siap bukan error aplikasi. Jangan memenuhi Console
+         dengan warning berulang; pesan tetap ditampilkan di area Laporan Kasir. */
+      if(!expectedFolderState)console.warn('Rekapinyu: Laporan Kasir gagal membaca JSON folder.',error);
       list.innerHTML=`<div class="lk16-empty"><i class="fa-solid fa-folder-open"></i><strong>${esc(error?.message||'Folder Kasir belum dapat dibaca.')}</strong><span>Pilih kembali folder target di Menu Produk Kasir agar Laporan Kasir dapat membaca file JSON.</span></div>`;
       lastFolderSignature='';
     }finally{
