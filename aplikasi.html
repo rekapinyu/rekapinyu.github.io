@@ -6406,7 +6406,9 @@ function updateUserAvatarUI() {
   }
 
   function normalizeLoadedArray(value){
-    return Array.isArray(value)?value:[];
+    if(Array.isArray(value))return value;
+    if(value&&typeof value==='object')return [value];
+    return [];
   }
 
   async function getDir(){
@@ -6455,7 +6457,7 @@ function updateUserAvatarUI() {
     return Number(b?.timestamp||b?.id||0)-Number(a?.timestamp||a?.id||0);
   }
 
-  /* HISTORY / KASBON / PENGELUARAN — membaca langsung seluruh JSON yang SUDAH ADA di Data/Rekap.
+  /* HISTORY / KASBON / PENGELUARAN — membaca langsung seluruh JSON yang SUDAH ADA di folder Rekap target.
      Tidak membuat folder/file baru dan tetap membaca subfolder secara rekursif. */
   async function listRekapFiles(dir){
     const files=[];
@@ -6498,7 +6500,7 @@ function updateUserAvatarUI() {
     }
 
     /* Menu Kasbon dan Pengeluaran otomatis membaca seluruh JSON
-       dari Data/Rekap, termasuk file di dalam subfolder. */
+       dari folder Rekap target, termasuk file di dalam subfolder. */
     const files=await listRekapFiles(dir);
     /* SIMPAN DAFTAR FILE INPUTDATA YANG BENAR-BENAR ADA DI PENYIMPANAN LOKAL.
        Daftar ini menjadi penentu prioritas: selama file JSON harian masih ada,
@@ -6513,10 +6515,11 @@ function updateUserAvatarUI() {
     const pengeluaranMap=new Map();
     const kasbonMap=new Map();
 
-    const addUnique=(map,item)=>{
+    const addUnique=(map,item,sourceKey='')=>{
       if(!item||typeof item!=='object')return;
       const id=String(item.id??'').trim();
-      const key=id||JSON.stringify(item);
+      const base=id||JSON.stringify(item);
+      const key=sourceKey?`${sourceKey}::${base}`:base;
       if(!map.has(key))map.set(key,item);
     };
 
@@ -6524,17 +6527,18 @@ function updateUserAvatarUI() {
       try{
         const data=await readJsonHandle(entry.handle);
 
-        /* HISTORY: file lokal menjadi sumber utama selama file JSON masih ada.
-           Penentu prioritas menggunakan FILE yang benar-benar ditemukan di folder
-           Rekap, bukan hanya baris InputData yang berhasil dinormalisasi. Jadi
-           selama file harian masih ada, data Firestore pada tanggal yang sama
-           tidak boleh tampil sebagai #firestore. */
-        const localInputRows=normalizeLoadedArray(data.InputData);
+        /* HISTORY: setiap file InputData JSON yang benar-benar ditemukan di folder
+           Rekap wajib dibaca. Dukungan mencakup format baru (InputData berupa array),
+           format lama (InputData berupa satu object), dan format lama yang menyimpan
+           satu record langsung di root JSON. */
+        const fileNameIsHistory=/^InputData_.+\.json$/i.test(String(entry.name));
+        const rawInputData=data?.InputData!==undefined?data.InputData:(fileNameIsHistory?data:null);
+        const localInputRows=normalizeLoadedArray(rawInputData);
         const fileInfo=fileInfoFromData(data,entry.name);
-        const isHistoryFile=localInputRows.length || /^InputData_.+\.json$/i.test(String(entry.name));
+        const isHistoryFile=Boolean(fileNameIsHistory||localInputRows.length);
         if(isHistoryFile){
           if(fileInfo?.dateKey)window.__rekapinyuLocalHistoryFileKeys.add(String(fileInfo.dateKey).toLowerCase());
-          localInputRows.forEach(item=>{
+          localInputRows.forEach((item,itemIndex)=>{
             const aligned={...item};
             const itemInfo=fileInfo||itemDateInfo(item);
             if(itemInfo){
@@ -6545,7 +6549,7 @@ function updateUserAvatarUI() {
               aligned.year=itemInfo.year;
               aligned.__localFileDateKey=String(itemInfo.dateKey||'').toLowerCase();
             }
-            addUnique(historyMap,aligned);
+            addUnique(historyMap,aligned,`${entry.path}#${itemIndex}`);
             const key=historyDateKey(aligned);
             if(key && key!=='|||')window.__rekapinyuLocalHistoryFileKeys.add(key);
             if(itemInfo?.dateKey)window.__rekapinyuLocalHistoryFileKeys.add(String(itemInfo.dateKey).toLowerCase());
@@ -6553,8 +6557,8 @@ function updateUserAvatarUI() {
         }
 
         /* Kasbon dan Pengeluaran mengambil data langsung dari JSON Rekap. */
-        normalizeLoadedArray(data.Pengeluaran).forEach(item=>addUnique(pengeluaranMap,item));
-        normalizeLoadedArray(data.Kasbon).forEach(item=>addUnique(kasbonMap,item));
+        normalizeLoadedArray(data.Pengeluaran).forEach((item,index)=>addUnique(pengeluaranMap,item,`${entry.path}#P${index}`));
+        normalizeLoadedArray(data.Kasbon).forEach((item,index)=>addUnique(kasbonMap,item,`${entry.path}#K${index}`));
       }catch(err){
         console.warn('Rekapinyu: file JSON Rekap dilewati karena JSON tidak valid.',entry.name,err);
       }
