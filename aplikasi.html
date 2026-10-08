@@ -3410,7 +3410,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(!post||!content||!list)return;
     content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
     content.classList.add('komunitas-single-post-open');
-    document.getElementById('komunitas-notification-page')?.setAttribute('aria-hidden','true');
+    hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     renderPostList([post]);
@@ -3423,10 +3423,19 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
 
   function communityContent(){return document.querySelector('#view-komunitas .komunitas-content');}
+
+  function hideCommunityPageSafely(id){
+    const page=document.getElementById(id);
+    if(!page)return;
+    if(page.contains(document.activeElement)){
+      try{document.activeElement.blur();}catch(_){}
+    }
+    page.setAttribute('aria-hidden','true');
+  }
   function closeCommunityPages(){
     const content=communityContent();if(!content)return;
     content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
-    document.getElementById('komunitas-notification-page')?.setAttribute('aria-hidden','true');
+    hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     render();
@@ -3488,7 +3497,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   async function openProfile(){
     const content=communityContent();if(!content)return;
     content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
-    document.getElementById('komunitas-notification-page')?.setAttribute('aria-hidden','true');
+    hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','false');
     await loadCommunityBio();
@@ -3500,7 +3509,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   async function openBio(){
     const content=communityContent();if(!content)return;
     content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-single-post-open');content.classList.add('komunitas-bio-open');
-    document.getElementById('komunitas-notification-page')?.setAttribute('aria-hidden','true');
+    hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','false');
     const input=document.getElementById('komunitas-bio-input');
