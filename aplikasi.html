@@ -4075,17 +4075,9 @@ function updateUserAvatarUI() {
                 if(tab==='report')window.__rekapinyuRenderMobileLaporanBulanan?.();
                 if(tab==='laporan-kasir')window.__rekapinyuRenderMobileLaporanKasir?.();
                 if(tab==='history'){
-                    if(typeof window.__rekapinyuLoadLocalRekap==='function'){
-                        window.__rekapinyuLoadLocalRekap().then(()=>{
-                            try{populateHistoryFilters?.();renderHistory?.();}catch(_){}
-                        }).catch(err=>{
-                            console.warn('Rekapinyu: History gagal membaca folder target.',err);
-                            try{populateHistoryFilters?.();renderHistory?.();}catch(_){}
-                        });
-                    }else{
-                        if(typeof populateHistoryFilters==='function')populateHistoryFilters();
-                        if(typeof renderHistory==='function')renderHistory();
-                    }
+                    if(typeof window.__rekapinyuLoadLocalRekap==='function')window.__rekapinyuLoadLocalRekap().catch(err=>console.warn('Rekapinyu: History gagal membaca folder target.',err));
+                    if(typeof populateHistoryFilters==='function')populateHistoryFilters();
+                    if(typeof renderHistory==='function')renderHistory();
                 }
                 return;
             }
@@ -5318,56 +5310,53 @@ function updateUserAvatarUI() {
             yearSelect.value = currentSelectedYear;
         }
 
-        /* PATCH FOKUS HISTORY: sumber lokal menjadi prioritas, Firestore hanya fallback. */
+        /* =========================================================
+         * HISTORY — SATU IMPLEMENTASI FINAL SUMBER DATA
+         * - Data lokal dari folder pilihan Menu Produk Kasir -> Rekap adalah utama.
+         * - Selama file JSON harian masih ada, Firestore tidak menggantikannya.
+         * - Jika file lokal sudah tidak ada, Firestore menjadi fallback.
+         * - Tidak ada penggabungan/duplikasi berdasarkan ID antar-file lokal.
+         * ========================================================= */
         function historyDateKey(item) {
-            return `${String(item?.day || '').trim()}|${String(item?.date || '').trim()}|${String(item?.month || '').trim()}|${String(item?.year || '').trim()}`.toLowerCase();
+            try {
+                const info = itemDateInfo(item);
+                return String(info?.dateKey || '').trim().toLowerCase();
+            } catch (_) {
+                return `${String(item?.year || '').trim()}-${String(item?.month || '').trim()}-${String(item?.date || '').trim()}`.toLowerCase();
+            }
         }
-        function historyValueKey(item) {
-            return `${historyDateKey(item)}|${Number(item?.income) || 0}|${Number(item?.expense) || 0}|${Number(item?.cashout) || 0}`;
-        }
+
         function getHistoryForDisplay() {
-            /* PRIORITAS MUTLAK PENYIMPANAN LOKAL:
-               1. Jika file InputData JSON masih ada di folder komputer, data dari
-                  file tersebut menjadi sumber tampilan untuk tanggal tersebut.
-               2. Firestore hanya menjadi fallback bila file lokal untuk tanggal
-                  tersebut sudah tidak ada / sudah dihapus.
-               3. Jangan mencampur data Firestore ke tanggal yang masih mempunyai
-                  file JSON lokal. */
-            const local = (Array.isArray(historyData) ? historyData : []).map(item => ({...item, __historySource:'local'}));
-            const localDates = new Set(local.map(historyDateKey));
-            const localFileDates = new Set(Array.from(window.__rekapinyuLocalHistoryFileKeys||[]).filter(Boolean).map(v=>String(v).toLowerCase()));
-            local.forEach(item=>{
-                localFileDates.add(historyDateKey(item));
-                if(item?.__localFileDateKey)localFileDates.add(String(item.__localFileDateKey).toLowerCase());
-                const year=Number(item?.year)||0;
-                const date=Number(item?.date)||0;
-                const monthIndex=Number.isInteger(Number(item?.monthIndex))?Number(item.monthIndex):MONTHS.indexOf(String(item?.month||''));
-                if(year>0&&date>0&&monthIndex>=0&&monthIndex<12){
-                    localFileDates.add(`${year}-${String(monthIndex+1).padStart(2,'0')}-${String(date).padStart(2,'0')}`.toLowerCase());
-                }
+            const localRows = Array.isArray(historyData)
+                ? historyData.map(item => ({...item, __historySource:'local'}))
+                : [];
+
+            /* File yang benar-benar masih ada menjadi kunci prioritas.
+               Bahkan jika InputData di dalam file kosong, Firestore tetap tidak
+               boleh mengambil alih tanggal tersebut. */
+            const localFileDates = new Set(
+                Array.from(window.__rekapinyuLocalHistoryFileKeys || [])
+                    .map(v => String(v || '').trim().toLowerCase())
+                    .filter(Boolean)
+            );
+
+            /* Baris lokal juga mengunci tanggalnya sebagai lokal. */
+            localRows.forEach(item => {
+                const key = historyDateKey(item);
+                if (key) localFileDates.add(key);
             });
 
-            const canonicalDateKey=item=>{
-                const year=Number(item?.year)||0;
-                const date=Number(item?.date)||0;
-                const monthIndex=Number.isInteger(Number(item?.monthIndex))?Number(item.monthIndex):MONTHS.indexOf(String(item?.month||''));
-                if(year>0&&date>0&&monthIndex>=0&&monthIndex<12)return `${year}-${String(monthIndex+1).padStart(2,'0')}-${String(date).padStart(2,'0')}`.toLowerCase();
-                return historyDateKey(item);
-            };
-
-            const cloud = Array.isArray(window.__rekapinyuFirestoreRekap?.InputData)
+            const cloudRows = Array.isArray(window.__rekapinyuFirestoreRekap?.InputData)
                 ? window.__rekapinyuFirestoreRekap.InputData
                 : [];
 
-            const fallback = cloud
-                .filter(item=>{
-                    const key=historyDateKey(item);
-                    const canonical=canonicalDateKey(item);
-                    return !localDates.has(key) && !localFileDates.has(key) && !localFileDates.has(canonical);
-                })
-                .map(item=>({...item,__historySource:'firestore'}));
+            /* Firestore hanya dipakai untuk tanggal yang tidak mempunyai
+               file JSON lokal. */
+            const fallbackRows = cloudRows
+                .filter(item => !localFileDates.has(historyDateKey(item)))
+                .map(item => ({...item, __historySource:'firestore'}));
 
-            return [...local,...fallback];
+            return [...localRows, ...fallbackRows];
         }
 
         // RENDER HISTORY DENGAN ICON (BEARISH, BULLISH, PROFIT)
@@ -6339,9 +6328,6 @@ function updateUserAvatarUI() {
   const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   let writeChain=Promise.resolve();
   let loaded=false;
-  window.__rekapinyuLocalHistoryFileKeys = window.__rekapinyuLocalHistoryFileKeys instanceof Set
-    ? window.__rekapinyuLocalHistoryFileKeys
-    : new Set();
 
   const pad=n=>String(n).padStart(2,'0');
 
@@ -6406,29 +6392,25 @@ function updateUserAvatarUI() {
   }
 
   function normalizeLoadedArray(value){
-    if(Array.isArray(value))return value;
-    if(value&&typeof value==='object')return [value];
-    return [];
+    return Array.isArray(value)?value:[];
   }
 
   async function getDir(){
-    /* HISTORY: sumber folder harus mengikuti folder yang dipilih dari Menu Produk Kasir.
-       Setelah root/folder toko yang dipilih ditemukan, History hanya membaca subfolder
-       Rekap di dalam folder tersebut. Tidak memakai folder Data/Rekap global lain. */
-    try{
-      if(typeof window.__rekapinyuGetProdukKasirSelectedFolder==='function'){
-        const selectedRoot=await window.__rekapinyuGetProdukKasirSelectedFolder();
-        if(selectedRoot){
-          try{return await selectedRoot.getDirectoryHandle('Rekap',{create:false});}catch(_){}
-        }
-      }
-    }catch(_){}
-    /* Fallback tetap menggunakan root folder yang sama yang dipakai Produk Kasir,
-       tanpa membuat folder apa pun. */
-    try{
-      if(typeof window.__rekapinyuGetDataSubdirectory==='function')return await window.__rekapinyuGetDataSubdirectory('Rekap');
-    }catch(_){}
+    if(typeof window.__rekapinyuGetDataSubdirectory==='function')return await window.__rekapinyuGetDataSubdirectory('Rekap');
     return null;
+  }
+
+  /* HISTORY ONLY: folder harus berasal dari target yang dipilih di Menu Produk Kasir.
+     Tidak ada fallback ke Data/Rekap agar History tidak membaca folder lain. */
+  async function getHistoryTargetDir(){
+    try{
+      if(typeof window.__rekapinyuGetProdukKasirSelectedFolder!=='function')return null;
+      const selectedRoot=await window.__rekapinyuGetProdukKasirSelectedFolder();
+      if(!selectedRoot)return null;
+      return await selectedRoot.getDirectoryHandle('Rekap',{create:false});
+    }catch(_){
+      return null;
+    }
   }
 
   async function readJsonHandle(handle){
@@ -6457,7 +6439,7 @@ function updateUserAvatarUI() {
     return Number(b?.timestamp||b?.id||0)-Number(a?.timestamp||a?.id||0);
   }
 
-  /* HISTORY / KASBON / PENGELUARAN — membaca langsung seluruh JSON yang SUDAH ADA di folder Rekap target.
+  /* HISTORY / KASBON / PENGELUARAN — membaca langsung seluruh JSON yang SUDAH ADA di Data/Rekap.
      Tidak membuat folder/file baru dan tetap membaca subfolder secara rekursif. */
   async function listRekapFiles(dir){
     const files=[];
@@ -6485,86 +6467,112 @@ function updateUserAvatarUI() {
   }
 
   async function load(){
-    const dir=await getDir();
-    if(!dir){
+    /* =========================================================
+     * HISTORY + DATA OPERASIONAL
+     * History membaca folder pilihan Produk Kasir -> Rekap.
+     * Kasbon/Pengeluaran tetap memakai getDir() lama agar menu lain tidak berubah.
+     * ========================================================= */
+    const historyDir=await getHistoryTargetDir();
+    const operationalDir=await getDir();
+
+    /* ---------------------------------------------------------
+     * HISTORY: SATU BLOK PEMBACAAN LOKAL
+     * --------------------------------------------------------- */
+    window.__rekapinyuLocalHistoryFileKeys=new Set();
+    const localHistoryRows=[];
+
+    if(historyDir){
+      try{
+        const historyFiles=await listRekapFiles(historyDir);
+        const toHistoryRows=value=>Array.isArray(value)
+          ?value
+          :(value&&typeof value==='object'?[value]:[]);
+
+        for(const entry of historyFiles){
+          try{
+            const name=String(entry?.name||'');
+            if(!/^InputData_.+\.json$/i.test(name))continue;
+
+            const data=await readJsonHandle(entry.handle);
+            const fileInfo=fileInfoFromData(data,name);
+            if(fileInfo?.dateKey){
+              window.__rekapinyuLocalHistoryFileKeys.add(String(fileInfo.dateKey).toLowerCase());
+            }
+
+            const rows=toHistoryRows(data?.InputData);
+            rows.forEach((item,index)=>{
+              if(!item||typeof item!=='object')return;
+              const aligned={...item};
+              const info=fileInfo||itemDateInfo(item);
+              if(info){
+                aligned.day=info.day;
+                aligned.date=info.date;
+                aligned.monthIndex=info.monthIndex;
+                aligned.month=info.month;
+                aligned.year=info.year;
+                aligned.__localFileDateKey=String(info.dateKey||'').toLowerCase();
+              }
+              aligned.__localFileName=name;
+              aligned.__localFilePath=String(entry?.path||name);
+              aligned.__localFileIndex=index;
+              localHistoryRows.push(aligned);
+
+              const rowKey=historyDateKey(aligned);
+              if(rowKey)window.__rekapinyuLocalHistoryFileKeys.add(rowKey);
+            });
+          }catch(err){
+            console.warn('Rekapinyu: file History JSON dilewati karena JSON tidak valid.',entry?.name,err);
+          }
+        }
+      }catch(err){
+        console.warn('Rekapinyu: folder Rekap target History tidak dapat dibaca.',err);
+      }
+    }
+
+    /* Tidak ada deduplikasi berdasarkan ID. Setiap record dari setiap file JSON
+       yang ada di folder target dipertahankan agar seluruh History tampil. */
+    historyData=localHistoryRows
+      .map(item=>({...item,__historySource:'local'}))
+      .sort(sortNewest);
+
+    /* ---------------------------------------------------------
+     * DATA OPERASIONAL LAIN — LOGIKA LAMA DIPERTAHANKAN
+     * --------------------------------------------------------- */
+    if(!operationalDir){
       loaded=false;
-      window.__rekapinyuLocalHistoryFileKeys=new Set();
-      historyData=[];
       pengeluaranData=[];
       kasbonData=[];
       syncBackupFromHistory();
-      renderHistory?.();
-      renderPengeluaranGrid?.();
-      renderKasbonGrid?.();
+      try{
+        populateHistoryFilters?.();
+        renderHistory?.();
+        renderPengeluaranGrid?.();
+        renderKasbonGrid?.();
+      }catch(_){}
       return false;
     }
 
-    /* Menu Kasbon dan Pengeluaran otomatis membaca seluruh JSON
-       dari folder Rekap target, termasuk file di dalam subfolder. */
-    const files=await listRekapFiles(dir);
-    /* SIMPAN DAFTAR FILE INPUTDATA YANG BENAR-BENAR ADA DI PENYIMPANAN LOKAL.
-       Daftar ini menjadi penentu prioritas: selama file JSON harian masih ada,
-       History wajib menampilkan sumber Lokal dan tidak memakai data Firestore
-       untuk tanggal/file yang sama. */
-    /* Setiap JSON yang benar-benar berisi field InputData dianggap sebagai sumber
-       lokal History. Nama file tetap dipakai bila mengikuti pola InputData_...,
-       tetapi pembacaan tidak lagi bergantung mutlak pada nama file. Ini menjaga
-       file JSON yang sudah ada di folder tetap tampil sebagai #penyimpanan Lokal. */
-    window.__rekapinyuLocalHistoryFileKeys=new Set();
-    const historyMap=new Map();
+    const files=await listRekapFiles(operationalDir);
     const pengeluaranMap=new Map();
     const kasbonMap=new Map();
 
-    const addUnique=(map,item,sourceKey='')=>{
+    const addUnique=(map,item)=>{
       if(!item||typeof item!=='object')return;
       const id=String(item.id??'').trim();
-      const base=id||JSON.stringify(item);
-      const key=sourceKey?`${sourceKey}::${base}`:base;
+      const key=id||JSON.stringify(item);
       if(!map.has(key))map.set(key,item);
     };
 
     for(const entry of files){
       try{
         const data=await readJsonHandle(entry.handle);
-
-        /* HISTORY: setiap file InputData JSON yang benar-benar ditemukan di folder
-           Rekap wajib dibaca. Dukungan mencakup format baru (InputData berupa array),
-           format lama (InputData berupa satu object), dan format lama yang menyimpan
-           satu record langsung di root JSON. */
-        const fileNameIsHistory=/^InputData_.+\.json$/i.test(String(entry.name));
-        const rawInputData=data?.InputData!==undefined?data.InputData:(fileNameIsHistory?data:null);
-        const localInputRows=normalizeLoadedArray(rawInputData);
-        const fileInfo=fileInfoFromData(data,entry.name);
-        const isHistoryFile=Boolean(fileNameIsHistory||localInputRows.length);
-        if(isHistoryFile){
-          if(fileInfo?.dateKey)window.__rekapinyuLocalHistoryFileKeys.add(String(fileInfo.dateKey).toLowerCase());
-          localInputRows.forEach((item,itemIndex)=>{
-            const aligned={...item};
-            const itemInfo=fileInfo||itemDateInfo(item);
-            if(itemInfo){
-              aligned.day=itemInfo.day;
-              aligned.date=itemInfo.date;
-              aligned.monthIndex=itemInfo.monthIndex;
-              aligned.month=itemInfo.month;
-              aligned.year=itemInfo.year;
-              aligned.__localFileDateKey=String(itemInfo.dateKey||'').toLowerCase();
-            }
-            addUnique(historyMap,aligned,`${entry.path}#${itemIndex}`);
-            const key=historyDateKey(aligned);
-            if(key && key!=='|||')window.__rekapinyuLocalHistoryFileKeys.add(key);
-            if(itemInfo?.dateKey)window.__rekapinyuLocalHistoryFileKeys.add(String(itemInfo.dateKey).toLowerCase());
-          });
-        }
-
-        /* Kasbon dan Pengeluaran mengambil data langsung dari JSON Rekap. */
-        normalizeLoadedArray(data.Pengeluaran).forEach((item,index)=>addUnique(pengeluaranMap,item,`${entry.path}#P${index}`));
-        normalizeLoadedArray(data.Kasbon).forEach((item,index)=>addUnique(kasbonMap,item,`${entry.path}#K${index}`));
+        normalizeLoadedArray(data.Pengeluaran).forEach(item=>addUnique(pengeluaranMap,item));
+        normalizeLoadedArray(data.Kasbon).forEach(item=>addUnique(kasbonMap,item));
       }catch(err){
         console.warn('Rekapinyu: file JSON Rekap dilewati karena JSON tidak valid.',entry.name,err);
       }
     }
 
-    historyData=Array.from(historyMap.values()).map(item=>({...item,__historySource:'local'})).sort(sortNewest);
     pengeluaranData=Array.from(pengeluaranMap.values()).sort(sortNewest);
     kasbonData=Array.from(kasbonMap.values()).sort(sortNewest);
 
@@ -6587,7 +6595,6 @@ function updateUserAvatarUI() {
     }catch(_){}
     return true;
   }
-
 
   function groupByDate(list){
     const groups=new Map();
@@ -6753,25 +6760,6 @@ function updateUserAvatarUI() {
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible')refreshHistoryFromTarget().catch(()=>{});
   });
-
-  /* HISTORY LOCAL REALTIME: File System Access API tidak menyediakan event
-     universal saat file JSON diubah/dihapus dari luar aplikasi. Karena itu,
-     selama Menu History terbuka kita cek ulang folder secara ringan agar perubahan
-     file lokal segera mengalahkan Firestore, dan setelah file lokal dihapus
-     Firestore otomatis menjadi fallback. */
-  let historyLocalRealtimeTimer=null;
-  function startHistoryLocalRealtime(){
-    if(historyLocalRealtimeTimer)return;
-    historyLocalRealtimeTimer=setInterval(()=>{
-      const view=document.getElementById('view-history');
-      if(!view || view.classList.contains('hidden') || document.visibilityState!=='visible')return;
-      refreshHistoryFromTarget().catch(()=>{});
-    },1500);
-  }
-  function stopHistoryLocalRealtime(){
-    if(historyLocalRealtimeTimer){clearInterval(historyLocalRealtimeTimer);historyLocalRealtimeTimer=null;}
-  }
-  startHistoryLocalRealtime();
 })();
 </script>
 <!-- REKAPINYU: FIREBASE — SATU IMPLEMENTASI FINAL SCHEMA KASIR / PENGGUNA / REKAP -->
