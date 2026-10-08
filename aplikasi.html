@@ -2697,8 +2697,11 @@ bind();
 </style>
 <!-- VIEW KOMUNITAS: SATU IMPLEMENTASI FINAL -->
 <style id="rekapinyu-komunitas-final">
-/* SEMUA CSS KOMUNITAS HANYA DI BLOK INI. */
-/* FULL AREA KOMUNITAS: hanya saat Menu Komunitas aktif. */
+/* =========================================================
+   KOMUNITAS — SATU IMPLEMENTASI FINAL
+   Layout mengikuti referensi: rail sticky + search sticky
+   + feed realtime + composer tetap di bawah.
+   ========================================================= */
 main:has(#view-komunitas:not(.hidden)){
   padding:0!important;
 }
@@ -2710,39 +2713,227 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   margin:0!important;
   padding:0!important;
 }
-#view-komunitas{position:relative!important;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#f8fafc!important;box-sizing:border-box!important}
-#view-komunitas .komunitas-post-list{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0 0 96px!important;overflow-y:auto!important;overflow-x:hidden!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;box-sizing:border-box!important}
-#view-komunitas .komunitas-post-card{width:100%!important;flex:0 0 auto!important;margin:0!important;padding:0!important;background:#fff!important;border:1px solid #e2e8f0!important;border-left:0!important;border-right:0!important;border-radius:0!important;box-shadow:none!important;box-sizing:border-box!important}
-#view-komunitas .komunitas-post-head{display:flex!important;align-items:center!important;gap:10px!important;padding:14px!important;min-width:0!important;box-sizing:border-box!important}
-#view-komunitas .komunitas-post-avatar,#view-komunitas .komunitas-comment-avatar{display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 auto!important;border-radius:50%!important;overflow:hidden!important;background:#ecfdf5!important;color:#059669!important;border:1px solid #d1fae5!important;box-sizing:border-box!important}
+#view-komunitas{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  background:#fff!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-shell{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:46px minmax(0,1fr)!important;
+  overflow:hidden!important;
+  background:#fff!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-rail{
+  position:relative!important;
+  z-index:35!important;
+  width:46px!important;
+  height:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  background:#fff!important;
+  border-right:1px solid #e2e8f0!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+#view-komunitas .komunitas-rail-item{
+  flex:0 0 54px!important;
+  width:100%!important;
+  margin:0!important;
+  padding:5px 2px!important;
+  border:0!important;
+  border-bottom:1px solid #e2e8f0!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:3px!important;
+  font-size:7px!important;
+  font-weight:800!important;
+  line-height:1.1!important;
+  text-align:center!important;
+  cursor:default!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-rail-item i{
+  font-size:13px!important;
+  line-height:1!important;
+}
+#view-komunitas .komunitas-rail-item:first-child{
+  color:#2563eb!important;
+}
+#view-komunitas .komunitas-content{
+  position:relative!important;
+  min-width:0!important;
+  min-height:0!important;
+  height:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  background:#fff!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-search-wrap{
+  position:sticky!important;
+  top:0!important;
+  z-index:30!important;
+  flex:0 0 48px!important;
+  width:100%!important;
+  height:48px!important;
+  padding:7px 0!important;
+  display:flex!important;
+  align-items:stretch!important;
+  background:#fff!important;
+  box-sizing:border-box!important;
+  border-bottom:1px solid #e2e8f0!important;
+}
+#view-komunitas .komunitas-search-input{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  width:100%!important;
+  height:40px!important;
+  margin:0!important;
+  padding:0 14px!important;
+  border:1px solid #dbe3eb!important;
+  border-right:0!important;
+  border-radius:9px 0 0 9px!important;
+  outline:none!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  font-size:13px!important;
+  font-weight:700!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-search-input:focus{
+  border-color:#93c5fd!important;
+  box-shadow:0 0 0 3px rgba(59,130,246,.08)!important;
+}
+#view-komunitas .komunitas-search-input::placeholder{color:#94a3b8!important}
+#view-komunitas .komunitas-search-btn{
+  flex:0 0 84px!important;
+  height:40px!important;
+  margin:0!important;
+  padding:0 10px!important;
+  border:1px solid #2563eb!important;
+  border-radius:0!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  cursor:pointer!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-search-btn:hover{background:#1d4ed8!important}
+#view-komunitas .komunitas-post-list{
+  position:relative!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  width:100%!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0 0 12px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  box-sizing:border-box!important;
+  scrollbar-width:thin!important;
+}
+#view-komunitas .komunitas-post-card{
+  width:100%!important;
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0!important;
+  background:#fff!important;
+  border-bottom:1px solid #e2e8f0!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-post-head{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  padding:14px 16px 8px!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+#view-komunitas .komunitas-post-avatar,#view-komunitas .komunitas-comment-avatar{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 auto!important;
+  border-radius:50%!important;
+  overflow:hidden!important;
+  background:#ecfdf5!important;
+  color:#059669!important;
+  border:1px solid #d1fae5!important;
+  box-sizing:border-box!important;
+}
 #view-komunitas .komunitas-post-avatar{width:42px!important;height:42px!important;font-size:15px!important}
 #view-komunitas .komunitas-comment-avatar{width:38px!important;height:38px!important;font-size:13px!important}
 #view-komunitas .komunitas-post-avatar img,#view-komunitas .komunitas-comment-avatar img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}
 #view-komunitas .komunitas-post-meta{min-width:0!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:2px!important}
 #view-komunitas .komunitas-post-store{max-width:100%!important;color:#0f172a!important;font-size:13px!important;font-weight:900!important;line-height:1.25!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 #view-komunitas .komunitas-post-date{color:#64748b!important;font-size:9px!important;font-weight:700!important;line-height:1.2!important}
-#view-komunitas .komunitas-post-text{margin:0!important;padding:0 14px 14px 66px!important;color:#0f172a!important;font-size:15px!important;font-weight:600!important;line-height:1.5!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;box-sizing:border-box!important}
+#view-komunitas .komunitas-post-text{margin:0!important;padding:0 16px 14px 66px!important;color:#0f172a!important;font-size:15px!important;font-weight:600!important;line-height:1.5!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-comment-title{margin:0!important;padding:14px 66px!important;border-top:1px solid #e2e8f0!important;border-bottom:1px solid #e2e8f0!important;background:#fff!important;color:#0f172a!important;font-size:16px!important;font-weight:900!important;line-height:1.35!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-comments{width:100%!important;margin:0!important;padding:0!important;display:flex!important;flex-direction:column!important;box-sizing:border-box!important}
-#view-komunitas .komunitas-comment{display:flex!important;align-items:flex-start!important;gap:10px!important;width:100%!important;margin:0!important;padding:13px 14px 13px 66px!important;border-bottom:1px solid #e2e8f0!important;background:#fff!important;box-sizing:border-box!important}
+#view-komunitas .komunitas-comment{display:flex!important;align-items:flex-start!important;gap:10px!important;width:100%!important;margin:0!important;padding:13px 16px 13px 66px!important;border-bottom:1px solid #e2e8f0!important;background:#fff!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-comment-body{min-width:0!important;flex:1 1 auto!important;padding-top:1px!important}
 #view-komunitas .komunitas-comment-store{color:#0f172a!important;font-size:13px!important;font-weight:900!important;line-height:1.3!important}
 #view-komunitas .komunitas-comment-text{margin:3px 0 0!important;color:#334155!important;font-size:14px!important;font-weight:600!important;line-height:1.5!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
-#view-komunitas .komunitas-comment-box{display:flex!important;align-items:center!important;width:100%!important;margin:0!important;padding:11px 14px 12px 66px!important;background:#fff!important;box-sizing:border-box!important}
+#view-komunitas .komunitas-comment-box{display:flex!important;align-items:center!important;width:100%!important;margin:0!important;padding:11px 16px 12px 66px!important;background:#fff!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-comment-input{flex:1 1 auto!important;width:100%!important;min-width:0!important;height:44px!important;margin:0!important;padding:0 13px!important;border:1px solid #dbe3eb!important;border-right:0!important;border-radius:10px 0 0 10px!important;outline:none!important;background:#f8fafc!important;color:#334155!important;font-size:13px!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-comment-input:focus{background:#fff!important;border-color:#60a5fa!important;box-shadow:0 0 0 3px rgba(59,130,246,.09)!important}
 #view-komunitas .komunitas-comment-input::placeholder{color:#94a3b8!important}
 #view-komunitas .komunitas-comment-send{flex:0 0 auto!important;height:44px!important;padding:0 18px!important;margin:0!important;border:1px solid #2563eb!important;border-radius:0 10px 10px 0!important;background:#2563eb!important;color:#fff!important;font-size:13px!important;font-weight:800!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;cursor:pointer!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-comment-send:hover{background:#1d4ed8!important}
-#view-komunitas .komunitas-post-box{position:fixed!important;left:calc(16rem + 32px)!important;right:32px!important;bottom:0!important;z-index:30!important;display:flex!important;align-items:center!important;width:auto!important;margin:0!important;padding:10px!important;border:1px solid #e2e8f0!important;border-radius:14px 14px 0 0!important;background:rgba(255,255,255,.98)!important;box-shadow:0 -8px 24px rgba(15,23,42,.08)!important;box-sizing:border-box!important}
+#view-komunitas .komunitas-post-box{
+  position:relative!important;
+  z-index:28!important;
+  flex:0 0 60px!important;
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  margin:0!important;
+  padding:9px 8px!important;
+  border-top:1px solid #e2e8f0!important;
+  background:rgba(255,255,255,.98)!important;
+  box-shadow:0 -8px 20px rgba(15,23,42,.06)!important;
+  box-sizing:border-box!important;
+}
 #view-komunitas .komunitas-post-input{flex:1 1 auto!important;width:100%!important;min-width:0!important;height:42px!important;margin:0!important;padding:0 13px!important;border:1px solid #dbe3eb!important;border-right:0!important;border-radius:10px 0 0 10px!important;outline:none!important;background:#f8fafc!important;color:#334155!important;font-size:12px!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-post-input:focus{background:#fff!important;border-color:#93c5fd!important;box-shadow:0 0 0 3px rgba(59,130,246,.10)!important}
 #view-komunitas .komunitas-post-input::placeholder{color:#94a3b8!important}
 #view-komunitas .komunitas-publish-btn{flex:0 0 auto!important;height:42px!important;padding:0 18px!important;margin:0!important;border:1px solid #2563eb!important;border-radius:0 10px 10px 0!important;background:#2563eb!important;color:#fff!important;font-size:12px!important;font-weight:800!important;cursor:pointer!important;box-sizing:border-box!important}
 #view-komunitas .komunitas-publish-btn:hover{background:#1d4ed8!important}
 @media(max-width:767px){
-  #view-komunitas .komunitas-post-list{padding-bottom:92px!important}
-  #view-komunitas .komunitas-post-head{padding:12px!important}
+  #view-komunitas .komunitas-shell{grid-template-columns:42px minmax(0,1fr)!important}
+  #view-komunitas .komunitas-rail{width:42px!important}
+  #view-komunitas .komunitas-rail-item{flex-basis:50px!important;font-size:6px!important}
+  #view-komunitas .komunitas-rail-item i{font-size:12px!important}
+  #view-komunitas .komunitas-search-wrap{flex-basis:45px!important;height:45px!important;padding:5px 0!important}
+  #view-komunitas .komunitas-search-input,#view-komunitas .komunitas-search-btn{height:35px!important}
+  #view-komunitas .komunitas-search-btn{flex-basis:60px!important;font-size:8px!important}
+  #view-komunitas .komunitas-post-head{padding:12px 12px 7px!important}
   #view-komunitas .komunitas-post-avatar{width:40px!important;height:40px!important;font-size:14px!important}
   #view-komunitas .komunitas-post-text{padding:0 12px 12px 62px!important;font-size:14px!important}
   #view-komunitas .komunitas-comment-title{padding:12px 62px!important;font-size:15px!important}
@@ -2752,24 +2943,40 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   #view-komunitas .komunitas-comment-text{font-size:13px!important}
   #view-komunitas .komunitas-comment-box{padding:9px 12px 11px 62px!important}
   #view-komunitas .komunitas-comment-input,#view-komunitas .komunitas-comment-send{height:42px!important}
-  #view-komunitas .komunitas-post-box{left:12px!important;right:12px!important;bottom:78px!important;padding:8px!important;border-radius:14px!important}
+  #view-komunitas .komunitas-post-box{flex-basis:58px!important;padding:8px 6px!important}
   #view-komunitas .komunitas-post-input,#view-komunitas .komunitas-publish-btn{height:40px!important}
 }
 </style>
 <section class="hidden" id="view-komunitas">
-  <div class="komunitas-post-list" id="komunitas-post-list"></div>
-  <div class="komunitas-post-box">
-    <input class="komunitas-post-input" id="komunitas-post-input" type="text" placeholder="Buat Postingan dengan Komunitas Lain....." autocomplete="off">
-    <button class="komunitas-publish-btn" id="komunitas-publish-btn" type="button">Publikasikan</button>
+  <div class="komunitas-shell">
+    <aside class="komunitas-rail" aria-label="Navigasi komunitas">
+      <div class="komunitas-rail-item"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Beranda<br>sticky</span></div>
+      <div class="komunitas-rail-item"><i class="fa-solid fa-user" aria-hidden="true"></i><span>Profil<br>sticky</span></div>
+      <div class="komunitas-rail-item"><i class="fa-solid fa-users" aria-hidden="true"></i><span>Grup<br>sticky</span></div>
+      <div class="komunitas-rail-item"><i class="fa-solid fa-user-group" aria-hidden="true"></i><span>Teman<br>sticky</span></div>
+      <div class="komunitas-rail-item"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notif<br>sticky</span></div>
+    </aside>
+    <div class="komunitas-content">
+      <div class="komunitas-search-wrap">
+        <input class="komunitas-search-input" id="komunitas-search-input" type="text" placeholder="Search box sticky" autocomplete="off" aria-label="Cari postingan komunitas">
+        <button class="komunitas-search-btn" id="komunitas-search-btn" type="button"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>icon search</span></button>
+      </div>
+      <div class="komunitas-post-list" id="komunitas-post-list"></div>
+      <div class="komunitas-post-box">
+        <input class="komunitas-post-input" id="komunitas-post-input" type="text" placeholder="Buat Postingan dengan Komunitas Lain....." autocomplete="off">
+        <button class="komunitas-publish-btn" id="komunitas-publish-btn" type="button">Publikasikan</button>
+      </div>
+    </div>
   </div>
 </section>
 <script id="rekapinyu-komunitas-final-js">
 (function(){
   'use strict';
-  const rootId='view-komunitas', listId='komunitas-post-list', postInputId='komunitas-post-input', publishButtonId='komunitas-publish-btn';
+  const rootId='view-komunitas',listId='komunitas-post-list',postInputId='komunitas-post-input',publishButtonId='komunitas-publish-btn',searchInputId='komunitas-search-input',searchButtonId='komunitas-search-btn';
   let unsubscribeCommunity=null;
   let communityDocs=[];
   let listenerStarted=false;
+  let searchTerm='';
 
   function sessionUser(){
     try{return (typeof currentSessionUser!=='undefined'&&currentSessionUser&&typeof currentSessionUser==='object')?currentSessionUser:{};}catch(_){return {};}
@@ -2778,7 +2985,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function phone(){try{return typeof phoneOf==='function'?phoneOf(sessionUser().phone):String(sessionUser().phone||'').replace(/\D/g,'');}catch(_){return '';}}
   function profilePhoto(){
     const u=sessionUser(); let photo=String(u.photo||'').trim();
-    if(!photo){try{const p=phone();if(p&&typeof photoStore!=='undefined'&&photoStore&&typeof photoStore.readProfile==='function')photo=String(photoStore.readProfile(p)||'').trim();}catch(_){}}
+    if(!photo){try{const p=phone();if(p&&typeof photoStore!=='undefined'&&photoStore&&typeof photoStore.readProfile==='function')photo=String(photoStore.readProfile(p)||'').trim();}catch(_){} }
     return photo;
   }
   function dateLabel(value){
@@ -2791,18 +2998,25 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     else{const icon=document.createElement('i');icon.className='fa-solid fa-store';icon.setAttribute('aria-hidden','true');el.appendChild(icon);}
     return el;
   }
-  function escId(v){return String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');}
   function normalizePost(docSnap){
     const raw=docSnap?.data?.()||{}; const p=raw.PostinganPublik&&typeof raw.PostinganPublik==='object'?raw.PostinganPublik:{};
     const comments=Array.isArray(p.Komentar)?p.Komentar:(typeof p.Komentar==='string'&&p.Komentar.trim()?[{id:'legacy-'+docSnap.id,NamaToko:p.NamaToko||'Toko',NomorHp:p.NomorHp||'',FotoProfil:p.FotoProfil||'',Tanggal:p.Tanggal||raw.Tanggal||'',Isi:p.Komentar}]:[]);
     return {docId:docSnap.id,id:String(p.id||docSnap.id),store:String(p.NamaToko||p.storeName||'Toko'),phone:String(p.NomorHp||''),photo:String(p.FotoProfil||p.photo||''),date:p.Tanggal||p.createdAt||raw.Tanggal||'',text:String(p.Isi||p.Konten||p.text||''),comments};
   }
+  function matchesSearch(post){
+    const q=searchTerm.trim().toLowerCase();
+    if(!q)return true;
+    const base=[post.store,post.phone,post.text,dateLabel(post.date)];
+    (post.comments||[]).forEach(c=>base.push(c.NamaToko||c.storeName||'',c.Isi||c.text||''));
+    return base.join(' ').toLowerCase().includes(q);
+  }
   function render(){
     const list=document.getElementById(listId);if(!list)return;list.replaceChildren();
-    if(!communityDocs.length){
-      const empty=document.createElement('div');empty.style.cssText='padding:40px 20px;text-align:center;color:#64748b;font-size:13px;font-weight:700';empty.textContent='Belum ada postingan komunitas.';list.appendChild(empty);return;
+    const visible=communityDocs.filter(matchesSearch);
+    if(!visible.length){
+      const empty=document.createElement('div');empty.style.cssText='padding:40px 20px;text-align:center;color:#64748b;font-size:13px;font-weight:700';empty.textContent=searchTerm?'Postingan yang dicari belum ditemukan.':'Belum ada postingan komunitas.';list.appendChild(empty);return;
     }
-    communityDocs.forEach(post=>{
+    visible.forEach(post=>{
       const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
       const head=document.createElement('div');head.className='komunitas-post-head';head.appendChild(avatar(post.photo,false));
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
@@ -2836,7 +3050,8 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     unsubscribeCommunity=a.onSnapshot(col,snap=>{
       communityDocs=snap.docs.map(normalizePost).filter(x=>x.text.trim()).sort((a,b)=>{
         const da=new Date(a.date||0).getTime(),dbb=new Date(b.date||0).getTime();return dbb-da;
-      });render();
+      });
+      render();
     },err=>{listenerStarted=false;console.error('Komunitas listener gagal:',err);});
     return true;
   }
@@ -2844,7 +3059,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   async function savePost(){
     const input=document.getElementById(postInputId);if(!input)return;const value=String(input.value||'').trim();if(!value){input.focus();return;}
     if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
-    const a=api(),col=communityCollection();const id=(crypto?.randomUUID?.()||('post-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
+    const a=api(),col=communityCollection(),id=(crypto?.randomUUID?.()||('post-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
     const payload={PostinganPublik:{id,NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value,Komentar:[]}};
     try{await a.setDoc(a.doc(col,id),payload);input.value='';input.focus();}
     catch(e){console.error('Komunitas posting gagal:',e);alert('Postingan gagal disimpan ke Komunitas.');}
@@ -2860,10 +3075,13 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       input.value='';input.focus();
     }catch(e){console.error('Komentar Komunitas gagal:',e);alert('Komentar gagal disimpan ke Komunitas.');}
   }
+  function applySearch(){searchTerm=String(document.getElementById(searchInputId)?.value||'').trim();render();}
   function init(){
-    const root=document.getElementById(rootId),button=document.getElementById(publishButtonId),input=document.getElementById(postInputId);if(!root||!button||!input)return;
+    const root=document.getElementById(rootId),button=document.getElementById(publishButtonId),input=document.getElementById(postInputId),search=document.getElementById(searchInputId),searchButton=document.getElementById(searchButtonId);
+    if(!root||!button||!input||!search||!searchButton)return;
     if(root.dataset.communityFirestoreReady==='1')return;root.dataset.communityFirestoreReady='1';
     button.addEventListener('click',savePost);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();savePost();}});
+    searchButton.addEventListener('click',applySearch);search.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applySearch();}});search.addEventListener('input',()=>{searchTerm=String(search.value||'').trim();render();});
     const tryStart=()=>startListener();
     if(!tryStart()){
       const timer=setInterval(()=>{if(startListener()){clearInterval(timer);}},250);
