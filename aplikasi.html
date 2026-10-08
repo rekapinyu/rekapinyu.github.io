@@ -6293,7 +6293,7 @@ import { getStorage,ref,uploadBytes,getDownloadURL } from "https://www.gstatic.c
 
 const firebaseConfig={apiKey:"AIzaSyAyzAV68m4BRtwmn0iu2vDplZaJ9r_uQVk",authDomain:"rekapinyu.firebaseapp.com",projectId:"rekapinyu",storageBucket:"rekapinyu.firebasestorage.app",messagingSenderId:"835450919713",appId:"1:835450919713:web:818f9f48c5b05330d67c60",measurementId:"G-4KSJC9ENH8"};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),storage=getStorage(app);
-const SUPABASE_URL="https://anligmzxaythnszesxsp.supabase.co";
+const SUPABASE_URL="https://anligmzxaytnhszesxsp.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable__TDKPwJYJBEZT1nP4CofJg_9213WW_Y";
 const SUPABASE_PHOTO_BUCKET="rekapinyu-foto";
 const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
@@ -6383,6 +6383,30 @@ function buildLaporanBulanan(rows){
 window.__rekapinyuBuildLaporanBulanan=buildLaporanBulanan;
 
 /* ========================= FOTO PROFIL / SAMPUL ========================= */
+/* Registry lokal hanya menyimpan data identitas akun. Foto/sampul tidak pernah disimpan di sini. */
+function upsertRegisteredLocalUser(user){
+  const p=phoneOf(user?.phone);
+  if(!p)return null;
+  const rows=safe(localStorage.getItem("finance_registered_users"),[]);
+  const list=Array.isArray(rows)?rows:[];
+  const incoming={...(user||{}),phone:p};
+  delete incoming.photo;
+  delete incoming.cover;
+  delete incoming.coverX;
+  delete incoming.coverY;
+  const index=list.findIndex(x=>phoneOf(x?.phone)===p);
+  if(index>=0){
+    list[index]={...list[index],...incoming};
+    delete list[index].photo;
+    delete list[index].cover;
+    delete list[index].coverX;
+    delete list[index].coverY;
+  }else{
+    list.unshift(incoming);
+  }
+  nativeSet.call(localStorage,"finance_registered_users",JSON.stringify(list));
+  return list[index>=0?index:0];
+}
 const PHOTO_MAX_BYTES=102400;
 const photoStore={
   cache:new Map(),
