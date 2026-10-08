@@ -5335,7 +5335,7 @@ function updateUserAvatarUI() {
                   file JSON lokal. */
             const local = (Array.isArray(historyData) ? historyData : []).map(item => ({...item, __historySource:'local'}));
             const localDates = new Set(local.map(historyDateKey));
-            const localFileDates = new Set(Array.from(localHistoryFileKeys||[]).filter(Boolean));
+            const localFileDates = new Set(Array.from(window.__rekapinyuLocalHistoryFileKeys||[]).filter(Boolean));
             local.forEach(item=>localFileDates.add(historyDateKey(item)));
 
             const cloud = Array.isArray(window.__rekapinyuFirestoreRekap?.InputData)
@@ -6321,7 +6321,9 @@ function updateUserAvatarUI() {
   const DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   let writeChain=Promise.resolve();
   let loaded=false;
-  let localHistoryFileKeys=new Set();
+  window.__rekapinyuLocalHistoryFileKeys = window.__rekapinyuLocalHistoryFileKeys instanceof Set
+    ? window.__rekapinyuLocalHistoryFileKeys
+    : new Set();
 
   const pad=n=>String(n).padStart(2,'0');
 
@@ -6466,7 +6468,7 @@ function updateUserAvatarUI() {
     const dir=await getDir();
     if(!dir){
       loaded=false;
-      localHistoryFileKeys=new Set();
+      window.__rekapinyuLocalHistoryFileKeys=new Set();
       historyData=[];
       pengeluaranData=[];
       kasbonData=[];
@@ -6488,7 +6490,7 @@ function updateUserAvatarUI() {
        lokal History. Nama file tetap dipakai bila mengikuti pola InputData_...,
        tetapi pembacaan tidak lagi bergantung mutlak pada nama file. Ini menjaga
        file JSON yang sudah ada di folder tetap tampil sebagai #penyimpanan Lokal. */
-    localHistoryFileKeys=new Set();
+    window.__rekapinyuLocalHistoryFileKeys=new Set();
     const historyMap=new Map();
     const pengeluaranMap=new Map();
     const kasbonMap=new Map();
@@ -6522,7 +6524,7 @@ function updateUserAvatarUI() {
             }
             addUnique(historyMap,aligned);
             const key=historyDateKey(aligned);
-            if(key && key!=='|||')localHistoryFileKeys.add(key);
+            if(key && key!=='|||')window.__rekapinyuLocalHistoryFileKeys.add(key);
           });
         }
 
