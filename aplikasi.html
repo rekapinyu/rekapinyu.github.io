@@ -2714,30 +2714,34 @@ bind();
   width:100%!important;
   height:100%!important;
   box-sizing:border-box!important;
-  padding:18px 18px 100px!important;
+  padding:0 0 96px!important;
   margin:0!important;
-  display:grid!important;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr))!important;
-  align-content:start!important;
-  gap:12px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:0!important;
   overflow-y:auto!important;
 }
 #view-komunitas .komunitas-post-card{
   width:100%!important;
+  flex:0 0 auto!important;
   box-sizing:border-box!important;
-  padding:13px!important;
+  padding:0!important;
   margin:0!important;
   border:1px solid #e2e8f0!important;
-  border-radius:14px!important;
+  border-left:0!important;
+  border-right:0!important;
+  border-radius:0!important;
   background:#fff!important;
-  box-shadow:0 5px 16px rgba(15,23,42,.06)!important;
+  box-shadow:none!important;
 }
 #view-komunitas .komunitas-post-head{
   display:flex!important;
   align-items:center!important;
   gap:10px!important;
   min-width:0!important;
-  margin-bottom:10px!important;
+  padding:14px 14px 8px!important;
+  margin:0!important;
 }
 #view-komunitas .komunitas-post-avatar{
   width:38px!important;
@@ -2758,20 +2762,101 @@ bind();
   height:100%!important;
   object-fit:cover!important;
 }
+#view-komunitas .komunitas-post-meta{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  gap:1px!important;
+}
 #view-komunitas .komunitas-post-store{
   min-width:0!important;
   color:#0f172a!important;
   font-size:12px!important;
-  font-weight:800!important;
+  font-weight:900!important;
+  line-height:1.25!important;
   white-space:nowrap!important;
   overflow:hidden!important;
   text-overflow:ellipsis!important;
 }
+#view-komunitas .komunitas-post-date{
+  color:#334155!important;
+  font-size:8px!important;
+  font-weight:700!important;
+  line-height:1.2!important;
+}
 #view-komunitas .komunitas-post-text{
   margin:0!important;
+  padding:0 14px 12px 60px!important;
+  color:#0f172a!important;
+  font-size:10px!important;
+  font-weight:600!important;
+  line-height:1.45!important;
+  white-space:pre-wrap!important;
+  overflow-wrap:anywhere!important;
+}
+#view-komunitas .komunitas-comment-title{
+  border-top:1px solid #e2e8f0!important;
+  border-bottom:1px solid #e2e8f0!important;
+  padding:10px 60px!important;
+  color:#0f172a!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  line-height:1.2!important;
+  background:#fff!important;
+}
+#view-komunitas .komunitas-comments{
+  display:flex!important;
+  flex-direction:column!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+}
+#view-komunitas .komunitas-comment{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:8px!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  padding:8px 14px 8px 60px!important;
+  border-bottom:1px solid #e2e8f0!important;
+  background:#fff!important;
+}
+#view-komunitas .komunitas-comment-avatar{
+  width:20px!important;
+  height:20px!important;
+  flex:0 0 20px!important;
+  border-radius:50%!important;
+  overflow:hidden!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:#ecfdf5!important;
+  color:#059669!important;
+  border:1px solid #d1fae5!important;
+  font-size:8px!important;
+}
+#view-komunitas .komunitas-comment-avatar img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+#view-komunitas .komunitas-comment-body{
+  min-width:0!important;
+  flex:1 1 auto!important;
+}
+#view-komunitas .komunitas-comment-store{
+  color:#0f172a!important;
+  font-size:7px!important;
+  font-weight:900!important;
+  line-height:1.2!important;
+}
+#view-komunitas .komunitas-comment-text{
+  margin:2px 0 0!important;
   color:#334155!important;
-  font-size:12px!important;
-  line-height:1.6!important;
+  font-size:8px!important;
+  font-weight:600!important;
+  line-height:1.35!important;
   white-space:pre-wrap!important;
   overflow-wrap:anywhere!important;
 }
@@ -2830,10 +2915,12 @@ bind();
 #view-komunitas .komunitas-publish-btn:hover{background:#1d4ed8!important}
 @media(max-width:767px){
   #view-komunitas .komunitas-post-list{
-    padding:12px 12px 92px!important;
-    grid-template-columns:1fr!important;
-    gap:10px!important;
+    padding:0 0 92px!important;
   }
+  #view-komunitas .komunitas-post-head{padding:12px 12px 7px!important}
+  #view-komunitas .komunitas-post-text{padding:0 12px 10px 52px!important}
+  #view-komunitas .komunitas-comment-title{padding:9px 52px!important}
+  #view-komunitas .komunitas-comment{padding:7px 12px 7px 52px!important}
   #view-komunitas .komunitas-post-box{
     left:12px!important;
     right:12px!important;
@@ -2871,19 +2958,12 @@ bind();
     }
     return photo;
   }
-  function publishPost(){
-    const input=document.getElementById('komunitas-post-input');
-    const list=document.getElementById('komunitas-post-list');
-    if(!input||!list)return;
-    const text=String(input.value||'').trim();
-    if(!text)return;
-    const card=document.createElement('article');
-    card.className='komunitas-post-card';
-    const head=document.createElement('div');
-    head.className='komunitas-post-head';
+  function todayLabel(){
+    return new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  }
+  function makeAvatar(photo,small){
     const avatar=document.createElement('div');
-    avatar.className='komunitas-post-avatar';
-    const photo=getProfilePhoto();
+    avatar.className=small?'komunitas-comment-avatar':'komunitas-post-avatar';
     if(photo){
       const img=document.createElement('img');
       img.src=photo;
@@ -2895,14 +2975,56 @@ bind();
       icon.setAttribute('aria-hidden','true');
       avatar.appendChild(icon);
     }
+    return avatar;
+  }
+  function addComment(card,text){
+    const comments=card.querySelector('.komunitas-comments');
+    if(!comments)return;
+    const item=document.createElement('div');
+    item.className='komunitas-comment';
+    item.appendChild(makeAvatar(getProfilePhoto(),true));
+    const body=document.createElement('div');
+    body.className='komunitas-comment-body';
+    const name=document.createElement('div');
+    name.className='komunitas-comment-store';
+    name.textContent=getStoreName();
+    const content=document.createElement('p');
+    content.className='komunitas-comment-text';
+    content.textContent=text;
+    body.append(name,content);
+    item.appendChild(body);
+    comments.appendChild(item);
+  }
+  function publishPost(){
+    const input=document.getElementById('komunitas-post-input');
+    const list=document.getElementById('komunitas-post-list');
+    if(!input||!list)return;
+    const text=String(input.value||'').trim();
+    if(!text)return;
+    const card=document.createElement('article');
+    card.className='komunitas-post-card';
+    const head=document.createElement('div');
+    head.className='komunitas-post-head';
+    head.appendChild(makeAvatar(getProfilePhoto(),false));
+    const meta=document.createElement('div');
+    meta.className='komunitas-post-meta';
     const store=document.createElement('div');
     store.className='komunitas-post-store';
     store.textContent=getStoreName();
-    head.append(avatar,store);
+    const date=document.createElement('div');
+    date.className='komunitas-post-date';
+    date.textContent=todayLabel();
+    meta.append(store,date);
+    head.appendChild(meta);
     const body=document.createElement('p');
     body.className='komunitas-post-text';
     body.textContent=text;
-    card.append(head,body);
+    const commentTitle=document.createElement('div');
+    commentTitle.className='komunitas-comment-title';
+    commentTitle.textContent='Tulis Komentar :';
+    const comments=document.createElement('div');
+    comments.className='komunitas-comments';
+    card.append(head,body,commentTitle,comments);
     list.prepend(card);
     input.value='';
     input.focus();
