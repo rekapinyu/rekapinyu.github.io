@@ -2766,86 +2766,112 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
 <script id="rekapinyu-komunitas-final-js">
 (function(){
   'use strict';
-  const rootId='view-komunitas';
-  const listId='komunitas-post-list';
-  const postInputId='komunitas-post-input';
-  const publishButtonId='komunitas-publish-btn';
+  const rootId='view-komunitas', listId='komunitas-post-list', postInputId='komunitas-post-input', publishButtonId='komunitas-publish-btn';
+  let unsubscribeCommunity=null;
+  let communityDocs=[];
+  let listenerStarted=false;
+
   function sessionUser(){
     try{return (typeof currentSessionUser!=='undefined'&&currentSessionUser&&typeof currentSessionUser==='object')?currentSessionUser:{};}catch(_){return {};}
   }
-  function storeName(){
-    const u=sessionUser();
-    return String(u.shopName||u.storeName||u.tokoName||u.name||'Toko').trim()||'Toko';
-  }
+  function storeName(){const u=sessionUser();return String(u.shopName||u.storeName||u.tokoName||u.name||'Toko').trim()||'Toko';}
+  function phone(){try{return typeof phoneOf==='function'?phoneOf(sessionUser().phone):String(sessionUser().phone||'').replace(/\D/g,'');}catch(_){return '';}}
   function profilePhoto(){
-    const u=sessionUser();
-    let photo=String(u.photo||'').trim();
-    if(!photo){
-      try{
-        const phone=typeof phoneOf==='function'?phoneOf(u.phone):String(u.phone||'');
-        if(phone&&typeof photoStore!=='undefined'&&photoStore&&typeof photoStore.readProfile==='function')photo=String(photoStore.readProfile(phone)||'').trim();
-      }catch(_){ }
-    }
+    const u=sessionUser(); let photo=String(u.photo||'').trim();
+    if(!photo){try{const p=phone();if(p&&typeof photoStore!=='undefined'&&photoStore&&typeof photoStore.readProfile==='function')photo=String(photoStore.readProfile(p)||'').trim();}catch(_){}}
     return photo;
   }
-  function dateLabel(){return new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});}
+  function dateLabel(value){
+    const d=value?.toDate?value.toDate():(value?new Date(value):new Date());
+    return isNaN(d.getTime())?new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}):d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  }
   function avatar(photo,comment){
-    const el=document.createElement('div');
-    el.className=comment?'komunitas-comment-avatar':'komunitas-post-avatar';
-    if(photo){
-      const img=document.createElement('img');img.src=photo;img.alt='Foto profil toko';el.appendChild(img);
-    }else{
-      const icon=document.createElement('i');icon.className='fa-solid fa-store';icon.setAttribute('aria-hidden','true');el.appendChild(icon);
-    }
+    const el=document.createElement('div');el.className=comment?'komunitas-comment-avatar':'komunitas-post-avatar';
+    if(photo){const img=document.createElement('img');img.src=photo;img.alt='Foto profil toko';el.appendChild(img);}
+    else{const icon=document.createElement('i');icon.className='fa-solid fa-store';icon.setAttribute('aria-hidden','true');el.appendChild(icon);}
     return el;
   }
-  function addComment(card,text){
-    const value=String(text||'').trim();
-    const comments=card?.querySelector('.komunitas-comments');
-    if(!value||!comments)return;
-    const row=document.createElement('div');row.className='komunitas-comment';row.appendChild(avatar(profilePhoto(),true));
-    const body=document.createElement('div');body.className='komunitas-comment-body';
-    const name=document.createElement('div');name.className='komunitas-comment-store';name.textContent=storeName();
-    const content=document.createElement('p');content.className='komunitas-comment-text';content.textContent=value;
-    body.append(name,content);row.appendChild(body);comments.appendChild(row);
+  function escId(v){return String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');}
+  function normalizePost(docSnap){
+    const raw=docSnap?.data?.()||{}; const p=raw.PostinganPublik&&typeof raw.PostinganPublik==='object'?raw.PostinganPublik:{};
+    const comments=Array.isArray(p.Komentar)?p.Komentar:(typeof p.Komentar==='string'&&p.Komentar.trim()?[{id:'legacy-'+docSnap.id,NamaToko:p.NamaToko||'Toko',NomorHp:p.NomorHp||'',FotoProfil:p.FotoProfil||'',Tanggal:p.Tanggal||raw.Tanggal||'',Isi:p.Komentar}]:[]);
+    return {docId:docSnap.id,id:String(p.id||docSnap.id),store:String(p.NamaToko||p.storeName||'Toko'),phone:String(p.NomorHp||''),photo:String(p.FotoProfil||p.photo||''),date:p.Tanggal||p.createdAt||raw.Tanggal||'',text:String(p.Isi||p.Konten||p.text||''),comments};
   }
-  function sendComment(card,input){
-    if(!card||!input)return;
-    const value=String(input.value||'').trim();
-    if(!value){input.focus();return;}
-    addComment(card,value);input.value='';input.focus();
+  function render(){
+    const list=document.getElementById(listId);if(!list)return;list.replaceChildren();
+    if(!communityDocs.length){
+      const empty=document.createElement('div');empty.style.cssText='padding:40px 20px;text-align:center;color:#64748b;font-size:13px;font-weight:700';empty.textContent='Belum ada postingan komunitas.';list.appendChild(empty);return;
+    }
+    communityDocs.forEach(post=>{
+      const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
+      const head=document.createElement('div');head.className='komunitas-post-head';head.appendChild(avatar(post.photo,false));
+      const meta=document.createElement('div');meta.className='komunitas-post-meta';
+      const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
+      const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.appendChild(meta);
+      const body=document.createElement('p');body.className='komunitas-post-text';body.textContent=post.text;
+      const title=document.createElement('div');title.className='komunitas-comment-title';title.textContent='Tulis Komentar :';
+      const comments=document.createElement('div');comments.className='komunitas-comments';
+      post.comments.forEach(c=>{
+        const row=document.createElement('div');row.className='komunitas-comment';row.appendChild(avatar(String(c.FotoProfil||c.photo||''),true));
+        const b=document.createElement('div');b.className='komunitas-comment-body';
+        const n=document.createElement('div');n.className='komunitas-comment-store';n.textContent=String(c.NamaToko||c.storeName||'Toko');
+        const t=document.createElement('p');t.className='komunitas-comment-text';t.textContent=String(c.Isi||c.text||'');b.append(n,t);row.appendChild(b);comments.appendChild(row);
+      });
+      const box=document.createElement('div');box.className='komunitas-comment-box';
+      const input=document.createElement('input');input.className='komunitas-comment-input';input.type='text';input.placeholder='Tulis komentar...';input.autocomplete='off';
+      const button=document.createElement('button');button.className='komunitas-comment-send';button.type='button';button.innerHTML='<i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Kirim</span>';
+      const send=()=>saveComment(post.docId,input);
+      button.addEventListener('click',send);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();send();}});box.append(input,button);
+      card.append(head,body,title,comments,box);list.appendChild(card);
+    });
   }
-  function commentBox(card){
-    const box=document.createElement('div');box.className='komunitas-comment-box';
-    const input=document.createElement('input');input.className='komunitas-comment-input';input.type='text';input.placeholder='Tulis komentar...';input.autocomplete='off';
-    const button=document.createElement('button');button.className='komunitas-comment-send';button.type='button';button.innerHTML='<i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Kirim</span>';
-    button.addEventListener('click',()=>sendComment(card,input));
-    input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();sendComment(card,input);}});
-    box.append(input,button);return box;
+  function api(){return window.RekapinyuFirebase?.firestoreApi||null;}
+  function db(){return window.RekapinyuFirebase?.db||null;}
+  function ready(){return !!(api()&&db()&&window.RekapinyuFirebase.ready&&window.RekapinyuFirebase.uid);}
+  function communityCollection(){const a=api();return a?.collection?.(db(),'Komunitas');}
+  function startListener(){
+    if(listenerStarted||!ready())return false;
+    const a=api(),col=communityCollection();if(!col)return false;
+    listenerStarted=true;
+    unsubscribeCommunity=a.onSnapshot(col,snap=>{
+      communityDocs=snap.docs.map(normalizePost).filter(x=>x.text.trim()).sort((a,b)=>{
+        const da=new Date(a.date||0).getTime(),dbb=new Date(b.date||0).getTime();return dbb-da;
+      });render();
+    },err=>{listenerStarted=false;console.error('Komunitas listener gagal:',err);});
+    return true;
   }
-  function publishPost(){
-    const input=document.getElementById(postInputId),list=document.getElementById(listId);
-    if(!input||!list)return;
-    const value=String(input.value||'').trim();
-    if(!value){input.focus();return;}
-    const card=document.createElement('article');card.className='komunitas-post-card';
-    const head=document.createElement('div');head.className='komunitas-post-head';head.appendChild(avatar(profilePhoto(),false));
-    const meta=document.createElement('div');meta.className='komunitas-post-meta';
-    const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=storeName();
-    const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel();meta.append(name,date);head.appendChild(meta);
-    const post=document.createElement('p');post.className='komunitas-post-text';post.textContent=value;
-    const title=document.createElement('div');title.className='komunitas-comment-title';title.textContent='Tulis Komentar :';
-    const comments=document.createElement('div');comments.className='komunitas-comments';
-    card.append(head,post,title,comments,commentBox(card));list.prepend(card);
-    input.value='';input.focus();
+  function stopListener(){if(typeof unsubscribeCommunity==='function'){try{unsubscribeCommunity();}catch(_){} }unsubscribeCommunity=null;listenerStarted=false;communityDocs=[];}
+  async function savePost(){
+    const input=document.getElementById(postInputId);if(!input)return;const value=String(input.value||'').trim();if(!value){input.focus();return;}
+    if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
+    const a=api(),col=communityCollection();const id=(crypto?.randomUUID?.()||('post-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
+    const payload={PostinganPublik:{id,NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value,Komentar:[]}};
+    try{await a.setDoc(a.doc(col,id),payload);input.value='';input.focus();}
+    catch(e){console.error('Komunitas posting gagal:',e);alert('Postingan gagal disimpan ke Komunitas.');}
+  }
+  async function saveComment(docId,input){
+    const value=String(input?.value||'').trim();if(!value){input?.focus();return;}
+    if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
+    const snap=communityDocs.find(x=>x.docId===docId);if(!snap)return;
+    const a=api(),col=communityCollection(),ref=a.doc(col,docId);
+    const next=[...(Array.isArray(snap.comments)?snap.comments:[]),{id:(crypto?.randomUUID?.()||('comment-'+Date.now()+'-'+Math.random().toString(36).slice(2,7))),NamaToko:storeName(),NomorHp:phone(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString(),Isi:value}];
+    try{
+      await a.setDoc(ref,{PostinganPublik:{id:snap.id,NamaToko:snap.store,NomorHp:snap.phone,FotoProfil:snap.photo,Tanggal:snap.date,Isi:snap.text,Komentar:next}},{merge:true});
+      input.value='';input.focus();
+    }catch(e){console.error('Komentar Komunitas gagal:',e);alert('Komentar gagal disimpan ke Komunitas.');}
   }
   function init(){
-    const root=document.getElementById(rootId),button=document.getElementById(publishButtonId),input=document.getElementById(postInputId);
-    if(!root||!button||!input||root.dataset.communityFinalReady==='1')return;
-    root.dataset.communityFinalReady='1';
-    button.addEventListener('click',publishPost);
-    input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();publishPost();}});
+    const root=document.getElementById(rootId),button=document.getElementById(publishButtonId),input=document.getElementById(postInputId);if(!root||!button||!input)return;
+    if(root.dataset.communityFirestoreReady==='1')return;root.dataset.communityFirestoreReady='1';
+    button.addEventListener('click',savePost);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();savePost();}});
+    const tryStart=()=>startListener();
+    if(!tryStart()){
+      const timer=setInterval(()=>{if(startListener()){clearInterval(timer);}},250);
+      setTimeout(()=>clearInterval(timer),20000);
+    }
+    window.addEventListener('beforeunload',stopListener,{once:true});
   }
+  window.__rekapinyuCommunityRefresh=()=>{if(!startListener())render();};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 </script>
