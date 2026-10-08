@@ -2695,7 +2695,7 @@ bind();
 #kasir-stock-zero-modal .kasir-stock-zero-cancel{border:1px solid #e2e8f0;background:#fff;color:#64748b}
 #kasir-stock-zero-modal .kasir-stock-zero-save{border:1px solid #059669;background:#059669;color:#fff}
 </style>
-<!-- VIEW KOMUNITAS: implementasi tunggal, hanya area Komunitas -->
+<!-- VIEW KOMUNITAS: satu implementasi bersih -->
 <style id="rekapinyu-komunitas-css">
 #view-komunitas{
   position:relative!important;
@@ -2708,21 +2708,20 @@ bind();
   overflow:hidden!important;
   background:#f8fafc!important;
 }
-
 #view-komunitas .komunitas-post-list{
+  position:absolute!important;
+  inset:0!important;
   width:100%!important;
   height:100%!important;
-  min-height:0!important;
   box-sizing:border-box!important;
-  padding:18px 18px 110px!important;
+  padding:18px 18px 100px!important;
   margin:0!important;
   display:grid!important;
   grid-template-columns:repeat(auto-fill,minmax(260px,1fr))!important;
-  gap:12px!important;
   align-content:start!important;
+  gap:12px!important;
   overflow-y:auto!important;
 }
-
 #view-komunitas .komunitas-post-card{
   width:100%!important;
   box-sizing:border-box!important;
@@ -2733,7 +2732,6 @@ bind();
   background:#fff!important;
   box-shadow:0 5px 16px rgba(15,23,42,.06)!important;
 }
-
 #view-komunitas .komunitas-post-head{
   display:flex!important;
   align-items:center!important;
@@ -2741,7 +2739,6 @@ bind();
   min-width:0!important;
   margin-bottom:10px!important;
 }
-
 #view-komunitas .komunitas-post-avatar{
   width:38px!important;
   height:38px!important;
@@ -2756,13 +2753,11 @@ bind();
   border:1px solid #d1fae5!important;
   font-size:14px!important;
 }
-
 #view-komunitas .komunitas-post-avatar img{
   width:100%!important;
   height:100%!important;
   object-fit:cover!important;
 }
-
 #view-komunitas .komunitas-post-store{
   min-width:0!important;
   color:#0f172a!important;
@@ -2772,7 +2767,6 @@ bind();
   overflow:hidden!important;
   text-overflow:ellipsis!important;
 }
-
 #view-komunitas .komunitas-post-text{
   margin:0!important;
   color:#334155!important;
@@ -2781,11 +2775,10 @@ bind();
   white-space:pre-wrap!important;
   overflow-wrap:anywhere!important;
 }
-
 #view-komunitas .komunitas-post-box{
   position:fixed!important;
-  left:calc(16rem + 18px)!important;
-  right:18px!important;
+  left:calc(16rem + 32px)!important;
+  right:32px!important;
   bottom:0!important;
   z-index:30!important;
   width:auto!important;
@@ -2800,7 +2793,6 @@ bind();
   background:rgba(255,255,255,.98)!important;
   box-shadow:0 -8px 24px rgba(15,23,42,.08)!important;
 }
-
 #view-komunitas .komunitas-post-input{
   flex:1 1 auto!important;
   width:100%!important;
@@ -2816,17 +2808,12 @@ bind();
   color:#334155!important;
   font-size:12px!important;
 }
-
 #view-komunitas .komunitas-post-input:focus{
   background:#fff!important;
   border-color:#93c5fd!important;
   box-shadow:0 0 0 3px rgba(59,130,246,.10)!important;
 }
-
-#view-komunitas .komunitas-post-input::placeholder{
-  color:#94a3b8!important;
-}
-
+#view-komunitas .komunitas-post-input::placeholder{color:#94a3b8!important}
 #view-komunitas .komunitas-publish-btn{
   flex:0 0 auto!important;
   height:42px!important;
@@ -2840,36 +2827,24 @@ bind();
   font-weight:800!important;
   cursor:pointer!important;
 }
-
-#view-komunitas .komunitas-publish-btn:hover{
-  background:#1d4ed8!important;
-}
-
+#view-komunitas .komunitas-publish-btn:hover{background:#1d4ed8!important}
 @media(max-width:767px){
   #view-komunitas .komunitas-post-list{
     padding:12px 12px 92px!important;
     grid-template-columns:1fr!important;
     gap:10px!important;
   }
-
   #view-komunitas .komunitas-post-box{
-    position:fixed!important;
     left:12px!important;
     right:12px!important;
     bottom:78px!important;
-    width:auto!important;
     padding:8px!important;
-    margin:0!important;
     border-radius:14px!important;
   }
-
   #view-komunitas .komunitas-post-input,
-  #view-komunitas .komunitas-publish-btn{
-    height:40px!important;
-  }
+  #view-komunitas .komunitas-publish-btn{height:40px!important}
 }
 </style>
-
 <section class="hidden" id="view-komunitas">
   <div class="komunitas-post-list" id="komunitas-post-list"></div>
   <div class="komunitas-post-box">
@@ -2877,15 +2852,13 @@ bind();
     <button class="komunitas-publish-btn" id="komunitas-publish-btn" type="button">Publikasikan</button>
   </div>
 </section>
-
 <script id="rekapinyu-komunitas-js">
 (function(){
-  function getCommunityStoreName(){
+  function getStoreName(){
     const u=(typeof currentSessionUser!=='undefined'&&currentSessionUser)?currentSessionUser:{};
     return String(u.shopName||u.storeName||u.tokoName||u.name||'Toko').trim()||'Toko';
   }
-
-  function getCommunityPhoto(){
+  function getProfilePhoto(){
     const u=(typeof currentSessionUser!=='undefined'&&currentSessionUser)?currentSessionUser:{};
     let photo=String(u.photo||'').trim();
     if(!photo){
@@ -2894,29 +2867,23 @@ bind();
         if(p&&typeof photoStore!=='undefined'&&photoStore.readProfile){
           photo=String(photoStore.readProfile(p)||'').trim();
         }
-      }catch(_){}
+      }catch(_){ }
     }
     return photo;
   }
-
-  function addCommunityPost(){
+  function publishPost(){
     const input=document.getElementById('komunitas-post-input');
     const list=document.getElementById('komunitas-post-list');
     if(!input||!list)return;
-
     const text=String(input.value||'').trim();
     if(!text)return;
-
     const card=document.createElement('article');
     card.className='komunitas-post-card';
-
     const head=document.createElement('div');
     head.className='komunitas-post-head';
-
     const avatar=document.createElement('div');
     avatar.className='komunitas-post-avatar';
-
-    const photo=getCommunityPhoto();
+    const photo=getProfilePhoto();
     if(photo){
       const img=document.createElement('img');
       img.src=photo;
@@ -2928,44 +2895,33 @@ bind();
       icon.setAttribute('aria-hidden','true');
       avatar.appendChild(icon);
     }
-
     const store=document.createElement('div');
     store.className='komunitas-post-store';
-    store.textContent=getCommunityStoreName();
-
+    store.textContent=getStoreName();
     head.append(avatar,store);
-
     const body=document.createElement('p');
     body.className='komunitas-post-text';
     body.textContent=text;
-
     card.append(head,body);
     list.prepend(card);
-
     input.value='';
     input.focus();
   }
-
-  function initCommunity(){
+  function init(){
     const btn=document.getElementById('komunitas-publish-btn');
     const input=document.getElementById('komunitas-post-input');
-    if(!btn||!input||btn.dataset.bound==='1')return;
-
-    btn.dataset.bound='1';
-    btn.addEventListener('click',addCommunityPost);
-    input.addEventListener('keydown',function(e){
+    if(!btn||!input||btn.dataset.communityReady==='1')return;
+    btn.dataset.communityReady='1';
+    btn.addEventListener('click',publishPost);
+    input.addEventListener('keydown',e=>{
       if(e.key==='Enter'){
         e.preventDefault();
-        addCommunityPost();
+        publishPost();
       }
     });
   }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',initCommunity,{once:true});
-  }else{
-    initCommunity();
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
+  else init();
 })();
 </script>
 
