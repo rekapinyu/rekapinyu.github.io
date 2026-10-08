@@ -2979,6 +2979,49 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   #view-komunitas .komunitas-post-box{flex-basis:58px!important;padding:8px 6px!important}
   #view-komunitas .komunitas-post-input,#view-komunitas .komunitas-publish-btn{height:40px!important}
 }
+
+/* COMMUNITY — HOVER ANIMATION, ICON AREA ONLY */
+#view-komunitas .komunitas-rail-item{transition:background-color .18s ease,transform .18s ease,box-shadow .18s ease!important}
+#view-komunitas .komunitas-rail-item i{transition:transform .2s ease,filter .2s ease!important}
+#view-komunitas #komunitas-rail-home:hover,
+#view-komunitas #komunitas-rail-profile:hover,
+#view-komunitas #komunitas-rail-group:hover,
+#view-komunitas #komunitas-rail-friends:hover,
+#view-komunitas #komunitas-rail-notif:hover{
+  transform:translateY(-2px)!important;
+  background:#f8fafc!important;
+  box-shadow:inset 0 0 0 1px rgba(148,163,184,.14)!important;
+}
+#view-komunitas #komunitas-rail-home:hover i,
+#view-komunitas #komunitas-rail-profile:hover i,
+#view-komunitas #komunitas-rail-group:hover i,
+#view-komunitas #komunitas-rail-friends:hover i,
+#view-komunitas #komunitas-rail-notif:hover i{
+  transform:scale(1.16)!important;
+  filter:drop-shadow(0 3px 5px rgba(15,23,42,.16))!important;
+}
+@media (prefers-reduced-motion:reduce){
+  #view-komunitas .komunitas-rail-item,#view-komunitas .komunitas-rail-item i{transition:none!important}
+}
+
+
+#komunitas-notification-modal .komunitas-notif-item{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  text-align:left!important;
+  font:inherit!important;
+  cursor:pointer!important;
+}
+#komunitas-notification-modal .komunitas-notif-item:hover{background:#f8fafc!important}
+#komunitas-notification-modal .komunitas-notif-item.unread:hover{background:#e0efff!important}
+
+
+#view-komunitas .komunitas-post-card.komunitas-notif-target{animation:komunitasNotifTarget 1.8s ease!important}
+@keyframes komunitasNotifTarget{
+  0%,100%{box-shadow:inset 0 0 0 0 rgba(37,99,235,0)!important}
+  25%,65%{box-shadow:inset 0 0 0 3px rgba(37,99,235,.28)!important}
+}
+
 </style>
 <section class="hidden" id="view-komunitas">
   <div class="komunitas-shell">
@@ -3075,7 +3118,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
         if(postOwner===me)type='post';
         else if(ownIndexes.some(ownIndex=>i>ownIndex))type='reply';
         if(!type)return;
-        out.push({id:notifId(post,c,i),type,store:String(c.NamaToko||c.storeName||'Toko'),photo:String(c.FotoProfil||c.photo||''),date:c.Tanggal||''});
+        out.push({id:notifId(post,c,i),docId:post.docId,type,store:String(c.NamaToko||c.storeName||'Toko'),photo:String(c.FotoProfil||c.photo||''),date:c.Tanggal||''});
       });
     });
     return out.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
@@ -3091,7 +3134,8 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(!items.length){const e=document.createElement('div');e.className='komunitas-notif-empty';e.textContent='Belum ada notifikasi komunitas.';list.appendChild(e);return;}
     const read=new Set(readNotifIds());
     items.forEach(item=>{
-      const row=document.createElement('div');row.className='komunitas-notif-item'+(read.has(item.id)?'':' unread');
+      const row=document.createElement('button');row.type='button';row.className='komunitas-notif-item'+(read.has(item.id)?'':' unread');row.dataset.postDocId=item.docId;row.title='Buka postingan yang dikomentari';
+      row.addEventListener('click',()=>openNotificationPost(item.docId));
       const av=document.createElement('div');av.className='komunitas-notif-avatar';
       if(item.photo){const img=document.createElement('img');img.src=item.photo;img.alt='Foto profil toko';av.appendChild(img);}
       else{const i=document.createElement('i');i.className='fa-solid fa-store';av.appendChild(i);}
@@ -3103,6 +3147,31 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       body.append(msg,date);row.append(av,body);list.appendChild(row);
     });
   }
+
+  function openNotificationPost(docId){
+    const target=String(docId||'').trim();
+    closeNotifications();
+    if(!target)return;
+    const findPost=()=>{
+      const cards=document.querySelectorAll('#komunitas-post-list .komunitas-post-card');
+      let card=null;
+      cards.forEach(el=>{if(!card&&el.dataset.docId===target)card=el;});
+      if(!card)return false;
+      const list=document.getElementById(listId);
+      if(list){
+        const top=card.offsetTop-Math.min(12,list.clientHeight*0.04);
+        list.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+      }else{
+        card.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+      card.classList.add('komunitas-notif-target');
+      window.setTimeout(()=>card.classList.remove('komunitas-notif-target'),1800);
+      return true;
+    };
+    if(findPost())return;
+    window.setTimeout(findPost,120);
+  }
+
   function openNotifications(){
     const modal=document.getElementById(notifModalId);if(!modal)return;
     renderNotifList();modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');
