@@ -3450,7 +3450,24 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     document.getElementById('komunitas-profile-comment-count')?.replaceChildren(document.createTextNode(String(stats.comments)));
     document.getElementById('komunitas-profile-friend-count')?.replaceChildren(document.createTextNode(String(stats.friends)));
   }
+  let unsubscribeCommunityBio=null;
+  let bioListenerStarted=false;
+  function startCommunityBioListener(){
+    if(bioListenerStarted||!ready())return false;
+    const a=api(),database=db(),uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();
+    if(!a||!database||!uid)return false;
+    const ref=a.doc(database,'Komunitas',`Profil_${uid}`);
+    bioListenerStarted=true;
+    unsubscribeCommunityBio=a.onSnapshot(ref,snap=>{
+      currentSessionUser.bio=snap?.exists?.()?String(snap.data()?.BioPublik||''):'';
+      renderProfile();
+      const input=document.getElementById('komunitas-bio-input');
+      if(input&&!input.matches(':focus')){input.value=String(currentSessionUser.bio||'');updateBioCounter();}
+    },err=>{bioListenerStarted=false;console.error('BioPublik listener Komunitas gagal:',err);});
+    return true;
+  }
   async function loadCommunityBio(){
+    startCommunityBioListener();
     const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();
     if(!uid){renderProfile();return;}
     try{
@@ -3566,7 +3583,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     },err=>{listenerStarted=false;console.error('Komunitas listener gagal:',err);});
     return true;
   }
-  function stopListener(){if(typeof unsubscribeCommunity==='function'){try{unsubscribeCommunity();}catch(_){} }unsubscribeCommunity=null;listenerStarted=false;communityDocs=[];}
+  function stopListener(){if(typeof unsubscribeCommunity==='function'){try{unsubscribeCommunity();}catch(_){} }unsubscribeCommunity=null;listenerStarted=false;communityDocs=[];if(typeof unsubscribeCommunityBio==='function'){try{unsubscribeCommunityBio();}catch(_){} }unsubscribeCommunityBio=null;bioListenerStarted=false;}
   async function savePost(){
     const input=document.getElementById(postInputId);if(!input)return;const value=String(input.value||'').trim();if(!value){input.focus();return;}
     if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
@@ -3600,9 +3617,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     document.getElementById('komunitas-bio-input')?.addEventListener('input',updateBioCounter);
     document.getElementById('komunitas-bio-save')?.addEventListener('click',saveCommunityBio);
     updateNotifBadge();
-    const tryStart=()=>startListener();
+    const tryStart=()=>{startListener();startCommunityBioListener();return listenerStarted||bioListenerStarted;};
     if(!tryStart()){
-      const timer=setInterval(()=>{if(startListener()){clearInterval(timer);}},250);
+      const timer=setInterval(()=>{startListener();startCommunityBioListener();if(listenerStarted&&bioListenerStarted){clearInterval(timer);}},250);
       setTimeout(()=>clearInterval(timer),20000);
     }
     window.addEventListener('beforeunload',stopListener,{once:true});
