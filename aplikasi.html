@@ -4075,9 +4075,17 @@ function updateUserAvatarUI() {
                 if(tab==='report')window.__rekapinyuRenderMobileLaporanBulanan?.();
                 if(tab==='laporan-kasir')window.__rekapinyuRenderMobileLaporanKasir?.();
                 if(tab==='history'){
-                    if(typeof window.__rekapinyuLoadLocalRekap==='function')window.__rekapinyuLoadLocalRekap().catch(err=>console.warn('Rekapinyu: History gagal membaca folder target.',err));
-                    if(typeof populateHistoryFilters==='function')populateHistoryFilters();
-                    if(typeof renderHistory==='function')renderHistory();
+                    if(typeof window.__rekapinyuLoadLocalRekap==='function'){
+                        window.__rekapinyuLoadLocalRekap().then(()=>{
+                            try{populateHistoryFilters?.();renderHistory?.();}catch(_){}
+                        }).catch(err=>{
+                            console.warn('Rekapinyu: History gagal membaca folder target.',err);
+                            try{populateHistoryFilters?.();renderHistory?.();}catch(_){}
+                        });
+                    }else{
+                        if(typeof populateHistoryFilters==='function')populateHistoryFilters();
+                        if(typeof renderHistory==='function')renderHistory();
+                    }
                 }
                 return;
             }
@@ -6382,7 +6390,22 @@ function updateUserAvatarUI() {
   }
 
   async function getDir(){
-    if(typeof window.__rekapinyuGetDataSubdirectory==='function')return await window.__rekapinyuGetDataSubdirectory('Rekap');
+    /* HISTORY: sumber folder harus mengikuti folder yang dipilih dari Menu Produk Kasir.
+       Setelah root/folder toko yang dipilih ditemukan, History hanya membaca subfolder
+       Rekap di dalam folder tersebut. Tidak memakai folder Data/Rekap global lain. */
+    try{
+      if(typeof window.__rekapinyuGetProdukKasirSelectedFolder==='function'){
+        const selectedRoot=await window.__rekapinyuGetProdukKasirSelectedFolder();
+        if(selectedRoot){
+          try{return await selectedRoot.getDirectoryHandle('Rekap',{create:false});}catch(_){}
+        }
+      }
+    }catch(_){}
+    /* Fallback tetap menggunakan root folder yang sama yang dipakai Produk Kasir,
+       tanpa membuat folder apa pun. */
+    try{
+      if(typeof window.__rekapinyuGetDataSubdirectory==='function')return await window.__rekapinyuGetDataSubdirectory('Rekap');
+    }catch(_){}
     return null;
   }
 
@@ -6461,14 +6484,11 @@ function updateUserAvatarUI() {
        Daftar ini menjadi penentu prioritas: selama file JSON harian masih ada,
        History wajib menampilkan sumber Lokal dan tidak memakai data Firestore
        untuk tanggal/file yang sama. */
-    localHistoryFileKeys=new Set(
-      files
-        .filter(entry=>/^InputData_.+\.json$/i.test(String(entry.name)))
-        .map(entry=>{
-          const info=fileInfoFromData({},entry.name);
-          return info?.dateKey||String(entry.path||entry.name).toLowerCase();
-        })
-    );
+    /* Setiap JSON yang benar-benar berisi field InputData dianggap sebagai sumber
+       lokal History. Nama file tetap dipakai bila mengikuti pola InputData_...,
+       tetapi pembacaan tidak lagi bergantung mutlak pada nama file. Ini menjaga
+       file JSON yang sudah ada di folder tetap tampil sebagai #penyimpanan Lokal. */
+    localHistoryFileKeys=new Set();
     const historyMap=new Map();
     const pengeluaranMap=new Map();
     const kasbonMap=new Map();
@@ -6484,19 +6504,25 @@ function updateUserAvatarUI() {
       try{
         const data=await readJsonHandle(entry.handle);
 
-        /* HISTORY: hanya membaca file JSON InputData_* dari folder Data/Rekap. */
-        if(/^InputData_.+\.json$/i.test(String(entry.name))){
+        /* HISTORY: file lokal menjadi sumber utama selama file JSON masih ada.
+           Tidak lagi mensyaratkan nama file harus InputData_*.json; selama JSON
+           mempunyai array InputData, isinya dibaca sebagai History lokal. */
+        const localInputRows=normalizeLoadedArray(data.InputData);
+        if(localInputRows.length || /^InputData_.+\.json$/i.test(String(entry.name))){
           const fileInfo=fileInfoFromData(data,entry.name);
-          normalizeLoadedArray(data.InputData).forEach(item=>{
+          localInputRows.forEach(item=>{
             const aligned={...item};
-            if(fileInfo){
-              aligned.day=fileInfo.day;
-              aligned.date=fileInfo.date;
-              aligned.monthIndex=fileInfo.monthIndex;
-              aligned.month=fileInfo.month;
-              aligned.year=fileInfo.year;
+            const itemInfo=fileInfo||itemDateInfo(item);
+            if(itemInfo){
+              aligned.day=itemInfo.day;
+              aligned.date=itemInfo.date;
+              aligned.monthIndex=itemInfo.monthIndex;
+              aligned.month=itemInfo.month;
+              aligned.year=itemInfo.year;
             }
             addUnique(historyMap,aligned);
+            const key=historyDateKey(aligned);
+            if(key && key!=='|||')localHistoryFileKeys.add(key);
           });
         }
 
