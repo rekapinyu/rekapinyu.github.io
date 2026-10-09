@@ -3542,8 +3542,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     try{const a=api(),snap=await a.getDoc(a.doc(db(),'Komunitas',`Teman_${uid}`));communityFriends=snap?.exists?.()?((Array.isArray(snap.data()?.DaftarTeman)?snap.data().DaftarTeman:[])):[];}catch(e){console.warn('Daftar teman komunitas gagal dimuat:',e);}
   }
   async function addCommunityFriend(targetUid){
-    const uid=currentCommunityUid();
+    const uid=String(window.RekapinyuFirebase?.uid||currentCommunityUid()||'').trim();
     if(!uid||!ready()){alert('Koneksi Komunitas ke Firestore belum siap.');return;}
+    let communityFriendStage='memvalidasi akun tujuan';
     try{
       const a=api(),database=db(),target=communityProfileTarget||{};
       let targetPost=communityDocs.find(p=>String(p.uid||'')===String(targetUid||''));
@@ -3571,6 +3572,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
          Tidak menulis ke dokumen akun lain, sehingga tidak membutuhkan izin
          menulis ke data pengguna lain pada Firestore Security Rules. */
       const myRef=a.doc(database,'Komunitas',`Teman_${uid}`);
+      communityFriendStage='membaca dokumen Komunitas/Teman_'+uid;
       const mySnap=await a.getDoc(myRef);
       const myData=mySnap?.exists?.()?mySnap.data()||{}:{};
       const myFriends=Array.isArray(myData.DaftarTeman)?[...myData.DaftarTeman]:[];
@@ -3588,6 +3590,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
         FotoProfil:String(targetPost?.photo||target.photo||''),
         Tanggal:new Date().toISOString()
       });
+      communityFriendStage='menyimpan dokumen Komunitas/Teman_'+uid;
       await a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true});
       communityFriends=myFriends;
       communityProfileTarget={...target,uid:targetId,realUid:targetId};
@@ -3599,12 +3602,12 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       console.error('Tambah teman komunitas gagal:',e);
       const code=String(e?.code||'').trim();
       const detail=code==='permission-denied'
-        ?'Firestore menolak akses baca/tulis dokumen teman akun Anda. Periksa izin untuk Komunitas/Teman_'+currentCommunityUid()+'.'
+        ?'Firestore menolak izin pada tahap '+communityFriendStage+'. Pastikan Rules terbaru sudah di-Publish pada proyek Firebase rekapinyu.'
         :code==='unavailable'
           ?'Firestore sedang tidak tersedia. Periksa koneksi internet lalu coba lagi.'
           :code==='failed-precondition'
             ?'Permintaan Firestore belum memenuhi prasyarat.'
-            :'Terjadi kesalahan saat menyimpan data teman'+(code?' ('+code+')':'')+'.';
+            :'Tahap gagal: '+communityFriendStage+(code?' ('+code+')':'')+'.';
       alert('Penambahan teman gagal. '+detail);
     }
   }
