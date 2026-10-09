@@ -3236,6 +3236,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
 #view-komunitas .komunitas-profile-topline{width:100%;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 #view-komunitas .komunitas-add-friend-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}
 #view-komunitas .komunitas-add-friend-btn:hover{background:#1d4ed8}
+#view-komunitas .komunitas-feed-add-friend{margin:0 0 12px auto;display:flex!important;width:max-content}
+#view-komunitas #komunitas-add-friend-btn[hidden]{display:none!important}
+#view-komunitas .komunitas-add-friend-btn:disabled{background:#94a3b8;cursor:default}
 #view-komunitas .komunitas-profile-stats>button{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;border-right:1px solid #e2e8f0;background:#fff;cursor:pointer}
 #view-komunitas .komunitas-profile-stats>button:last-child{border-right:0}
 #view-komunitas .komunitas-profile-stats>button:hover{background:#f8fafc}
@@ -3454,6 +3457,18 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
   let communityFriends=[];
   let profileTab='posts';
+  let communityProfileTarget=null;
+  function currentCommunityUid(){return String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();}
+  function isOwnCommunityUser(uid){return !!uid && uid===currentCommunityUid();}
+  function openCommunityUserProfile(user){
+    if(!user||!user.uid)return;
+    communityProfileTarget={uid:String(user.uid),store:String(user.store||'Pengguna'),phone:String(user.phone||''),photo:String(user.photo||''),bio:String(user.bio||'')};
+    const content=communityContent();if(!content)return;
+    content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
+    hideCommunityPageSafely('komunitas-notification-page');document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
+    document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','false');
+    loadCommunityFriends(communityProfileTarget.uid).then(renderProfile);
+  }
   function profileStats(){
     const me=String(phone()||'').replace(/\D/g,'');
     const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'');
@@ -3466,58 +3481,61 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const box=document.getElementById('komunitas-profile-tab-content');if(!box)return;box.replaceChildren();
     let entries=[];
     if(profileTab==='posts'){
-      const me=String(phone()||'').replace(/\D/g,'');const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'');
-      entries=communityDocs.filter(p=>(uid&&p.uid===uid)||(!uid&&String(p.phone||'').replace(/\D/g,'')===me)).map(p=>({title:dateLabel(p.date),text:p.text}));
+      const me=String(phone()||'').replace(/\D/g,'');const uid=String(communityProfileTarget?.uid||currentCommunityUid());
+      entries=communityDocs.filter(p=>p.uid===uid||( !communityProfileTarget && !p.uid && String(p.phone||'').replace(/\D/g,'')===me)).map(p=>({title:dateLabel(p.date),text:p.text}));
     }else if(profileTab==='comments'){
-      const me=String(phone()||'').replace(/\D/g,'');const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'');
-      communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{if((uid&&String(c.UID||c.uid||'')===uid)||(!uid&&String(c.NomorHp||'').replace(/\D/g,'')===me))entries.push({title:String(c.NamaToko||c.storeName||'Toko')+' · '+dateLabel(c.Tanggal),text:String(c.Isi||c.text||''),sub:'Pada postingan: '+p.store+' — '+p.text});}));
+      const me=String(phone()||'').replace(/\D/g,'');const uid=String(communityProfileTarget?.uid||currentCommunityUid());
+      communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{if((uid&&String(c.UID||c.uid||'')===uid)||(!communityProfileTarget&&!uid&&String(c.NomorHp||'').replace(/\D/g,'')===me))entries.push({title:String(c.NamaToko||c.storeName||'Toko')+' · '+dateLabel(c.Tanggal),text:String(c.Isi||c.text||''),sub:'Pada postingan: '+p.store+' — '+p.text});}));
     }else{
       entries=communityFriends.map(f=>({title:f.NamaToko||f.storeName||'Pengguna',text:f.NomorHp||f.phone||'Teman Komunitas'}));
     }
     if(!entries.length){const e=document.createElement('div');e.className='komunitas-profile-empty';e.textContent=profileTab==='posts'?'Anda belum memiliki postingan yang dipublikasikan.':profileTab==='comments'?'Anda belum memberikan komentar pada postingan.':'Daftar teman masih kosong.';box.appendChild(e);return;}
     entries.slice().reverse().forEach(item=>{const card=document.createElement('div');card.className='komunitas-profile-entry';const title=document.createElement('strong');title.textContent=item.title;const body=document.createElement('div');body.textContent=item.text||'';card.append(title,body);if(item.sub){const sub=document.createElement('div');sub.style.cssText='margin-top:6px;color:#64748b;font-size:11px';sub.textContent=item.sub;card.appendChild(sub);}box.appendChild(card);});
   }
-  async function loadCommunityFriends(){
-    const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();if(!uid||!ready())return;
+  async function loadCommunityFriends(forUid){
+    const uid=String(forUid||currentCommunityUid()).trim();if(!uid||!ready())return;
     try{const a=api(),snap=await a.getDoc(a.doc(db(),'Komunitas',`Teman_${uid}`));communityFriends=snap?.exists?.()?((Array.isArray(snap.data()?.DaftarTeman)?snap.data().DaftarTeman:[])):[];}catch(e){console.warn('Daftar teman komunitas gagal dimuat:',e);}
   }
-  async function addCommunityFriend(){
+  async function addCommunityFriend(targetUid){
+    const targetId=String(targetUid||communityProfileTarget?.uid||'').trim();
+    const uid=currentCommunityUid();
+    if(!targetId||!uid||targetId===uid){return;}
     if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap.');return;}
-    const target=String(prompt('Masukkan nomor HP teman yang sudah terdaftar di Rekapinyu:')||'').replace(/\D/g,'');if(!target)return;
-    if(target===String(phone()||'').replace(/\D/g,'')){alert('Anda tidak dapat menambahkan akun sendiri sebagai teman.');return;}
-    const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();if(!uid)return;
     try{
-      const a=api(),database=db(),col=a.collection(database,'Komunitas');
-      const snap=await a.getDocs(col);let targetUser=null;
-      snap.docs.forEach(d=>{const raw=d.data()||{},p=raw.PostinganPublik||{};if(String(p.NomorHp||'').replace(/\D/g,'')===target)targetUser={uid:String(p.UID||''),phone:target,name:String(p.NamaToko||'Pengguna'),photo:String(p.FotoProfil||'')};});
-      if(!targetUser){alert('Pengguna belum ditemukan. Pastikan pengguna tersebut sudah terdaftar dan pernah aktif di Komunitas.');return;}
-      if(!targetUser.uid){alert('Identitas pengguna belum tersedia untuk pertemanan.');return;}
-      if(communityFriends.some(f=>String(f.UID||f.uid||'')===targetUser.uid)){alert('Pengguna tersebut sudah ada di daftar teman.');return;}
-      const meEntry={UID:targetUser.uid,NomorHp:targetUser.phone,NamaToko:targetUser.name,FotoProfil:targetUser.photo,Tanggal:new Date().toISOString()};
-      const targetEntry={UID:uid,NomorHp:phone(),NamaToko:storeName(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString()};
-      const myRef=a.doc(database,'Komunitas',`Teman_${uid}`),targetRef=a.doc(database,'Komunitas',`Teman_${targetUser.uid}`);
+      const a=api(),database=db();
+      const targetPost=communityDocs.find(p=>p.uid===targetId);
+      if(!targetPost){alert('Profil pengguna belum ditemukan di Komunitas.');return;}
+      const myRef=a.doc(database,'Komunitas',`Teman_${uid}`),targetRef=a.doc(database,'Komunitas',`Teman_${targetId}`);
       const [mySnap,targetSnap]=await Promise.all([a.getDoc(myRef),a.getDoc(targetRef)]);
       const myFriends=mySnap?.exists?.()&&Array.isArray(mySnap.data()?.DaftarTeman)?mySnap.data().DaftarTeman:[];
       const targetFriends=targetSnap?.exists?.()&&Array.isArray(targetSnap.data()?.DaftarTeman)?targetSnap.data().DaftarTeman:[];
-      if(!myFriends.some(f=>String(f.UID||f.uid||'')===targetUser.uid))myFriends.push(meEntry);
-      if(!targetFriends.some(f=>String(f.UID||f.uid||'')===uid))targetFriends.push(targetEntry);
-      await Promise.all([a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true}),a.setDoc(targetRef,{UID:targetUser.uid,DaftarTeman:targetFriends},{merge:true})]);
-      communityFriends=myFriends;renderProfile();alert('Teman berhasil ditambahkan.');
-    }catch(e){console.error('Tambah teman komunitas gagal:',e);alert('Permintaan pertemanan gagal dikirim. Periksa koneksi dan izin Firestore.');}
+      if(myFriends.some(f=>String(f.UID||f.uid||'')===targetId)){alert('Pengguna tersebut sudah menjadi teman Anda.');return;}
+      const meEntry={UID:uid,NomorHp:phone(),NamaToko:storeName(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString()};
+      const targetEntry={UID:targetId,NomorHp:targetPost.phone,NamaToko:targetPost.store,FotoProfil:targetPost.photo,Tanggal:new Date().toISOString()};
+      myFriends.push(targetEntry);targetFriends.push(meEntry);
+      await Promise.all([a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true}),a.setDoc(targetRef,{UID:targetId,DaftarTeman:targetFriends},{merge:true})]);
+      if(targetId===currentCommunityUid())communityFriends=myFriends;
+      const btn=document.getElementById('komunitas-add-friend-btn');if(btn&&communityProfileTarget?.uid===targetId){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
+      alert('Teman berhasil ditambahkan.');
+    }catch(e){console.error('Tambah teman komunitas gagal:',e);alert('Penambahan teman gagal. Periksa koneksi dan izin Firestore.');}
   }
   function renderProfile(){
     const u=sessionUser();
+    const target=communityProfileTarget;
+    const targetUid=String(target?.uid||currentCommunityUid());
+    const addBtn=document.getElementById('komunitas-add-friend-btn');
+    if(addBtn){const own=isOwnCommunityUser(targetUid);addBtn.hidden=own;addBtn.disabled=false;addBtn.innerHTML='<i class="fa-solid fa-user-plus" aria-hidden="true"></i> Tambah Teman';if(!own&&communityFriends.some(f=>String(f.UID||f.uid||'')===targetUid)){addBtn.disabled=true;addBtn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';}}
     const avatarEl=document.getElementById('komunitas-profile-avatar');
     const name=document.getElementById('komunitas-profile-name');
     const bio=document.getElementById('komunitas-profile-bio');
-    if(name)name.textContent=storeName();
-    if(bio)bio.textContent=String(u.bio||'').trim()||'Belum ada bio.';
+    if(name)name.textContent=target?target.store:storeName();
+    if(bio)bio.textContent=target? (target.bio||'Profil pengguna Komunitas.') : (String(u.bio||'').trim()||'Belum ada bio.');
     if(avatarEl){
-      avatarEl.replaceChildren();const src=profilePhoto();
+      avatarEl.replaceChildren();const src=target?target.photo:profilePhoto();
       if(src){const img=document.createElement('img');img.src=src;img.alt='Foto profil toko';avatarEl.appendChild(img);}
       else{const i=document.createElement('i');i.className='fa-solid fa-store';i.setAttribute('aria-hidden','true');avatarEl.appendChild(i);}
     }
-    const stats=profileStats();
+    const stats=target?(()=>{const posts=communityDocs.filter(p=>p.uid===targetUid).length;let comments=0;communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{if(String(c.UID||c.uid||'')===targetUid)comments++;}));return {posts,comments,friends:communityFriends.length};})():profileStats();
     document.getElementById('komunitas-profile-post-count')?.replaceChildren(document.createTextNode(String(stats.posts)));
     document.getElementById('komunitas-profile-comment-count')?.replaceChildren(document.createTextNode(String(stats.comments)));
     document.getElementById('komunitas-profile-friend-count')?.replaceChildren(document.createTextNode(String(stats.friends)));
@@ -3555,6 +3573,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
   async function openProfile(){
     const content=communityContent();if(!content)return;
+    communityProfileTarget=null;
     content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
     hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
@@ -3613,9 +3632,13 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     }
     posts.forEach(post=>{
       const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
-      const head=document.createElement('div');head.className='komunitas-post-head';head.appendChild(avatar(communityProfilePhoto(post),false));
+      const head=document.createElement('div');head.className='komunitas-post-head';
+      const postAvatar=avatar(communityProfilePhoto(post),false);
+      if(post.uid&&post.uid!==currentCommunityUid()){postAvatar.style.cursor='pointer';postAvatar.title='Lihat profil pengguna';postAvatar.addEventListener('click',()=>openCommunityUserProfile({uid:post.uid,store:post.store,phone:post.phone,photo:post.photo}));}
+      head.appendChild(postAvatar);
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
       const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
+      if(post.uid&&post.uid!==currentCommunityUid()){name.style.cursor='pointer';name.title='Lihat profil pengguna';name.addEventListener('click',()=>openCommunityUserProfile({uid:post.uid,store:post.store,phone:post.phone,photo:post.photo}));}
       const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.appendChild(meta);
       const body=document.createElement('p');body.className='komunitas-post-text';body.textContent=post.text;
       const title=document.createElement('div');title.className='komunitas-comment-title';title.textContent='Tulis Komentar :';
@@ -3631,6 +3654,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const button=document.createElement('button');button.className='komunitas-comment-send';button.type='button';button.innerHTML='<i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Kirim</span>';
       const send=()=>saveComment(post.docId,input);
       button.addEventListener('click',send);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();send();}});box.append(input,button);
+      if(post.uid&&post.uid!==currentCommunityUid()){const add=document.createElement('button');add.type='button';add.className='komunitas-add-friend-btn komunitas-feed-add-friend';add.innerHTML='<i class="fa-solid fa-user-plus" aria-hidden="true"></i> Tambah Teman';add.addEventListener('click',()=>addCommunityFriend(post.uid));card.appendChild(add);}
       card.append(head,body,title,comments,box);list.appendChild(card);
     });
   }
@@ -3698,9 +3722,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     button.addEventListener('click',savePost);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();savePost();}});
     searchButton.addEventListener('click',applySearch);search.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applySearch();}});search.addEventListener('input',()=>{searchTerm=String(search.value||'').trim();render();});
     notifButton?.addEventListener('click',openNotifications);
-    document.getElementById('komunitas-rail-profile')?.addEventListener('click',openProfile);
+    document.getElementById('komunitas-rail-profile')?.addEventListener('click',()=>{communityProfileTarget=null;openProfile();});
     document.getElementById('komunitas-rail-bio')?.addEventListener('click',openBio);
-    document.getElementById('komunitas-add-friend-btn')?.addEventListener('click',addCommunityFriend);
+    document.getElementById('komunitas-add-friend-btn')?.addEventListener('click',()=>addCommunityFriend(communityProfileTarget?.uid));
     document.querySelectorAll('#komunitas-profile-page [data-profile-tab]').forEach(btn=>btn.addEventListener('click',()=>{profileTab=btn.dataset.profileTab||'posts';renderProfileTab();}));
     document.getElementById('komunitas-rail-home')?.addEventListener('click',()=>{closeCommunityPages();render();});
     document.getElementById('komunitas-bio-input')?.addEventListener('input',updateBioCounter);
