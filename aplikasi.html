@@ -3084,6 +3084,19 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   font-weight:700!important;
   box-sizing:border-box!important;
 }
+#view-komunitas .komunitas-notif-error{
+  display:block!important;
+  margin:12px!important;
+  padding:11px 13px!important;
+  border:1px solid #fecaca!important;
+  border-radius:10px!important;
+  background:#fff7f7!important;
+  color:#b91c1c!important;
+  font-size:11px!important;
+  line-height:1.5!important;
+  font-weight:700!important;
+  overflow-wrap:anywhere!important;
+}
 #view-komunitas .komunitas-notif-item{
   display:flex!important;
   align-items:flex-start!important;
@@ -3463,7 +3476,15 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function renderNotifList(){
     const list=document.getElementById(notifListId);if(!list)return;
     list.replaceChildren();const items=buildNotifications();
-    if(!items.length){const e=document.createElement('div');e.className='komunitas-notif-empty';e.textContent='Belum ada notifikasi komunitas.';list.appendChild(e);return;}
+    const friendErrors=[];
+    if(friendRequestListenerError)friendErrors.push('Notifikasi masuk: '+friendRequestListenerError);
+    if(outgoingFriendRequestListenerError)friendErrors.push('Status permintaan: '+outgoingFriendRequestListenerError);
+    if(friendErrors.length){
+      const error=document.createElement('div');error.className='komunitas-notif-error';
+      error.textContent=friendErrors.join(' · ')+'. Periksa Rules Komunitas yang sudah di-Publish, lalu buka ulang menu Notif.';
+      list.appendChild(error);
+    }
+    if(!items.length){const e=document.createElement('div');e.className='komunitas-notif-empty';e.textContent=friendRequestListenerError?'Belum ada notifikasi yang dapat dibaca.':'Belum ada notifikasi komunitas.';list.appendChild(e);return;}
     const read=new Set(readNotifIds());
     items.forEach(item=>{
       const isFriendRequest=item.type==='friend-request';
@@ -3544,6 +3565,10 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   let unsubscribeIncomingFriendRequests=null;
   let unsubscribeOutgoingFriendRequests=null;
   let friendRequestListenersStarted=false;
+  let friendRequestListenerError='';
+  let outgoingFriendRequestListenerError='';
+  let friendRequestRetryTimer=null;
+  let friendRequestRetryCount=0;
   let profileTab='posts';
   let communityProfileTarget=null;
   function currentCommunityUid(){return String(window.RekapinyuFirebase?.uid||sessionUser().uid||'').trim();}
@@ -3582,13 +3607,19 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
   async function resolveCommunityAuthorUid(post){
     const existing=String(post?.uid||'').trim();
-    if(existing)return existing;
     const targetPhone=String(post?.phone||'').replace(/\D/g,'');
     const myPhone=String(phone()||'').replace(/\D/g,'');
-    if(!targetPhone||targetPhone===myPhone)return '';
-    if(!ready())return '';
-    try{return await findCommunityIdentityUidByPhone(targetPhone);}
-    catch(e){console.warn('Identitas pemilik postingan Komunitas tidak dapat dicari:',e);return '';}
+    if(!ready())return existing;
+    // Nomor HP pada postingan dapat berasal dari postingan lama. Jika tersedia,
+    // dahulukan UID kanonis dari direktori identitas agar permintaan tidak terkirim
+    // ke UID lama/non-Firebase yang tidak akan cocok dengan akun penerima.
+    if(targetPhone&&targetPhone!==myPhone){
+      try{
+        const canonicalUid=await findCommunityIdentityUidByPhone(targetPhone);
+        if(canonicalUid)return canonicalUid;
+      }catch(e){console.warn('UID kanonis pemilik postingan Komunitas gagal dicari:',e);}
+    }
+    return existing;
   }
   async function openCommunityPostProfile(post){
     const targetUid=await resolveCommunityAuthorUid(post);
@@ -3693,28 +3724,85 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       else renderProfile();
     }
   }
+  function stopCommunityFriendRequestListeners(){
+    if(typeof unsubscribeIncomingFriendRequests==='function'){try{unsubscribeIncomingFriendRequests();}catch(_){}}
+    if(typeof unsubscribeOutgoingFriendRequests==='function'){try{unsubscribeOutgoingFriendRequests();}catch(_){}}
+    unsubscribeIncomingFriendRequests=null;unsubscribeOutgoingFriendRequests=null;friendRequestListenersStarted=false;
+  }
+  function scheduleCommunityFriendRequestRetry(){
+    if(friendRequestRetryTimer||friendRequestRetryCount>=3)return;
+    friendRequestRetryCount++;
+    friendRequestRetryTimer=setTimeout(()=>{
+      friendRequestRetryTimer=null;
+      if(!ready())return;
+      stopCommunityFriendRequestListeners();
+      startCommunityFriendRequestListeners();
+    },2500);
+  }
   function startCommunityFriendRequestListeners(){
     if(friendRequestListenersStarted||!ready())return false;
+    if(unsubscribeIncomingFriendRequests||unsubscribeOutgoingFriendRequests)stopCommunityFriendRequestListeners();
     const a=api(),database=db(),col=a.collection(database,'Komunitas'),uid=currentCommunityUid();
     if(!uid)return false;
-    friendRequestListenersStarted=true;
-    unsubscribeIncomingFriendRequests=a.onSnapshot(
-      a.query(col,a.where('PenerimaUID','==',uid)),
-      snap=>{
-        incomingFriendRequests=snap.docs.map(docSnap=>({docId:docSnap.id,...(docSnap.data()||{})}));
-        refreshCommunityFriendNotifications();
-      },
-      err=>{console.error('Notifikasi permintaan teman gagal dimuat:',err);friendRequestListenersStarted=false;}
-    );
-    unsubscribeOutgoingFriendRequests=a.onSnapshot(
-      a.query(col,a.where('PengirimUID','==',uid)),
-      snap=>{
-        outgoingFriendRequests=snap.docs.map(docSnap=>({docId:docSnap.id,...(docSnap.data()||{})}));
-        refreshCommunityFriendNotifications();
-      },
-      err=>{console.error('Status pertemanan keluar gagal dimuat:',err);friendRequestListenersStarted=false;}
-    );
-    return true;
+    try{
+      friendRequestListenerError='';
+      unsubscribeIncomingFriendRequests=a.onSnapshot(
+        a.query(col,a.where('PenerimaUID','==',uid)),
+        snap=>{
+          incomingFriendRequests=snap.docs.map(docSnap=>({docId:docSnap.id,...(docSnap.data()||{})}))
+            .filter(req=>req.Jenis==='PermintaanTeman'&&String(req.PenerimaUID||'')===uid);
+          friendRequestListenerError='';friendRequestRetryCount=0;
+          refreshCommunityFriendNotifications();
+        },
+        err=>{
+          friendRequestListenerError=String(err?.code||err?.message||'akses ditolak');
+          console.error('Notifikasi permintaan teman gagal dimuat:',err);
+          friendRequestListenersStarted=false;
+          refreshCommunityFriendNotifications();
+          scheduleCommunityFriendRequestRetry();
+        }
+      );
+      unsubscribeOutgoingFriendRequests=a.onSnapshot(
+        a.query(col,a.where('PengirimUID','==',uid)),
+        snap=>{
+          outgoingFriendRequests=snap.docs.map(docSnap=>({docId:docSnap.id,...(docSnap.data()||{})}))
+            .filter(req=>req.Jenis==='PermintaanTeman'&&String(req.PengirimUID||'')===uid);
+          outgoingFriendRequestListenerError='';
+          refreshCommunityFriendNotifications();
+        },
+        err=>{
+          outgoingFriendRequestListenerError=String(err?.code||err?.message||'akses ditolak');
+          console.error('Status pertemanan keluar gagal dimuat:',err);
+          friendRequestListenersStarted=false;
+          refreshCommunityFriendNotifications();
+        }
+      );
+      friendRequestListenersStarted=true;
+      return true;
+    }catch(err){
+      friendRequestListenerError=String(err?.code||err?.message||'gagal membuat listener');
+      friendRequestListenersStarted=false;
+      console.error('Listener permintaan teman gagal dimulai:',err);
+      refreshCommunityFriendNotifications();
+      scheduleCommunityFriendRequestRetry();
+      return false;
+    }
+  }
+  async function refreshIncomingFriendRequestsOnce(){
+    if(!ready())return;
+    const uid=currentCommunityUid();
+    try{
+      const a=api(),database=db(),col=a.collection(database,'Komunitas');
+      const snap=await a.getDocs(a.query(col,a.where('PenerimaUID','==',uid)));
+      incomingFriendRequests=snap.docs.map(docSnap=>({docId:docSnap.id,...(docSnap.data()||{})}))
+        .filter(req=>req.Jenis==='PermintaanTeman'&&String(req.PenerimaUID||'')===uid);
+      friendRequestListenerError='';
+      refreshCommunityFriendNotifications();
+    }catch(err){
+      friendRequestListenerError=String(err?.code||err?.message||'akses ditolak');
+      console.error('Penyegaran notifikasi permintaan teman gagal:',err);
+      refreshCommunityFriendNotifications();
+    }
   }
   async function addCommunityFriend(targetUid){
     const uid=String(window.RekapinyuFirebase?.uid||currentCommunityUid()||'').trim();
@@ -3727,14 +3815,26 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const targetPhone=String(target.phone||targetPost?.phone||'').replace(/\D/g,'');
       if(!targetPost&&targetPhone)targetPost=communityDocs.find(p=>String(p.phone||'').replace(/\D/g,'')===targetPhone);
 
-      let targetId=String(target.realUid||'').trim();
+      // Prioritaskan UID kanonis berdasarkan nomor HP target. UID yang tertera
+      // pada postingan lama bisa saja bukan UID Firebase akun penerima.
+      let targetId='';
+      if(targetPhone)targetId=await findCommunityIdentityUidByPhone(targetPhone);
+      if(!targetId)targetId=String(target.realUid||'').trim();
       if(!targetId&&targetPost)targetId=await resolveCommunityAuthorUid(targetPost);
       if(!targetId&&targetUid&&!String(targetUid).startsWith('legacy:'))targetId=String(targetUid).trim();
-      if(!targetId&&targetPhone)targetId=await findCommunityIdentityUidByPhone(targetPhone);
       if(!targetId||targetId.startsWith('legacy:')){
         alert('UID akun tujuan belum tersedia. Minta pemilik akun membuka menu Komunitas pada aplikasi versi terbaru sekali, lalu coba Tambah Teman lagi.');return;
       }
       if(targetId===uid){alert('Akun sendiri tidak bisa ditambahkan sebagai teman.');return;}
+
+      // Jangan membuat permintaan pada UID lama/non-kanonis. Pastikan akun target
+      // benar-benar terdaftar pada direktori Komunitas agar listener penerima cocok.
+      communityFriendStage='memastikan identitas akun tujuan';
+      const targetIdentitySnap=await a.getDoc(a.doc(database,'KomunitasIdentitas',targetId));
+      const targetIdentityData=targetIdentitySnap?.exists?.()?targetIdentitySnap.data()||{}:{};
+      if(!targetIdentitySnap?.exists?.()||String(targetIdentityData.UID||targetIdentitySnap.id||'')!==targetId){
+        alert('Akun tujuan belum terdaftar pada direktori Komunitas. Minta akun tersebut membuka menu Komunitas pada aplikasi versi terbaru, lalu coba Tambah Teman lagi.');return;
+      }
 
       communityFriendStage='memeriksa status pertemanan';
       const col=a.collection(database,'Komunitas');
@@ -3941,7 +4041,10 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     content.classList.remove('komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
-    renderNotifList();content.classList.add('komunitas-notif-open');page.setAttribute('aria-hidden','false');
+    content.classList.add('komunitas-notif-open');page.setAttribute('aria-hidden','false');
+    if(!friendRequestListenersStarted)startCommunityFriendRequestListeners();
+    renderNotifList();
+    refreshIncomingFriendRequestsOnce();
     writeNotifIds(buildNotifications().filter(n=>n.type!=='friend-request').map(n=>n.id));updateNotifBadge();
   }
   function closeNotifications(){
@@ -4036,6 +4139,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(typeof unsubscribeIncomingFriendRequests==='function'){try{unsubscribeIncomingFriendRequests();}catch(_){}}
     if(typeof unsubscribeOutgoingFriendRequests==='function'){try{unsubscribeOutgoingFriendRequests();}catch(_){}}
     unsubscribeIncomingFriendRequests=null;unsubscribeOutgoingFriendRequests=null;friendRequestListenersStarted=false;
+    if(friendRequestRetryTimer){clearTimeout(friendRequestRetryTimer);friendRequestRetryTimer=null;}
     incomingFriendRequests=[];outgoingFriendRequests=[];
   }
   async function savePost(){
@@ -4081,10 +4185,15 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     document.getElementById('komunitas-bio-input')?.addEventListener('input',updateBioCounter);
     document.getElementById('komunitas-bio-save')?.addEventListener('click',saveCommunityBio);
     updateNotifBadge();
-    const tryStart=()=>{startListener();startCommunityBioListener();startCommunityFriendRequestListeners();return listenerStarted||bioListenerStarted||friendRequestListenersStarted;};
+    const tryStart=()=>{
+      if(!listenerStarted)startListener();
+      if(!bioListenerStarted)startCommunityBioListener();
+      if(!friendRequestListenersStarted)startCommunityFriendRequestListeners();
+      return listenerStarted&&bioListenerStarted&&friendRequestListenersStarted;
+    };
     if(!tryStart()){
-      const timer=setInterval(()=>{startListener();startCommunityBioListener();if(listenerStarted&&bioListenerStarted&&friendRequestListenersStarted){clearInterval(timer);}},250);
-      setTimeout(()=>clearInterval(timer),20000);
+      const timer=setInterval(()=>{if(tryStart())clearInterval(timer);},500);
+      setTimeout(()=>clearInterval(timer),60000);
     }
     window.addEventListener('beforeunload',stopListener,{once:true});
   }
