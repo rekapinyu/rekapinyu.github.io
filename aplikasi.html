@@ -3633,12 +3633,21 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     posts.forEach(post=>{
       const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
       const head=document.createElement('div');head.className='komunitas-post-head';
+      const canOpenProfile=!!post.uid&&post.uid!==currentCommunityUid();
+      if(canOpenProfile){
+        head.style.cursor='pointer';
+        head.title='Klik untuk melihat profil pengguna';
+        head.setAttribute('role','button');
+        head.setAttribute('tabindex','0');
+        const openAuthorProfile=()=>openCommunityUserProfile({uid:post.uid,store:post.store,phone:post.phone,photo:post.photo});
+        head.addEventListener('click',openAuthorProfile);
+        head.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openAuthorProfile();}});
+      }
       const postAvatar=avatar(communityProfilePhoto(post),false);
-      if(post.uid&&post.uid!==currentCommunityUid()){postAvatar.style.cursor='pointer';postAvatar.title='Lihat profil pengguna';postAvatar.addEventListener('click',()=>openCommunityUserProfile({uid:post.uid,store:post.store,phone:post.phone,photo:post.photo}));}
       head.appendChild(postAvatar);
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
       const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
-      if(post.uid&&post.uid!==currentCommunityUid()){name.style.cursor='pointer';name.title='Lihat profil pengguna';name.addEventListener('click',()=>openCommunityUserProfile({uid:post.uid,store:post.store,phone:post.phone,photo:post.photo}));}
+      if(canOpenProfile){name.style.cursor='pointer';name.title='Lihat profil pengguna';}
       const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.appendChild(meta);
       const body=document.createElement('p');body.className='komunitas-post-text';body.textContent=post.text;
       const title=document.createElement('div');title.className='komunitas-comment-title';title.textContent='Tulis Komentar :';
