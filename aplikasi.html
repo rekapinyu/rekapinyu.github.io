@@ -3545,76 +3545,67 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const uid=currentCommunityUid();
     if(!uid||!ready()){alert('Koneksi Komunitas ke Firestore belum siap.');return;}
     try{
-      const a=api(),database=db();
-      const target=communityProfileTarget||{};
+      const a=api(),database=db(),target=communityProfileTarget||{};
       let targetPost=communityDocs.find(p=>String(p.uid||'')===String(targetUid||''));
-      if(!targetPost&&target.sourceDocId){targetPost=communityDocs.find(p=>String(p.docId||'')===String(target.sourceDocId));}
-      if(!targetPost&&target.phone){
-        const targetPhone=String(target.phone).replace(/\D/g,'');
-        targetPost=communityDocs.find(p=>targetPhone&&String(p.phone||'').replace(/\D/g,'')===targetPhone);
-      }
+      if(!targetPost&&target.sourceDocId)targetPost=communityDocs.find(p=>String(p.docId||'')===String(target.sourceDocId));
+      const targetPhone=String(target.phone||targetPost?.phone||'').replace(/\D/g,'');
+      if(!targetPost&&targetPhone)targetPost=communityDocs.find(p=>String(p.phone||'').replace(/\D/g,'')===targetPhone);
 
-      // Resolve the real Firebase UID from the post/profile data; never save a legacy placeholder as a user ID.
       let targetId=String(target.realUid||'').trim();
       if(!targetId&&targetPost)targetId=await resolveCommunityAuthorUid(targetPost);
       if(!targetId&&targetUid&&!String(targetUid).startsWith('legacy:'))targetId=String(targetUid).trim();
-      if(!targetId&&target.phone&&ready()){
-        const targetPhone=String(target.phone).replace(/\D/g,'');
-        if(targetPhone){
-          const usersSnap=await a.getDocs(a.collection(database,'Pengguna'));
-          usersSnap.forEach(docSnap=>{
-            const data=docSnap.data()||{};
-            const savedPhone=String(data.NomorHp||data.nomorHp||data.phone||'').replace(/\D/g,'');
-            if(!targetId&&savedPhone===targetPhone)targetId=String(data.UID||data.uid||data.UserId||data.userId||docSnap.id||'').trim();
-          });
-        }
+      if(!targetId&&targetPhone){
+        const usersSnap=await a.getDocs(a.collection(database,'Pengguna'));
+        usersSnap.forEach(docSnap=>{
+          const data=docSnap.data()||{};
+          const savedPhone=String(data.NomorHp||data.nomorHp||data.phone||'').replace(/\D/g,'');
+          if(!targetId&&savedPhone===targetPhone)targetId=String(docSnap.id||data.UID||data.uid||data.UserId||data.userId||'').trim();
+        });
       }
       if(!targetId||targetId.startsWith('legacy:')){
-        alert('Identitas akun tujuan belum ditemukan di data pengguna. Periksa pemetaan UID akun pada HTML.');return;
+        alert('UID akun tujuan tidak ditemukan. Pastikan akun tujuan memiliki data di koleksi Pengguna dan postingannya menyimpan UID.');return;
       }
       if(targetId===uid){alert('Akun sendiri tidak bisa ditambahkan sebagai teman.');return;}
 
-      // Use the existing Firestore schema: Komunitas/Teman_<UID> for each side.
+      /* Simpan hanya pada dokumen milik pengguna yang sedang login.
+         Tidak menulis ke dokumen akun lain, sehingga tidak membutuhkan izin
+         menulis ke data pengguna lain pada Firestore Security Rules. */
       const myRef=a.doc(database,'Komunitas',`Teman_${uid}`);
-      const targetRef=a.doc(database,'Komunitas',`Teman_${targetId}`);
-      const [mySnap,targetSnap]=await Promise.all([a.getDoc(myRef),a.getDoc(targetRef)]);
+      const mySnap=await a.getDoc(myRef);
       const myData=mySnap?.exists?.()?mySnap.data()||{}:{};
-      const targetData=targetSnap?.exists?.()?targetSnap.data()||{}:{};
       const myFriends=Array.isArray(myData.DaftarTeman)?[...myData.DaftarTeman]:[];
-      const targetFriends=Array.isArray(targetData.DaftarTeman)?[...targetData.DaftarTeman]:[];
-      const alreadyMine=myFriends.some(f=>String(f.UID||f.uid||'')===targetId);
-      const alreadyTheirs=targetFriends.some(f=>String(f.UID||f.uid||'')===uid);
-      if(alreadyMine&&alreadyTheirs){
+      if(myFriends.some(f=>String(f.UID||f.uid||'')===targetId)){
+        communityFriends=myFriends;
         const btn=document.getElementById('komunitas-add-friend-btn');
         if(btn){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
+        renderProfile();
         alert('Pengguna tersebut sudah menjadi teman Anda.');return;
       }
-
-      const targetEntry={
+      myFriends.push({
         UID:targetId,
         NomorHp:String(targetPost?.phone||target.phone||''),
         NamaToko:String(targetPost?.store||target.store||'Pengguna'),
         FotoProfil:String(targetPost?.photo||target.photo||''),
         Tanggal:new Date().toISOString()
-      };
-      const meEntry={UID:uid,NomorHp:phone(),NamaToko:storeName(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString()};
-      if(!alreadyMine)myFriends.push(targetEntry);
-      if(!alreadyTheirs)targetFriends.push(meEntry);
-      await Promise.all([
-        a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true}),
-        a.setDoc(targetRef,{UID:targetId,DaftarTeman:targetFriends},{merge:true})
-      ]);
-      if(!communityProfileTarget||!communityProfileTarget.realUid||communityProfileTarget.realUid===targetId){
-        communityProfileTarget={...target,uid:targetId,realUid:targetId};
-        communityFriends=myFriends;
-      }
+      });
+      await a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true});
+      communityFriends=myFriends;
+      communityProfileTarget={...target,uid:targetId,realUid:targetId};
       const btn=document.getElementById('komunitas-add-friend-btn');
-      if(btn&&communityProfileTarget?.realUid===targetId){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
+      if(btn){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
       renderProfile();
       alert('Teman berhasil ditambahkan.');
     }catch(e){
       console.error('Tambah teman komunitas gagal:',e);
-      alert('Penambahan teman gagal. Periksa koneksi dan izin Firestore.');
+      const code=String(e?.code||'').trim();
+      const detail=code==='permission-denied'
+        ?'Firestore menolak akses baca/tulis dokumen teman akun Anda. Periksa izin untuk Komunitas/Teman_'+currentCommunityUid()+'.'
+        :code==='unavailable'
+          ?'Firestore sedang tidak tersedia. Periksa koneksi internet lalu coba lagi.'
+          :code==='failed-precondition'
+            ?'Permintaan Firestore belum memenuhi prasyarat.'
+            :'Terjadi kesalahan saat menyimpan data teman'+(code?' ('+code+')':'')+'.';
+      alert('Penambahan teman gagal. '+detail);
     }
   }
   function renderProfile(){
@@ -3779,8 +3770,11 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function startListener(){
     if(listenerStarted||!ready())return false;
     const a=api(),col=communityCollection();if(!col)return false;
+    // Ambil hanya dokumen posting publik. Dokumen Profil_UID dan Teman_UID
+    // berada di koleksi yang sama, tetapi tidak memiliki PostinganPublik.id.
+    const postsQuery=a.query(col,a.where('PostinganPublik.id','!=',''));
     listenerStarted=true;
-    unsubscribeCommunity=a.onSnapshot(col,snap=>{
+    unsubscribeCommunity=a.onSnapshot(postsQuery,snap=>{
       communityDocs=snap.docs.map(normalizePost).filter(x=>x.text.trim()).sort((a,b)=>{
         const da=new Date(a.date||0).getTime(),dbb=new Date(b.date||0).getTime();return dbb-da;
       });
