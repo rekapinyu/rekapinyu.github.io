@@ -7322,7 +7322,18 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable__TDKPwJYJBEZT1nP4CofJg_9213WW_Y";
 const SUPABASE_PHOTO_BUCKET="rekapinyu-foto";
 const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
-  accessToken:async()=>{try{return (await auth.currentUser?.getIdToken(false))||null}catch(_){return null}}
+  // Supabase Storage memakai Firebase ID token pengguna yang sedang login.
+  // Ambil token terbaru setiap request agar token lama tidak dipakai saat upload.
+  accessToken:async()=>{
+    try{
+      const user=auth.currentUser;
+      if(!user)return null;
+      return await user.getIdToken(true);
+    }catch(error){
+      console.error('Gagal mengambil Firebase ID token untuk Supabase Storage:',error);
+      return null;
+    }
+  }
 });
 const nativeSet=Storage.prototype.setItem,nativeRemove=Storage.prototype.removeItem;
 const COLLECTION={PENGGUNA:"Pengguna",KASIR:"Kasir",REKAP:"Rekap",AKTIFITAS:"Aktifitas"};
@@ -7479,10 +7490,18 @@ const photoStore={
     throw new Error('Gambar tidak dapat dikompres hingga 100 KB.');
   },
   async uploadBlob(path,blob){
-    if(!SUPABASE_PUBLISHABLE_KEY||SUPABASE_PUBLISHABLE_KEY==='PASTE_SUPABASE_PUBLISHABLE_KEY_HERE')throw new Error('Supabase Publishable Key belum diisi pada aplikasi.');
-    if(!auth.currentUser)throw new Error('Sesi Firebase tidak ditemukan.');
-    const {error}=await supabase.storage.from(SUPABASE_PHOTO_BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:true,cacheControl:'3600'});
-    if(error)throw error;
+    if(!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY||SUPABASE_PUBLISHABLE_KEY==='PASTE_SUPABASE_PUBLISHABLE_KEY_HERE')throw new Error('Konfigurasi Supabase belum lengkap.');
+    if(!auth.currentUser)throw new Error('Sesi Firebase tidak ditemukan. Silakan login ulang.');
+    // Pastikan token Firebase yang aktif benar-benar terbaru sebelum upload.
+    await auth.currentUser.getIdToken(true);
+    const {data,error}=await supabase.storage.from(SUPABASE_PHOTO_BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:true,cacheControl:'3600'});
+    if(error){
+      console.error('Supabase Storage upload gagal:',{message:error.message,statusCode:error.statusCode,error:error.error,path,bucket:SUPABASE_PHOTO_BUCKET});
+      if(String(error.statusCode||'')==='400'||String(error.statusCode||'')==='403'||/row-level security|unauthorized|access.?denied/i.test(String(error.message||''))){
+        throw new Error('Supabase menolak upload foto karena autentikasi atau Storage RLS. Pastikan Firebase Authentication sudah ditambahkan di Supabase Auth > Third-Party Auth dan policy bucket rekapinyu-foto mengizinkan INSERT serta UPDATE untuk folder UID pengguna. Detail: '+String(error.message||error.error||error.statusCode||'akses ditolak'));
+      }
+      throw error;
+    }
     return this.publicUrl(path);
   },
   async migrateLegacy(uid,p){
