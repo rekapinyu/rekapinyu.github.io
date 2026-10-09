@@ -3468,6 +3468,38 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   let communityProfileTarget=null;
   function currentCommunityUid(){return String(window.RekapinyuFirebase?.uid||sessionUser().uid||'').trim();}
   function isOwnCommunityUser(uid){return !!uid && uid===currentCommunityUid();}
+  // Cari UID posting lama lewat direktori identitas Komunitas, bukan
+  // membaca seluruh koleksi Pengguna yang dibatasi aturan privasi Firestore.
+  async function findCommunityIdentityUidByPhone(targetPhone){
+    const normalized=String(targetPhone||'').replace(/\D/g,'');
+    if(!normalized||!ready())return '';
+    const a=api(),database=db();
+    const identityQuery=a.query(
+      a.collection(database,'KomunitasIdentitas'),
+      a.where('NomorHp','==',normalized)
+    );
+    const snap=await a.getDocs(identityQuery);
+    let found='';
+    snap.forEach(docSnap=>{
+      const data=docSnap.data()||{};
+      const id=String(data.UID||docSnap.id||'').trim();
+      if(id && id===String(docSnap.id||'') &&
+         String(data.NomorHp||'').replace(/\D/g,'')===normalized) found=id;
+    });
+    return found;
+  }
+  async function ensureCommunityIdentity(){
+    const uid=currentCommunityUid();
+    const normalized=String(phone()||'').replace(/\D/g,'');
+    if(!uid||!normalized||!ready())return false;
+    const a=api(),database=db();
+    await a.setDoc(
+      a.doc(database,'KomunitasIdentitas',uid),
+      {UID:uid,NomorHp:normalized},
+      {merge:true}
+    );
+    return true;
+  }
   async function resolveCommunityAuthorUid(post){
     const existing=String(post?.uid||'').trim();
     if(existing)return existing;
@@ -3475,18 +3507,8 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const myPhone=String(phone()||'').replace(/\D/g,'');
     if(!targetPhone||targetPhone===myPhone)return '';
     if(!ready())return '';
-    try{
-      const a=api(),database=db();
-      const usersRef=a.collection(database,'Pengguna');
-      // Resolve older posts that contain NomorHp but were saved before UID was included.
-      const snap=await a.getDocs(usersRef);
-      let found='';
-      snap.forEach(doc=>{
-        const d=doc.data()||{};
-        if(String(d.NomorHp||'').replace(/\D/g,'')===targetPhone)found=doc.id;
-      });
-      return found;
-    }catch(e){console.warn('Identitas pemilik postingan Komunitas tidak dapat dicari:',e);return '';}
+    try{return await findCommunityIdentityUidByPhone(targetPhone);}
+    catch(e){console.warn('Identitas pemilik postingan Komunitas tidak dapat dicari:',e);return '';}
   }
   async function openCommunityPostProfile(post){
     const targetUid=await resolveCommunityAuthorUid(post);
@@ -3556,15 +3578,11 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       if(!targetId&&targetPost)targetId=await resolveCommunityAuthorUid(targetPost);
       if(!targetId&&targetUid&&!String(targetUid).startsWith('legacy:'))targetId=String(targetUid).trim();
       if(!targetId&&targetPhone){
-        const usersSnap=await a.getDocs(a.collection(database,'Pengguna'));
-        usersSnap.forEach(docSnap=>{
-          const data=docSnap.data()||{};
-          const savedPhone=String(data.NomorHp||data.nomorHp||data.phone||'').replace(/\D/g,'');
-          if(!targetId&&savedPhone===targetPhone)targetId=String(docSnap.id||data.UID||data.uid||data.UserId||data.userId||'').trim();
-        });
+        communityFriendStage='mencari identitas akun tujuan pada direktori Komunitas';
+        targetId=await findCommunityIdentityUidByPhone(targetPhone);
       }
       if(!targetId||targetId.startsWith('legacy:')){
-        alert('UID akun tujuan tidak ditemukan. Pastikan akun tujuan memiliki data di koleksi Pengguna dan postingannya menyimpan UID.');return;
+        alert('UID akun tujuan belum tersedia. Minta pemilik akun membuka menu Komunitas pada aplikasi versi terbaru sekali, lalu coba Tambah Teman lagi.');return;
       }
       if(targetId===uid){alert('Akun sendiri tidak bisa ditambahkan sebagai teman.');return;}
 
@@ -3773,6 +3791,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function startListener(){
     if(listenerStarted||!ready())return false;
     const a=api(),col=communityCollection();if(!col)return false;
+    // Daftarkan UID/nomor HP akun aktif untuk membantu menghubungkan posting lama
+    // yang belum menyimpan UID, tanpa membaca koleksi Pengguna milik akun lain.
+    ensureCommunityIdentity().catch(e=>console.warn('Direktori identitas Komunitas gagal disimpan:',e));
     // Ambil hanya dokumen posting publik. Dokumen Profil_UID dan Teman_UID
     // berada di koleksi yang sama, tetapi tidak memiliki PostinganPublik.id.
     const postsQuery=a.query(col,a.where('PostinganPublik.id','!=',''));
