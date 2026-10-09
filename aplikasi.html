@@ -3542,28 +3542,80 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     try{const a=api(),snap=await a.getDoc(a.doc(db(),'Komunitas',`Teman_${uid}`));communityFriends=snap?.exists?.()?((Array.isArray(snap.data()?.DaftarTeman)?snap.data().DaftarTeman:[])):[];}catch(e){console.warn('Daftar teman komunitas gagal dimuat:',e);}
   }
   async function addCommunityFriend(targetUid){
-    let targetId=String(targetUid||communityProfileTarget?.realUid||communityProfileTarget?.uid||'').trim();
     const uid=currentCommunityUid();
     if(!uid||!ready()){alert('Koneksi Komunitas ke Firestore belum siap.');return;}
     try{
       const a=api(),database=db();
-      let targetPost=communityDocs.find(p=>String(p.uid||'')===targetId);
-      if(!targetPost&&communityProfileTarget?.sourceDocId){targetPost=communityDocs.find(p=>String(p.docId||'')===communityProfileTarget.sourceDocId);}
-      if(!targetPost&&communityProfileTarget){targetPost=communityDocs.find(p=>String(p.phone||'').replace(/\D/g,'')===String(communityProfileTarget.phone||'').replace(/\D/g,'')&&String(p.phone||'').trim());}
-      if(targetPost){targetId=await resolveCommunityAuthorUid(targetPost)||String(targetPost.uid||'').trim();}
-      if(!targetId||targetId.startsWith('legacy:')||targetId===uid){alert('Akun ini belum memiliki identitas pengguna yang dapat digunakan untuk menyimpan pertemanan.');return;}
+      const target=communityProfileTarget||{};
+      let targetPost=communityDocs.find(p=>String(p.uid||'')===String(targetUid||''));
+      if(!targetPost&&target.sourceDocId){targetPost=communityDocs.find(p=>String(p.docId||'')===String(target.sourceDocId));}
+      if(!targetPost&&target.phone){
+        const targetPhone=String(target.phone).replace(/\D/g,'');
+        targetPost=communityDocs.find(p=>targetPhone&&String(p.phone||'').replace(/\D/g,'')===targetPhone);
+      }
+
+      // Resolve the real Firebase UID from the post/profile data; never save a legacy placeholder as a user ID.
+      let targetId=String(target.realUid||'').trim();
+      if(!targetId&&targetPost)targetId=await resolveCommunityAuthorUid(targetPost);
+      if(!targetId&&targetUid&&!String(targetUid).startsWith('legacy:'))targetId=String(targetUid).trim();
+      if(!targetId&&target.phone&&ready()){
+        const targetPhone=String(target.phone).replace(/\D/g,'');
+        if(targetPhone){
+          const usersSnap=await a.getDocs(a.collection(database,'Pengguna'));
+          usersSnap.forEach(docSnap=>{
+            const data=docSnap.data()||{};
+            const savedPhone=String(data.NomorHp||data.nomorHp||data.phone||'').replace(/\D/g,'');
+            if(!targetId&&savedPhone===targetPhone)targetId=String(data.UID||data.uid||data.UserId||data.userId||docSnap.id||'').trim();
+          });
+        }
+      }
+      if(!targetId||targetId.startsWith('legacy:')){
+        alert('Identitas akun tujuan belum ditemukan di data pengguna. Periksa pemetaan UID akun pada HTML.');return;
+      }
+      if(targetId===uid){alert('Akun sendiri tidak bisa ditambahkan sebagai teman.');return;}
+
+      // Use the existing Firestore schema: Komunitas/Teman_<UID> for each side.
+      const myRef=a.doc(database,'Komunitas',`Teman_${uid}`);
+      const targetRef=a.doc(database,'Komunitas',`Teman_${targetId}`);
       const [mySnap,targetSnap]=await Promise.all([a.getDoc(myRef),a.getDoc(targetRef)]);
-      const myFriends=mySnap?.exists?.()&&Array.isArray(mySnap.data()?.DaftarTeman)?mySnap.data().DaftarTeman:[];
-      const targetFriends=targetSnap?.exists?.()&&Array.isArray(targetSnap.data()?.DaftarTeman)?targetSnap.data().DaftarTeman:[];
-      if(myFriends.some(f=>String(f.UID||f.uid||'')===targetId)){alert('Pengguna tersebut sudah menjadi teman Anda.');return;}
+      const myData=mySnap?.exists?.()?mySnap.data()||{}:{};
+      const targetData=targetSnap?.exists?.()?targetSnap.data()||{}:{};
+      const myFriends=Array.isArray(myData.DaftarTeman)?[...myData.DaftarTeman]:[];
+      const targetFriends=Array.isArray(targetData.DaftarTeman)?[...targetData.DaftarTeman]:[];
+      const alreadyMine=myFriends.some(f=>String(f.UID||f.uid||'')===targetId);
+      const alreadyTheirs=targetFriends.some(f=>String(f.UID||f.uid||'')===uid);
+      if(alreadyMine&&alreadyTheirs){
+        const btn=document.getElementById('komunitas-add-friend-btn');
+        if(btn){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
+        alert('Pengguna tersebut sudah menjadi teman Anda.');return;
+      }
+
+      const targetEntry={
+        UID:targetId,
+        NomorHp:String(targetPost?.phone||target.phone||''),
+        NamaToko:String(targetPost?.store||target.store||'Pengguna'),
+        FotoProfil:String(targetPost?.photo||target.photo||''),
+        Tanggal:new Date().toISOString()
+      };
       const meEntry={UID:uid,NomorHp:phone(),NamaToko:storeName(),FotoProfil:profilePhoto(),Tanggal:new Date().toISOString()};
-      const targetEntry={UID:targetId,NomorHp:targetPost.phone,NamaToko:targetPost.store,FotoProfil:targetPost.photo,Tanggal:new Date().toISOString()};
-      myFriends.push(targetEntry);targetFriends.push(meEntry);
-      await Promise.all([a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true}),a.setDoc(targetRef,{UID:targetId,DaftarTeman:targetFriends},{merge:true})]);
-      if(targetId===currentCommunityUid())communityFriends=myFriends;
-      const btn=document.getElementById('komunitas-add-friend-btn');if(btn&&communityProfileTarget?.uid===targetId){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
+      if(!alreadyMine)myFriends.push(targetEntry);
+      if(!alreadyTheirs)targetFriends.push(meEntry);
+      await Promise.all([
+        a.setDoc(myRef,{UID:uid,DaftarTeman:myFriends},{merge:true}),
+        a.setDoc(targetRef,{UID:targetId,DaftarTeman:targetFriends},{merge:true})
+      ]);
+      if(!communityProfileTarget||!communityProfileTarget.realUid||communityProfileTarget.realUid===targetId){
+        communityProfileTarget={...target,uid:targetId,realUid:targetId};
+        communityFriends=myFriends;
+      }
+      const btn=document.getElementById('komunitas-add-friend-btn');
+      if(btn&&communityProfileTarget?.realUid===targetId){btn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';btn.disabled=true;}
+      renderProfile();
       alert('Teman berhasil ditambahkan.');
-    }catch(e){console.error('Tambah teman komunitas gagal:',e);alert('Penambahan teman gagal. Periksa koneksi dan izin Firestore.');}
+    }catch(e){
+      console.error('Tambah teman komunitas gagal:',e);
+      alert('Penambahan teman gagal. Periksa koneksi dan izin Firestore.');
+    }
   }
   function renderProfile(){
     const u=sessionUser();
