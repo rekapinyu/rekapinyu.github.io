@@ -2909,6 +2909,9 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   min-width:0!important;
   box-sizing:border-box!important;
 }
+#view-komunitas .komunitas-post-head.komunitas-author-clickable{cursor:pointer!important;user-select:none!important}
+#view-komunitas .komunitas-post-head.komunitas-author-clickable:hover .komunitas-post-store{text-decoration:underline!important;color:#2563eb!important}
+#view-komunitas .komunitas-post-head.komunitas-author-clickable:focus-visible{outline:2px solid #2563eb!important;outline-offset:-2px!important}
 #view-komunitas .komunitas-post-avatar,#view-komunitas .komunitas-comment-avatar{
   display:flex!important;
   align-items:center!important;
@@ -3465,6 +3468,31 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   let communityProfileTarget=null;
   function currentCommunityUid(){return String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();}
   function isOwnCommunityUser(uid){return !!uid && uid===currentCommunityUid();}
+  async function resolveCommunityAuthorUid(post){
+    const existing=String(post?.uid||'').trim();
+    if(existing)return existing;
+    const targetPhone=String(post?.phone||'').replace(/\D/g,'');
+    const myPhone=String(phone()||'').replace(/\D/g,'');
+    if(!targetPhone||targetPhone===myPhone)return '';
+    if(!ready())return '';
+    try{
+      const a=api(),database=db();
+      const usersRef=a.collection(database,'Pengguna');
+      // Resolve older posts that contain NomorHp but were saved before UID was included.
+      const snap=await a.getDocs(usersRef);
+      let found='';
+      snap.forEach(doc=>{
+        const d=doc.data()||{};
+        if(String(d.NomorHp||'').replace(/\D/g,'')===targetPhone)found=doc.id;
+      });
+      return found;
+    }catch(e){console.warn('Identitas pemilik postingan Komunitas tidak dapat dicari:',e);return '';}
+  }
+  async function openCommunityPostProfile(post){
+    const targetUid=await resolveCommunityAuthorUid(post);
+    if(!targetUid){alert('Profil pengguna belum dapat dibuka karena UID atau nomor HP pemilik postingan tidak ditemukan pada data pengguna terdaftar.');return;}
+    openCommunityUserProfile({uid:targetUid,store:post.store,phone:post.phone,photo:communityProfilePhoto(post)});
+  }
   function openCommunityUserProfile(user){
     const targetUid=String(user?.uid||'').trim();
     if(!targetUid){alert('Identitas akun pada postingan ini belum tersedia. Pengguna perlu memublikasikan ulang postingannya setelah login agar profil dapat dibuka.');return;}
@@ -3642,8 +3670,10 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
       const head=document.createElement('div');head.className='komunitas-post-head';
       const authorUid=String(post.uid||'').trim();
-      const canOpenProfile=!!authorUid&&authorUid!==currentCommunityUid();
-      const openAuthorProfile=()=>openCommunityUserProfile({uid:authorUid,store:post.store,phone:post.phone,photo:communityProfilePhoto(post)});
+      const authorPhone=String(post.phone||'').replace(/\D/g,'');
+      const myPhone=String(phone()||'').replace(/\D/g,'');
+      const canOpenProfile=(!!authorUid&&authorUid!==currentCommunityUid())||(!authorUid&&!!authorPhone&&authorPhone!==myPhone);
+      const openAuthorProfile=()=>openCommunityPostProfile(post);
       const postAvatar=avatar(communityProfilePhoto(post),false);
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
       const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
