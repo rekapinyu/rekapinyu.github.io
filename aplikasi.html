@@ -4779,11 +4779,17 @@ function updateUserAvatarUI() {
                 window.__rekapinyuInitCetak();
             }
             if (tab === 'settings') {
-                loadKasirReceiptSettings();
-                loadKasirPrinterSettings();
-                loadSettingsInfo();
-                loadKasirSettingsPanel();
-                activateSettingsPanel('receipt');
+                /* Gunakan jembatan global yang memang disediakan oleh modul Setting.
+                   Fungsi internal modul tidak dipanggil langsung dari switchTab. */
+                if (typeof window.__rekapinyuReloadSettingsUI === 'function') {
+                    window.__rekapinyuReloadSettingsUI();
+                }
+                document.querySelectorAll('[data-settings-panel]').forEach(button => {
+                    button.classList.toggle('is-active', button.dataset.settingsPanel === 'receipt');
+                });
+                document.querySelectorAll('[data-settings-content]').forEach(panel => {
+                    panel.classList.toggle('is-active', panel.dataset.settingsContent === 'receipt');
+                });
             }
             if (tab === 'produk-kasir' && produkKasirDataTools) {
                 produkKasirDataTools.classList.remove('hidden');
@@ -11664,7 +11670,7 @@ async function initKasirViews(){
   const popupId='rekapinyu-welcome-popup';
   let lastSession='';
   function openPopup(){if(window.matchMedia&&window.matchMedia('(max-width:767px)').matches)return;const p=document.getElementById(popupId);if(!p)return;p.classList.add('is-open');p.setAttribute('aria-hidden','false')}
-  function closePopup(){const p=document.getElementById(popupId);if(!p)return;p.classList.remove('is-open');p.setAttribute('aria-hidden','true')}
+  function closePopup(){const p=document.getElementById(popupId);if(!p)return;const focused=document.activeElement;if(focused&&p.contains(focused)){try{focused.blur()}catch(_){}}p.classList.remove('is-open');p.setAttribute('aria-hidden','true')}
   function sessionKey(){try{return currentSessionUser&&currentSessionUser.phone?String(currentSessionUser.phone):''}catch(e){return ''}}
   function check(){const key=sessionKey();if(key&&key!==lastSession){lastSession=key;openPopup()}else if(!key){lastSession='';closePopup()}}
   document.addEventListener('DOMContentLoaded',function(){document.getElementById('rw-close')?.addEventListener('click',closePopup);document.getElementById(popupId)?.addEventListener('click',e=>{if(e.target.id===popupId)closePopup()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup()});check();setInterval(check,300)})
