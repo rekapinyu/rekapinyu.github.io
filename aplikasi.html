@@ -7737,34 +7737,48 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
 
     function normalizeImportedHistoryItem(item, index) {
         if (!item || typeof item !== 'object') return null;
-        const monthIndexRaw = Number(item.monthIndex);
-        const monthIndex = Number.isFinite(monthIndexRaw) && monthIndexRaw >= 0 && monthIndexRaw <= 11
-            ? monthIndexRaw
-            : monthNames.findIndex(m => String(m).toLowerCase() === String(item.month || '').trim().toLowerCase());
-        const year = Number(item.year);
-        const date = Number(item.date);
+        const pick = (...keys) => {
+            for (const key of keys) if (item[key] !== undefined && item[key] !== null && item[key] !== '') return item[key];
+            return undefined;
+        };
+        const rawMonth = pick('month', 'Bulan', 'bulan');
+        const rawMonthIndex = pick('monthIndex', 'MonthIndex', 'bulanIndex');
+        let monthIndex = Number(rawMonthIndex);
+        if (!Number.isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+            monthIndex = monthNames.findIndex(m => String(rawMonth || '').trim().toLowerCase() === String(m).toLowerCase());
+        }
+        const rawDate = pick('date', 'Tanggal', 'tanggal', 'dayOfMonth');
+        const rawYear = pick('year', 'Tahun', 'tahun');
+        const year = Number(rawYear);
+        const date = Number(rawDate);
         if (!Number.isFinite(year) || year < 1 || !Number.isFinite(date) || date < 1 || date > 31 || monthIndex < 0) return null;
-        const parsedId = Number(item.id);
-        const id = item.id !== '' && Number.isFinite(parsedId) ? parsedId : Date.now() + index;
-        const income = Number(item.income) || 0;
-        const expense = Number(item.expense) || 0;
-        const cashout = Number(item.cashout) || 0;
-        const profitPercentage = item.profitPercentage === '' || item.profitPercentage == null ? 10 : (Number(item.profitPercentage) || 0);
+        const parsedId = Number(pick('id', 'ID'));
+        const rawIncome = pick('income', 'Pendapatan', 'pendapatan', 'pemasukan', 'Pemasukan');
+        const rawExpense = pick('expense', 'Total Belanja', 'Belanja', 'totalBelanja', 'belanja');
+        const rawCashout = pick('cashout', 'Pengeluaran', 'pengeluaran', 'nominalPengeluaran');
+        const rawPercentage = pick('profitPercentage', 'Profit Persen', 'Profit 10%', 'profitPersen', 'persenProfit');
+        const rawProfit = pick('profit', 'Profit', 'Keuntungan', 'keuntungan');
+        const toNumber = value => { if (typeof value === 'number') return Number.isFinite(value) ? value : 0; let n = String(value ?? '').replace(/[^0-9,.-]/g, '').trim(); if (!n) return 0; if (n.includes(',') && n.includes('.')) n = n.lastIndexOf(',') > n.lastIndexOf('.') ? n.replace(/\./g, '').replace(',', '.') : n.replace(/,/g, ''); else if (n.includes(',')) n = /,\d{1,2}$/.test(n) ? n.replace(',', '.') : n.replace(/,/g, ''); else if (/\.\d{3}$/.test(n)) n = n.replace(/\./g, ''); return Number(n) || 0; };
+        const id = pick('id', 'ID') !== undefined && Number.isFinite(parsedId) ? parsedId : Date.now() + index;
+        const income = toNumber(rawIncome);
+        const expense = toNumber(rawExpense);
+        const cashout = toNumber(rawCashout);
+        const profitPercentage = rawPercentage === undefined ? 10 : toNumber(rawPercentage);
         const result = {
             id,
-            day: item.day || dayNames[new Date(year, monthIndex, date).getDay()],
+            day: String(pick('day', 'Rekap_hari', 'Hari', 'hari') || dayNames[new Date(year, monthIndex, date).getDay()]),
             date,
             monthIndex,
-            month: item.month || monthNames[monthIndex],
+            month: String(rawMonth || monthNames[monthIndex]),
             year,
-            time: String(item.time || '00:00').trim(),
+            time: String(pick('time', 'Waktu', 'waktu', 'jam') || '00:00').trim(),
             income,
             expense,
             cashout,
             profitPercentage,
-            profit: Number.isFinite(Number(item.profit)) ? Number(item.profit) : Math.max((income - cashout) * (profitPercentage / 100), 0)
+            profit: rawProfit !== undefined ? toNumber(rawProfit) : Math.max((income - cashout) * (profitPercentage / 100), 0)
         };
-        return (result.income || result.expense || result.cashout || result.profitPercentage) ? result : null;
+        return (result.income || result.expense || result.cashout || result.profitPercentage || result.profit) ? result : null;
     }
 
     function sortHistoryChronological(a, b) {
@@ -7788,109 +7802,65 @@ onAuthStateChanged(auth,async u=>{await authReadyPromise;await landingHandoffPro
             const dir = await window.__rekapinyuGetDataSubdirectory?.('Rekap');
             if (!dir) throw new Error('Folder Data/Rekap tidak ditemukan. Pastikan folder Data/Rekap sudah tersedia.');
             if (!('showOpenFilePicker' in window)) throw new Error('Browser ini belum mendukung pemilihan file langsung dari folder Data/Rekap. Gunakan Chrome/Edge terbaru.');
-            const picked = await window.showOpenFilePicker({
-                multiple: false,
-                startIn: dir,
-                types: [{ description: 'Rekapinyu JSON (InputData / BackupData)', accept: { 'application/json': ['.json'] } }]
-            });
+            const picked = await window.showOpenFilePicker({multiple:false,startIn:dir,types:[{description:'Rekapinyu History JSON (BackupHistory / InputData)',accept:{'application/json':['.json']}}]});
             const handle = picked?.[0];
             if (!handle) return;
             const file = await handle.getFile();
             const fileName = String(file.name || '');
-            const isInputData = /^InputData_.+\.json$/i.test(fileName);
-            const isBackupData = /^BackupData_.+\.json$/i.test(fileName);
-            if (!isInputData && !isBackupData) {
-                throw new Error('File ditolak. Pilih file InputData_hari_tanggal_bulan_tahun.json atau BackupData_hari_tanggal_bulan_tahun.json.');
-            }
-            const rawText = await file.text();
-            if (!rawText.trim()) throw new Error('File JSON kosong.');
+            if (!/^(?:BackupHistory|InputData)_.+\.json$/i.test(fileName)) throw new Error('File ditolak. Pilih file BackupHistory_hari_tanggal_bulan_tahun.json atau InputData_hari_tanggal_bulan_Tahun.json.');
+            const text = await file.text();
+            if (!text.trim()) throw new Error('File JSON kosong.');
             let payload;
-            try { payload = JSON.parse(rawText); }
-            catch (_) { throw new Error('File yang dipilih bukan JSON yang valid.'); }
-
-            // InputData harian memakai properti InputData; BackupData dapat berupa
-            // salinan data harian atau backup berisi array History/InputData.
-            const collectRows = value => {
-                if (Array.isArray(value)) return value;
-                if (!value || typeof value !== 'object') return [];
-                for (const key of ['InputData', 'history', 'History', 'BackupData', 'data', 'Data']) {
-                    if (Array.isArray(value[key])) return value[key];
-                }
-                if (value.data && typeof value.data === 'object') {
-                    for (const key of ['InputData', 'history', 'History', 'BackupData']) {
-                        if (Array.isArray(value.data[key])) return value.data[key];
-                    }
-                }
-                return [];
-            };
-            let sourceItems = collectRows(payload);
-            if (!sourceItems.length) {
-                throw new Error(`File ${isInputData ? 'InputData' : 'BackupData'} tidak berisi array data History/InputData yang dapat diimport.`);
+            try { payload = JSON.parse(text); } catch (_) { throw new Error('File yang dipilih bukan JSON yang valid.'); }
+            const isBackup = /^BackupHistory_.+\.json$/i.test(fileName);
+            const isInputData = /^InputData_.+\.json$/i.test(fileName);
+            let sourceItems = [];
+            if (isBackup) {
+                if (payload && Array.isArray(payload.history)) sourceItems = payload.history;
+                else if (payload && Array.isArray(payload.History)) sourceItems = payload.History;
+                else if (payload && Array.isArray(payload.data)) sourceItems = payload.data;
+                else if (Array.isArray(payload)) sourceItems = payload;
+                else throw new Error('File BackupHistory harus berisi array history, History, data, atau array JSON langsung.');
+            } else if (isInputData) {
+                if (Array.isArray(payload?.InputData)) sourceItems = payload.InputData;
+                else if (Array.isArray(payload?.inputData)) sourceItems = payload.inputData;
+                else if (Array.isArray(payload?.data)) sourceItems = payload.data;
+                else if (Array.isArray(payload)) sourceItems = payload;
+                else throw new Error('File InputData tidak berisi array InputData yang valid.');
             }
-
-            // Terima field JSON versi aplikasi maupun nama field yang lebih umum.
-            const imported = sourceItems.map((source, index) => {
-                if (!source || typeof source !== 'object') return null;
-                const item = { ...source };
-                const alias = (target, keys) => {
-                    if (item[target] !== undefined && item[target] !== null && item[target] !== '') return;
-                    for (const key of keys) {
-                        if (source[key] !== undefined && source[key] !== null && source[key] !== '') {
-                            item[target] = source[key];
-                            return;
-                        }
-                    }
-                };
-                alias('day', ['Rekap_hari', 'hari', 'Hari', 'dayName']);
-                alias('date', ['Tanggal', 'tanggal', 'tgl']);
-                alias('month', ['Bulan', 'bulan']);
-                alias('monthIndex', ['bulanIndex', 'MonthIndex']);
-                alias('year', ['Tahun', 'tahun']);
-                alias('time', ['Waktu', 'waktu', 'jam']);
-                alias('income', ['Pendapatan', 'pendapatan', 'pemasukan', 'Pemasukan']);
-                alias('expense', ['Total Belanja', 'Belanja', 'belanja']);
-                alias('cashout', ['Pengeluaran', 'pengeluaran', 'Kas Keluar']);
-                alias('profitPercentage', ['Profit Persen', 'Profit 10%', 'profitPersen']);
-                alias('profit', ['Laba', 'laba', 'Keuntungan']);
-                if (item.monthIndex === undefined && item.month) {
-                    item.monthIndex = monthNames.findIndex(m => String(m).toLowerCase() === String(item.month).trim().toLowerCase());
-                }
-                if (item.date === undefined || item.month === undefined || item.year === undefined) {
-                    const dateFromName = fileName.match(/^(?:InputData|BackupData)_(.+?)_(\d{1,2})_(.+?)_(\d{4})\.json$/i);
-                    if (dateFromName) {
-                        if (item.day === undefined) item.day = dateFromName[1];
-                        if (item.date === undefined) item.date = Number(dateFromName[2]);
-                        if (item.month === undefined) item.month = dateFromName[3];
-                        if (item.year === undefined) item.year = Number(dateFromName[4]);
-                    }
-                }
-                if (item.id === undefined || item.id === null || item.id === '') item.id = `${fileName}:${index}:${Date.now()}`;
-                return normalizeImportedHistoryItem(item, index);
-            }).filter(Boolean).sort(sortHistoryChronological);
-
-            if (!imported.length) throw new Error(`File ${isInputData ? 'InputData' : 'BackupData'} tidak berisi data History yang valid. Periksa tanggal dan isi data JSON.`);
+            // Jika record InputData tidak menyimpan tanggal lengkap, gunakan metadata tanggal dari nama file.
+            const nameMatch = fileName.match(/^(?:BackupHistory|InputData)_([^_]+)_(\d{1,2})_([^_]+)_(\d{4})\.json$/i);
+            const fileDay = nameMatch?.[1] || '';
+            const fileDate = nameMatch ? Number(nameMatch[2]) : 0;
+            const fileMonth = nameMatch ? monthNames.find(m => m.toLowerCase() === nameMatch[3].toLowerCase()) : '';
+            const fileYear = nameMatch ? Number(nameMatch[4]) : 0;
+            const enriched = sourceItems.map(item => {
+                if (!item || typeof item !== 'object') return item;
+                const copy = {...item};
+                if (!(copy.date ?? copy.Tanggal ?? copy.tanggal) && fileDate) copy.date = fileDate;
+                if (!(copy.month ?? copy.Bulan ?? copy.bulan) && fileMonth) copy.month = fileMonth;
+                if (!(copy.year ?? copy.Tahun ?? copy.tahun) && fileYear) copy.year = fileYear;
+                if (!(copy.day ?? copy.Rekap_hari ?? copy.Hari ?? copy.hari) && fileDay) copy.day = fileDay;
+                return copy;
+            });
+            const imported = enriched.map(normalizeImportedHistoryItem).filter(Boolean).sort(sortHistoryChronological);
+            if (!imported.length) throw new Error(`File ${isBackup ? 'BackupHistory' : 'InputData'} tidak berisi data History yang valid atau field tanggal/nominal tidak dikenali.`);
             const merged = new Map();
-            (Array.isArray(historyData) ? historyData : []).forEach(item => {
-                const key = String(item?.id ?? '').trim() || JSON.stringify(item);
-                merged.set(key, item);
-            });
-            imported.forEach(item => {
-                const key = String(item?.id ?? '').trim() || JSON.stringify(item);
-                merged.set(key, item);
-            });
+            (Array.isArray(historyData) ? historyData : []).forEach(item => { const key = String(item?.id ?? '').trim() || JSON.stringify(item); merged.set(key, item); });
+            imported.forEach(item => { const key = String(item?.id ?? '').trim() || JSON.stringify(item); merged.set(key, item); });
             historyData = Array.from(merged.values()).sort(sortHistoryChronological);
             syncBackupFromHistory();
             if (typeof window.__rekapinyuSaveLocalRekap === 'function') {
                 const saved = await window.__rekapinyuSaveLocalRekap();
-                if (saved === false) throw new Error('Data berhasil dibaca tetapi gagal disimpan ke folder Data/Rekap.');
+                if (saved === false) throw new Error('Data berhasil diimport tetapi gagal disimpan ke folder Data/Rekap.');
             }
             populateHistoryFilters();
             renderHistory();
             renderBackupGrid();
-            showModal('Import Berhasil', `${imported.length} data History dari ${isInputData ? 'InputData' : 'BackupData'} berhasil diimport.`);
+            showModal('Import Berhasil', `${imported.length} data History dari ${isBackup ? 'BackupHistory' : 'InputData'} berhasil diimport.`);
         } catch (error) {
             if (error?.name === 'AbortError') return;
-            showModal('Import Gagal', error?.message || 'File InputData/BackupData JSON tidak dapat diimport.', 'fa-solid fa-circle-xmark text-rose-600');
+            showModal('Import Gagal', error?.message || 'File BackupHistory/InputData tidak dapat diimport.', 'fa-solid fa-circle-xmark text-rose-600');
         }
     }
 
