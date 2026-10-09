@@ -3970,7 +3970,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   let bioListenerStarted=false;
   function startCommunityBioListener(){
     if(bioListenerStarted||!ready())return false;
-    const a=api(),database=db(),uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();
+    const a=api(),database=db(),uid=currentCommunityUid();
     if(!a||!database||!uid)return false;
     const ref=a.doc(database,'Komunitas',`Profil_${uid}`);
     bioListenerStarted=true;
@@ -3979,12 +3979,12 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       renderProfile();
       const input=document.getElementById('komunitas-bio-input');
       if(input&&!input.matches(':focus')){input.value=String(currentSessionUser.bio||'');updateBioCounter();}
-    },err=>{bioListenerStarted=false;console.error('BioPublik listener Komunitas gagal:',err);});
+    },err=>{bioListenerStarted=true;console.error('BioPublik listener Komunitas gagal. Periksa Rules untuk Komunitas/Profil_'+uid+':',err);});
     return true;
   }
   async function loadCommunityBio(){
     startCommunityBioListener();
-    const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();
+    const uid=currentCommunityUid();
     if(!uid){renderProfile();return;}
     try{
       const a=api(),database=db();
@@ -4023,7 +4023,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   async function saveCommunityBio(){
     const input=document.getElementById('komunitas-bio-input');if(!input)return;
     const value=String(input.value||'').trim().slice(0,160);
-    const uid=String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();
+    const uid=currentCommunityUid();
     if(!uid){alert('Sesi pengguna belum siap. Silakan coba lagi.');return;}
     if(!ready()){alert('Koneksi Komunitas ke Firestore belum siap. Silakan coba lagi.');return;}
     try{
