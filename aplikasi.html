@@ -7320,9 +7320,6 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),s
 const SUPABASE_URL="https://anligmzxaytnhszesxsp.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable__TDKPwJYJBEZT1nP4CofJg_9213WW_Y";
 const SUPABASE_PHOTO_BUCKET="rekapinyu-foto";
-/* Supabase Storage memakai kredensial Supabase sendiri. Token Firebase tidak boleh
-   dikirim sebagai access token Supabase kecuali integrasi third-party JWT telah
-   dikonfigurasi pada project Supabase; hal itu dapat membuat request Storage ditolak. */
 const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
 });
@@ -7481,17 +7478,11 @@ const photoStore={
     throw new Error('Gambar tidak dapat dikompres hingga 100 KB.');
   },
   async uploadBlob(path,blob){
-    if(!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY||SUPABASE_PUBLISHABLE_KEY==='PASTE_SUPABASE_PUBLISHABLE_KEY_HERE')throw new Error('Konfigurasi Supabase belum lengkap.');
-    if(!auth.currentUser)throw new Error('Sesi Firebase tidak ditemukan. Silakan login kembali.');
-    if(!(blob instanceof Blob)||!blob.size)throw new Error('Data foto kosong atau tidak valid.');
-    const cleanPath=String(path||'').replace(/^\/+|\/+$/g,'');
-    if(!cleanPath)throw new Error('Path foto Supabase kosong.');
-    const {data,error}=await supabase.storage.from(SUPABASE_PHOTO_BUCKET).upload(cleanPath,blob,{contentType:'image/jpeg',upsert:true,cacheControl:'3600'});
-    if(error){
-      console.error('Supabase Storage upload gagal:',{bucket:SUPABASE_PHOTO_BUCKET,path:cleanPath,status:error.status,statusCode:error.statusCode,message:error.message});
-      throw new Error(`Supabase Storage: ${error.message||'unggah foto gagal'}${error.status?` (HTTP ${error.status})`:''}`);
-    }
-    return this.publicUrl(data?.path||cleanPath);
+    if(!SUPABASE_PUBLISHABLE_KEY||SUPABASE_PUBLISHABLE_KEY==='PASTE_SUPABASE_PUBLISHABLE_KEY_HERE')throw new Error('Supabase Publishable Key belum diisi pada aplikasi.');
+    if(!auth.currentUser)throw new Error('Sesi Firebase tidak ditemukan.');
+    const {error}=await supabase.storage.from(SUPABASE_PHOTO_BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:true,cacheControl:'3600'});
+    if(error)throw error;
+    return this.publicUrl(path);
   },
   async migrateLegacy(uid,p){
     const phone=phoneOf(p),profileLegacy=localStorage.getItem(this.profileKey(phone)),coverLegacy=localStorage.getItem(this.coverKey(phone));
@@ -7571,17 +7562,6 @@ const photoStore={
   refreshCover(){const ui=this.coverUi;if(!ui||ui.state.pending)return;const p=phoneOf(currentSessionUser?.phone);const data=p?this.readCover(p):null;ui.render(data?.src||'',data?.x??50,data?.y??50,false)}
 };
 window.__rekapinyuPhotoStore=photoStore;
-/* Segarkan foto dari Supabase Storage saat tab kembali aktif; tidak menyimpan foto ke localStorage. */
-let rekapinyuPhotoRefreshBusy=false;
-async function refreshRekapinyuPhotosFromSupabase(){
-  if(rekapinyuPhotoRefreshBusy||!auth.currentUser||!currentSessionUser)return;
-  rekapinyuPhotoRefreshBusy=true;
-  try{await photoStore.hydrate(currentSessionUser.phone||'');}
-  catch(error){console.warn('Refresh foto Supabase gagal:',error)}
-  finally{rekapinyuPhotoRefreshBusy=false}
-}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshRekapinyuPhotosFromSupabase()});
-window.addEventListener('focus',refreshRekapinyuPhotosFromSupabase);
 window.compressImageTo100KB=(file,maxBytes=PHOTO_MAX_BYTES,maxWidth=2400,maxHeight=1600)=>photoStore.compress(file,maxBytes,maxWidth,maxHeight);
 window.__rekapinyuSaveProfilePhoto=async()=>{const inp=document.getElementById('input-new-photo'),file=inp?.files?.[0];if(!file){showModal('Gagal','Silakan pilih foto terlebih dahulu.','fa-solid fa-circle-exclamation text-rose-600');return false}const btn=document.getElementById('save-profile-btn');if(btn){btn.disabled=true;btn.dataset.saving='1';btn.textContent='Menyimpan...'}try{await photoStore.saveProfile(file);closeProfileModal();showModal('Berhasil','Foto profil disimpan di Supabase Storage.','fa-solid fa-circle-check text-emerald-600');return true}catch(err){showModal('Gagal',err?.message||'Foto profil gagal disimpan.','fa-solid fa-circle-xmark text-rose-600');return false}finally{if(btn){btn.disabled=false;btn.dataset.saving='';btn.textContent='Simpan'}}};
 window.refreshShopCoverPhoto=()=>photoStore.refreshCover();
