@@ -3490,20 +3490,29 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
   async function openCommunityPostProfile(post){
     const targetUid=await resolveCommunityAuthorUid(post);
-    if(!targetUid){alert('Profil pengguna belum dapat dibuka karena UID atau nomor HP pemilik postingan tidak ditemukan pada data pengguna terdaftar.');return;}
-    openCommunityUserProfile({uid:targetUid,store:post.store,phone:post.phone,photo:communityProfilePhoto(post)});
+    const targetPhone=String(post?.phone||'').replace(/\D/g,'');
+    const myPhone=String(phone()||'').replace(/\D/g,'');
+    const sameKnownUid=!!targetUid&&targetUid===currentCommunityUid();
+    const sameKnownPhone=!!targetPhone&&targetPhone===myPhone;
+    const sameKnownName=String(post?.store||'').trim().toLowerCase()===String(storeName()||'').trim().toLowerCase();
+    if(sameKnownUid||(!targetUid&&sameKnownPhone)||(!targetUid&&!targetPhone&&sameKnownName)){
+      communityProfileTarget=null;openProfile();return;
+    }
+    /* Postingan lama tetap membuka halaman profil berbasis data postingan meski UID/nomor HP tidak tersedia. */
+    openCommunityUserProfile({uid:targetUid||('legacy:'+String(post?.docId||post?.id||Date.now())),realUid:targetUid,sourceDocId:String(post?.docId||''),store:post.store,phone:post.phone,photo:communityProfilePhoto(post),legacy:!targetUid});
   }
   function openCommunityUserProfile(user){
     const targetUid=String(user?.uid||'').trim();
-    if(!targetUid){alert('Identitas akun pada postingan ini belum tersedia. Pengguna perlu memublikasikan ulang postingannya setelah login agar profil dapat dibuka.');return;}
+    if(!targetUid){return;}
     if(isOwnCommunityUser(targetUid)){communityProfileTarget=null;openProfile();return;}
-    communityProfileTarget={uid:targetUid,store:String(user.store||'Pengguna'),phone:String(user.phone||''),photo:String(user.photo||''),bio:String(user.bio||'')};
+    communityProfileTarget={uid:targetUid,realUid:String(user.realUid||(!String(targetUid).startsWith('legacy:')?targetUid:'')),sourceDocId:String(user.sourceDocId||''),legacy:!!user.legacy||String(targetUid).startsWith('legacy:'),store:String(user.store||'Pengguna'),phone:String(user.phone||''),photo:String(user.photo||''),bio:String(user.bio||'')};
     const content=communityContent();if(!content)return;
     content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
     hideCommunityPageSafely('komunitas-notification-page');document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','false');
     renderProfile();
-    loadCommunityFriends(communityProfileTarget.uid).then(renderProfile);
+    if(communityProfileTarget.realUid)loadCommunityFriends(communityProfileTarget.realUid).then(renderProfile);
+    else{communityFriends=[];renderProfile();}
   }
   function profileStats(){
     const me=String(phone()||'').replace(/\D/g,'');
@@ -3517,11 +3526,11 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const box=document.getElementById('komunitas-profile-tab-content');if(!box)return;box.replaceChildren();
     let entries=[];
     if(profileTab==='posts'){
-      const me=String(phone()||'').replace(/\D/g,'');const uid=String(communityProfileTarget?.uid||currentCommunityUid());
-      entries=communityDocs.filter(p=>p.uid===uid||( !communityProfileTarget && !p.uid && String(p.phone||'').replace(/\D/g,'')===me)).map(p=>({title:dateLabel(p.date),text:p.text}));
+      const me=String(phone()||'').replace(/\D/g,'');const target=communityProfileTarget;const uid=String(target?.realUid||target?.uid||currentCommunityUid());const targetPhone=String(target?.phone||'').replace(/\D/g,'');
+      entries=communityDocs.filter(p=>target?(p.uid===uid||(targetPhone&&String(p.phone||'').replace(/\D/g,'')===targetPhone)||(!p.uid&&!targetPhone&&String(p.store||'').trim()===target.store)):((p.uid&&p.uid===uid)||(!p.uid&&String(p.phone||'').replace(/\D/g,'')===me))).map(p=>({title:dateLabel(p.date),text:p.text}));
     }else if(profileTab==='comments'){
-      const me=String(phone()||'').replace(/\D/g,'');const uid=String(communityProfileTarget?.uid||currentCommunityUid());
-      communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{if((uid&&String(c.UID||c.uid||'')===uid)||(!communityProfileTarget&&!uid&&String(c.NomorHp||'').replace(/\D/g,'')===me))entries.push({title:String(c.NamaToko||c.storeName||'Toko')+' · '+dateLabel(c.Tanggal),text:String(c.Isi||c.text||''),sub:'Pada postingan: '+p.store+' — '+p.text});}));
+      const me=String(phone()||'').replace(/\D/g,'');const target=communityProfileTarget;const uid=String(target?.realUid||target?.uid||currentCommunityUid());const targetPhone=String(target?.phone||'').replace(/\D/g,'');
+      communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{const commentUid=String(c.UID||c.uid||c.UserId||c.userId||'');const commentPhone=String(c.NomorHp||c.phone||'').replace(/\D/g,'');if(target?((target.realUid&&commentUid===target.realUid)||(targetPhone&&commentPhone===targetPhone)||(!target.realUid&&!targetPhone&&String(c.NamaToko||c.storeName||'').trim()===target.store)):((uid&&commentUid===uid)||(!commentUid&&commentPhone===me)))entries.push({title:String(c.NamaToko||c.storeName||'Toko')+' · '+dateLabel(c.Tanggal),text:String(c.Isi||c.text||''),sub:'Pada postingan: '+p.store+' — '+p.text});}));
     }else{
       entries=communityFriends.map(f=>({title:f.NamaToko||f.storeName||'Pengguna',text:f.NomorHp||f.phone||'Teman Komunitas'}));
     }
@@ -3560,7 +3569,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const target=communityProfileTarget;
     const targetUid=String(target?.uid||currentCommunityUid());
     const addBtn=document.getElementById('komunitas-add-friend-btn');
-    if(addBtn){const own=isOwnCommunityUser(targetUid);addBtn.hidden=own;addBtn.disabled=false;addBtn.innerHTML='<i class="fa-solid fa-user-plus" aria-hidden="true"></i> Tambah Teman';if(!own&&communityFriends.some(f=>String(f.UID||f.uid||'')===targetUid)){addBtn.disabled=true;addBtn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';}}
+    if(addBtn){const own=!target||isOwnCommunityUser(targetUid);const hasRealUid=!!target?.realUid;addBtn.hidden=own||!hasRealUid;addBtn.disabled=false;addBtn.innerHTML='<i class="fa-solid fa-user-plus" aria-hidden="true"></i> Tambah Teman';if(!own&&hasRealUid&&communityFriends.some(f=>String(f.UID||f.uid||'')===target.realUid)){addBtn.disabled=true;addBtn.innerHTML='<i class="fa-solid fa-check" aria-hidden="true"></i> Sudah Berteman';}}
     const avatarEl=document.getElementById('komunitas-profile-avatar');
     const name=document.getElementById('komunitas-profile-name');
     const bio=document.getElementById('komunitas-profile-bio');
@@ -3571,7 +3580,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       if(src){const img=document.createElement('img');img.src=src;img.alt='Foto profil toko';avatarEl.appendChild(img);}
       else{const i=document.createElement('i');i.className='fa-solid fa-store';i.setAttribute('aria-hidden','true');avatarEl.appendChild(i);}
     }
-    const stats=target?(()=>{const posts=communityDocs.filter(p=>p.uid===targetUid).length;let comments=0;communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{if(String(c.UID||c.uid||'')===targetUid)comments++;}));return {posts,comments,friends:communityFriends.length};})():profileStats();
+    const stats=target?(()=>{const targetPhone=String(target.phone||'').replace(/\D/g,'');const realUid=String(target.realUid||target.uid||'');const belongs=p=>p.uid===realUid||(targetPhone&&String(p.phone||'').replace(/\D/g,'')===targetPhone)||(!realUid&&!targetPhone&&String(p.store||'').trim()===target.store);const posts=communityDocs.filter(belongs).length;let comments=0;communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{if((target.realUid&&String(c.UID||c.uid||c.UserId||c.userId||'')===target.realUid)||(targetPhone&&String(c.NomorHp||c.phone||'').replace(/\D/g,'')===targetPhone)||(!target.realUid&&!targetPhone&&String(c.NamaToko||c.storeName||'').trim()===target.store))comments++;}));return {posts,comments,friends:communityFriends.length};})():profileStats();
     document.getElementById('komunitas-profile-post-count')?.replaceChildren(document.createTextNode(String(stats.posts)));
     document.getElementById('komunitas-profile-comment-count')?.replaceChildren(document.createTextNode(String(stats.comments)));
     document.getElementById('komunitas-profile-friend-count')?.replaceChildren(document.createTextNode(String(stats.friends)));
@@ -3672,7 +3681,8 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const authorUid=String(post.uid||'').trim();
       const authorPhone=String(post.phone||'').replace(/\D/g,'');
       const myPhone=String(phone()||'').replace(/\D/g,'');
-      const canOpenProfile=(!!authorUid&&authorUid!==currentCommunityUid())||(!authorUid&&!!authorPhone&&authorPhone!==myPhone);
+      const sameStore=String(post.store||'').trim().toLowerCase()===String(storeName()||'').trim().toLowerCase();
+      const canOpenProfile=(!!authorUid&&authorUid!==currentCommunityUid())||(!authorUid&&authorPhone&&authorPhone!==myPhone)||(!authorUid&&!authorPhone&&!sameStore);
       const openAuthorProfile=()=>openCommunityPostProfile(post);
       const postAvatar=avatar(communityProfilePhoto(post),false);
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
