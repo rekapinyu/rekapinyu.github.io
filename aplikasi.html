@@ -3246,6 +3246,10 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
 #view-komunitas .komunitas-profile-entry{padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;min-width:0;color:#334155;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 #view-komunitas .komunitas-profile-entry strong{display:block;color:#0f172a;margin-bottom:4px}
 #view-komunitas .komunitas-profile-empty{grid-column:1/-1;padding:24px;text-align:center;color:#94a3b8;font-size:12px;font-weight:700}
+/* Satu aturan terpusat untuk klik identitas pemilik postingan. */
+#view-komunitas .komunitas-author-clickable{position:relative!important;z-index:2!important;cursor:pointer!important;touch-action:manipulation!important}
+#view-komunitas .komunitas-author-clickable .komunitas-author-trigger{pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
+#view-komunitas .komunitas-author-clickable:focus-visible{outline:2px solid #2563eb!important;outline-offset:3px!important;border-radius:8px!important}
 /* COMMUNITY — FEED BERANDA: HAPUS KOTAK SEARCH, PERTAHANKAN AREA LAIN */
 #view-komunitas .komunitas-search-wrap{display:none!important}
 #view-komunitas .komunitas-feed-heading{display:block!important}
@@ -3311,12 +3315,6 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     </div>
   </div>
 </section>
-<style id="community-author-click-fix-v4">
-#view-komunitas .komunitas-author-clickable{position:relative!important;z-index:2!important}
-#view-komunitas .komunitas-author-trigger{pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
-#view-komunitas .komunitas-post-store.komunitas-author-trigger{outline-offset:3px!important}
-#view-komunitas .komunitas-author-trigger:focus-visible{outline:2px solid #2563eb!important;border-radius:5px!important}
-</style>
 <script id="rekapinyu-komunitas-final-js">
 (function(){
   'use strict';
@@ -3650,13 +3648,12 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
       const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
       if(canOpenProfile){
-        head.classList.add('komunitas-author-clickable');head.title='Klik foto atau nama untuk membuka profil pengguna';
-        postAvatar.classList.add('komunitas-author-trigger');postAvatar.setAttribute('role','button');postAvatar.setAttribute('tabindex','0');postAvatar.setAttribute('aria-label','Buka profil '+post.store);
-        name.classList.add('komunitas-author-trigger');name.setAttribute('role','button');name.setAttribute('tabindex','0');name.setAttribute('aria-label','Buka profil '+post.store);
-        [postAvatar,name].forEach(el=>{
-          el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openAuthorProfile();});
-          el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openAuthorProfile();}});
-        });
+        /* Satu handler pada seluruh header identitas agar foto, nama, dan area di antaranya konsisten. */
+        head.classList.add('komunitas-author-clickable');head.setAttribute('role','button');head.setAttribute('tabindex','0');head.setAttribute('aria-label','Buka profil '+post.store);head.title='Klik untuk membuka profil pengguna';
+        postAvatar.classList.add('komunitas-author-trigger');
+        name.classList.add('komunitas-author-trigger');
+        head.addEventListener('click',e=>{if(e.target.closest('button,a,input'))return;e.preventDefault();openAuthorProfile();});
+        head.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target===head){e.preventDefault();openAuthorProfile();}});
       }
       const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.append(postAvatar,meta);
       const body=document.createElement('p');body.className='komunitas-post-text';body.textContent=post.text;
