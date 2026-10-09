@@ -3311,6 +3311,12 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     </div>
   </div>
 </section>
+<style id="community-author-click-fix-v4">
+#view-komunitas .komunitas-author-clickable{position:relative!important;z-index:2!important}
+#view-komunitas .komunitas-author-trigger{pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
+#view-komunitas .komunitas-post-store.komunitas-author-trigger{outline-offset:3px!important}
+#view-komunitas .komunitas-author-trigger:focus-visible{outline:2px solid #2563eb!important;border-radius:5px!important}
+</style>
 <script id="rekapinyu-komunitas-final-js">
 (function(){
   'use strict';
@@ -3352,9 +3358,10 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     return el;
   }
   function normalizePost(docSnap){
-    const raw=docSnap?.data?.()||{}; const p=raw.PostinganPublik&&typeof raw.PostinganPublik==='object'?raw.PostinganPublik:{};
-    const comments=Array.isArray(p.Komentar)?p.Komentar:(typeof p.Komentar==='string'&&p.Komentar.trim()?[{id:'legacy-'+docSnap.id,NamaToko:p.NamaToko||'Toko',NomorHp:p.NomorHp||'',FotoProfil:p.FotoProfil||'',Tanggal:p.Tanggal||raw.Tanggal||'',Isi:p.Komentar}]:[]);
-    return {docId:docSnap.id,id:String(p.id||docSnap.id),uid:String(p.UID||p.uid||p.UserId||p.userId||''),store:String(p.NamaToko||p.storeName||'Toko'),phone:String(p.NomorHp||''),photo:String(p.FotoProfil||p.photo||''),date:p.Tanggal||p.createdAt||raw.Tanggal||'',text:String(p.Isi||p.Konten||p.text||''),comments};
+    const raw=docSnap?.data?.()||{}; const p=raw.PostinganPublik&&typeof raw.PostinganPublik==='object'?raw.PostinganPublik:raw;
+    const comments=Array.isArray(p.Komentar)?p.Komentar:(typeof p.Komentar==='string'&&p.Komentar.trim()?[{id:'legacy-'+docSnap.id,UID:p.UID||p.uid||raw.UID||raw.uid||'',NamaToko:p.NamaToko||'Toko',NomorHp:p.NomorHp||'',FotoProfil:p.FotoProfil||'',Tanggal:p.Tanggal||raw.Tanggal||'',Isi:p.Komentar}]:[]);
+    const uid=String(p.UID||p.uid||p.UserId||p.userId||p.userID||raw.UID||raw.uid||raw.UserId||raw.userId||raw.userID||'').trim();
+    return {docId:docSnap.id,id:String(p.id||docSnap.id),uid,store:String(p.NamaToko||p.storeName||p.namaToko||'Toko'),phone:String(p.NomorHp||p.phone||raw.NomorHp||raw.phone||''),photo:String(p.FotoProfil||p.photo||raw.FotoProfil||raw.photo||''),date:p.Tanggal||p.createdAt||raw.Tanggal||'',text:String(p.Isi||p.Konten||p.text||''),comments};
   }
   function matchesSearch(post){
     const q=searchTerm.trim().toLowerCase();
@@ -3461,12 +3468,15 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function currentCommunityUid(){return String(sessionUser().uid||window.RekapinyuFirebase?.uid||'').trim();}
   function isOwnCommunityUser(uid){return !!uid && uid===currentCommunityUid();}
   function openCommunityUserProfile(user){
-    if(!user||!user.uid)return;
-    communityProfileTarget={uid:String(user.uid),store:String(user.store||'Pengguna'),phone:String(user.phone||''),photo:String(user.photo||''),bio:String(user.bio||'')};
+    const targetUid=String(user?.uid||'').trim();
+    if(!targetUid){alert('Identitas akun pada postingan ini belum tersedia. Pengguna perlu memublikasikan ulang postingannya setelah login agar profil dapat dibuka.');return;}
+    if(isOwnCommunityUser(targetUid)){communityProfileTarget=null;openProfile();return;}
+    communityProfileTarget={uid:targetUid,store:String(user.store||'Pengguna'),phone:String(user.phone||''),photo:String(user.photo||''),bio:String(user.bio||'')};
     const content=communityContent();if(!content)return;
     content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
     hideCommunityPageSafely('komunitas-notification-page');document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','false');
+    renderProfile();
     loadCommunityFriends(communityProfileTarget.uid).then(renderProfile);
   }
   function profileStats(){
@@ -3633,22 +3643,22 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     posts.forEach(post=>{
       const card=document.createElement('article');card.className='komunitas-post-card';card.dataset.docId=post.docId;
       const head=document.createElement('div');head.className='komunitas-post-head';
-      const canOpenProfile=!!post.uid&&post.uid!==currentCommunityUid();
-      if(canOpenProfile){
-        head.style.cursor='pointer';
-        head.title='Klik untuk melihat profil pengguna';
-        head.setAttribute('role','button');
-        head.setAttribute('tabindex','0');
-        const openAuthorProfile=()=>openCommunityUserProfile({uid:post.uid,store:post.store,phone:post.phone,photo:post.photo});
-        head.addEventListener('click',openAuthorProfile);
-        head.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openAuthorProfile();}});
-      }
+      const authorUid=String(post.uid||'').trim();
+      const canOpenProfile=!!authorUid&&authorUid!==currentCommunityUid();
+      const openAuthorProfile=()=>openCommunityUserProfile({uid:authorUid,store:post.store,phone:post.phone,photo:communityProfilePhoto(post)});
       const postAvatar=avatar(communityProfilePhoto(post),false);
-      head.appendChild(postAvatar);
       const meta=document.createElement('div');meta.className='komunitas-post-meta';
       const name=document.createElement('div');name.className='komunitas-post-store';name.textContent=post.store;
-      if(canOpenProfile){name.style.cursor='pointer';name.title='Lihat profil pengguna';}
-      const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.appendChild(meta);
+      if(canOpenProfile){
+        head.classList.add('komunitas-author-clickable');head.title='Klik foto atau nama untuk membuka profil pengguna';
+        postAvatar.classList.add('komunitas-author-trigger');postAvatar.setAttribute('role','button');postAvatar.setAttribute('tabindex','0');postAvatar.setAttribute('aria-label','Buka profil '+post.store);
+        name.classList.add('komunitas-author-trigger');name.setAttribute('role','button');name.setAttribute('tabindex','0');name.setAttribute('aria-label','Buka profil '+post.store);
+        [postAvatar,name].forEach(el=>{
+          el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openAuthorProfile();});
+          el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openAuthorProfile();}});
+        });
+      }
+      const date=document.createElement('div');date.className='komunitas-post-date';date.textContent=dateLabel(post.date);meta.append(name,date);head.append(postAvatar,meta);
       const body=document.createElement('p');body.className='komunitas-post-text';body.textContent=post.text;
       const title=document.createElement('div');title.className='komunitas-comment-title';title.textContent='Tulis Komentar :';
       const comments=document.createElement('div');comments.className='komunitas-comments';
