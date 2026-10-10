@@ -3215,15 +3215,36 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
 #view-komunitas .komunitas-profile-page,
 #view-komunitas .komunitas-bio-page{
   position:absolute!important;
-  inset:48px 0 0 0!important;
+  inset:0!important;
   z-index:25!important;
   display:none!important;
-  overflow-y:auto!important;
-  overflow-x:hidden!important;
+  overflow:hidden!important;
   background:#fff!important;
   box-sizing:border-box!important;
 }
-#view-komunitas .komunitas-content.komunitas-profile-open .komunitas-profile-page,
+/* Profil: header profil dan statistik tetap tepat di bawah header utama;
+   hanya daftar Post/Komentar/Teman yang bergerak saat discroll. */
+#view-komunitas .komunitas-content.komunitas-profile-open .komunitas-profile-page{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+}
+#view-komunitas .komunitas-profile-main,
+#view-komunitas .komunitas-profile-stats{
+  flex:0 0 auto!important;
+  position:relative!important;
+  z-index:2!important;
+  background:#fff!important;
+}
+#view-komunitas .komunitas-profile-tab-content{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+#view-komunitas .komunitas-content.komunitas-profile-open .komunitas-profile-page{display:flex!important;flex-direction:column!important;min-height:0!important}
 #view-komunitas .komunitas-content.komunitas-bio-open .komunitas-bio-page{display:block!important}
 #view-komunitas .komunitas-content.komunitas-profile-open .komunitas-search-wrap,
 #view-komunitas .komunitas-content.komunitas-profile-open .komunitas-feed-heading,
@@ -3643,6 +3664,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     hideCommunityPageSafely('komunitas-notification-page');document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     const profilePage=document.getElementById('komunitas-profile-page');
     if(profilePage){profilePage.scrollTop=0;profilePage.setAttribute('aria-hidden','false');}
+    const profileList=document.getElementById('komunitas-profile-tab-content');if(profileList)profileList.scrollTop=0;
     renderProfile();
     if(communityProfileTarget.realUid)loadCommunityFriends(communityProfileTarget.realUid).then(renderProfile);
     else{communityFriends=[];renderProfile();}
@@ -4029,6 +4051,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     const profilePage=document.getElementById('komunitas-profile-page');
     if(profilePage){profilePage.scrollTop=0;profilePage.setAttribute('aria-hidden','false');}
+    const profileList=document.getElementById('komunitas-profile-tab-content');if(profileList)profileList.scrollTop=0;
     await Promise.all([loadCommunityBio(),loadCommunityFriends()]);renderProfile();
   }
   function updateBioCounter(){
