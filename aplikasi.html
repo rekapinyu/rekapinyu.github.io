@@ -3320,10 +3320,6 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       <button class="komunitas-rail-item komunitas-rail-notif" id="komunitas-rail-notif" type="button" aria-label="Notifikasi komunitas"><span class="komunitas-notif-badge" id="komunitas-notif-badge" hidden>0</span><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notif</span></button>
     </aside>
     <div class="komunitas-content">
-      <div class="komunitas-search-wrap">
-        <input class="komunitas-search-input" id="komunitas-search-input" type="text" placeholder="Search box sticky" autocomplete="off" aria-label="Cari postingan komunitas">
-        <button class="komunitas-search-btn" id="komunitas-search-btn" type="button"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>icon search</span></button>
-      </div>
       <div class="komunitas-feed-heading" style="padding:10px 0 8px;">
         <div style="font-size:17px;font-weight:900;color:#0f172a;">Feed Komunitas</div>
         <div style="margin-top:3px;font-size:11px;font-weight:600;color:#64748b;">Postingan dan komentar dari para pengguna aplikasi.</div>
@@ -3373,7 +3369,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
 <script id="rekapinyu-komunitas-final-js">
 (function(){
   'use strict';
-  const rootId='view-komunitas',listId='komunitas-post-list',postInputId='komunitas-post-input',publishButtonId='komunitas-publish-btn',searchInputId='komunitas-search-input',searchButtonId='komunitas-search-btn';
+  const rootId='view-komunitas',listId='komunitas-post-list',postInputId='komunitas-post-input',publishButtonId='komunitas-publish-btn';
   let unsubscribeCommunity=null;
   let communityDocs=[];
   let listenerStarted=false;
@@ -4197,13 +4193,11 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       }
     }catch(e){console.error('Komentar Komunitas gagal:',e);alert('Komentar gagal disimpan ke Komunitas.');}
   }
-  function applySearch(){searchTerm=String(document.getElementById(searchInputId)?.value||'').trim();render();}
   function init(){
-    const root=document.getElementById(rootId),button=document.getElementById(publishButtonId),input=document.getElementById(postInputId),search=document.getElementById(searchInputId),searchButton=document.getElementById(searchButtonId),notifButton=document.getElementById('komunitas-rail-notif');
-    if(!root||!button||!input||!search||!searchButton)return;
+    const root=document.getElementById(rootId),button=document.getElementById(publishButtonId),input=document.getElementById(postInputId),notifButton=document.getElementById('komunitas-rail-notif');
+    if(!root||!button||!input)return;
     if(root.dataset.communityFirestoreReady==='1')return;root.dataset.communityFirestoreReady='1';
     button.addEventListener('click',savePost);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();savePost();}});
-    searchButton.addEventListener('click',applySearch);search.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applySearch();}});search.addEventListener('input',()=>{searchTerm=String(search.value||'').trim();render();});
     notifButton?.addEventListener('click',openNotifications);
     document.getElementById('komunitas-rail-profile')?.addEventListener('click',()=>{communityProfileTarget=null;openProfile();});
     document.getElementById('komunitas-rail-bio')?.addEventListener('click',openBio);
