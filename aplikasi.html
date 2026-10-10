@@ -3665,10 +3665,35 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const me=String(phone()||'').replace(/\D/g,'');const target=communityProfileTarget;const uid=String(target?.realUid||target?.uid||currentCommunityUid());const targetPhone=String(target?.phone||'').replace(/\D/g,'');
       communityDocs.forEach(p=>(p.comments||[]).forEach(c=>{const commentUid=String(c.UID||c.uid||c.UserId||c.userId||'');const commentPhone=String(c.NomorHp||c.phone||'').replace(/\D/g,'');if(target?((target.realUid&&commentUid===target.realUid)||(targetPhone&&commentPhone===targetPhone)||(!target.realUid&&!targetPhone&&String(c.NamaToko||c.storeName||'').trim()===target.store)):((uid&&commentUid===uid)||(!commentUid&&commentPhone===me)))entries.push({title:String(c.NamaToko||c.storeName||'Toko')+' · '+dateLabel(c.Tanggal),text:String(c.Isi||c.text||''),sub:'Pada postingan: '+p.store+' — '+p.text});}));
     }else{
-      entries=communityFriends.map(f=>({title:f.NamaToko||f.storeName||'Pengguna',text:f.NomorHp||f.phone||'Teman Komunitas'}));
+      entries=communityFriends.map(f=>{
+        const friendUid=String(f.UID||f.uid||'').trim();
+        const savedPhoto=String(f.FotoProfil||f.fotoProfil||f.photo||f.photoURL||'').trim();
+        return {
+          uid:friendUid,
+          photo:savedPhoto||supabaseProfilePhoto(friendUid),
+          title:f.NamaToko||f.storeName||'Pengguna',
+          text:f.NomorHp||f.phone||'Teman Komunitas'
+        };
+      });
     }
     if(!entries.length){const e=document.createElement('div');e.className='komunitas-profile-empty';e.textContent=profileTab==='posts'?'Anda belum memiliki postingan yang dipublikasikan.':profileTab==='comments'?'Anda belum memberikan komentar pada postingan.':'Daftar teman masih kosong.';box.appendChild(e);return;}
-    entries.slice().reverse().forEach(item=>{const card=document.createElement('div');card.className='komunitas-profile-entry';const title=document.createElement('strong');title.textContent=item.title;const body=document.createElement('div');body.textContent=item.text||'';card.append(title,body);if(item.sub){const sub=document.createElement('div');sub.style.cssText='margin-top:6px;color:#64748b;font-size:11px';sub.textContent=item.sub;card.appendChild(sub);}box.appendChild(card);});
+    entries.slice().reverse().forEach(item=>{const card=document.createElement('div');card.className='komunitas-profile-entry';
+      if(profileTab==='friends'){
+        card.style.cssText='display:flex;align-items:center;gap:12px;';
+        const avatarBox=document.createElement('div');
+        avatarBox.style.cssText='width:46px;height:46px;min-width:46px;border-radius:50%;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;';
+        if(item.photo){
+          const img=document.createElement('img');img.src=item.photo;img.alt='Foto profil '+item.title;
+          img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+          img.onerror=()=>{img.remove();const icon=document.createElement('i');icon.className='fa-solid fa-store';avatarBox.appendChild(icon);};
+          avatarBox.appendChild(img);
+        }else{const icon=document.createElement('i');icon.className='fa-solid fa-store';avatarBox.appendChild(icon);}
+        card.appendChild(avatarBox);
+      }
+      const details=document.createElement('div');details.style.cssText='min-width:0;flex:1;';
+      const title=document.createElement('strong');title.textContent=item.title;
+      const body=document.createElement('div');body.textContent=item.text||'';
+      details.append(title,body);card.appendChild(details);if(item.sub){const sub=document.createElement('div');sub.style.cssText='margin-top:6px;color:#64748b;font-size:11px';sub.textContent=item.sub;card.appendChild(sub);}box.appendChild(card);});
   }
   function normalizeCommunityFriend(uid, data, side){
     const isSender=side==='sender';
