@@ -3710,8 +3710,29 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(profilePage){profilePage.scrollTop=0;profilePage.setAttribute('aria-hidden','false');}
     const profileList=document.getElementById('komunitas-profile-tab-content');if(profileList)profileList.scrollTop=0;
     renderProfile();
-    if(communityProfileTarget.realUid)loadCommunityFriends(communityProfileTarget.realUid).then(renderProfile);
-    else{communityFriends=[];renderProfile();}
+    if(communityProfileTarget.realUid){
+      loadCommunityFriends(communityProfileTarget.realUid).then(renderProfile);
+      loadCommunityPublicBio(communityProfileTarget.realUid);
+    }else{communityFriends=[];renderProfile();}
+  }
+  async function loadCommunityPublicBio(uid){
+    const target=communityProfileTarget;
+    const targetUid=String(uid||'').trim();
+    if(!target||!targetUid||String(target.realUid||'')!==targetUid||!ready())return;
+    try{
+      const a=api(),database=db();
+      if(!a||!database)return;
+      const snap=await a.getDoc(a.doc(database,'Komunitas',`Profil_${targetUid}`));
+      if(communityProfileTarget!==target)return;
+      target.bio=snap?.exists?.()?String(snap.data()?.BioPublik||''):'';
+      renderProfile();
+    }catch(e){
+      console.warn('Bio publik pengguna Komunitas gagal dimuat:',e);
+      if(communityProfileTarget===target){
+        target.bio='';
+        renderProfile();
+      }
+    }
   }
   function profileStats(){
     const me=String(phone()||'').replace(/\D/g,'');
