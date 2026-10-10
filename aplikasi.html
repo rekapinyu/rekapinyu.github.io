@@ -3763,7 +3763,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
         };
       });
     }
-    if(!entries.length){const e=document.createElement('div');e.className='komunitas-profile-empty';e.textContent=profileTab==='posts'?'Anda belum memiliki postingan yang dipublikasikan.':profileTab==='comments'?'Anda belum memberikan komentar pada postingan.':'Daftar teman masih kosong.';box.appendChild(e);return;}
+    if(!entries.length){const e=document.createElement('div');e.className='komunitas-profile-empty';e.textContent=profileTab==='posts'?(communityProfileTarget?'Pengguna ini belum memiliki postingan yang dipublikasikan.':'Anda belum memiliki postingan yang dipublikasikan.'):profileTab==='comments'?(communityProfileTarget?'Pengguna ini belum memberikan komentar pada postingan.':'Anda belum memberikan komentar pada postingan.'):'Daftar teman masih kosong.';box.appendChild(e);return;}
     entries.slice().reverse().forEach(item=>{const card=document.createElement('div');card.className='komunitas-profile-entry';
       if(profileTab==='friends'){
         card.style.cssText='display:flex;align-items:center;gap:12px;';
@@ -3796,9 +3796,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const ownUid=currentCommunityUid();
     const uid=String(forUid||ownUid).trim();
     if(!uid||!ready())return;
-    // Dokumen Teman_UID dan relasi yang diterima hanya dibaca untuk akun aktif.
-    // Daftar pertemanan akun lain tidak dibuka dari profil publiknya.
-    if(uid!==ownUid){communityFriends=[];return;}
+    // Baca relasi untuk profil yang sedang dibuka, termasuk profil publik pengguna lain.
     try{
       const a=api(),database=db(),col=a.collection(database,'Komunitas');
       const mySnap=await a.getDoc(a.doc(database,'Komunitas',`Teman_${uid}`));
