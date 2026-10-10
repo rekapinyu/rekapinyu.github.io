@@ -3246,6 +3246,29 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
 }
 #view-komunitas .komunitas-content.komunitas-profile-open .komunitas-profile-page{display:flex!important;flex-direction:column!important;min-height:0!important}
 #view-komunitas .komunitas-content.komunitas-bio-open .komunitas-bio-page{display:block!important}
+/* Halaman Teman Komunitas: kartu kecil dalam grid 4 kolom. */
+#view-komunitas .komunitas-friends-page{display:none;flex:1 1 auto;min-height:0;overflow:auto;background:#fff;padding:18px;box-sizing:border-box}
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-friends-page{display:block!important}
+#view-komunitas .komunitas-friends-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+#view-komunitas .komunitas-friends-title{font-size:18px;font-weight:900;color:#0f172a}
+#view-komunitas .komunitas-friends-tabs{display:flex;gap:7px;flex-wrap:wrap}
+#view-komunitas .komunitas-friends-tab{border:1px solid #dbe3eb;background:#f8fafc;color:#475569;border-radius:9px;padding:8px 12px;font-size:11px;font-weight:800;cursor:pointer}
+#view-komunitas .komunitas-friends-tab.is-active{background:#2563eb;border-color:#2563eb;color:#fff}
+#view-komunitas .komunitas-friends-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#view-komunitas .komunitas-friend-card{min-width:0;min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;padding:12px 7px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;text-align:center;box-sizing:border-box}
+#view-komunitas .komunitas-friend-avatar{width:48px;height:48px;flex:0 0 48px;overflow:hidden;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f1f5f9;color:#94a3b8}
+#view-komunitas .komunitas-friend-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+#view-komunitas .komunitas-friend-name{width:100%;font-size:11px;font-weight:900;color:#0f172a;overflow-wrap:anywhere;line-height:1.25}
+#view-komunitas .komunitas-friend-phone{width:100%;font-size:10px;color:#64748b;overflow-wrap:anywhere;line-height:1.3}
+#view-komunitas .komunitas-friends-empty{grid-column:1/-1;padding:28px 12px;text-align:center;color:#94a3b8;font-size:12px;font-weight:700}
+@media(max-width:700px){#view-komunitas .komunitas-friends-page{padding:12px}#view-komunitas .komunitas-friends-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}#view-komunitas .komunitas-friend-card{min-height:118px;padding:9px 4px}#view-komunitas .komunitas-friend-avatar{width:40px;height:40px;flex-basis:40px}#view-komunitas .komunitas-friend-name{font-size:10px}#view-komunitas .komunitas-friend-phone{font-size:9px}}
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-search-wrap,
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-feed-heading,
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-post-list,
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-post-box,
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-profile-page,
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-bio-page,
+#view-komunitas .komunitas-content.komunitas-friends-open .komunitas-notif-page{display:none!important}
 #view-komunitas .komunitas-content.komunitas-profile-open .komunitas-search-wrap,
 #view-komunitas .komunitas-content.komunitas-profile-open .komunitas-feed-heading,
 #view-komunitas .komunitas-content.komunitas-profile-open .komunitas-post-list,
@@ -3383,6 +3406,17 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
           <textarea class="komunitas-bio-input" id="komunitas-bio-input" maxlength="160" placeholder="Tulis bio profil Anda..."></textarea>
           <div class="komunitas-bio-foot"><span id="komunitas-bio-counter">0/160</span><button class="komunitas-bio-save" id="komunitas-bio-save" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i><span>Simpan Bio</span></button></div>
         </div>
+      </div>
+      <div class="komunitas-friends-page" id="komunitas-friends-page" aria-hidden="true">
+        <div class="komunitas-friends-head">
+          <div class="komunitas-friends-title" id="komunitas-friends-count">Teman (0)</div>
+          <div class="komunitas-friends-tabs" role="tablist" aria-label="Daftar relasi teman">
+            <button type="button" class="komunitas-friends-tab is-active" data-community-friends-tab="friends">Teman</button>
+            <button type="button" class="komunitas-friends-tab" data-community-friends-tab="following">Mengikuti</button>
+            <button type="button" class="komunitas-friends-tab" data-community-friends-tab="followers">Mengikuti Anda</button>
+          </div>
+        </div>
+        <div class="komunitas-friends-grid" id="komunitas-friends-grid" aria-live="polite"></div>
       </div>
       <div class="komunitas-notif-page" id="komunitas-notification-page" aria-hidden="true">
         <div class="komunitas-notif-page-head">
@@ -3554,7 +3588,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     const content=communityContent();
     const list=document.getElementById(listId);
     if(!post||!content||!list)return;
-    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
+    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open','komunitas-friends-open');
     content.classList.add('komunitas-single-post-open');
     hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
@@ -3580,13 +3614,16 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
   function closeCommunityPages(){
     const content=communityContent();if(!content)return;
-    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
+    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open','komunitas-friends-open');
     hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     render();
   }
   let communityFriends=[];
+  let communityFollowing=[];
+  let communityFollowers=[];
+  let communityFriendsTab='friends';
   let incomingFriendRequests=[];
   let outgoingFriendRequests=[];
   let unsubscribeIncomingFriendRequests=null;
@@ -3667,7 +3704,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     if(isOwnCommunityUser(targetUid)){communityProfileTarget=null;openProfile();return;}
     communityProfileTarget={uid:targetUid,realUid:String(user.realUid||(!String(targetUid).startsWith('legacy:')?targetUid:'')),sourceDocId:String(user.sourceDocId||''),legacy:!!user.legacy||String(targetUid).startsWith('legacy:'),store:String(user.store||'Pengguna'),phone:String(user.phone||''),photo:String(user.photo||''),bio:String(user.bio||'')};
     const content=communityContent();if(!content)return;
-    content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
+    content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open','komunitas-friends-open');content.classList.add('komunitas-profile-open');
     hideCommunityPageSafely('komunitas-notification-page');document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     const profilePage=document.getElementById('komunitas-profile-page');
     if(profilePage){profilePage.scrollTop=0;profilePage.setAttribute('aria-hidden','false');}
@@ -3745,6 +3782,8 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
       const a=api(),database=db(),col=a.collection(database,'Komunitas');
       const mySnap=await a.getDoc(a.doc(database,'Komunitas',`Teman_${uid}`));
       const map=new Map();
+      const followingMap=new Map();
+      const followersMap=new Map();
       const oldFriends=mySnap?.exists?.()&&Array.isArray(mySnap.data()?.DaftarTeman)?mySnap.data().DaftarTeman:[];
       oldFriends.forEach(f=>{
         const friendUid=String(f?.UID||f?.uid||'').trim();
@@ -3758,15 +3797,25 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
         const data=docSnap.data()||{};
         if(data.Jenis!=='PermintaanTeman'||data.Status!=='diterima')return;
         const friendUid=String(data.PenerimaUID||'').trim();
-        if(friendUid&&friendUid!==uid)map.set(friendUid,normalizeCommunityFriend(friendUid,data,'sender'));
+        if(friendUid&&friendUid!==uid){
+          const friend=normalizeCommunityFriend(friendUid,data,'sender');
+          map.set(friendUid,friend);
+          followingMap.set(friendUid,friend);
+        }
       });
       receivedSnap.forEach(docSnap=>{
         const data=docSnap.data()||{};
         if(data.Jenis!=='PermintaanTeman'||data.Status!=='diterima')return;
         const friendUid=String(data.PengirimUID||'').trim();
-        if(friendUid&&friendUid!==uid)map.set(friendUid,normalizeCommunityFriend(friendUid,data,'recipient'));
+        if(friendUid&&friendUid!==uid){
+          const friend=normalizeCommunityFriend(friendUid,data,'recipient');
+          map.set(friendUid,friend);
+          followersMap.set(friendUid,friend);
+        }
       });
       communityFriends=Array.from(map.values());
+      communityFollowing=Array.from(followingMap.values());
+      communityFollowers=Array.from(followersMap.values());
     }catch(e){console.warn('Daftar teman Komunitas gagal dimuat:',e);}
   }
   function refreshCommunityFriendNotifications(){
@@ -4050,10 +4099,52 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     }catch(e){console.warn('BioPublik komunitas tidak dapat dimuat:',e)}
     renderProfile();
   }
+  function renderCommunityFriends(){
+    const grid=document.getElementById('komunitas-friends-grid');
+    const count=document.getElementById('komunitas-friends-count');
+    if(!grid||!count)return;
+    const entries=communityFriendsTab==='following'?communityFollowing:communityFriendsTab==='followers'?communityFollowers:communityFriends;
+    count.textContent=`Teman (${communityFriends.length})`;
+    grid.replaceChildren();
+    if(!entries.length){
+      const empty=document.createElement('div');empty.className='komunitas-friends-empty';
+      empty.textContent=communityFriendsTab==='following'?'Belum mengikuti pengguna lain.':communityFriendsTab==='followers'?'Belum ada pengguna yang mengikuti Anda.':'Belum ada teman. Tambahkan teman melalui profil pengguna di Feed Komunitas.';
+      grid.appendChild(empty);return;
+    }
+    entries.forEach(friend=>{
+      const uid=String(friend.UID||friend.uid||'').trim();
+      const name=String(friend.NamaToko||friend.storeName||friend.namaToko||'Pengguna');
+      const phoneNo=String(friend.NomorHp||friend.phone||friend.nomorHp||'');
+      const photo=String(friend.FotoProfil||friend.fotoProfil||friend.photo||friend.photoURL||'').trim()||(uid?supabaseProfilePhoto(uid):'');
+      const card=document.createElement('div');card.className='komunitas-friend-card';
+      const avatar=document.createElement('div');avatar.className='komunitas-friend-avatar';
+      if(photo){
+        const img=document.createElement('img');img.src=photo;img.alt='Foto profil '+name;
+        img.onerror=()=>{img.remove();const icon=document.createElement('i');icon.className='fa-solid fa-store';avatar.appendChild(icon);};
+        avatar.appendChild(img);
+      }else{const icon=document.createElement('i');icon.className='fa-solid fa-store';avatar.appendChild(icon);}
+      const title=document.createElement('div');title.className='komunitas-friend-name';title.textContent=name;
+      const phoneEl=document.createElement('div');phoneEl.className='komunitas-friend-phone';phoneEl.textContent=phoneNo||'Nomor HP tidak tersedia';
+      card.append(avatar,title,phoneEl);grid.appendChild(card);
+    });
+  }
+  async function openCommunityFriends(){
+    const content=communityContent();const page=document.getElementById('komunitas-friends-page');
+    if(!content||!page)return;
+    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open','komunitas-friends-open');
+    content.classList.add('komunitas-friends-open');
+    hideCommunityPageSafely('komunitas-notification-page');
+    document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
+    document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
+    page.setAttribute('aria-hidden','false');page.scrollTop=0;
+    await loadCommunityFriends();
+    renderCommunityFriends();
+  }
+
   async function openProfile(){
     const content=communityContent();if(!content)return;
     communityProfileTarget=null;
-    content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open');content.classList.add('komunitas-profile-open');
+    content.classList.remove('komunitas-notif-open','komunitas-bio-open','komunitas-single-post-open','komunitas-friends-open');content.classList.add('komunitas-profile-open');
     hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     const profilePage=document.getElementById('komunitas-profile-page');
@@ -4067,7 +4158,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   }
   async function openBio(){
     const content=communityContent();if(!content)return;
-    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-single-post-open');content.classList.add('komunitas-bio-open');
+    content.classList.remove('komunitas-notif-open','komunitas-profile-open','komunitas-single-post-open','komunitas-friends-open');content.classList.add('komunitas-bio-open');
     hideCommunityPageSafely('komunitas-notification-page');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','false');
@@ -4094,7 +4185,7 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
   function openNotifications(){
     const page=document.getElementById('komunitas-notification-page');if(!page)return;
     const content=page.closest('.komunitas-content');if(!content)return;
-    content.classList.remove('komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open');
+    content.classList.remove('komunitas-profile-open','komunitas-bio-open','komunitas-single-post-open','komunitas-friends-open');
     document.getElementById('komunitas-profile-page')?.setAttribute('aria-hidden','true');
     document.getElementById('komunitas-bio-page')?.setAttribute('aria-hidden','true');
     content.classList.add('komunitas-notif-open');page.setAttribute('aria-hidden','false');
@@ -4232,6 +4323,12 @@ main > .max-w-4xl:has(#view-komunitas:not(.hidden)){
     notifButton?.addEventListener('click',openNotifications);
     document.getElementById('komunitas-rail-profile')?.addEventListener('click',()=>{communityProfileTarget=null;openProfile();});
     document.getElementById('komunitas-rail-bio')?.addEventListener('click',openBio);
+    document.getElementById('komunitas-rail-friends')?.addEventListener('click',openCommunityFriends);
+    document.querySelectorAll('#komunitas-friends-page [data-community-friends-tab]').forEach(btn=>btn.addEventListener('click',()=>{
+      communityFriendsTab=btn.dataset.communityFriendsTab||'friends';
+      document.querySelectorAll('#komunitas-friends-page [data-community-friends-tab]').forEach(tab=>tab.classList.toggle('is-active',tab===btn));
+      renderCommunityFriends();
+    }));
     document.getElementById('komunitas-add-friend-btn')?.addEventListener('click',()=>addCommunityFriend(communityProfileTarget?.realUid||communityProfileTarget?.uid));
     document.querySelectorAll('#komunitas-profile-page [data-profile-tab]').forEach(btn=>btn.addEventListener('click',()=>{profileTab=btn.dataset.profileTab||'posts';renderProfileTab();}));
     document.getElementById('komunitas-rail-home')?.addEventListener('click',()=>{closeCommunityPages();render();});
